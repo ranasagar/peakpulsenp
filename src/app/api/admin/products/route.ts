@@ -59,9 +59,12 @@ export async function POST(request: NextRequest) {
         if (existingProductIndex > -1) {
           // Update existing product
           products[existingProductIndex] = {
-             ...products[existingProductIndex], // Keep existing fields not explicitly sent
-             ...productPayload, // Overwrite with new data
-             updatedAt: new Date().toISOString()
+             ...products[existingProductIndex], 
+             ...productPayload, 
+             updatedAt: new Date().toISOString(),
+             // Ensure customizationConfig and availablePrintDesigns are properly merged or replaced
+             customizationConfig: productPayload.customizationConfig !== undefined ? productPayload.customizationConfig : products[existingProductIndex].customizationConfig,
+             availablePrintDesigns: productPayload.availablePrintDesigns !== undefined ? productPayload.availablePrintDesigns : products[existingProductIndex].availablePrintDesigns,
           };
         } else {
           // Add new product
@@ -73,11 +76,9 @@ export async function POST(request: NextRequest) {
             updatedAt: new Date().toISOString(),
             images: productPayload.images || [],
             categories: productPayload.categories || [],
-            // Ensure variants, costPrice, and stock are included
             variants: productPayload.variants || undefined,
             costPrice: productPayload.costPrice,
             stock: productPayload.stock,
-            // Default other optional fields if not provided
             compareAtPrice: productPayload.compareAtPrice,
             shortDescription: productPayload.shortDescription,
             fabricDetails: productPayload.fabricDetails,
@@ -88,6 +89,8 @@ export async function POST(request: NextRequest) {
             averageRating: productPayload.averageRating || 0,
             reviewCount: productPayload.reviewCount || 0,
             isFeatured: productPayload.isFeatured || false,
+            availablePrintDesigns: productPayload.availablePrintDesigns || [],
+            customizationConfig: productPayload.customizationConfig || { enabled: false },
           };
           products.push(newProduct);
         }

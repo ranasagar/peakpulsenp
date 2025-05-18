@@ -8,33 +8,29 @@ import path from 'path';
 
 const ordersFilePath = path.join(process.cwd(), 'src', 'data', 'orders.json');
 
-// Helper function to read orders
 async function getOrders(): Promise<Order[]> {
   try {
     const jsonData = await fs.readFile(ordersFilePath, 'utf-8');
     return JSON.parse(jsonData);
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-      return []; // Return empty array if file doesn't exist
+      return []; 
     }
     console.error('Error reading orders.json:', error);
-    throw error; // Re-throw other errors
+    throw error; 
   }
 }
 
-// Helper function to save orders
 async function saveOrders(orders: Order[]): Promise<void> {
   await fs.writeFile(ordersFilePath, JSON.stringify(orders, null, 2), 'utf-8');
 }
 
-
-// Luhn algorithm check function
 function luhnCheck(val: string): boolean {
   let sum = 0;
   let shouldDouble = false;
-  const numStr = val.replace(/\D/g, ""); // Remove non-digits
+  const numStr = val.replace(/\D/g, ""); 
 
-  if (numStr.length < 13 || numStr.length > 19) return false; // Basic length check
+  if (numStr.length < 13 || numStr.length > 19) return false;
 
   for (let i = numStr.length - 1; i >= 0; i--) {
     let digit = parseInt(numStr.charAt(i));
@@ -67,7 +63,7 @@ interface ShippingDetails {
 }
 
 interface CreateOrderPayload {
-  cartItems: CartItem[];
+  cartItems: CartItem[]; // CartItem now includes optional 'customization'
   shippingDetails: ShippingDetails;
   orderSubtotal: number;
   shippingCost: number;
@@ -89,11 +85,10 @@ export async function POST(request: NextRequest) {
     let orderStatus: OrderStatus = 'Processing';
 
 
-    // Payment Method Specific Logic (Mock)
     if (paymentMethod === 'cod') {
       responseMessage += ' Payment: Cash on Delivery. Our team will contact you regarding a potential 10% advance payment for order confirmation.';
       responseTitle = "COD Order Placed (Mock)";
-      paymentStatus = 'Pending'; // COD is paid on delivery
+      paymentStatus = 'Pending'; 
       console.log(`Mock COD Order ${mockOrderId}: Potential 10% hold procedure. Shipping to ${country}.`);
     } else if (paymentMethod === 'card_international') {
       if (!cardNumber || !expiryDate || !cvc || !cardholderName) {
@@ -120,12 +115,12 @@ export async function POST(request: NextRequest) {
 
       responseMessage += ` Payment: International Card (ending ${cardNumber.slice(-4)}). Shipping fee: रू${shippingCost.toLocaleString()}.`;
       responseTitle = "International Order Placed (Mock)";
-      paymentStatus = 'Paid'; // Assume payment successful for mock
+      paymentStatus = 'Paid'; 
       console.log(`Mock Int'l Card Order ${mockOrderId}: Card (ending ${cardNumber.slice(-4)}) would be processed. Total: रू${orderTotal}. Shipping to ${shippingDetails.internationalDestinationCountry}.`);
     } else if (paymentMethod === 'card_nepal') {
       responseMessage += ' Payment: Nepal Card. You will be redirected to a secure local payment gateway to complete your payment.';
       responseTitle = "Order Pending (Mock)";
-      paymentStatus = 'Pending'; // User needs to complete payment on gateway
+      paymentStatus = 'Pending'; 
       console.log(`Mock Nepal Card Order ${mockOrderId}: Redirecting to local payment gateway for card_nepal.`);
     } else if (['esewa', 'khalti', 'imepay', 'connectips', 'qr', 'banktransfer'].includes(paymentMethod)) {
       responseMessage += ` Payment: ${paymentMethod}. You will be prompted to complete your payment via the ${paymentMethod} interface.`;
@@ -138,8 +133,8 @@ export async function POST(request: NextRequest) {
 
     const newOrder: Order = {
       id: mockOrderId,
-      userId: 'mock-user-id', // In a real app, get this from authenticated session
-      items: cartItems,
+      userId: 'mock-user-id', 
+      items: cartItems, // cartItems now includes customization if present
       totalAmount: orderTotal,
       currency: 'NPR',
       status: orderStatus,
@@ -157,10 +152,8 @@ export async function POST(request: NextRequest) {
       updatedAt: new Date().toISOString(),
     };
 
-    // This file writing approach is NOT suitable for production serverless environments
     if (process.env.NODE_ENV === 'production' && process.env.VERCEL) {
       console.warn("File system write attempts for orders are disabled in Vercel production environment for this demo API.");
-      // Do not attempt to write if in Vercel production, just return success for demo
     } else {
       const allOrders = await getOrders();
       allOrders.push(newOrder);

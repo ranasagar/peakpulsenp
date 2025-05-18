@@ -1,28 +1,26 @@
 
 "use client";
 
-import React, { useState, useEffect } from 'react'; // Ensure React is imported for React.use
+import React, { useState, useEffect, useMemo } from 'react';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Star, Plus, Minus, ShoppingCart, Check, ShieldCheck, Package, Zap, Loader2 } from 'lucide-react';
+import { Star, Plus, Minus, ShoppingCart, Check, ShieldCheck, Package, Zap, Loader2, PaintBrush, Edit2, Info } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
-import type { Product, ProductImage, BreadcrumbItem, ProductVariant } from '@/types';
+import type { Product, ProductImage, BreadcrumbItem, ProductVariant, CartItemCustomization, PrintDesign } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { Breadcrumbs } from '@/components/navigation/breadcrumbs';
 import { ProductCard } from '@/components/product/product-card';
 import { AspectRatio } from '@/components/ui/aspect-ratio';
 import { useCart } from '@/context/cart-context';
+import { Textarea } from '@/components/ui/textarea';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 
-// Update the type of the params prop to reflect it can be a Promise
-export default function ProductDetailPage({ params: paramsPromise }: { params: Promise<{ slug: string }> | { slug: string } }) {
-  // Unwrap the params prop using React.use()
-  // The 'as Promise<{ slug: string }>' cast assumes the error message is correct and it's always a Promise in this context.
-  // If it could also be a plain object, more sophisticated type checking might be needed, but React.use handles promises.
+export default function ProductDetailPage({ params: paramsPromise }: { params: Promise<{ slug: string }> | { slug:string } }) {
   const params = React.use(paramsPromise as Promise<{ slug: string }>);
   
   const { toast } = useToast();
@@ -36,40 +34,53 @@ export default function ProductDetailPage({ params: paramsPromise }: { params: P
   const [quantity, setQuantity] = useState(1);
   const [selectedVariantId, setSelectedVariantId] = useState<string | undefined>(undefined);
 
+  // State for customization
+  const [customizationType, setCustomizationType] = useState<'predefined' | 'custom' | null>(null);
+  const [selectedPredefinedDesign, setSelectedPredefinedDesign] = useState<PrintDesign | null>(null);
+  const [customDesignDescription, setCustomDesignDescription] = useState('');
+  const [customInstructions, setCustomInstructions] = useState('');
+
+
   useEffect(() => {
     const fetchProductData = async () => {
       setIsLoading(true);
       try {
-        const response = await fetch('/api/products'); // Fetch all products
+        const response = await fetch('/api/products'); 
         if (!response.ok) {
           throw new Error('Failed to fetch products');
         }
         const allProducts: Product[] = await response.json();
-        // Now params.slug refers to the resolved slug
         const currentProduct = allProducts.find(p => p.slug === params.slug);
 
         if (currentProduct) {
           setProduct(currentProduct);
           setSelectedImage(currentProduct.images[0] || null);
           
-          // Select first available variant by default
           if (currentProduct.variants && currentProduct.variants.length > 0) {
             const firstAvailableVariant = currentProduct.variants.find(v => v.stock > 0);
             if (firstAvailableVariant) {
               setSelectedVariantId(firstAvailableVariant.id);
+            } else if (currentProduct.variants.length > 0) {
+              setSelectedVariantId(currentProduct.variants[0].id); // Default to first if all out of stock
+            }
+          }
+           // Default customization type if enabled
+          if (currentProduct.customizationConfig?.enabled) {
+            if (currentProduct.customizationConfig.allowPredefinedDesigns && currentProduct.availablePrintDesigns && currentProduct.availablePrintDesigns.length > 0) {
+              setCustomizationType('predefined');
+            } else if (currentProduct.customizationConfig.allowCustomDescription) {
+              setCustomizationType('custom');
             }
           }
           
-          // Filter related products (e.g., from the same category, excluding current product)
           const related = allProducts.filter(
             p => p.id !== currentProduct.id && 
                  p.categories.some(cat => currentProduct.categories.map(ccat => ccat.slug).includes(cat.slug))
-          ).slice(0, 4); // Show up to 4 related products
+          ).slice(0, 4); 
           setRelatedProducts(related);
 
         } else {
           toast({ title: "Error", description: "Product not found.", variant: "destructive" });
-          // Optionally redirect: router.push('/404');
         }
       } catch (error) {
         console.error("Error fetching product data:", error);
@@ -79,15 +90,24 @@ export default function ProductDetailPage({ params: paramsPromise }: { params: P
       }
     };
 
-    // params will be the resolved object here
     if (params && params.slug) {
       fetchProductData();
     }
-  }, [params?.slug, toast]); // Use params.slug (from resolved params) in dependency array
+  }, [params?.slug, toast]); 
   
   
   const selectedVariant = product?.variants?.find(v => v.id === selectedVariantId);
-  const isOutOfStock = selectedVariant ? selectedVariant.stock <= 0 : (product?.stock !== undefined && product.stock <= 0 && (!product?.variants || product.variants.length === 0));
+  const displayPrice = selectedVariant?.price ?? product?.price ?? 0;
+  const displayCompareAtPrice = selectedVariant?.costPrice !== undefined // Assuming costPrice implies a specific variant price structure
+    ? undefined // If variant has its own price, don't show product-level compareAtPrice
+    : product?.compareAtPrice;
+
+
+  const isOutOfStock = useMemo(() => {
+    if (selectedVariant) return selectedVariant.stock <= 0;
+    if (product?.variants && product.variants.length > 0 && !selectedVariant) return true; // Variant product but no variant selected
+    return (product?.stock !== undefined && product.stock <= 0 && (!product?.variants || product.variants.length === 0));
+  }, [product, selectedVariant]);
 
 
   const handleAddToCart = () => {
@@ -100,8 +120,33 @@ export default function ProductDetailPage({ params: paramsPromise }: { params: P
         toast({ title: "Select Variant", description: `Please select a ${product.variants[0]?.name || 'variant'}.`, variant: "destructive" });
         return;
     }
+
+    let cartCustomization: CartItemCustomization | undefined = undefined;
+    if (product.customizationConfig?.enabled && customizationType) {
+      if (customizationType === 'predefined' && selectedPredefinedDesign) {
+        cartCustomization = {
+          type: 'predefined',
+          predefinedDesign: {
+            id: selectedPredefinedDesign.id,
+            name: selectedPredefinedDesign.name,
+            imageUrl: selectedPredefinedDesign.imageUrl,
+          },
+          instructions: customInstructions || undefined,
+        };
+      } else if (customizationType === 'custom' && (customDesignDescription || customInstructions)) {
+        if (!customDesignDescription && product.customizationConfig.allowCustomDescription) {
+             toast({ title: "Custom Design", description: "Please describe your custom design idea.", variant: "default" });
+             return;
+        }
+        cartCustomization = {
+          type: 'custom',
+          customDescription: customDesignDescription || undefined,
+          instructions: customInstructions || undefined,
+        };
+      }
+    }
     
-    addToCartContext(product, quantity, selectedVariant);
+    addToCartContext(product, quantity, selectedVariant, cartCustomization);
   };
 
 
@@ -124,7 +169,6 @@ export default function ProductDetailPage({ params: paramsPromise }: { params: P
     );
   }
   
-  // params.slug will be from the resolved params object
   const breadcrumbs: BreadcrumbItem[] = [
     { name: 'Home', href: '/' },
     { name: 'Shop', href: '/products' },
@@ -139,8 +183,7 @@ export default function ProductDetailPage({ params: paramsPromise }: { params: P
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-start">
-        {/* Image Gallery */}
-        <div className="lg:sticky lg:top-[calc(theme(spacing.20)_+_1rem)] z-10 bg-background p-1 rounded-lg shadow-sm"> {/* Adjusted top for sticky header */}
+        <div className="lg:sticky lg:top-[calc(theme(spacing.20)_-_1rem)] p-1 rounded-lg shadow-sm bg-background z-10">
           <div className="mb-4">
              <AspectRatio ratio={4/5} className="bg-muted rounded-lg overflow-hidden shadow-lg">
                {selectedImage && (
@@ -171,7 +214,6 @@ export default function ProductDetailPage({ params: paramsPromise }: { params: P
           </div>
         </div>
 
-        {/* Product Information */}
         <div>
           {product.categories[0] && <span className="text-sm text-primary font-medium uppercase tracking-wider">{product.categories[0].name}</span>}
           <h1 className="text-4xl md:text-5xl font-bold text-foreground mt-2 mb-4">{product.name}</h1>
@@ -186,18 +228,17 @@ export default function ProductDetailPage({ params: paramsPromise }: { params: P
           </div>
 
           <p className="text-3xl font-semibold text-primary mb-3">
-            रू{selectedVariant ? selectedVariant.price.toLocaleString() : product.price.toLocaleString()}
-            {product.compareAtPrice && (
+            रू{displayPrice.toLocaleString()}
+            {displayCompareAtPrice && (
               <span className="ml-3 text-xl text-muted-foreground line-through">
-                रू{product.compareAtPrice.toLocaleString()}
+                रू{displayCompareAtPrice.toLocaleString()}
               </span>
             )}
           </p>
-          {product.compareAtPrice && product.compareAtPrice > product.price && <Badge variant="destructive" className="mb-5 text-sm py-1 px-2">SALE</Badge>}
+          {displayCompareAtPrice && displayCompareAtPrice > displayPrice && <Badge variant="destructive" className="mb-5 text-sm py-1 px-2">SALE</Badge>}
           
           <p className="text-lg text-muted-foreground mb-8 leading-relaxed">{product.shortDescription}</p>
 
-          {/* Variants (e.g., Size) */}
           {product.variants && product.variants.length > 0 && (
             <div className="mb-8">
               <h3 className="text-md font-semibold text-foreground mb-3">
@@ -238,7 +279,93 @@ export default function ProductDetailPage({ params: paramsPromise }: { params: P
             </div>
           )}
 
-          {/* Quantity Selector and Add to Cart */}
+          {/* Customization Section */}
+          {product.customizationConfig?.enabled && (
+            <Card className="mb-8 shadow-md border-primary/20">
+              <CardHeader className="pb-4">
+                <CardTitle className="text-xl flex items-center"><PaintBrush className="mr-2 h-5 w-5 text-primary"/>Customize Your Product</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Tabs value={customizationType || undefined} onValueChange={(value) => setCustomizationType(value as 'predefined' | 'custom' | null)}>
+                  <TabsList className="grid w-full grid-cols-2 mb-4">
+                    {product.customizationConfig.allowPredefinedDesigns && product.availablePrintDesigns && product.availablePrintDesigns.length > 0 && (
+                        <TabsTrigger value="predefined">Use Peak Pulse Design</TabsTrigger>
+                    )}
+                    {product.customizationConfig.allowCustomDescription && (
+                        <TabsTrigger value="custom">Describe Your Own</TabsTrigger>
+                    )}
+                  </TabsList>
+
+                  {product.customizationConfig.allowPredefinedDesigns && product.availablePrintDesigns && product.availablePrintDesigns.length > 0 && (
+                    <TabsContent value="predefined">
+                        <Label className="text-md font-semibold text-foreground mb-2 block">
+                            {product.customizationConfig.predefinedDesignsLabel || 'Choose a Signature Design'}
+                        </Label>
+                        <RadioGroup 
+                            value={selectedPredefinedDesign?.id} 
+                            onValueChange={(id) => setSelectedPredefinedDesign(product.availablePrintDesigns?.find(d => d.id === id) || null)}
+                            className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4"
+                        >
+                            {product.availablePrintDesigns.map(design => (
+                                <Label 
+                                    key={design.id} 
+                                    htmlFor={`design-${design.id}`}
+                                    className={`border rounded-md p-2 cursor-pointer hover:border-primary transition-all flex flex-col items-center space-y-2
+                                        ${selectedPredefinedDesign?.id === design.id ? 'border-primary ring-2 ring-primary' : 'border-border'}`}
+                                >
+                                    <RadioGroupItem value={design.id} id={`design-${design.id}`} className="sr-only" />
+                                    <AspectRatio ratio={1/1} className="w-20 h-20 bg-muted rounded overflow-hidden">
+                                      <Image src={design.imageUrl} alt={design.name} layout="fill" objectFit="contain" data-ai-hint={design.dataAiHint || "design graphic"}/>
+                                    </AspectRatio>
+                                    <span className="text-xs text-center font-medium">{design.name}</span>
+                                </Label>
+                            ))}
+                        </RadioGroup>
+                    </TabsContent>
+                  )}
+                  
+                  {product.customizationConfig.allowCustomDescription && (
+                     <TabsContent value="custom">
+                        <FormFieldItem>
+                            <FormLabel className="text-md font-semibold text-foreground mb-2 block">
+                                {product.customizationConfig.customDescriptionLabel || 'Describe Your Design Idea'}
+                            </FormLabel>
+                            <FormControl>
+                                <Textarea 
+                                    placeholder="e.g., 'A silhouette of a mountain range with a rising sun', or 'The text Peak Pulse in Nepali script'" 
+                                    value={customDesignDescription} 
+                                    onChange={(e) => setCustomDesignDescription(e.target.value)}
+                                    rows={3}
+                                />
+                            </FormControl>
+                        </FormFieldItem>
+                    </TabsContent>
+                  )}
+                </Tabs>
+                
+                {product.customizationConfig.allowInstructions && (customizationType === 'predefined' || customizationType === 'custom') && (
+                    <div className="mt-4">
+                         <FormFieldItem>
+                             <FormLabel className="text-md font-semibold text-foreground mb-2 block">
+                                {product.customizationConfig.instructionsLabel || 'Specific Instructions (Placement, Colors, etc.)'}
+                            </FormLabel>
+                            <FormControl>
+                                <Textarea 
+                                    placeholder="e.g., 'Place design on the back, centered', or 'Use gold thread for the script'" 
+                                    value={customInstructions}
+                                    onChange={(e) => setCustomInstructions(e.target.value)}
+                                    rows={3} 
+                                />
+                            </FormControl>
+                        </FormFieldItem>
+                    </div>
+                )}
+                 {customizationType && <p className="text-xs text-muted-foreground mt-3 flex items-center"><Info className="h-3 w-3 mr-1.5"/>Customized items may have longer processing times and might be non-returnable. Check policy.</p>}
+              </CardContent>
+            </Card>
+          )}
+
+
           <div className="flex flex-col sm:flex-row gap-4 mb-8">
             <div className="flex items-center border rounded-md h-12">
               <Button variant="ghost" size="icon" onClick={() => setQuantity(q => Math.max(1, q - 1))} className="h-full rounded-r-none" aria-label="Decrease quantity">
@@ -253,7 +380,6 @@ export default function ProductDetailPage({ params: paramsPromise }: { params: P
               <ShoppingCart className="mr-2 h-5 w-5" /> {isOutOfStock ? 'Out of Stock' : 'Add to Cart'}
             </Button>
           </div>
-           {/* Trust Badges/USP */}
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm text-muted-foreground mb-8">
             <div className="flex items-center"><ShieldCheck className="h-5 w-5 mr-2 text-green-500"/>Secure Checkout</div>
             <div className="flex items-center"><Package className="h-5 w-5 mr-2 text-blue-500"/>Ethically Sourced</div>
@@ -261,7 +387,6 @@ export default function ProductDetailPage({ params: paramsPromise }: { params: P
           </div>
 
 
-          {/* Accordion for Details */}
           <Accordion type="single" collapsible defaultValue="description" className="w-full">
             <AccordionItem value="description">
               <AccordionTrigger className="text-lg font-semibold hover:no-underline">Product Description</AccordionTrigger>
@@ -295,7 +420,6 @@ export default function ProductDetailPage({ params: paramsPromise }: { params: P
         </div>
       </div>
       
-      {/* Related Products Section */}
       {relatedProducts.length > 0 && (
         <>
             <Separator className="my-16" />
@@ -313,3 +437,7 @@ export default function ProductDetailPage({ params: paramsPromise }: { params: P
     </div>
   );
 }
+
+// Helper component for FormItem and FormControl to avoid prop drilling if not using RHF context directly here
+const FormFieldItem = ({ children }: { children: React.ReactNode }) => <div className="mb-4">{children}</div>;
+const FormControl = ({ children }: { children: React.ReactNode }) => <div>{children}</div>;

@@ -1,7 +1,7 @@
 
 "use client";
 
-import type { Product, ProductVariant, CartItem, CartContextType } from '@/types';
+import type { Product, ProductVariant, CartItem, CartContextType, CartItemCustomization } from '@/types';
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -11,10 +11,9 @@ const CART_STORAGE_KEY = 'peakPulseCart';
 
 export const CartProvider = ({ children }: { children: ReactNode }) => {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
-  const [isCartLoading, setIsCartLoading] = useState(true); // To handle initial load from localStorage
+  const [isCartLoading, setIsCartLoading] = useState(true); 
   const { toast } = useToast();
 
-  // Load cart from localStorage on initial mount
   useEffect(() => {
     setIsCartLoading(true);
     try {
@@ -29,7 +28,6 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     setIsCartLoading(false);
   }, []);
 
-  // Save cart to localStorage whenever it changes
   useEffect(() => {
     if (!isCartLoading) { 
       try {
@@ -40,10 +38,27 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [cartItems, isCartLoading]);
 
-  const addToCart = useCallback((product: Product, quantity: number, selectedVariant?: ProductVariant) => {
+  const addToCart = useCallback((
+    product: Product, 
+    quantity: number, 
+    selectedVariant?: ProductVariant,
+    customization?: CartItemCustomization 
+  ) => {
     setCartItems(prevItems => {
-      const cartItemId = selectedVariant ? `${product.id}-${selectedVariant.id}` : product.id;
-      const existingItem = prevItems.find(item => item.id === cartItemId);
+      const baseItemId = selectedVariant ? `${product.id}-${selectedVariant.id}` : product.id;
+      // If there's customization, always treat as a new item for simplicity in this iteration.
+      // Otherwise, check if an identical (non-customized or same customization) item exists.
+      // For true merging of identical customizations, a deep comparison of the customization object would be needed.
+      // Here, if any customization exists, we make the ID unique with a timestamp to ensure it's a new line item.
+      
+      const cartItemId = customization 
+        ? `${baseItemId}-${Date.now()}` // Ensures uniqueness for customized items
+        : baseItemId;
+
+      const existingItemIndex = customization 
+        ? -1 // Don't merge customized items automatically by simple ID
+        : prevItems.findIndex(item => item.id === cartItemId && !item.customization); // Only merge if existing is not customized
+
 
       const itemPrice = selectedVariant?.price || product.price;
       const itemName = selectedVariant ? `${product.name} (${selectedVariant.value})` : product.name;
@@ -51,13 +66,14 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         ? product.images.find(img => img.id === selectedVariant.imageId)?.url
         : product.images[0]?.url;
 
-      if (existingItem) {
-        return prevItems.map(item =>
-          item.id === cartItemId
+      if (existingItemIndex > -1 && !customization) { // Only merge if no new customization and existing has no customization
+        return prevItems.map((item, index) =>
+          index === existingItemIndex
             ? { ...item, quantity: item.quantity + quantity }
             : item
         );
       } else {
+        // Add as new item
         return [
           ...prevItems,
           {
@@ -69,13 +85,14 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
             quantity: quantity,
             imageUrl: itemImage || 'https://placehold.co/100x120.png',
             dataAiHint: product.images[0]?.dataAiHint || 'product fashion',
+            customization: customization,
           },
         ];
       }
     });
     toast({
       title: "Added to Cart!",
-      description: `${quantity} x ${selectedVariant ? `${product.name} (${selectedVariant.value})` : product.name}`,
+      description: `${quantity} x ${selectedVariant ? `${product.name} (${selectedVariant.value})` : product.name}${customization ? ' (Customized)' : ''}`,
     });
   }, [setCartItems, toast]);
 
@@ -89,7 +106,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
 
   const updateItemQuantity = useCallback((itemId: string, newQuantity: number) => {
     if (newQuantity < 1) {
-      removeFromCart(itemId); // removeFromCart is already memoized and will call setCartItems
+      removeFromCart(itemId); 
       return;
     }
     setCartItems(prevItems =>
@@ -97,7 +114,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         item.id === itemId ? { ...item, quantity: newQuantity } : item
       )
     );
-  }, [setCartItems, removeFromCart]); // Ensure removeFromCart is stable or included
+  }, [setCartItems, removeFromCart]);
 
   const clearCart = useCallback(() => {
     setCartItems([]);

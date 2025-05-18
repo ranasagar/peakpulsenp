@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { Plus, Minus, Trash2, ShoppingCart, ShoppingBag, Loader2 } from 'lucide-react';
+import { Plus, Minus, Trash2, ShoppingCart, ShoppingBag, Loader2, Palette } from 'lucide-react';
 import { useCart } from '@/context/cart-context';
 
 export default function CartPage() {
@@ -19,7 +19,6 @@ export default function CartPage() {
     isCartLoading 
   } = useCart();
 
-  // Example shipping cost - can be dynamic later
   const shippingCost = cartItems.length > 0 ? 500 : 0; 
   const total = subtotal + shippingCost;
 
@@ -55,14 +54,13 @@ export default function CartPage() {
         </Card>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-12 items-start">
-          {/* Cart Items List */}
           <div className="lg:col-span-2 space-y-6">
             {cartItems.map(item => (
               <Card key={item.id} className="shadow-lg overflow-hidden">
                 <CardContent className="p-4 sm:p-6 flex flex-col sm:flex-row gap-4 sm:gap-6">
                   <div className="w-full sm:w-24 h-32 sm:h-auto flex-shrink-0 bg-muted rounded-md overflow-hidden">
                     <Image 
-                        src={item.imageUrl || 'https://placehold.co/100x120.png'} 
+                        src={item.customization?.predefinedDesign?.imageUrl || item.imageUrl || 'https://placehold.co/100x120.png'} 
                         alt={item.name} 
                         width={100} height={120} 
                         className="w-full h-full object-cover"
@@ -73,7 +71,21 @@ export default function CartPage() {
                     <Link href={`/products/${item.productId}${item.variantId ? `?variant=${item.variantId}` : '' }`} className="hover:text-primary">
                         <h3 className="text-lg font-semibold text-foreground mb-1">{item.name}</h3>
                     </Link>
-                    <p className="text-sm text-muted-foreground mb-2">Price: रू{item.price.toLocaleString()}</p>
+                    <p className="text-sm text-muted-foreground mb-1">Price: रू{item.price.toLocaleString()}</p>
+                    {item.customization && (
+                      <div className="mt-1 mb-2 p-2 text-xs bg-primary/10 rounded-md border border-primary/20">
+                        <p className="font-semibold text-primary flex items-center"><Palette size={14} className="mr-1.5"/>Customization:</p>
+                        {item.customization.type === 'predefined' && item.customization.predefinedDesign && (
+                          <p className="text-muted-foreground">Design: {item.customization.predefinedDesign.name}</p>
+                        )}
+                        {item.customization.customDescription && (
+                          <p className="text-muted-foreground truncate">Your Idea: {item.customization.customDescription}</p>
+                        )}
+                        {item.customization.instructions && (
+                          <p className="text-muted-foreground truncate">Instructions: {item.customization.instructions}</p>
+                        )}
+                      </div>
+                    )}
                     <div className="flex items-center space-x-2">
                       <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => updateItemQuantity(item.id, item.quantity - 1)} disabled={item.quantity <= 1} aria-label="Decrease quantity">
                         <Minus className="h-4 w-4" />
@@ -101,7 +113,6 @@ export default function CartPage() {
             ))}
           </div>
 
-          {/* Order Summary */}
           <div className="lg:col-span-1 sticky top-24">
             <Card className="shadow-xl">
               <CardHeader>

@@ -47,6 +47,23 @@ export interface ProductVariant {
   imageId?: string; // Link to a specific image for this variant
 }
 
+export interface PrintDesign {
+  id: string;
+  name: string;
+  imageUrl: string;
+  dataAiHint?: string;
+}
+
+export interface ProductCustomizationConfig {
+  enabled?: boolean;
+  allowPredefinedDesigns?: boolean;
+  predefinedDesignsLabel?: string;
+  allowCustomDescription?: boolean;
+  customDescriptionLabel?: string;
+  allowInstructions?: boolean;
+  instructionsLabel?: string;
+}
+
 export interface Product {
   id: string;
   name: string;
@@ -71,19 +88,33 @@ export interface Product {
   averageRating?: number;
   reviewCount?: number;
   isFeatured?: boolean;
+  availablePrintDesigns?: PrintDesign[];
+  customizationConfig?: ProductCustomizationConfig;
   createdAt: string; // ISO string
   updatedAt: string; // ISO string
 }
 
+export interface CartItemCustomization {
+  type: 'predefined' | 'custom';
+  predefinedDesign?: {
+    id: string;
+    name: string;
+    imageUrl?: string;
+  };
+  customDescription?: string;
+  instructions?: string;
+}
+
 export interface CartItem {
-  id: string; // Typically productId or variantId. For products with variants, this should be unique per variant (e.g., `${productId}-${variantId}`)
+  id: string; // Unique ID for this cart line item (e.g., productId-variantId-timestampForCustom)
   productId: string;
-  variantId?: string; // Identifier for the specific variant (e.g., size, color)
-  name: string; // Product name, potentially with variant info (e.g., "Himalayan Breeze Jacket (M, Blue)")
-  price: number; // Price of this specific item/variant
+  variantId?: string;
+  name: string;
+  price: number;
   quantity: number;
-  imageUrl?: string; // Image for this item/variant
-  dataAiHint?: string; // For placeholder image hints
+  imageUrl?: string;
+  dataAiHint?: string;
+  customization?: CartItemCustomization;
 }
 
 export interface OrderAddress {
@@ -103,7 +134,7 @@ export type PaymentStatus = 'Pending' | 'Paid' | 'Failed' | 'Refunded';
 export interface Order {
   id: string;
   userId: string; // ID of the user who placed the order
-  items: CartItem[]; // Array of items in the order
+  items: CartItem[]; // Array of items in the order, CartItem now includes customization
   totalAmount: number; // Total amount of the order
   currency: string; // e.g., 'NPR', 'USD'
   status: OrderStatus;
@@ -173,7 +204,7 @@ export interface CartContextType {
   cartItems: CartItem[];
   cartItemCount: number;
   subtotal: number;
-  addToCart: (product: Product, quantity: number, selectedVariant?: ProductVariant) => void;
+  addToCart: (product: Product, quantity: number, selectedVariant?: ProductVariant, customization?: CartItemCustomization) => void;
   removeFromCart: (itemId: string) => void;
   updateItemQuantity: (itemId: string, newQuantity: number) => void;
   clearCart: () => void;

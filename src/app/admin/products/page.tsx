@@ -11,8 +11,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Save, PlusCircle, Trash2, Edit, XCircle } from 'lucide-react';
-import type { Product, ProductImage, Category as ProductCategoryType, ProductVariant } from '@/types';
+import { Loader2, Save, PlusCircle, Trash2, Edit, XCircle, Palette } from 'lucide-react';
+import type { Product, ProductImage, Category as ProductCategoryType, ProductVariant, PrintDesign, ProductCustomizationConfig } from '@/types';
 import {
   Dialog,
   DialogContent,
@@ -24,6 +24,7 @@ import {
   DialogClose,
 } from "@/components/ui/dialog";
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Checkbox } from '@/components/ui/checkbox'; // For boolean toggles
 
 const imageSchema = z.object({
   id: z.string().optional(),
@@ -49,6 +50,23 @@ const variantSchema = z.object({
   imageId: z.string().optional(),
 });
 
+const printDesignSchema = z.object({
+  id: z.string().optional(),
+  name: z.string().min(1, "Design name is required."),
+  imageUrl: z.string().url("Invalid image URL for design.").min(1, "Design image URL is required."),
+  dataAiHint: z.string().optional(),
+});
+
+const productCustomizationConfigSchema = z.object({
+  enabled: z.boolean().optional(),
+  allowPredefinedDesigns: z.boolean().optional(),
+  predefinedDesignsLabel: z.string().optional(),
+  allowCustomDescription: z.boolean().optional(),
+  customDescriptionLabel: z.string().optional(),
+  allowInstructions: z.boolean().optional(),
+  instructionsLabel: z.string().optional(),
+}).optional();
+
 
 const productFormSchema = z.object({
   id: z.string().optional(),
@@ -67,6 +85,8 @@ const productFormSchema = z.object({
   sustainabilityMetrics: z.string().optional(),
   fitGuide: z.string().optional(),
   variants: z.array(variantSchema).optional(),
+  availablePrintDesigns: z.array(printDesignSchema).optional(),
+  customizationConfig: productCustomizationConfigSchema,
 });
 
 type ProductFormValues = z.infer<typeof productFormSchema>;
@@ -74,6 +94,17 @@ type ProductFormValues = z.infer<typeof productFormSchema>;
 const defaultImage: ProductImage = { id: '', url: '', altText: '', dataAiHint: '' };
 const defaultCategory: ProductCategoryType = { id: '', name: '', slug: '' };
 const defaultVariant: ProductVariant = { id: '', name: 'Size', value: '', sku: '', price: 0, costPrice: 0, stock: 0, imageId: '' };
+const defaultPrintDesign: PrintDesign = { id: '', name: '', imageUrl: '', dataAiHint: '' };
+const defaultCustomizationConfig: ProductCustomizationConfig = {
+  enabled: false,
+  allowPredefinedDesigns: false,
+  predefinedDesignsLabel: 'Choose a Signature Design',
+  allowCustomDescription: false,
+  customDescriptionLabel: 'Describe Your Custom Idea',
+  allowInstructions: false,
+  instructionsLabel: 'Specific Instructions',
+};
+
 
 export default function AdminProductsPage() {
   const { toast } = useToast();
@@ -87,16 +118,19 @@ export default function AdminProductsPage() {
     resolver: zodResolver(productFormSchema),
     defaultValues: {
       name: '', slug: '', price: 0, compareAtPrice: undefined, costPrice: undefined, stock: 0, shortDescription: '', description: '',
-      images: [defaultImage],
-      categories: [defaultCategory],
+      images: [{...defaultImage}],
+      categories: [{...defaultCategory}],
       fabricDetails: '', careInstructions: '', sustainabilityMetrics: '', fitGuide: '',
       variants: [],
+      availablePrintDesigns: [],
+      customizationConfig: {...defaultCustomizationConfig},
     },
   });
 
   const { fields: imagesFields, append: appendImage, remove: removeImage } = useFieldArray({ control: form.control, name: "images" });
   const { fields: categoriesFields, append: appendCategory, remove: removeCategory } = useFieldArray({ control: form.control, name: "categories" });
   const { fields: variantsFields, append: appendVariant, remove: removeVariant } = useFieldArray({ control: form.control, name: "variants" });
+  const { fields: printDesignsFields, append: appendPrintDesign, remove: removePrintDesign } = useFieldArray({ control: form.control, name: "availablePrintDesigns" });
 
 
   const fetchProducts = async () => {
@@ -115,7 +149,7 @@ export default function AdminProductsPage() {
 
   useEffect(() => {
     fetchProducts();
-  }, []); // Removed toast from dependencies as it's stable
+  }, []); 
 
   const handleEdit = (product: Product) => {
     setEditingProduct(product);
@@ -126,16 +160,18 @@ export default function AdminProductsPage() {
       price: product.price,
       compareAtPrice: product.compareAtPrice,
       costPrice: product.costPrice,
-      stock: product.variants && product.variants.length > 0 ? undefined : product.stock, // Only set base stock if no variants
+      stock: product.variants && product.variants.length > 0 ? undefined : product.stock,
       shortDescription: product.shortDescription || '',
       description: product.description,
-      images: product.images.length > 0 ? product.images.map(img => ({ ...defaultImage, ...img })) : [defaultImage],
-      categories: product.categories.length > 0 ? product.categories.map(cat => ({ ...defaultCategory, ...cat })) : [defaultCategory],
+      images: product.images.length > 0 ? product.images.map(img => ({ ...defaultImage, ...img })) : [{...defaultImage}],
+      categories: product.categories.length > 0 ? product.categories.map(cat => ({ ...defaultCategory, ...cat })) : [{...defaultCategory}],
       fabricDetails: product.fabricDetails || '',
       careInstructions: product.careInstructions || '',
       sustainabilityMetrics: product.sustainabilityMetrics || '',
       fitGuide: product.fitGuide || '',
       variants: product.variants ? product.variants.map(v => ({...defaultVariant, ...v})) : [],
+      availablePrintDesigns: product.availablePrintDesigns ? product.availablePrintDesigns.map(d => ({...defaultPrintDesign, ...d})) : [],
+      customizationConfig: product.customizationConfig ? {...defaultCustomizationConfig, ...product.customizationConfig} : {...defaultCustomizationConfig},
     });
     setIsFormOpen(true);
   };
@@ -143,12 +179,14 @@ export default function AdminProductsPage() {
   const handleAddNew = () => {
     setEditingProduct(null);
     form.reset({
-      id: `prod-${Date.now()}`, // Generate a new temp ID
+      id: `prod-${Date.now()}`, 
       name: '', slug: '', price: 0, compareAtPrice: undefined, costPrice: undefined, stock: 0, shortDescription: '', description: '',
-      images: [defaultImage],
-      categories: [defaultCategory],
+      images: [{...defaultImage}],
+      categories: [{...defaultCategory}],
       fabricDetails: '', careInstructions: '', sustainabilityMetrics: '', fitGuide: '',
       variants: [],
+      availablePrintDesigns: [],
+      customizationConfig: {...defaultCustomizationConfig},
     });
     setIsFormOpen(true);
   };
@@ -157,20 +195,22 @@ export default function AdminProductsPage() {
     setIsSaving(true);
     try {
       const productToSave: Product = {
-        ...(editingProduct || {}),
+        ...(editingProduct || {}), // Keep existing fields like averageRating, reviewCount if editing
         ...data,
         id: editingProduct?.id || data.id || `prod-${Date.now()}`,
         slug: data.slug || data.name.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, ''),
         createdAt: editingProduct?.createdAt || new Date().toISOString(),
         updatedAt: new Date().toISOString(),
-        averageRating: editingProduct?.averageRating || 0,
-        reviewCount: editingProduct?.reviewCount || 0,
-        isFeatured: editingProduct?.isFeatured || false,
         images: data.images.map(img => ({ ...img, id: img.id || `img-${Date.now()}-${Math.random().toString(36).substr(2, 5)}` })),
         categories: data.categories.map(cat => ({ ...cat, id: cat.id || `cat-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`})),
         variants: data.variants?.map(v => ({ ...v, id: v.id || `var-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`})),
-        // If variants exist, top-level stock might be sum or undefined. For now, keep data.stock if variants are empty.
+        availablePrintDesigns: data.availablePrintDesigns?.map(d => ({...d, id: d.id || `print-${Date.now()}-${Math.random().toString(36).substr(2,5)}`})),
+        customizationConfig: data.customizationConfig,
         stock: (data.variants && data.variants.length > 0) ? data.variants.reduce((sum, v) => sum + v.stock, 0) : data.stock,
+        // Retain these fields if editing, provide defaults if new and not in form
+        averageRating: editingProduct?.averageRating || 0,
+        reviewCount: editingProduct?.reviewCount || 0,
+        isFeatured: editingProduct?.isFeatured || false,
       };
 
       const response = await fetch('/api/admin/products', {
@@ -184,7 +224,7 @@ export default function AdminProductsPage() {
         throw new Error(errorData.message || 'Failed to save product');
       }
       toast({ title: "Success!", description: `Product "${data.name}" saved.` });
-      fetchProducts(); // Refresh list
+      fetchProducts(); 
       setIsFormOpen(false);
       setEditingProduct(null);
     } catch (error) {
@@ -195,6 +235,7 @@ export default function AdminProductsPage() {
   };
 
   const hasVariants = form.watch('variants', []).length > 0;
+  const customizationEnabled = form.watch('customizationConfig.enabled');
 
   if (isLoading) {
     return <Card><CardHeader><CardTitle>Loading Products...</CardTitle></CardHeader><CardContent className="flex justify-center py-10"><Loader2 className="h-8 w-8 animate-spin text-primary" /></CardContent></Card>;
@@ -276,7 +317,6 @@ export default function AdminProductsPage() {
                   <FormItem><FormLabel>Full Description (HTML allowed)</FormLabel><FormControl><Textarea {...field} rows={5} /></FormControl><FormMessage /></FormItem>
                 )} />
 
-                {/* Images Array */}
                 <fieldset className="space-y-3 p-3 border rounded-md">
                   <legend className="text-md font-medium px-1">Images</legend>
                   {imagesFields.map((field, index) => (
@@ -295,10 +335,9 @@ export default function AdminProductsPage() {
                       <Button type="button" variant="destructive" size="sm" onClick={() => removeImage(index)} disabled={imagesFields.length <= 1}><Trash2 className="mr-1 h-3 w-3"/>Remove Image</Button>
                     </div>
                   ))}
-                  <Button type="button" variant="outline" size="sm" onClick={() => appendImage(defaultImage)}><PlusCircle className="mr-2 h-4 w-4"/>Add Image</Button>
+                  <Button type="button" variant="outline" size="sm" onClick={() => appendImage({...defaultImage})}><PlusCircle className="mr-2 h-4 w-4"/>Add Image</Button>
                 </fieldset>
 
-                {/* Categories Array */}
                 <fieldset className="space-y-3 p-3 border rounded-md">
                     <legend className="text-md font-medium px-1">Categories</legend>
                     {categoriesFields.map((field, index) => (
@@ -317,10 +356,9 @@ export default function AdminProductsPage() {
                              <Button type="button" variant="destructive" size="sm" onClick={() => removeCategory(index)} disabled={categoriesFields.length <=1}><Trash2 className="mr-1 h-3 w-3"/>Remove Category</Button>
                         </div>
                     ))}
-                    <Button type="button" variant="outline" size="sm" onClick={() => appendCategory(defaultCategory)}><PlusCircle className="mr-2 h-4 w-4"/>Add Category</Button>
+                    <Button type="button" variant="outline" size="sm" onClick={() => appendCategory({...defaultCategory})}><PlusCircle className="mr-2 h-4 w-4"/>Add Category</Button>
                 </fieldset>
 
-                {/* Optional Details */}
                 <FormField control={form.control} name="fabricDetails" render={({ field }) => (
                   <FormItem><FormLabel>Fabric Details</FormLabel><FormControl><Textarea {...field} rows={2} /></FormControl><FormMessage /></FormItem>
                 )} />
@@ -334,7 +372,6 @@ export default function AdminProductsPage() {
                   <FormItem><FormLabel>Fit Guide</FormLabel><FormControl><Textarea {...field} rows={2} /></FormControl><FormMessage /></FormItem>
                 )} />
 
-                {/* Variants Array */}
                 <fieldset className="space-y-3 p-3 border rounded-md">
                   <legend className="text-md font-medium px-1">Variants (Optional)</legend>
                   {variantsFields.map((field, index) => (
@@ -365,9 +402,102 @@ export default function AdminProductsPage() {
                       <Button type="button" variant="destructive" size="sm" onClick={() => removeVariant(index)}><Trash2 className="mr-1 h-3 w-3"/>Remove Variant</Button>
                     </div>
                   ))}
-                  <Button type="button" variant="outline" size="sm" onClick={() => appendVariant(defaultVariant)}><PlusCircle className="mr-2 h-4 w-4"/>Add Variant</Button>
+                  <Button type="button" variant="outline" size="sm" onClick={() => appendVariant({...defaultVariant})}><PlusCircle className="mr-2 h-4 w-4"/>Add Variant</Button>
                    {hasVariants && <p className="text-xs text-muted-foreground p-1">If variants are used, their prices override the base product price. Variant stock is summed for total product stock.</p>}
                 </fieldset>
+
+                {/* Customization Configuration Section */}
+                <fieldset className="space-y-4 p-4 border rounded-md">
+                    <legend className="text-lg font-semibold px-1 flex items-center"><Palette className="mr-2 h-5 w-5 text-primary"/>Product Customization Options</legend>
+                     <FormField
+                        control={form.control}
+                        name="customizationConfig.enabled"
+                        render={({ field }) => (
+                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm bg-muted/30">
+                            <div className="space-y-0.5">
+                            <FormLabel>Enable Customization for this Product</FormLabel>
+                            <FormMessage />
+                            </div>
+                            <FormControl>
+                            <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                            </FormControl>
+                        </FormItem>
+                        )}
+                    />
+                    {customizationEnabled && (
+                        <div className="space-y-4 pl-4 border-l-2 border-primary/30 ml-2">
+                            <FormField
+                                control={form.control}
+                                name="customizationConfig.allowPredefinedDesigns"
+                                render={({ field }) => (
+                                <FormItem className="flex flex-row items-center space-x-3 space-y-0">
+                                    <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                                    <FormLabel className="font-normal">Allow Predefined Designs</FormLabel>
+                                </FormItem>
+                                )}
+                            />
+                            {form.watch("customizationConfig.allowPredefinedDesigns") && (
+                                <FormField control={form.control} name="customizationConfig.predefinedDesignsLabel" render={({ field }) => (
+                                    <FormItem className="ml-6"><FormLabel>Label for Predefined Designs Section</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                                )} />
+                            )}
+
+                            <FormField
+                                control={form.control}
+                                name="customizationConfig.allowCustomDescription"
+                                render={({ field }) => (
+                                <FormItem className="flex flex-row items-center space-x-3 space-y-0">
+                                    <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                                    <FormLabel className="font-normal">Allow User Custom Design Description</FormLabel>
+                                </FormItem>
+                                )}
+                            />
+                            {form.watch("customizationConfig.allowCustomDescription") && (
+                                <FormField control={form.control} name="customizationConfig.customDescriptionLabel" render={({ field }) => (
+                                     <FormItem className="ml-6"><FormLabel>Label for Custom Design Description Input</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                                )} />
+                            )}
+
+                            <FormField
+                                control={form.control}
+                                name="customizationConfig.allowInstructions"
+                                render={({ field }) => (
+                                <FormItem className="flex flex-row items-center space-x-3 space-y-0">
+                                    <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                                    <FormLabel className="font-normal">Allow User Instructions</FormLabel>
+                                </FormItem>
+                                )}
+                            />
+                            {form.watch("customizationConfig.allowInstructions") && (
+                                <FormField control={form.control} name="customizationConfig.instructionsLabel" render={({ field }) => (
+                                     <FormItem className="ml-6"><FormLabel>Label for Instructions Input</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                                )} />
+                            )}
+                        </div>
+                    )}
+                </fieldset>
+
+                {/* Available Print Designs Array (only if customization and predefined designs are enabled) */}
+                {customizationEnabled && form.watch("customizationConfig.allowPredefinedDesigns") && (
+                    <fieldset className="space-y-3 p-3 border rounded-md">
+                        <legend className="text-md font-medium px-1">Available Predefined Print Designs</legend>
+                        {printDesignsFields.map((field, index) => (
+                            <div key={field.id} className="space-y-2 p-2 border rounded bg-muted/30">
+                            <FormField control={form.control} name={`availablePrintDesigns.${index}.name`} render={({ field }) => (
+                                <FormItem><FormLabel>Design Name {index + 1}</FormLabel><FormControl><Input {...field} placeholder="e.g. Everest Peak Outline" /></FormControl><FormMessage /></FormItem>
+                            )} />
+                            <FormField control={form.control} name={`availablePrintDesigns.${index}.imageUrl`} render={({ field }) => (
+                                <FormItem><FormLabel>Design Image URL</FormLabel><FormControl><Input {...field} placeholder="https://example.com/design.png" /></FormControl><FormMessage /></FormItem>
+                            )} />
+                            <FormField control={form.control} name={`availablePrintDesigns.${index}.dataAiHint`} render={({ field }) => (
+                                <FormItem><FormLabel>AI Hint for Design Image</FormLabel><FormControl><Input {...field} placeholder="e.g. mountain lineart" /></FormControl><FormMessage /></FormItem>
+                            )} />
+                            <Button type="button" variant="destructive" size="sm" onClick={() => removePrintDesign(index)}><Trash2 className="mr-1 h-3 w-3"/>Remove Design</Button>
+                            </div>
+                        ))}
+                        <Button type="button" variant="outline" size="sm" onClick={() => appendPrintDesign({...defaultPrintDesign})}><PlusCircle className="mr-2 h-4 w-4"/>Add Predefined Design</Button>
+                    </fieldset>
+                )}
 
 
                 <DialogFooter className="pt-4">

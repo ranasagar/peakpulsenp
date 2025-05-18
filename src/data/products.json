@@ -1,3 +1,4 @@
+
 [
   {
     "id": "prod-1",
@@ -74,6 +75,35 @@
       }
     ],
     "stock": 30,
+    "customizationConfig": {
+      "enabled": true,
+      "allowPredefinedDesigns": true,
+      "predefinedDesignsLabel": "Choose a Signature Peak Design",
+      "allowCustomDescription": true,
+      "customDescriptionLabel": "Or, Describe Your Custom Design Idea",
+      "allowInstructions": true,
+      "instructionsLabel": "Specific Instructions (Placement, Colors, etc.)"
+    },
+    "availablePrintDesigns": [
+      {
+        "id": "design-everest-silhouette",
+        "name": "Everest Silhouette",
+        "imageUrl": "https://placehold.co/100x100.png",
+        "dataAiHint": "mountain silhouette"
+      },
+      {
+        "id": "design-mandala-art",
+        "name": "Mandala Art",
+        "imageUrl": "https://placehold.co/100x100.png",
+        "dataAiHint": "mandala design"
+      },
+      {
+        "id": "design-nepali-script",
+        "name": "Nepali Script (Customizable Text)",
+        "imageUrl": "https://placehold.co/100x100.png",
+        "dataAiHint": "nepali script text"
+      }
+    ],
     "createdAt": "2023-01-15T10:00:00Z",
     "updatedAt": "2025-05-18T15:23:08.406Z",
     "isFeatured": false
@@ -102,6 +132,13 @@
         "slug": "tops"
       }
     ],
+    "customizationConfig": {
+      "enabled": true,
+      "allowCustomDescription": true,
+      "customDescriptionLabel": "Add Custom Text (e.g., Name, Quote)",
+      "allowInstructions": true,
+      "instructionsLabel": "Placement Instructions for Text"
+    },
     "createdAt": "2023-02-01T09:00:00Z",
     "updatedAt": "2023-02-05T11:00:00Z"
   },
@@ -129,6 +166,9 @@
         "slug": "bottoms"
       }
     ],
+    "customizationConfig": {
+      "enabled": false
+    },
     "createdAt": "2023-03-10T14:00:00Z",
     "updatedAt": "2023-03-15T16:00:00Z"
   }

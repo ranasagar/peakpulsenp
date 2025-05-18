@@ -13,20 +13,18 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Separator } from '@/components/ui/separator';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { CreditCard, Lock, ShoppingBag, Truck, Gift, Globe, Info, Loader2, Banknote, QrCode, Send, CheckCircle } from 'lucide-react';
+import { CreditCard, Lock, ShoppingBag, Truck, Gift, Globe, Info, Loader2, Banknote, QrCode, Send, CheckCircle, Palette } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useCart } from '@/context/cart-context'; // Import useCart
+import { useCart } from '@/context/cart-context'; 
 import { calculateInternationalShipping } from '@/ai/flows/calculate-international-shipping-flow';
 import type { CalculateInternationalShippingOutput } from '@/ai/flows/calculate-international-shipping-flow';
 import { useRouter } from 'next/navigation';
 
-// Luhn algorithm check function
 function luhnCheck(val: string): boolean {
   let sum = 0;
   let shouldDouble = false;
-  // Remove non-digits
   const numStr = val.replace(/\D/g, "");
 
   for (let i = numStr.length - 1; i >= 0; i--) {
@@ -54,12 +52,9 @@ const shippingSchema = z.object({
 });
 
 const paymentCardSchema = z.object({
-  cardNumber: z.string()
-    .optional().or(z.literal('')),
-  expiryDate: z.string()
-    .optional().or(z.literal('')),
-  cvc: z.string()
-    .optional().or(z.literal('')),
+  cardNumber: z.string().optional().or(z.literal('')),
+  expiryDate: z.string().optional().or(z.literal('')),
+  cvc: z.string().optional().or(z.literal('')),
   cardholderName: z.string().min(2, "Cardholder name is required.").optional().or(z.literal('')),
 });
 
@@ -231,9 +226,9 @@ export default function CheckoutPage() {
     }
     
     const orderPayload = {
-      cartItems: cartItems, // Use cartItems from context
+      cartItems: cartItems, 
       shippingDetails: data,
-      orderSubtotal: subtotal, // Use subtotal from context
+      orderSubtotal: subtotal, 
       shippingCost: currentShippingCost,
       orderTotal: total,
     };
@@ -258,7 +253,7 @@ export default function CheckoutPage() {
           description: result.message || "Your order is being processed.",
           action: <Link href={`/account/orders?orderId=${result.orderId || 'new'}`}><Button variant="outline" size="sm">View Order</Button></Link>
         });
-        clearCart(); // Clear cart from context
+        clearCart(); 
         router.push(`/account/orders?orderId=${result.orderId || 'new'}`);
         form.reset(); 
       } else {
@@ -484,7 +479,6 @@ export default function CheckoutPage() {
             </Card>
           </div>
 
-          {/* Order Summary */}
           <div className="lg:col-span-1 sticky top-24">
             <Card className="shadow-lg">
               <CardHeader>
@@ -492,15 +486,29 @@ export default function CheckoutPage() {
               </CardHeader>
               <CardContent className="space-y-3">
                 {cartItems.map(item => (
-                  <div key={item.id} className="flex justify-between items-center text-sm">
-                    <div className="flex items-center">
-                       <Image src={item.imageUrl!} alt={item.name} width={40} height={40} className="rounded mr-3" data-ai-hint={item.dataAiHint || "product fashion"}/>
+                  <div key={item.id} className="flex justify-between items-start text-sm pb-2 mb-2 border-b border-dashed last:border-b-0 last:pb-0 last:mb-0">
+                    <div className="flex items-start mr-2">
+                       <Image src={item.customization?.predefinedDesign?.imageUrl || item.imageUrl!} alt={item.name} width={40} height={40} className="rounded mr-3 mt-0.5" data-ai-hint={item.dataAiHint || "product fashion"}/>
                        <div>
-                           <p className="text-foreground font-medium">{item.name}</p>
+                           <p className="text-foreground font-medium leading-tight">{item.name}</p>
                            <p className="text-xs text-muted-foreground">Qty: {item.quantity}</p>
+                            {item.customization && (
+                            <div className="mt-1 text-xs">
+                                <p className="font-medium text-primary/80 flex items-center"><Palette size={12} className="mr-1"/>Customized:</p>
+                                {item.customization.type === 'predefined' && item.customization.predefinedDesign && (
+                                <p className="text-muted-foreground pl-2">&bull; Design: {item.customization.predefinedDesign.name}</p>
+                                )}
+                                {item.customization.customDescription && (
+                                <p className="text-muted-foreground pl-2 truncate w-40">&bull; Idea: {item.customization.customDescription}</p>
+                                )}
+                                {item.customization.instructions && (
+                                <p className="text-muted-foreground pl-2 truncate w-40">&bull; Notes: {item.customization.instructions}</p>
+                                )}
+                            </div>
+                            )}
                        </div>
                     </div>
-                    <p className="text-foreground">रू{(item.price * item.quantity).toLocaleString()}</p>
+                    <p className="text-foreground whitespace-nowrap">रू{(item.price * item.quantity).toLocaleString()}</p>
                   </div>
                 ))}
                 <Separator />
