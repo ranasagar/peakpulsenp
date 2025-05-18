@@ -13,75 +13,8 @@ import { Label } from '@/components/ui/label';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
+import { useToast } from '@/hooks/use-toast';
 
-
-// Mock products - replace with actual data fetching
-const allMockProducts: Product[] = [
-  {
-    id: 'prod-1', name: 'Himalayan Breeze Jacket', slug: 'himalayan-breeze-jacket', price: 12000,
-    images: [{ id: 'img-1', url: 'https://placehold.co/600x800.png', altText: 'Himalayan Breeze Jacket front view', dataAiHint: 'jacket fashion' }],
-    categories: [{ id: 'cat-1', name: 'Outerwear', slug: 'outerwear' }],
-    shortDescription: 'Lightweight and versatile for urban adventures.',
-    createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), description: "Full description here."
-  },
-  {
-    id: 'prod-2', name: 'Kathmandu Comfort Tee', slug: 'kathmandu-comfort-tee', price: 3500,
-    images: [{ id: 'img-2', url: 'https://placehold.co/600x800.png', altText: 'Kathmandu Comfort Tee front view', dataAiHint: 'tee shirt' }],
-    categories: [{ id: 'cat-2', name: 'Tops', slug: 'tops' }],
-    shortDescription: 'Premium cotton for everyday luxury.',
-    createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), description: "Full description here."
-  },
-  {
-    id: 'prod-3', name: 'Urban Nomad Pants', slug: 'urban-nomad-pants', price: 7500,
-    images: [{ id: 'img-3', url: 'https://placehold.co/600x800.png', altText: 'Urban Nomad Pants front view', dataAiHint: 'pants fashion' }],
-    categories: [{ id: 'cat-3', name: 'Bottoms', slug: 'bottoms' }],
-    shortDescription: 'Street-ready style with traditional touches.',
-    createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), description: "Full description here."
-  },
-  {
-    id: 'prod-4', name: 'Silk Scarf Mandala', slug: 'silk-scarf-mandala', price: 4200, 
-    images: [{ id: 'img-4', url: 'https://placehold.co/600x800.png', altText: 'Silk Scarf with Mandala design', dataAiHint: 'scarf silk' }], 
-    categories: [{ id: 'cat-4', name: 'Accessories', slug: 'accessories' }], 
-    shortDescription: 'Hand-painted pure silk elegance.',
-    createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), description: "Full desc here"
-  },
-  {
-    id: 'prod-5', name: 'Artisan Leather Wallet', slug: 'artisan-leather-wallet', price: 5800, 
-    images: [{ id: 'img-5', url: 'https://placehold.co/600x800.png', altText: 'Handcrafted Artisan Leather Wallet', dataAiHint: 'leather wallet' }], 
-    categories: [{ id: 'cat-4', name: 'Accessories', slug: 'accessories' }], 
-    shortDescription: 'Handcrafted full-grain leather wallet.',
-    createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), description: "Full desc here"
-  },
-   {
-    id: 'prod-6', name: 'Everest Summit Hoodie', slug: 'everest-summit-hoodie', price: 9800, 
-    images: [{ id: 'img-6', url: 'https://placehold.co/600x800.png', altText: 'Everest Summit Hoodie', dataAiHint: 'summit hoodie' }], 
-    categories: [{ id: 'cat-1', name: 'Outerwear', slug: 'outerwear' }], 
-    shortDescription: 'Warmth and style inspired by the highest peaks.',
-    createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), description: "Full desc here"
-  },
-  // Add more mock products for pagination demo
-  {
-    id: 'prod-7', name: 'Pashmina Shawl', slug: 'pashmina-shawl', price: 11000,
-    images: [{ id: 'img-7', url: 'https://placehold.co/600x800.png', altText: 'Luxurious Pashmina Shawl', dataAiHint: 'pashmina shawl' }],
-    categories: [{ id: 'cat-4', name: 'Accessories', slug: 'accessories' }],
-    shortDescription: 'Authentic Nepali pashmina, soft and warm.',
-    createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), description: "Full description here."
-  },
-  {
-    id: 'prod-8', name: 'Bohemian Rhapsody Dress', slug: 'bohemian-rhapsody-dress', price: 8500,
-    images: [{ id: 'img-8', url: 'https://placehold.co/600x800.png', altText: 'Bohemian Rhapsody Dress', dataAiHint: 'bohemian dress' }],
-    categories: [{ id: 'cat-5', name: 'Dresses', slug: 'dresses' }], // Assuming a new category
-    shortDescription: 'Flowy and free-spirited, perfect for any occasion.',
-    createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), description: "Full description here."
-  },
-  {
-    id: 'prod-9', name: 'Heritage Weave Backpack', slug: 'heritage-weave-backpack', price: 6200,
-    images: [{ id: 'img-9', url: 'https://placehold.co/600x800.png', altText: 'Heritage Weave Backpack', dataAiHint: 'weave backpack' }],
-    categories: [{ id: 'cat-4', name: 'Accessories', slug: 'accessories' }],
-    shortDescription: 'Durable backpack with traditional Nepali weave patterns.',
-    createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), description: "Full description here."
-  }
-];
 
 const PRODUCTS_PER_PAGE = 6;
 
@@ -143,26 +76,64 @@ const FilterSidebarContent = ({ filters }: { filters: FilterOption[] }) => (
 
 
 export default function ProductsPage() {
-  const [displayedProducts, setDisplayedProducts] = useState<Product[]>(allMockProducts.slice(0, PRODUCTS_PER_PAGE));
+  const [allProducts, setAllProducts] = useState<Product[]>([]);
+  const [displayedProducts, setDisplayedProducts] = useState<Product[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [sortOption, setSortOption] = useState('featured');
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const { toast } = useToast();
 
-  const hasMoreProducts = displayedProducts.length < allMockProducts.length;
+  useEffect(() => {
+    const fetchProducts = async () => {
+      setIsLoading(true);
+      try {
+        const response = await fetch('/api/products');
+        if (!response.ok) {
+          throw new Error('Failed to fetch products');
+        }
+        const data: Product[] = await response.json();
+        setAllProducts(data);
+        setDisplayedProducts(data.slice(0, PRODUCTS_PER_PAGE));
+      } catch (error) {
+        console.error("Error fetching products:", error);
+        toast({
+          title: "Error",
+          description: (error as Error).message || "Could not load products.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchProducts();
+  }, [toast]);
+
+
+  const hasMoreProducts = displayedProducts.length < allProducts.length;
 
   const loadMoreProducts = () => {
     if (!hasMoreProducts || isLoadingMore) return;
 
     setIsLoadingMore(true);
-    setTimeout(() => { // Simulate network delay
+    setTimeout(() => { // Simulate network delay for UX
       const nextPage = currentPage + 1;
-      const newProducts = allMockProducts.slice(0, nextPage * PRODUCTS_PER_PAGE);
-      setDisplayedProducts(newProducts);
+      const newProductsToDisplay = allProducts.slice(0, nextPage * PRODUCTS_PER_PAGE);
+      setDisplayedProducts(newProductsToDisplay);
       setCurrentPage(nextPage);
       setIsLoadingMore(false);
     }, 500);
   };
+
+  if (isLoading) {
+    return (
+      <div className="container-wide section-padding flex justify-center items-center min-h-[50vh]">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+        <p className="ml-4 text-lg text-muted-foreground">Loading Products...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="container-wide section-padding">
@@ -187,7 +158,7 @@ export default function ProductsPage() {
               <FilterSidebarContent filters={mockFilters} />
             </SheetContent>
           </Sheet>
-           <span className="ml-2 text-sm text-muted-foreground hidden md:inline">Showing {displayedProducts.length} of {allMockProducts.length} products</span>
+           <span className="ml-2 text-sm text-muted-foreground hidden md:inline">Showing {displayedProducts.length} of {allProducts.length} products</span>
         </div>
 
         <DropdownMenu>
@@ -209,7 +180,7 @@ export default function ProductsPage() {
       
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
         {/* Filters Sidebar (Desktop) */}
-        <aside className="hidden lg:block lg:col-span-1 sticky top-[calc(theme(spacing.20)_-_theme(spacing.8)_+_4rem_+_1px)] h-[calc(100vh_-_theme(spacing.20)_-_theme(spacing.8)_-_4rem_-_1px_-_theme(spacing.16))]">
+        <aside className="hidden lg:block lg:col-span-1 sticky top-[calc(9rem_+_1px)] h-[calc(100vh_-_(9rem_+_1px)_-_theme(spacing.16))]">
           <div className="bg-card rounded-lg shadow-sm border h-full">
              <FilterSidebarContent filters={mockFilters} />
           </div>

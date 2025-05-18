@@ -1,6 +1,6 @@
 
 import Link from 'next/link';
-import { Shield, LayoutDashboard, Settings, ArrowLeft, BookOpenText } from 'lucide-react'; // Added BookOpenText
+import { Shield, LayoutDashboard, Settings, ArrowLeft, BookOpenText, ShoppingBag } from 'lucide-react'; // Added ShoppingBag
 import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
 import { Button } from '@/components/ui/button';
@@ -31,6 +31,11 @@ export default function AdminLayout({
                 <Button variant="ghost" className="w-full justify-start" asChild>
                   <Link href="/admin">
                     <LayoutDashboard className="mr-2 h-4 w-4" /> Dashboard
+                  </Link>
+                </Button>
+                 <Button variant="ghost" className="w-full justify-start" asChild>
+                  <Link href="/admin/products">
+                    <ShoppingBag className="mr-2 h-4 w-4" /> Manage Products
                   </Link>
                 </Button>
                 <Button variant="ghost" className="w-full justify-start" asChild>
