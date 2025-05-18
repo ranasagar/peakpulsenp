@@ -1,3 +1,4 @@
+
 import type { LucideProps } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -8,14 +9,15 @@ export const Icons = {
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="2"
+      strokeWidth="1.5" // Adjusted for a more modern feel
       strokeLinecap="round"
       strokeLinejoin="round"
       {...props}
     >
-      <path d="M3 20L12 4L21 20Z" />
-      <path d="M8.5 14.5L12 10L15.5 14.5" />
-      <path d="M12 10V4" />
+      {/* Heart shape path */}
+      <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+      {/* Pulse/mountain line across the heart */}
+      <path d="M6 13h2l2-3 2 3 2-2 2 2h2" />
     </svg>
   ),
   AnimatedMenuIcon: ({ className, ...props }: LucideProps) => (
