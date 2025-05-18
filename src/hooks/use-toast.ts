@@ -1,3 +1,4 @@
+
 "use client"
 
 // Inspired by react-hot-toast library
@@ -175,14 +176,28 @@ function useToast() {
   const [state, setState] = React.useState<State>(memoryState)
 
   React.useEffect(() => {
-    listeners.push(setState)
-    return () => {
-      const index = listeners.indexOf(setState)
-      if (index > -1) {
-        listeners.splice(index, 1)
-      }
+    // Create a new listener function for this instance of useToast
+    const newListener = (newState: State) => {
+      setState(newState);
+    };
+    
+    // Add the listener to the global array
+    listeners.push(newListener);
+
+    // If memoryState has changed since this component's state was initialized, update it.
+    // This handles cases where global state changes before this effect runs.
+    if (memoryState !== state) {
+      setState(memoryState);
     }
-  }, [state])
+
+    // Return a cleanup function to remove the listener when the component unmounts
+    return () => {
+      const index = listeners.indexOf(newListener);
+      if (index > -1) {
+        listeners.splice(index, 1);
+      }
+    };
+  }, []); // Empty dependency array: run only on mount and unmount
 
   return {
     ...state,
