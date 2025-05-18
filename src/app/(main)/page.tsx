@@ -67,26 +67,25 @@ export default async function HomePage() {
   const content = await getHomepageContent();
   const heroTitle = content.hero?.title || "Peak Pulse";
   const heroDescription = content.hero?.description || "Experience the fusion of ancient Nepali artistry and modern streetwear.";
+  const videoId = "gCRNEJxDJKM"; // Extracted from https://youtu.be/gCRNEJxDJKM
 
   return (
     <>
       {/* Hero Section - Updated for Full-Screen Immersive Experience */}
-      {/* For subtle animations or parallax effects, consider libraries like Framer Motion or custom JavaScript an CSS. */}
-      {/* For video backgrounds, replace the Image component with an HTML5 <video> tag with appropriate sources, autoplay, muted, loop attributes. */}
       <section className="relative h-screen w-full flex items-center justify-center text-center text-white overflow-hidden">
-        {/* Background Image/Video Container */}
-        <div className="absolute inset-0 z-0">
-          <Image
-            src="https://placehold.co/1920x1080.png" // Replace with high-resolution, compelling imagery
-            alt="Dramatic mountain landscape with stylish model wearing Peak Pulse apparel"
-            layout="fill"
-            objectFit="cover"
-            className="opacity-60" // Adjust opacity as needed for text legibility vs image impact
-            priority // Ensures LCP (Largest Contentful Paint) is optimized
-            data-ai-hint="immersive fashion landscape"
-          />
-          {/* Optional: Dark overlay for better text contrast */}
-          <div className="absolute inset-0 bg-black/30"></div>
+        {/* Background Video Container */}
+        <div className="absolute inset-0 z-0 w-full h-full overflow-hidden">
+          <iframe
+            className="absolute top-1/2 left-1/2 min-w-full min-h-full w-auto h-auto transform -translate-x-1/2 -translate-y-1/2 pointer-events-none"
+            style={{ objectFit: 'cover' }} // Ensures video covers the area, might crop
+            src={`https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&loop=1&playlist=${videoId}&controls=0&showinfo=0&autohide=1&modestbranding=1&playsinline=1&enablejsapi=1`}
+            title="Peak Pulse Background Video"
+            frameBorder="0"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen={false} // Background videos shouldn't be fullscreen-interactive
+          ></iframe>
+          {/* Fallback Image or Static Overlay if needed */}
+           <div className="absolute inset-0 bg-black/40"></div> {/* Dark overlay for text contrast */}
         </div>
         
         {/* Content Overlay */}
