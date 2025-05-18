@@ -33,7 +33,7 @@ async function getHomepageContent(): Promise<HomepageContent> {
         hero: {
           title: "Peak Pulse (Content API Error)",
           description: "Experience the fusion of ancient Nepali artistry and modern streetwear. (Content failed to load, displaying fallback)",
-          videoId: undefined,
+          videoId: undefined, // Ensure these are undefined in fallback
           imageUrl: undefined,
         },
         artisanalRoots: {
@@ -58,7 +58,7 @@ async function getHomepageContent(): Promise<HomepageContent> {
       hero: {
         title: "Peak Pulse (Network Error)",
         description: "Experience the fusion of ancient Nepali artistry and modern streetwear. (Content failed to load, displaying fallback)",
-        videoId: undefined,
+        videoId: undefined, // Ensure these are undefined in fallback
         imageUrl: undefined,
       },
       artisanalRoots: {
@@ -84,11 +84,11 @@ export default async function HomePage() {
     <>
       {/* Hero Section - Updated for Full-Screen Immersive Experience */}
       <section
-        style={{ backgroundColor: 'black' }} // Ultimate fallback background
+        style={{ backgroundColor: 'black' }} 
         className="relative h-screen w-full overflow-hidden"
       >
         {/* Background Video/Image Container */}
-        <div className="absolute inset-0 z-0 w-full h-full overflow-hidden pointer-events-none bg-black"> {/* Added bg-black here */}
+        <div className="absolute inset-0 z-0 pointer-events-none bg-black"> 
           {heroVideoId ? (
             <>
               <iframe
@@ -99,7 +99,7 @@ export default async function HomePage() {
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                 allowFullScreen={false}
               ></iframe>
-              <div className="absolute inset-0 bg-black/30 z-[1]"></div> {/* Overlay for video */}
+              <div className="absolute inset-0 bg-black/60 z-[1]"></div> {/* Overlay for video */}
             </>
           ) : heroImageUrl ? (
             <>
@@ -109,9 +109,10 @@ export default async function HomePage() {
                 layout="fill"
                 objectFit="cover"
                 priority
+                className="absolute inset-0 w-full h-full object-cover" 
                 data-ai-hint="fashion mountains nepal"
               />
-              <div className="absolute inset-0 bg-black/30 z-[1]"></div> {/* Overlay for image */}
+              <div className="absolute inset-0 bg-black/60 z-[1]"></div> {/* Overlay for image */}
             </>
           ) : null}
         </div>
