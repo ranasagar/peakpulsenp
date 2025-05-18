@@ -52,15 +52,15 @@ const mockProduct: Product = {
 const mockRelatedProducts: Product[] = [
   {
     id: 'prod-2', name: 'Kathmandu Comfort Tee', slug: 'kathmandu-comfort-tee', price: 3500,
-    images: [{ id: 'img-2', url: 'https://placehold.co/600x800.png', altText: 'Kathmandu Comfort Tee related product' }], categories: [{ id: 'cat-2', name: 'Tops', slug: 'tops' }], shortDescription: 'Premium cotton.', createdAt: " ", updatedAt: " ", description: " "
+    images: [{ id: 'img-2', url: 'https://placehold.co/600x800.png', altText: 'Kathmandu Comfort Tee related product', dataAiHint: 'tee shirt' }], categories: [{ id: 'cat-2', name: 'Tops', slug: 'tops' }], shortDescription: 'Premium cotton.', createdAt: " ", updatedAt: " ", description: " "
   },
   {
     id: 'prod-3', name: 'Urban Nomad Pants', slug: 'urban-nomad-pants', price: 7500,
-    images: [{ id: 'img-3', url: 'https://placehold.co/600x800.png', altText: 'Urban Nomad Pants related product' }], categories: [{ id: 'cat-3', name: 'Bottoms', slug: 'bottoms' }], shortDescription: 'Street-ready style.', createdAt: " ", updatedAt: " ", description: " "
+    images: [{ id: 'img-3', url: 'https://placehold.co/600x800.png', altText: 'Urban Nomad Pants related product', dataAiHint: 'pants fashion' }], categories: [{ id: 'cat-3', name: 'Bottoms', slug: 'bottoms' }], shortDescription: 'Street-ready style.', createdAt: " ", updatedAt: " ", description: " "
   },
   {
     id: 'prod-4', name: 'Silk Scarf Mandala', slug: 'silk-scarf-mandala', price: 4200, 
-    images: [{ id: 'img-4', url: 'https://placehold.co/600x800.png', altText: 'Silk Scarf Mandala related product' }], categories: [{ id: 'cat-4', name: 'Accessories', slug: 'accessories' }], shortDescription: 'Hand-painted silk.', createdAt: " ", updatedAt: " ", description: " "
+    images: [{ id: 'img-4', url: 'https://placehold.co/600x800.png', altText: 'Silk Scarf Mandala related product', dataAiHint: 'scarf silk' }], categories: [{ id: 'cat-4', name: 'Accessories', slug: 'accessories' }], shortDescription: 'Hand-painted silk.', createdAt: " ", updatedAt: " ", description: " "
   },
 ];
 
@@ -114,7 +114,7 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-start">
         {/* Image Gallery */}
-        <div className="sticky top-24 z-10 bg-background p-1 rounded-lg shadow-sm">
+        <div className="lg:sticky lg:top-24 z-10 bg-background p-1 rounded-lg shadow-sm">
           <div className="mb-4">
              <AspectRatio ratio={4/5} className="bg-muted rounded-lg overflow-hidden shadow-lg">
                 <Image
