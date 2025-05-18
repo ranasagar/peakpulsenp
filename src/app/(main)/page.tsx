@@ -1,5 +1,4 @@
 
-
 import Image from 'next/image';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -12,7 +11,7 @@ interface HomepageContent {
   hero: {
     title: string;
     description: string;
-    videoId?: string; // Added videoId
+    videoId?: string;
   };
   artisanalRoots?: {
     title: string;
@@ -72,11 +71,11 @@ export default async function HomePage() {
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
             allowFullScreen={false}
           ></iframe>
-           <div className="absolute inset-0 bg-black/50 z-[1]"></div>
+           <div className="absolute inset-0 bg-black/50 z-[1]"></div> {/* Dark Overlay - Increased opacity */}
         </div>
 
         {/* Content Overlay */}
-        <div className="relative z-20 flex flex-col items-center justify-center h-full text-center text-white pt-[calc(theme(spacing.20)_+_theme(spacing.6))] pb-12 px-6 md:px-8 max-w-3xl mx-auto">
+        <div className="relative z-20 flex flex-col items-center justify-center h-full pt-[calc(theme(spacing.20)_+_theme(spacing.6))] pb-12 px-6 md:px-8 text-center text-white max-w-3xl mx-auto">
           <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-6">
             {heroTitle}
           </h1>
@@ -94,7 +93,7 @@ export default async function HomePage() {
         <h2 className="text-3xl font-bold text-center mb-12 text-foreground">Featured Collection</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
           {[
-            { id: 'prod-1', name: 'Himalayan Breeze Jacket', slug: 'himalayan-breeze-jacket', price: 12000, images: [{id: 'img-1', url: 'https://placehold.co/600x800.png', altText: 'Himalayan Breeze Jacket', dataAiHint: 'jacket fashion'}], categories: [{id: 'cat-1', name: 'Outerwear', slug: 'outerwear'}], shortDescription: 'Lightweight and versatile.', createdAt: '', updatedAt: '', description: '' },
+            { id: 'prod-1', name: 'Himalayan Breeze Jacket', slug: 'himalayan-breeze-jacket', price: 12000, images: [{id: 'img-1', url: 'https://catalog-resize-images.thedoublef.com/606bc76216f1f9cb1ad8281eb9b7e84e/900/900/NF0A4QYXNY_P_NORTH-ZU31.a.jpg', altText: 'Himalayan Breeze Jacket', dataAiHint: 'jacket fashion'}], categories: [{id: 'cat-1', name: 'Outerwear', slug: 'outerwear'}], shortDescription: 'Lightweight and versatile.', createdAt: '', updatedAt: '', description: '' },
             { id: 'prod-2', name: 'Kathmandu Comfort Tee', slug: 'kathmandu-comfort-tee', price: 3500, images: [{id: 'img-2', url: 'https://placehold.co/600x800.png', altText: 'Kathmandu Comfort Tee', dataAiHint: 'tee shirt'}], categories: [{id: 'cat-2', name: 'Tops', slug: 'tops'}], shortDescription: 'Premium cotton for daily wear.', createdAt: '', updatedAt: '', description: '' },
             { id: 'prod-3', name: 'Urban Nomad Pants', slug: 'urban-nomad-pants', price: 7500, images: [{id: 'img-3', url: 'https://placehold.co/600x800.png', altText: 'Urban Nomad Pants', dataAiHint: 'pants fashion'}], categories: [{id: 'cat-3', name: 'Bottoms', slug: 'bottoms'}], shortDescription: 'Street-ready style.', createdAt: '', updatedAt: '', description: '' },
           ].map(product => (
