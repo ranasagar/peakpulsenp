@@ -74,17 +74,15 @@ export default async function HomePage() {
       {/* Hero Section - Updated for Full-Screen Immersive Experience */}
       <section className="relative h-screen w-full flex items-center justify-center text-center text-white overflow-hidden">
         {/* Background Video Container */}
-        <div className="absolute inset-0 z-0 w-full h-full overflow-hidden">
+        <div className="absolute inset-0 z-0 w-full h-full overflow-hidden pointer-events-none">
           <iframe
-            className="absolute top-1/2 left-1/2 min-w-full min-h-full w-auto h-auto transform -translate-x-1/2 -translate-y-1/2 pointer-events-none"
-            style={{ objectFit: 'cover' }} // Ensures video covers the area, might crop
+            className="absolute top-1/2 left-1/2 min-w-full min-h-full w-auto h-auto transform -translate-x-1/2 -translate-y-1/2"
             src={`https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&loop=1&playlist=${videoId}&controls=0&showinfo=0&autohide=1&modestbranding=1&playsinline=1&enablejsapi=1`}
             title="Peak Pulse Background Video"
             frameBorder="0"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowFullScreen={false} // Background videos shouldn't be fullscreen-interactive
+            allowFullScreen={false} 
           ></iframe>
-          {/* Fallback Image or Static Overlay if needed */}
            <div className="absolute inset-0 bg-black/40"></div> {/* Dark overlay for text contrast */}
         </div>
         
@@ -137,7 +135,7 @@ export default async function HomePage() {
         </h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[1, 2, 3, 4].map(i => (
-            <Link key={i} href="https://instagram.com/peakpulse" target="_blank" rel="noopener noreferrer" className="block bg-muted rounded-lg overflow-hidden group">
+            <Link key={i} href="https://instagram.com/peakpulsenp" target="_blank" rel="noopener noreferrer" className="block bg-muted rounded-lg overflow-hidden group">
               <AspectRatio ratio={1 / 1}>
                 <Image
                   src={`https://placehold.co/400x400.png`}
@@ -145,7 +143,7 @@ export default async function HomePage() {
                   layout="fill"
                   objectFit="cover"
                   className="group-hover:scale-105 transition-transform duration-300"
-                  data-ai-hint="fashion lifestyle social"
+                  data-ai-hint="instagram fashion user"
                 />
               </AspectRatio>
             </Link>
@@ -153,7 +151,7 @@ export default async function HomePage() {
         </div>
         <div className="text-center mt-8">
             <Button variant="secondary" asChild>
-                <Link href="https://instagram.com/peakpulse" target="_blank" rel="noopener noreferrer">
+                <Link href="https://instagram.com/peakpulsenp" target="_blank" rel="noopener noreferrer">
                     Follow us on Instagram <Instagram className="ml-2 h-4 w-4"/>
                 </Link>
             </Button>
