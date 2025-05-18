@@ -13,34 +13,12 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       {
         protocol: 'https',
-        hostname: 'placehold.co',
-        port: '',
-        pathname: '/**',
+        hostname: '*', // Allows all hostnames for HTTPS
       },
       {
-        protocol: 'https',
-        hostname: 'catalog-resize-images.thedoublef.com',
-        port: '',
-        pathname: '/**',
+        protocol: 'http',
+        hostname: '*', // Allows all hostnames for HTTP
       },
-      {
-        protocol: 'https',
-        hostname: 'images.unsplash.com',
-        port: '',
-        pathname: '/**',
-      },
-      {
-        protocol: 'https',
-        hostname: 'assets.thenorthface.com',
-        port: '',
-        pathname: '/**',
-      },
-      {
-        protocol: 'https',
-        hostname: 'thepipebox.com', // Added new hostname
-        port: '',
-        pathname: '/**',
-      }
     ],
   },
 };
