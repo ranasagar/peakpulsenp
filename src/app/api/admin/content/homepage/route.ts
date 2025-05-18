@@ -9,7 +9,8 @@ interface HomepageContentData {
   hero: {
     title: string;
     description: string;
-    videoId?: string; // Added videoId
+    videoId?: string;
+    imageUrl?: string; // Added imageUrl
   };
   artisanalRoots?: {
     title: string;
@@ -34,6 +35,9 @@ export async function POST(request: NextRequest) {
     if (newData.hero.videoId && (typeof newData.hero.videoId !== 'string' || !/^[a-zA-Z0-9_-]{11}$/.test(newData.hero.videoId))) {
         return NextResponse.json({ message: 'Invalid YouTube Video ID format for hero section.' }, { status: 400 });
     }
+    if (newData.hero.imageUrl && typeof newData.hero.imageUrl !== 'string') { // Basic check for string
+        return NextResponse.json({ message: 'Invalid Image URL format for hero section.' }, { status: 400 });
+    }
      if (newData.artisanalRoots && (typeof newData.artisanalRoots.title !== 'string' || typeof newData.artisanalRoots.description !== 'string')) {
       return NextResponse.json({ message: 'Invalid data format for artisanal roots section.' }, { status: 400 });
     }
@@ -52,12 +56,20 @@ export async function POST(request: NextRequest) {
     }
     
     const updatedHero = {
-        ...currentData.hero,
-        ...newData.hero // newData.hero will overwrite title and description, and add/update videoId
+        ...currentData.hero, // Start with existing hero data
+        title: newData.hero.title, // Overwrite title
+        description: newData.hero.description, // Overwrite description
+        videoId: newData.hero.videoId, // Set or clear videoId
+        imageUrl: newData.hero.imageUrl, // Set or clear imageUrl
     };
-     // Ensure videoId is removed if newData.hero.videoId is an empty string or undefined
+
+    // Ensure videoId is removed if newData.hero.videoId is an empty string or undefined
     if (newData.hero.videoId === '' || newData.hero.videoId === undefined) {
       delete updatedHero.videoId;
+    }
+    // Ensure imageUrl is removed if newData.hero.imageUrl is an empty string or undefined
+    if (newData.hero.imageUrl === '' || newData.hero.imageUrl === undefined) {
+      delete updatedHero.imageUrl;
     }
 
 

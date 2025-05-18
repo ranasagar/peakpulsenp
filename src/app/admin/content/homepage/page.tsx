@@ -9,15 +9,16 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form'; // Added FormDescription
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Save, Youtube } from 'lucide-react';
+import { Loader2, Save, Youtube, Image as ImageIcon } from 'lucide-react'; // Added ImageIcon
 
 interface HomepageContentData {
   hero: {
     title: string;
     description: string;
     videoId?: string;
+    imageUrl?: string; // Added for hero image
   };
   artisanalRoots?: {
     title: string;
@@ -31,6 +32,7 @@ const homepageContentSchema = z.object({
   heroVideoId: z.string().optional().refine(val => !val || /^[a-zA-Z0-9_-]{11}$/.test(val), {
     message: "Must be a valid YouTube Video ID (11 characters) or empty.",
   }),
+  heroImageUrl: z.string().url({ message: "Must be a valid URL or empty." }).optional().or(z.literal('')), // Added for hero image
   artisanalRootsTitle: z.string().min(5, "Artisanal roots title must be at least 5 characters.").optional(),
   artisanalRootsDescription: z.string().min(10, "Artisanal roots description must be at least 10 characters.").optional(),
 });
@@ -48,6 +50,7 @@ export default function AdminHomepageContentPage() {
       heroTitle: '',
       heroDescription: '',
       heroVideoId: '',
+      heroImageUrl: '', // Added default
       artisanalRootsTitle: '',
       artisanalRootsDescription: '',
     },
@@ -66,6 +69,7 @@ export default function AdminHomepageContentPage() {
           heroTitle: data.hero.title,
           heroDescription: data.hero.description,
           heroVideoId: data.hero.videoId || '',
+          heroImageUrl: data.hero.imageUrl || '', // Added reset value
           artisanalRootsTitle: data.artisanalRoots?.title || '',
           artisanalRootsDescription: data.artisanalRoots?.description || '',
         });
@@ -91,6 +95,7 @@ export default function AdminHomepageContentPage() {
           title: data.heroTitle,
           description: data.heroDescription,
           videoId: data.heroVideoId || undefined,
+          imageUrl: data.heroImageUrl || undefined, // Added payload value
         },
         artisanalRoots: {
           title: data.artisanalRootsTitle || '',
@@ -143,7 +148,7 @@ export default function AdminHomepageContentPage() {
       <CardHeader>
         <CardTitle className="text-2xl">Edit Homepage Content</CardTitle>
         <CardDescription>
-          Modify the text displayed in the hero section and other areas of the homepage.
+          Modify the text and media displayed in the hero section and other areas of the homepage.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -184,9 +189,23 @@ export default function AdminHomepageContentPage() {
                   <FormItem>
                     <FormLabel className="flex items-center"><Youtube className="mr-2 h-5 w-5 text-red-600"/> YouTube Video ID (Optional)</FormLabel>
                     <FormControl>
-                      <Input placeholder="e.g. gCRNEJxDJKM" {...field} />
+                      <Input placeholder="e.g. gCRNEJxDJKM (leave empty to not use video)" {...field} />
                     </FormControl>
-                    <FormDescription>The 11-character ID from a YouTube video URL (e.g., the XXXXXXXXXXX in youtu.be/XXXXXXXXXXX).</FormDescription>
+                    <FormDescription>The 11-character ID from a YouTube video URL. Used if no Image URL is provided or if video is preferred.</FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="heroImageUrl"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="flex items-center"><ImageIcon className="mr-2 h-5 w-5 text-blue-500"/> Background Image URL (Optional)</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g. https://example.com/hero-image.jpg (leave empty to not use image)" {...field} />
+                    </FormControl>
+                    <FormDescription>URL for a hero background image. Displayed if no Video ID is set, or as a fallback.</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}

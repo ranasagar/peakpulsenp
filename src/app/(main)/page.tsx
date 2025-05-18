@@ -12,6 +12,7 @@ interface HomepageContent {
     title: string;
     description: string;
     videoId?: string;
+    imageUrl?: string; // Added for hero image
   };
   artisanalRoots?: {
     title: string;
@@ -22,6 +23,8 @@ interface HomepageContent {
 async function getHomepageContent(): Promise<HomepageContent> {
   try {
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:9002';
+    // Fetch with no-store to ensure freshness from the API route,
+    // which itself reads the file on each request.
     const res = await fetch(`${baseUrl}/api/content/homepage`, { cache: 'no-store' });
 
     if (!res.ok) {
@@ -37,7 +40,8 @@ async function getHomepageContent(): Promise<HomepageContent> {
       hero: {
         title: "Peak Pulse (Fallback)",
         description: "Experience the fusion of ancient Nepali artistry and modern streetwear. (Content failed to load)",
-        videoId: "gCRNEJxDJKM" // Default fallback video
+        videoId: "gCRNEJxDJKM",
+        imageUrl: "https://images.unsplash.com/photo-1506748686214-e9df14d4d9d0?q=80&w=1920&auto=format&fit=crop" // Example fallback image
       },
       artisanalRoots: {
         title: "Our Artisanal Roots (Fallback)",
@@ -51,7 +55,8 @@ export default async function HomePage() {
   const content = await getHomepageContent();
   const heroTitle = content.hero?.title || "Peak Pulse";
   const heroDescription = content.hero?.description || "Experience the fusion of ancient Nepali artistry and modern streetwear.";
-  const heroVideoId = content.hero?.videoId || "gCRNEJxDJKM"; // Use dynamic or fallback video ID
+  const heroVideoId = content.hero?.videoId;
+  const heroImageUrl = content.hero?.imageUrl;
 
   const artisanalRootsTitle = content.artisanalRoots?.title || "Our Artisanal Roots";
   const artisanalRootsDescription = content.artisanalRoots?.description || "At Peak Pulse, every thread tells a story. We partner with local artisans in Nepal, preserving centuries-old techniques while innovating for today's global citizen.";
@@ -60,18 +65,30 @@ export default async function HomePage() {
   return (
     <>
       {/* Hero Section - Updated for Full-Screen Immersive Experience */}
-      <section className="relative h-screen w-full overflow-hidden">
-        {/* Background Video Container */}
+      <section className="relative h-screen w-full overflow-hidden bg-black"> {/* Ultimate fallback background */}
+        {/* Background Video/Image Container */}
         <div className="absolute inset-0 z-0 w-full h-full overflow-hidden pointer-events-none bg-black">
-          <iframe
-            className="absolute top-1/2 left-1/2 w-full h-full min-w-[177.77vh] min-h-[56.25vw] transform -translate-x-1/2 -translate-y-1/2"
-            src={`https://www.youtube.com/embed/${heroVideoId}?autoplay=1&mute=1&loop=1&playlist=${heroVideoId}&controls=0&showinfo=0&autohide=1&modestbranding=1&playsinline=1&enablejsapi=1`}
-            title="Peak Pulse Background Video"
-            frameBorder="0"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowFullScreen={false}
-          ></iframe>
-           <div className="absolute inset-0 bg-black/50 z-[1]"></div> {/* Dark Overlay - Increased opacity */}
+          {heroVideoId ? (
+            <iframe
+              className="absolute top-1/2 left-1/2 w-full h-full min-w-[177.77vh] min-h-[56.25vw] transform -translate-x-1/2 -translate-y-1/2"
+              src={`https://www.youtube.com/embed/${heroVideoId}?autoplay=1&mute=1&loop=1&playlist=${heroVideoId}&controls=0&showinfo=0&autohide=1&modestbranding=1&playsinline=1&enablejsapi=1`}
+              title="Peak Pulse Background Video"
+              frameBorder="0"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen={false}
+            ></iframe>
+          ) : heroImageUrl ? (
+            <Image
+              src={heroImageUrl}
+              alt="Peak Pulse Hero Background"
+              layout="fill"
+              objectFit="cover"
+              priority
+              className="opacity-70" // Adjust opacity as needed
+              data-ai-hint="fashion mountains nepal"
+            />
+          ) : null}
+           <div className="absolute inset-0 bg-black/50 z-[1]"></div> {/* Dark Overlay - Increased opacity for better contrast with text */}
         </div>
 
         {/* Content Overlay */}
