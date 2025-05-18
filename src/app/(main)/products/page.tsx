@@ -6,7 +6,7 @@ import { ProductCard } from '@/components/product/product-card';
 import type { Product, FilterOption } from '@/types';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { SlidersHorizontal, ChevronDown, ListFilter } from 'lucide-react';
+import { SlidersHorizontal, ChevronDown, ListFilter, Loader2 } from 'lucide-react';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
@@ -16,55 +16,80 @@ import { Separator } from '@/components/ui/separator';
 
 
 // Mock products - replace with actual data fetching
-const mockProducts: Product[] = [
+const allMockProducts: Product[] = [
   {
     id: 'prod-1', name: 'Himalayan Breeze Jacket', slug: 'himalayan-breeze-jacket', price: 12000,
-    images: [{ id: 'img-1', url: 'https://placehold.co/600x800.png', altText: 'Himalayan Breeze Jacket front view' }],
+    images: [{ id: 'img-1', url: 'https://placehold.co/600x800.png', altText: 'Himalayan Breeze Jacket front view', dataAiHint: 'jacket fashion' }],
     categories: [{ id: 'cat-1', name: 'Outerwear', slug: 'outerwear' }],
     shortDescription: 'Lightweight and versatile for urban adventures.',
     createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), description: "Full description here."
   },
   {
     id: 'prod-2', name: 'Kathmandu Comfort Tee', slug: 'kathmandu-comfort-tee', price: 3500,
-    images: [{ id: 'img-2', url: 'https://placehold.co/600x800.png', altText: 'Kathmandu Comfort Tee front view' }],
+    images: [{ id: 'img-2', url: 'https://placehold.co/600x800.png', altText: 'Kathmandu Comfort Tee front view', dataAiHint: 'tee shirt' }],
     categories: [{ id: 'cat-2', name: 'Tops', slug: 'tops' }],
     shortDescription: 'Premium cotton for everyday luxury.',
     createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), description: "Full description here."
   },
   {
     id: 'prod-3', name: 'Urban Nomad Pants', slug: 'urban-nomad-pants', price: 7500,
-    images: [{ id: 'img-3', url: 'https://placehold.co/600x800.png', altText: 'Urban Nomad Pants front view' }],
+    images: [{ id: 'img-3', url: 'https://placehold.co/600x800.png', altText: 'Urban Nomad Pants front view', dataAiHint: 'pants fashion' }],
     categories: [{ id: 'cat-3', name: 'Bottoms', slug: 'bottoms' }],
     shortDescription: 'Street-ready style with traditional touches.',
     createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), description: "Full description here."
   },
   {
     id: 'prod-4', name: 'Silk Scarf Mandala', slug: 'silk-scarf-mandala', price: 4200, 
-    images: [{ id: 'img-4', url: 'https://placehold.co/600x800.png', altText: 'Silk Scarf with Mandala design' }], 
+    images: [{ id: 'img-4', url: 'https://placehold.co/600x800.png', altText: 'Silk Scarf with Mandala design', dataAiHint: 'scarf silk' }], 
     categories: [{ id: 'cat-4', name: 'Accessories', slug: 'accessories' }], 
     shortDescription: 'Hand-painted pure silk elegance.',
     createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), description: "Full desc here"
   },
   {
     id: 'prod-5', name: 'Artisan Leather Wallet', slug: 'artisan-leather-wallet', price: 5800, 
-    images: [{ id: 'img-5', url: 'https://placehold.co/600x800.png', altText: 'Handcrafted Artisan Leather Wallet' }], 
+    images: [{ id: 'img-5', url: 'https://placehold.co/600x800.png', altText: 'Handcrafted Artisan Leather Wallet', dataAiHint: 'leather wallet' }], 
     categories: [{ id: 'cat-4', name: 'Accessories', slug: 'accessories' }], 
     shortDescription: 'Handcrafted full-grain leather wallet.',
     createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), description: "Full desc here"
   },
    {
     id: 'prod-6', name: 'Everest Summit Hoodie', slug: 'everest-summit-hoodie', price: 9800, 
-    images: [{ id: 'img-6', url: 'https://placehold.co/600x800.png', altText: 'Everest Summit Hoodie' }], 
+    images: [{ id: 'img-6', url: 'https://placehold.co/600x800.png', altText: 'Everest Summit Hoodie', dataAiHint: 'summit hoodie' }], 
     categories: [{ id: 'cat-1', name: 'Outerwear', slug: 'outerwear' }], 
     shortDescription: 'Warmth and style inspired by the highest peaks.',
     createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), description: "Full desc here"
   },
+  // Add more mock products for pagination demo
+  {
+    id: 'prod-7', name: 'Pashmina Shawl', slug: 'pashmina-shawl', price: 11000,
+    images: [{ id: 'img-7', url: 'https://placehold.co/600x800.png', altText: 'Luxurious Pashmina Shawl', dataAiHint: 'pashmina shawl' }],
+    categories: [{ id: 'cat-4', name: 'Accessories', slug: 'accessories' }],
+    shortDescription: 'Authentic Nepali pashmina, soft and warm.',
+    createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), description: "Full description here."
+  },
+  {
+    id: 'prod-8', name: 'Bohemian Rhapsody Dress', slug: 'bohemian-rhapsody-dress', price: 8500,
+    images: [{ id: 'img-8', url: 'https://placehold.co/600x800.png', altText: 'Bohemian Rhapsody Dress', dataAiHint: 'bohemian dress' }],
+    categories: [{ id: 'cat-5', name: 'Dresses', slug: 'dresses' }], // Assuming a new category
+    shortDescription: 'Flowy and free-spirited, perfect for any occasion.',
+    createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), description: "Full description here."
+  },
+  {
+    id: 'prod-9', name: 'Heritage Weave Backpack', slug: 'heritage-weave-backpack', price: 6200,
+    images: [{ id: 'img-9', url: 'https://placehold.co/600x800.png', altText: 'Heritage Weave Backpack', dataAiHint: 'weave backpack' }],
+    categories: [{ id: 'cat-4', name: 'Accessories', slug: 'accessories' }],
+    shortDescription: 'Durable backpack with traditional Nepali weave patterns.',
+    createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), description: "Full description here."
+  }
 ];
+
+const PRODUCTS_PER_PAGE = 6;
 
 const mockFilters: FilterOption[] = [
   { id: 'category', label: 'Category', type: 'checkbox', options: [
     { value: 'outerwear', label: 'Outerwear' }, { value: 'tops', label: 'Tops' },
-    { value: 'bottoms', label: 'Bottoms' }, { value: 'accessories', label: 'Accessories' }
+    { value: 'bottoms', label: 'Bottoms' }, { value: 'accessories', label: 'Accessories' },
+    { value: 'dresses', label: 'Dresses'}
   ]},
   { id: 'size', label: 'Size', type: 'checkbox', options: [
     { value: 's', label: 'Small' }, { value: 'm', label: 'Medium' },
@@ -74,8 +99,6 @@ const mockFilters: FilterOption[] = [
     { value: 'red', label: 'Red', color: '#E53E3E' }, { value: 'blue', label: 'Blue', color: '#3182CE'},
     { value: 'green', label: 'Green', color: '#38A169' }, { value: 'black', label: 'Black', color: '#1A202C'}
   ]},
-  // Price range filter would require a slider component, example:
-  // { id: 'price', label: 'Price Range', type: 'range', min: 0, max: 20000, step: 1000 },
 ];
 
 
@@ -107,7 +130,6 @@ const FilterSidebarContent = ({ filters }: { filters: FilterOption[] }) => (
                   ))}
                 </div>
               )}
-              {/* TODO: Add range slider for price */}
               </div>
             </AccordionContent>
           </AccordionItem>
@@ -121,12 +143,26 @@ const FilterSidebarContent = ({ filters }: { filters: FilterOption[] }) => (
 
 
 export default function ProductsPage() {
-  const [products, setProducts] = useState<Product[]>(mockProducts);
+  const [displayedProducts, setDisplayedProducts] = useState<Product[]>(allMockProducts.slice(0, PRODUCTS_PER_PAGE));
+  const [currentPage, setCurrentPage] = useState(1);
   const [sortOption, setSortOption] = useState('featured');
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
 
-  // TODO: Implement actual filtering and sorting logic
-  // useEffect to fetch products based on filters/sort
+  const hasMoreProducts = displayedProducts.length < allMockProducts.length;
+
+  const loadMoreProducts = () => {
+    if (!hasMoreProducts || isLoadingMore) return;
+
+    setIsLoadingMore(true);
+    setTimeout(() => { // Simulate network delay
+      const nextPage = currentPage + 1;
+      const newProducts = allMockProducts.slice(0, nextPage * PRODUCTS_PER_PAGE);
+      setDisplayedProducts(newProducts);
+      setCurrentPage(nextPage);
+      setIsLoadingMore(false);
+    }, 500);
+  };
 
   return (
     <div className="container-wide section-padding">
@@ -139,7 +175,7 @@ export default function ProductsPage() {
       </div>
 
       {/* Toolbar: Sort and Mobile Filter Trigger */}
-      <div className="flex items-center justify-between mb-8 sticky top-20 bg-background/80 backdrop-blur-md py-3 z-40 -mx-4 px-4 border-b">
+      <div className="flex items-center justify-between mb-8 sticky top-[calc(theme(spacing.20)_-_theme(spacing.8))_] bg-background/80 backdrop-blur-md py-3 z-40 -mx-4 px-4 border-b">
         <div>
           <Sheet open={isMobileFiltersOpen} onOpenChange={setIsMobileFiltersOpen}>
             <SheetTrigger asChild>
@@ -151,7 +187,7 @@ export default function ProductsPage() {
               <FilterSidebarContent filters={mockFilters} />
             </SheetContent>
           </Sheet>
-           <span className="ml-2 text-sm text-muted-foreground hidden md:inline">Showing {products.length} products</span>
+           <span className="ml-2 text-sm text-muted-foreground hidden md:inline">Showing {displayedProducts.length} of {allMockProducts.length} products</span>
         </div>
 
         <DropdownMenu>
@@ -173,8 +209,7 @@ export default function ProductsPage() {
       
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
         {/* Filters Sidebar (Desktop) */}
-        {/* Header height: 5rem (h-20), Toolbar height: approx 3.25rem (button h-10 + py-3). Total approx 8.25rem + 1px border */}
-        <aside className="hidden lg:block lg:col-span-1 sticky top-[calc(theme(spacing.20)_+_4rem_+_1px)] h-[calc(100vh_-_theme(spacing.20)_-_4rem_-_1px_-_theme(spacing.16))]">
+        <aside className="hidden lg:block lg:col-span-1 sticky top-[calc(theme(spacing.20)_-_theme(spacing.8)_+_4rem_+_1px)] h-[calc(100vh_-_theme(spacing.20)_-_theme(spacing.8)_-_4rem_-_1px_-_theme(spacing.16))]">
           <div className="bg-card rounded-lg shadow-sm border h-full">
              <FilterSidebarContent filters={mockFilters} />
           </div>
@@ -182,9 +217,9 @@ export default function ProductsPage() {
 
         {/* Product Grid */}
         <div className="lg:col-span-3">
-          {products.length > 0 ? (
+          {displayedProducts.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6 md:gap-8">
-              {products.map(product => (
+              {displayedProducts.map(product => (
                 <ProductCard key={product.id} product={product} />
               ))}
             </div>
@@ -195,14 +230,23 @@ export default function ProductsPage() {
               <p className="text-muted-foreground">Try adjusting your filters or check back later.</p>
             </div>
           )}
-          {/* TODO: Add Pagination */}
-          <div className="mt-12 flex justify-center">
-             <Button variant="outline" disabled>Load More (Pagination UI)</Button>
-          </div>
+          {/* Load More Button */}
+          {hasMoreProducts && (
+            <div className="mt-12 flex justify-center">
+              <Button variant="outline" onClick={loadMoreProducts} disabled={isLoadingMore}>
+                {isLoadingMore ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Loading...
+                  </>
+                ) : (
+                  'Load More Products'
+                )}
+              </Button>
+            </div>
+          )}
         </div>
       </div>
     </div>
   );
 }
-
-    

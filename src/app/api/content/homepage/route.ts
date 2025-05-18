@@ -1,3 +1,4 @@
+
 'use server';
 
 import { NextResponse } from 'next/server';
@@ -14,7 +15,17 @@ export async function GET() {
     return NextResponse.json(data);
   } catch (error) {
     console.error('Failed to read homepage content:', error);
-    // Ensure a valid JSON response for errors too
-    return NextResponse.json({ message: 'Error fetching content', error: (error as Error).message }, { status: 500 });
+    // Fallback content in case of an error (e.g., file not found or malformed JSON)
+    const fallbackContent = {
+      hero: {
+        title: "Peak Pulse (Error)",
+        description: "Welcome! Content is temporarily unavailable."
+      },
+      artisanalRoots: {
+        title: "Our Heritage (Error)",
+        description: "Details about our craftsmanship are currently unavailable."
+      }
+    };
+    return NextResponse.json(fallbackContent, { status: 500 });
   }
 }

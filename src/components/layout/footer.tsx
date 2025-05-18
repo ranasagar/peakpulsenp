@@ -6,8 +6,9 @@ import { Icons } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Facebook, Instagram, Twitter, Youtube, Send } from 'lucide-react';
+import { Facebook, Instagram, Twitter, Youtube, Send, Shield } from 'lucide-react';
 import { NewsletterSignupForm } from '@/components/forms/newsletter-signup-form';
+import { useAuth } from '@/hooks/use-auth';
 
 
 const footerNavs = [
@@ -46,6 +47,7 @@ const socialLinks = [
 
 export function Footer() {
   const currentYear = new Date().getFullYear();
+  const { user } = useAuth(); // Check if user is admin
 
   return (
     <footer className="bg-card text-card-foreground border-t border-border/60">
@@ -88,9 +90,16 @@ export function Footer() {
 
         {/* Bottom Bar: Copyright and Social Links */}
         <div className="mt-16 pt-8 border-t border-border/60 flex flex-col md:flex-row justify-between items-center gap-6">
-          <p className="text-xs text-muted-foreground">
-            &copy; {currentYear} Peak Pulse. All rights reserved. Based in Kathmandu, Nepal.
-          </p>
+          <div className="text-xs text-muted-foreground text-center md:text-left">
+            <p>&copy; {currentYear} Peak Pulse. All rights reserved. Based in Kathmandu, Nepal.</p>
+            {/* Simple Admin Link (for demo purposes, ideally check user role) */}
+            {/* In a real app, this link should only be visible to admin users and link to a secure admin portal */}
+            {user && user.roles && user.roles.includes('admin') && ( // Basic check, real role management needed
+               <Link href="/admin" className="mt-1 text-primary hover:underline flex items-center justify-center md:justify-start">
+                <Shield className="mr-1 h-3 w-3" /> Admin Panel (Demo)
+              </Link>
+            )}
+          </div>
           <div className="flex space-x-4">
             {socialLinks.map((social) => (
               <Link
@@ -110,5 +119,3 @@ export function Footer() {
     </footer>
   );
 }
-
-    
