@@ -99,19 +99,19 @@ export function Header() {
         <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
           <SheetTrigger asChild>
             <Button variant="ghost" size="icon" className="md:hidden mr-4">
-              <Icons.AnimatedMenuIcon className="h-6 w-6" />
+              <Icons.AnimatedMenuIcon className="h-7 w-7" /> {/* Increased size */}
               <span className="sr-only">Toggle Menu</span>
             </Button>
           </SheetTrigger>
-          <SheetContent side="left" className="w-full max-w-xs sm:max-w-sm bg-background p-0"> {/* Removed p-6 from here */}
-             <SheetHeader className="p-6 pb-0"> {/* Added padding to header explicitly */}
-              <SheetTitle className="sr-only">Main Menu</SheetTitle>
+          <SheetContent side="left" className="w-full max-w-xs sm:max-w-sm bg-background p-0">
+             <SheetHeader className="p-6 pb-0 border-b">
+                <SheetTitle className="sr-only">Main Menu</SheetTitle> {/* For accessibility */}
+                 <Link href="/" className="mb-4 flex items-center gap-2 self-start" onClick={() => setIsMobileMenuOpen(false)}>
+                    <Icons.Logo className="h-7 w-7 text-primary" />
+                    <span className="font-bold text-lg text-foreground">Peak Pulse</span>
+                </Link>
             </SheetHeader>
-            <div className="p-6"> {/* Add padding to content area */}
-              <Link href="/" className="mb-8 flex items-center gap-2" onClick={() => setIsMobileMenuOpen(false)}>
-                <Icons.Logo className="h-7 w-7 text-primary" />
-                <span className="font-bold text-lg text-foreground">Peak Pulse</span>
-              </Link>
+            <div className="p-6">
               <nav className="flex flex-col space-y-5">
                 {navLinks}
                 {isAuthenticated && (

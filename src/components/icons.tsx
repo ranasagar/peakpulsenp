@@ -21,10 +21,10 @@ export const Icons = {
   AnimatedMenuIcon: ({ className, ...props }: LucideProps) => (
     <svg
       xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24" // Adjusted viewBox slightly if needed for larger heart
+      viewBox="0 0 24 24"
       fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
+      stroke="currentColor" // Default stroke for SVG container
+      strokeWidth="1.5"    // Default stroke-width for SVG container
       strokeLinecap="round"
       strokeLinejoin="round"
       className={cn("icon-animated-menu", className)}
@@ -33,52 +33,56 @@ export const Icons = {
       <style>
         {`
           .icon-animated-menu .heart-path {
-            animation: heart-pulse-animation 1.5s infinite ease-in-out;
-            transform-origin: center;
             fill: #28a745; /* Green color for heart */
-            stroke: #28a745; /* Green stroke for heart */
-            stroke-width: 0.5; /* Thinner stroke for heart to make fill more prominent */
+            stroke: #1c7430; /* Darker green stroke for definition */
+            stroke-width: 0.75; /* Stroke for the heart itself */
+            animation: heart-pulse-animation 1.5s infinite ease-in-out;
+            transform-origin: center; /* Animation scales from center of the path's bounding box */
           }
           @keyframes heart-pulse-animation {
-            0% { transform: scale(1.0); } /* Base size slightly larger */
-            50% { transform: scale(1.2); } /* Pulsating size increased */
+            0% { transform: scale(1.0); }
+            50% { transform: scale(1.15); } /* Pulsating size for the heart */
             100% { transform: scale(1.0); }
           }
-          .icon-animated-menu .ecg-mountain-path {
-            stroke: currentColor; /* Or a specific color like var(--foreground) */
-            stroke-width: 1.2; /* Thinner line for ECG */
+          .icon-animated-menu .ecg-path {
+            stroke: currentColor; /* Uses the SVG's currentColor (can be overridden by className) */
+            stroke-width: 1; /* Subtle stroke for ECG */
             fill: none;
-            stroke-dasharray: 100; /* Total length of the path (approximate, adjust if needed) */
-            stroke-dashoffset: 100;
-            animation: draw-ecg-mountain 3s ease-in-out infinite alternate;
-            opacity: 0.7;
+            stroke-dasharray: 60; /* Adjusted to path length */
+            stroke-dashoffset: 60; /* Start with path "undrawn" */
+            animation: draw-ecg 3s ease-in-out infinite alternate;
+            opacity: 0; /* Start invisible, fade in with animation */
           }
-          @keyframes draw-ecg-mountain {
+          @keyframes draw-ecg {
             0% {
-              stroke-dashoffset: 100;
-              opacity: 0.3;
+              stroke-dashoffset: 60; /* Start fully offset */
+              opacity: 0;
+            }
+            20% { /* Start drawing and fading in */
+              opacity: 0.8;
             }
             70% {
-              stroke-dashoffset: 0;
-              opacity: 0.7;
+              stroke-dashoffset: 0; /* Fully drawn */
+              opacity: 0.8;
             }
             100% {
-              stroke-dashoffset: 0;
-              opacity: 0.7;
+              stroke-dashoffset: 0; /* Hold drawn state */
+              opacity: 0; /* Fade out */
             }
           }
         `}
       </style>
-      {/* Animated ECG Mountain Path */}
-      <path
-        className="ecg-mountain-path"
-        d="M2 18 Q3 18 4 16 L6 20 L8 12 L10 18 L12 10 L14 18 L16 14 L18 18 L20 15 Q21 16 22 16" // Example ECG-like mountain path
-      />
-      {/* Heart - in front, pulsating, green, and slightly larger */}
+      {/* Green Heart - Scaled up and centered. Rendered first to be in the background. */}
       <path
         className="heart-path"
-        transform="translate(0 1)" // Shift heart slightly down if needed
-        d="M12 20.35l-1.45-1.32C5.4 14.36 2 11.28 2 7.5 2 4.42 4.42 2 7.5 2c1.74 0 3.41.81 4.5 2.09C13.09 2.81 14.76 2 16.5 2 19.58 2 22 4.42 22 7.5c0 3.78-3.4 6.86-8.55 11.54L12 20.35z" // Slightly adjusted heart path for size if needed
+        transform="scale(1.2) translate(-1.2, -2.2)" // Scale factor & translation to make heart larger and centered
+        d="M12 20.35l-1.45-1.32C5.4 14.36 2 11.28 2 7.5 2 4.42 4.42 2 7.5 2c1.74 0 3.41.81 4.5 2.09C13.09 2.81 14.76 2 16.5 2 19.58 2 22 4.42 22 7.5c0 3.78-3.4 6.86-8.55 11.54L12 20.35z"
+      />
+      {/* Animated ECG Path - Renders ON TOP of heart */}
+      <path
+        className="ecg-path"
+        // Adjusted path to go across the center (y=12) with some peaks, extending off-screen
+        d="M-2 12 Q2 12 3 10 L5 14 L7 8 L9 15 L11 9 L13 14 L15 10 L17 12 Q20 12 26 12"
       />
     </svg>
   )
