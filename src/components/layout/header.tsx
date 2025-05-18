@@ -19,8 +19,8 @@ import { Icons } from '@/components/icons';
 import { useAuth } from '@/hooks/use-auth';
 import { cn } from '@/lib/utils';
 import type { NavItem } from '@/types';
-import { ShoppingCart, Search, Menu, LogOut, UserCircle, LayoutDashboard, Settings, Star, ShoppingBag, Briefcase } from 'lucide-react';
-import { ModeToggle } from './mode-toggle'; // Assuming ModeToggle exists for dark mode
+import { ShoppingCart, Search, LogOut, UserCircle, LayoutDashboard, Settings, Star, ShoppingBag, Briefcase } from 'lucide-react';
+import { ModeToggle } from './mode-toggle';
 
 const mainNavItems: NavItem[] = [
   { title: 'Home', href: '/' },
@@ -41,6 +41,9 @@ export function Header() {
   const pathname = usePathname();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
+
+  // Simulate cart item count for demonstration. Replace with actual cart state.
+  const [cartItemCount, setCartItemCount] = useState(3); // Example: 3 items in cart
 
   useEffect(() => setMounted(true), []);
 
@@ -96,55 +99,57 @@ export function Header() {
         <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
           <SheetTrigger asChild>
             <Button variant="ghost" size="icon" className="md:hidden mr-4">
-              <Menu className="h-6 w-6" />
+              <Icons.AnimatedMenuIcon className="h-6 w-6" />
               <span className="sr-only">Toggle Menu</span>
             </Button>
           </SheetTrigger>
-          <SheetContent side="left" className="w-full max-w-xs sm:max-w-sm bg-background p-6">
-            <SheetHeader>
+          <SheetContent side="left" className="w-full max-w-xs sm:max-w-sm bg-background p-0"> {/* Removed p-6 from here */}
+             <SheetHeader className="p-6 pb-0"> {/* Added padding to header explicitly */}
               <SheetTitle className="sr-only">Main Menu</SheetTitle>
             </SheetHeader>
-            <Link href="/" className="mb-8 flex items-center gap-2" onClick={() => setIsMobileMenuOpen(false)}>
-              <Icons.Logo className="h-7 w-7 text-primary" />
-              <span className="font-bold text-lg text-foreground">Peak Pulse</span>
-            </Link>
-            <nav className="flex flex-col space-y-5">
-              {navLinks}
-              {isAuthenticated && (
-                <div className="pt-4 border-t border-border/60">
-                  <p className="text-sm font-medium text-muted-foreground mb-2">My Account</p>
-                  {userNavItems.map(item => (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      className="flex items-center py-2 text-sm font-medium text-foreground/80 hover:text-primary"
-                      onClick={() => setIsMobileMenuOpen(false)}
-                    >
-                      {item.icon && <item.icon className="mr-2 h-4 w-4" />}
-                      {item.title}
-                    </Link>
-                  ))}
-                  {user?.roles?.includes('affiliate') && (
-                    <Link
-                      href="/affiliate-portal"
-                      className="flex items-center py-2 text-sm font-medium text-foreground/80 hover:text-primary"
-                      onClick={() => setIsMobileMenuOpen(false)}
-                    >
-                       <Briefcase className="mr-2 h-4 w-4" />
-                       Affiliate Portal
-                    </Link>
-                  )}
-                  <Button variant="ghost" onClick={() => { logout(); setIsMobileMenuOpen(false); }} className="w-full justify-start mt-2 px-0">
-                    <LogOut className="mr-2 h-4 w-4" /> Log out
+            <div className="p-6"> {/* Add padding to content area */}
+              <Link href="/" className="mb-8 flex items-center gap-2" onClick={() => setIsMobileMenuOpen(false)}>
+                <Icons.Logo className="h-7 w-7 text-primary" />
+                <span className="font-bold text-lg text-foreground">Peak Pulse</span>
+              </Link>
+              <nav className="flex flex-col space-y-5">
+                {navLinks}
+                {isAuthenticated && (
+                  <div className="pt-4 border-t border-border/60">
+                    <p className="text-sm font-medium text-muted-foreground mb-2">My Account</p>
+                    {userNavItems.map(item => (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        className="flex items-center py-2 text-sm font-medium text-foreground/80 hover:text-primary"
+                        onClick={() => setIsMobileMenuOpen(false)}
+                      >
+                        {item.icon && <item.icon className="mr-2 h-4 w-4" />}
+                        {item.title}
+                      </Link>
+                    ))}
+                    {user?.roles?.includes('affiliate') && (
+                      <Link
+                        href="/affiliate-portal"
+                        className="flex items-center py-2 text-sm font-medium text-foreground/80 hover:text-primary"
+                        onClick={() => setIsMobileMenuOpen(false)}
+                      >
+                         <Briefcase className="mr-2 h-4 w-4" />
+                         Affiliate Portal
+                      </Link>
+                    )}
+                    <Button variant="ghost" onClick={() => { logout(); setIsMobileMenuOpen(false); }} className="w-full justify-start mt-2 px-0">
+                      <LogOut className="mr-2 h-4 w-4" /> Log out
+                    </Button>
+                  </div>
+                )}
+                {!isAuthenticated && (
+                  <Button asChild className="mt-6 w-full" onClick={() => setIsMobileMenuOpen(false)}>
+                    <Link href="/login">Sign In</Link>
                   </Button>
-                </div>
-              )}
-              {!isAuthenticated && (
-                <Button asChild className="mt-6 w-full" onClick={() => setIsMobileMenuOpen(false)}>
-                  <Link href="/login">Sign In</Link>
-                </Button>
-              )}
-            </nav>
+                )}
+              </nav>
+            </div>
           </SheetContent>
         </Sheet>
 
@@ -170,10 +175,14 @@ export function Header() {
           {mounted && <ModeToggle />}
 
           <Button variant="ghost" size="icon" asChild>
-            <Link href="/cart">
+            <Link href="/cart" className="relative">
               <ShoppingCart className="h-5 w-5" />
+              {mounted && cartItemCount > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[0.6rem] font-bold text-destructive-foreground ring-2 ring-background">
+                  {cartItemCount > 9 ? '9+' : cartItemCount}
+                </span>
+              )}
               <span className="sr-only">Cart</span>
-              {/* TODO: Add cart item count badge */}
             </Link>
           </Button>
 
@@ -210,3 +219,4 @@ export function Header() {
     </header>
   );
 }
+    
