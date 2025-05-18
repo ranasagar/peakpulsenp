@@ -6,7 +6,7 @@ import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Star, Plus, Minus, ShoppingCart, Check, ShieldCheck, Package, Zap, Loader2, PaintBrush, Edit2, Info } from 'lucide-react';
+import { Star, Plus, Minus, ShoppingCart, Check, ShieldCheck, Package, Zap, Loader2, Paintbrush, Edit2, Info } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
@@ -183,7 +183,7 @@ export default function ProductDetailPage({ params: paramsPromise }: { params: P
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-start">
-        <div className="lg:sticky lg:top-[calc(theme(spacing.20)_-_1rem)] p-1 rounded-lg shadow-sm bg-background z-10">
+        <div className="lg:sticky lg:top-24 p-1 rounded-lg shadow-sm bg-background z-10">
           <div className="mb-4">
              <AspectRatio ratio={4/5} className="bg-muted rounded-lg overflow-hidden shadow-lg">
                {selectedImage && (
@@ -283,7 +283,7 @@ export default function ProductDetailPage({ params: paramsPromise }: { params: P
           {product.customizationConfig?.enabled && (
             <Card className="mb-8 shadow-md border-primary/20">
               <CardHeader className="pb-4">
-                <CardTitle className="text-xl flex items-center"><PaintBrush className="mr-2 h-5 w-5 text-primary"/>Customize Your Product</CardTitle>
+                <CardTitle className="text-xl flex items-center"><Paintbrush className="mr-2 h-5 w-5 text-primary"/>Customize Your Product</CardTitle>
               </CardHeader>
               <CardContent>
                 <Tabs value={customizationType || undefined} onValueChange={(value) => setCustomizationType(value as 'predefined' | 'custom' | null)}>

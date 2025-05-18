@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Save, PlusCircle, Trash2, Edit, XCircle, Palette } from 'lucide-react';
+import { Loader2, Save, PlusCircle, Trash2, Edit, XCircle, Paintbrush } from 'lucide-react';
 import type { Product, ProductImage, Category as ProductCategoryType, ProductVariant, PrintDesign, ProductCustomizationConfig } from '@/types';
 import {
   Dialog,
@@ -408,7 +408,7 @@ export default function AdminProductsPage() {
 
                 {/* Customization Configuration Section */}
                 <fieldset className="space-y-4 p-4 border rounded-md">
-                    <legend className="text-lg font-semibold px-1 flex items-center"><Palette className="mr-2 h-5 w-5 text-primary"/>Product Customization Options</legend>
+                    <legend className="text-lg font-semibold px-1 flex items-center"><Paintbrush className="mr-2 h-5 w-5 text-primary"/>Product Customization Options</legend>
                      <FormField
                         control={form.control}
                         name="customizationConfig.enabled"
