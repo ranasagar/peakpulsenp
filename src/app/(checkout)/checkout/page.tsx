@@ -35,10 +35,10 @@ const shippingSchema = z.object({
 });
 
 const paymentCardSchema = z.object({
-  cardNumber: z.string().length(16, "Card number must be 16 digits.").regex(/^\d+$/, "Card number must be digits."),
-  expiryDate: z.string().regex(/^(0[1-9]|1[0-2])\/\d{2}$/, "Expiry date must be MM/YY."),
-  cvc: z.string().length(3, "CVC must be 3 digits.").regex(/^\d+$/, "CVC must be digits."),
-  cardholderName: z.string().min(2, "Cardholder name is required."),
+  cardNumber: z.string().length(16, "Card number must be 16 digits.").regex(/^\d+$/, "Card number must be digits.").optional().or(z.literal('')),
+  expiryDate: z.string().regex(/^(0[1-9]|1[0-2])\/\d{2}$/, "Expiry date must be MM/YY.").optional().or(z.literal('')),
+  cvc: z.string().length(3, "CVC must be 3 digits.").regex(/^\d+$/, "CVC must be digits.").optional().or(z.literal('')),
+  cardholderName: z.string().min(2, "Cardholder name is required.").optional().or(z.literal('')),
 });
 
 const checkoutSchema = shippingSchema.extend({
@@ -46,16 +46,26 @@ const checkoutSchema = shippingSchema.extend({
     saveInfo: z.boolean().default(false).optional(),
     paymentMethod: z.string().min(1, "Please select a payment method."),
 }).superRefine((data, ctx) => {
-    if (data.paymentMethod === 'card_international' && data.isInternational) { 
+    if (data.paymentMethod === 'card_international' && data.isInternational) {
+      // Only validate card details if card_international is selected AND it's an international shipment
       const cardValidation = paymentCardSchema.safeParse(data);
       if (!cardValidation.success) {
         cardValidation.error.errors.forEach((err) => {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            message: err.message,
-            path: err.path,
-          });
+          // Ensure path exists before adding issue
+          if (err.path.length > 0 && Object.prototype.hasOwnProperty.call(data, err.path[0] as string)) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              message: err.message,
+              path: err.path,
+            });
+          }
         });
+      } else {
+        // If paymentCardSchema itself passes, explicitly check required fields for this payment method
+        if (!data.cardholderName) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Cardholder name is required.", path: ["cardholderName"] });
+        if (!data.cardNumber) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Card number must be 16 digits.", path: ["cardNumber"] });
+        if (!data.expiryDate) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Expiry date must be MM/YY.", path: ["expiryDate"] });
+        if (!data.cvc) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "CVC must be 3 digits.", path: ["cvc"] });
       }
     }
     if (data.isInternational && !data.internationalDestinationCountry) {
@@ -96,6 +106,18 @@ export default function CheckoutPage() {
         paymentMethod: 'card_nepal',
         country: 'Nepal', 
         isInternational: false,
+        internationalDestinationCountry: '', // Initialize to empty string
+        fullName: '',
+        streetAddress: '',
+        apartmentSuite: '',
+        city: '',
+        postalCode: '',
+        phone: '',
+        promoCode: '',
+        cardholderName: '', // Initialize card fields
+        cardNumber: '',
+        expiryDate: '',
+        cvc: '',
     },
   });
 
@@ -117,7 +139,7 @@ export default function CheckoutPage() {
       setCurrentShippingCost(0); 
       setInternationalShippingInfo(null);
       if (selectedPaymentMethod !== 'card_international') {
-        setSelectedPaymentMethod('card_international'); // Default to international card if country changes to int'l
+        setSelectedPaymentMethod('card_international'); 
         form.setValue('paymentMethod', 'card_international');
       }
     } else {
@@ -125,7 +147,7 @@ export default function CheckoutPage() {
       setCurrentShippingCost(DOMESTIC_SHIPPING_COST_NPR);
       setInternationalShippingInfo(null);
        if (selectedPaymentMethod === 'card_international') {
-        setSelectedPaymentMethod('card_nepal'); // Default back to local card if country changes to Nepal
+        setSelectedPaymentMethod('card_nepal'); 
         form.setValue('paymentMethod', 'card_nepal');
       }
     }
@@ -154,64 +176,75 @@ export default function CheckoutPage() {
   };
 
   const onSubmit = async (data: CheckoutFormValues) => {
+    // Manually trigger validation before constructing payload
+    const isValid = await form.trigger();
+    if (!isValid) {
+        toast({
+            title: "Validation Error",
+            description: "Please check the form for errors.",
+            variant: "destructive",
+        });
+        return;
+    }
+    
     const orderPayload = {
-      cartItems: mockCartItems, // In real app, get from cart context/state
+      cartItems: mockCartItems,
       shippingDetails: data,
       orderSubtotal: subtotal,
       shippingCost: currentShippingCost,
       orderTotal: total,
     };
 
-    form.control.handleSubmit(async () => { // Ensure RHF state is current
-      try {
-        const response = await fetch('/api/orders/create', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(orderPayload),
-        });
+    console.log("Submitting order with payload:", JSON.stringify(orderPayload, null, 2));
 
-        const result = await response.json();
 
-        if (response.ok) {
-          toast({
-            title: "Order Placed (Mock)!",
-            description: result.message || "Your order is being processed.",
-            action: <Link href="/account/orders"><Button variant="outline" size="sm">View Orders</Button></Link>
-          });
-          // Clear cart, redirect to order confirmation, etc.
-          // router.push(`/order-confirmation/${result.orderId}`); // If orderId is returned
-          form.reset(); // Reset form
-          // Potentially reset cart state here
-        } else {
-          toast({
-            title: "Order Failed",
-            description: result.message || "There was an issue placing your order.",
-            variant: "destructive",
-          });
-        }
-      } catch (error) {
-        console.error("Failed to submit order:", error);
+    try {
+      const response = await fetch('/api/orders/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(orderPayload),
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
         toast({
-          title: "Order Submission Error",
-          description: "Could not connect to the server. Please try again.",
+          title: "Order Placed (Mock)!",
+          description: result.message || "Your order is being processed.",
+          action: <Link href="/account/orders"><Button variant="outline" size="sm">View Orders</Button></Link>
+        });
+        router.push(`/account/orders?orderId=${result.orderId || 'new'}`);
+        form.reset(); 
+        // TODO: Clear cart state
+      } else {
+        toast({
+          title: "Order Failed",
+          description: result.message || "There was an issue placing your order.",
           variant: "destructive",
         });
       }
-    })(data); // Pass data to the wrapped RHF submit handler
+    } catch (error) {
+      console.error("Failed to submit order:", error);
+      toast({
+        title: "Order Submission Error",
+        description: "Could not connect to the server. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const paymentMethods = [
-    { value: 'card_nepal', label: 'Credit/Debit Card (Nepal)', icon: CreditCard, domesticOnly: true },
-    { value: 'cod', label: 'Cash on Delivery (Nepal Only, 10% Advance May Be Required)', icon: Banknote, domesticOnly: true },
-    { value: 'esewa', label: 'eSewa', icon: Send, domesticOnly: true }, 
-    { value: 'khalti', label: 'Khalti', icon: Send, domesticOnly: true },
-    { value: 'imepay', label: 'IME Pay', icon: Send, domesticOnly: true },
-    { value: 'connectips', label: 'ConnectIPS', icon: Globe, domesticOnly: true },
-    { value: 'qr', label: 'QR Payment (Fonepay, etc.)', icon: QrCode, domesticOnly: true },
-    { value: 'banktransfer', label: 'Bank Transfer (Mobile App)', icon: Banknote, domesticOnly: true },
-    { value: 'card_international', label: 'Credit/Debit Card (International)', icon: CreditCard, internationalOnly: true },
+    { value: 'card_nepal', label: 'Credit/Debit Card (Nepal)', icon: CreditCard, domesticOnly: true, internationalOnly: false },
+    { value: 'cod', label: 'Cash on Delivery (Nepal Only, 10% Advance May Be Required)', icon: Banknote, domesticOnly: true, internationalOnly: false },
+    { value: 'esewa', label: 'eSewa', icon: Send, domesticOnly: true, internationalOnly: false }, 
+    { value: 'khalti', label: 'Khalti', icon: Send, domesticOnly: true, internationalOnly: false },
+    { value: 'imepay', label: 'IME Pay', icon: Send, domesticOnly: true, internationalOnly: false },
+    { value: 'connectips', label: 'ConnectIPS', icon: Globe, domesticOnly: true, internationalOnly: false },
+    { value: 'qr', label: 'QR Payment (Fonepay, etc.)', icon: QrCode, domesticOnly: true, internationalOnly: false },
+    { value: 'banktransfer', label: 'Bank Transfer (Mobile App)', icon: Banknote, domesticOnly: true, internationalOnly: false },
+    { value: 'card_international', label: 'Credit/Debit Card (International)', icon: CreditCard, domesticOnly: false, internationalOnly: true },
   ];
 
 
@@ -280,7 +313,6 @@ export default function CheckoutPage() {
                                 <Input {...field} placeholder="Enter destination country" 
                                   onChange={(e) => {
                                       field.onChange(e);
-                                      // Automatically update if country field changes directly
                                       if (e.target.value.toLowerCase() !== 'nepal' && !isInternationalShipping) {
                                           handleCountryChange(e.target.value);
                                       } else if (e.target.value.toLowerCase() === 'nepal' && isInternationalShipping) {
@@ -328,7 +360,7 @@ export default function CheckoutPage() {
                             field.onChange(value);
                             setSelectedPaymentMethod(value);
                           }}
-                          value={field.value} // Ensure RHF controls the value
+                          value={field.value}
                           className="flex flex-col space-y-1"
                         >
                           {paymentMethods
