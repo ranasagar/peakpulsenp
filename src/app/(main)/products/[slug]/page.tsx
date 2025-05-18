@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react'; // Ensure React is imported for React.use
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -18,7 +18,13 @@ import { AspectRatio } from '@/components/ui/aspect-ratio';
 import { useCart } from '@/context/cart-context';
 
 
-export default function ProductDetailPage({ params }: { params: { slug: string } }) {
+// Update the type of the params prop to reflect it can be a Promise
+export default function ProductDetailPage({ params: paramsPromise }: { params: Promise<{ slug: string }> | { slug: string } }) {
+  // Unwrap the params prop using React.use()
+  // The 'as Promise<{ slug: string }>' cast assumes the error message is correct and it's always a Promise in this context.
+  // If it could also be a plain object, more sophisticated type checking might be needed, but React.use handles promises.
+  const params = React.use(paramsPromise as Promise<{ slug: string }>);
+  
   const { toast } = useToast();
   const { addToCart: addToCartContext } = useCart();
   
@@ -39,6 +45,7 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
           throw new Error('Failed to fetch products');
         }
         const allProducts: Product[] = await response.json();
+        // Now params.slug refers to the resolved slug
         const currentProduct = allProducts.find(p => p.slug === params.slug);
 
         if (currentProduct) {
@@ -72,10 +79,11 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
       }
     };
 
-    if (params.slug) {
+    // params will be the resolved object here
+    if (params && params.slug) {
       fetchProductData();
     }
-  }, [params.slug, toast]);
+  }, [params?.slug, toast]); // Use params.slug (from resolved params) in dependency array
   
   
   const selectedVariant = product?.variants?.find(v => v.id === selectedVariantId);
@@ -116,11 +124,12 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
     );
   }
   
+  // params.slug will be from the resolved params object
   const breadcrumbs: BreadcrumbItem[] = [
     { name: 'Home', href: '/' },
     { name: 'Shop', href: '/products' },
     { name: product.categories[0]?.name || 'Category', href: `/products?category=${product.categories[0]?.slug || ''}` }, 
-    { name: product.name },
+    { name: product.name || params.slug },
   ];
 
   return (
@@ -131,7 +140,7 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-start">
         {/* Image Gallery */}
-        <div className="lg:sticky lg:top-24 z-10 bg-background p-1 rounded-lg shadow-sm">
+        <div className="lg:sticky lg:top-[calc(theme(spacing.20)_+_1rem)] z-10 bg-background p-1 rounded-lg shadow-sm"> {/* Adjusted top for sticky header */}
           <div className="mb-4">
              <AspectRatio ratio={4/5} className="bg-muted rounded-lg overflow-hidden shadow-lg">
                {selectedImage && (
