@@ -2,15 +2,14 @@
 import type { LucideIcon } from 'lucide-react';
 
 export interface User {
-  id: string;
+  id: string; // Firebase UID
   email: string;
-  name?: string;
-  avatarUrl?: string;
-  roles: string[]; // e.g., ['customer', 'vip', 'affiliate', 'admin']
-  // E-commerce specific fields
+  name?: string; // Firebase displayName
+  avatarUrl?: string; // Firebase photoURL
+  roles: string[]; // e.g., ['customer', 'vip', 'affiliate', 'admin'] - needs separate logic to populate
+  // E-commerce specific fields (would be stored in Firestore/RTDB, not directly on Firebase Auth user)
   wishlist?: string[]; // Array of product IDs
   orders?: string[]; // Array of order IDs
-  // Other fields like shipping addresses can be added here
 }
 
 export interface Category {
@@ -34,7 +33,7 @@ export interface ProductImage {
   id: string;
   url: string;
   altText?: string;
-  dataAiHint?: string; // Added for consistency
+  dataAiHint?: string; 
 }
 
 export interface ProductVariant {
@@ -83,7 +82,6 @@ export interface CartItem {
   quantity: number;
   imageUrl?: string;
   dataAiHint?: string; // For placeholder image hints
-  // variantDetails?: Pick<ProductVariant, 'name' | 'value'>[];
 }
 
 export interface OrderAddress {

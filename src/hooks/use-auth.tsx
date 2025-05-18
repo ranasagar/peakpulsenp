@@ -2,122 +2,112 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
-import type { User } from '@/types';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
+import type { User as AuthUserType } from '@/types'; // Renamed to avoid conflict with Firebase User
+import { auth } from '@/firebase/config';
+import {
+  onAuthStateChanged,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signOut as firebaseSignOut,
+  updateProfile,
+  type User as FirebaseUser, // Firebase's own User type
+} from 'firebase/auth';
 
 interface AuthContextType {
   isAuthenticated: boolean;
-  user: User | null;
+  user: AuthUserType | null;
   isLoading: boolean;
-  login: (email: string, pass: string) => Promise<boolean>;
+  login: (email: string, pass: string) => Promise<{ success: boolean; error?: string }>;
+  register: (name: string, email: string, pass: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const MOCK_USER_CUSTOMER: User = {
-  id: 'user-cust-123',
-  email: 'customer@peakpulse.com',
-  name: 'Valued Customer',
-  avatarUrl: 'https://placehold.co/100x100.png?text=VC',
-  roles: ['customer'],
-};
-
-const MOCK_USER_ADMIN: User = {
-  id: 'user-admin-456',
-  email: 'admin@peakpulse.com',
-  name: 'Peak Pulse Admin',
-  avatarUrl: 'https://placehold.co/100x100.png?text=AD',
-  roles: ['admin', 'customer'], // Admins are also customers
-};
-
-const MOCK_USER_AFFILIATE: User = {
-  id: 'user-aff-789',
-  email: 'affiliate@peakpulse.com',
-  name: 'Influencer One',
-  avatarUrl: 'https://placehold.co/100x100.png?text=IO',
-  roles: ['affiliate', 'customer'], // Affiliates are also customers
+// Helper function to map FirebaseUser to your app's User type
+const mapFirebaseUserToAppUser = (firebaseUser: FirebaseUser | null): AuthUserType | null => {
+  if (!firebaseUser) return null;
+  return {
+    id: firebaseUser.uid,
+    email: firebaseUser.email || '',
+    name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'User',
+    avatarUrl: firebaseUser.photoURL || undefined,
+    // Roles would typically come from a database (e.g., Firestore) linked to the UID
+    // For now, all authenticated users get 'customer' role.
+    // A more robust solution would involve fetching roles after login.
+    roles: ['customer'], 
+  };
 };
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<AuthUserType | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
 
   useEffect(() => {
-    try {
-      const storedAuth = localStorage.getItem('isAuthenticated');
-      const storedUserEmail = localStorage.getItem('userEmail');
-      if (storedAuth === 'true' && storedUserEmail) {
-        let mockUserToSet = MOCK_USER_CUSTOMER; // Default
-        if (storedUserEmail === MOCK_USER_ADMIN.email) mockUserToSet = MOCK_USER_ADMIN;
-        else if (storedUserEmail === MOCK_USER_AFFILIATE.email) mockUserToSet = MOCK_USER_AFFILIATE;
-        else if (storedUserEmail === MOCK_USER_CUSTOMER.email) mockUserToSet = MOCK_USER_CUSTOMER;
-        
-        setIsAuthenticated(true);
-        setUser(mockUserToSet); 
-      }
-    } catch (error) {
-      console.error("Failed to access localStorage:", error);
-    } finally {
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      const appUser = mapFirebaseUserToAppUser(firebaseUser);
+      setUser(appUser);
       setIsLoading(false);
-    }
+    });
+    return () => unsubscribe(); // Cleanup subscription on unmount
   }, []);
 
-  const login = useCallback(async (email: string, pass: string): Promise<boolean> => {
-    setIsLoading(true);
-    // Mock authentication logic
-    let userToLogin: User | null = null;
-    if (email === MOCK_USER_ADMIN.email && pass === 'password') {
-      userToLogin = MOCK_USER_ADMIN;
-    } else if (email === MOCK_USER_AFFILIATE.email && pass === 'password') {
-      userToLogin = MOCK_USER_AFFILIATE;
-    } else if (email === MOCK_USER_CUSTOMER.email && pass === 'password') { // Generic customer login
-      userToLogin = MOCK_USER_CUSTOMER;
-    } else if (pass === 'password') { // Allow any email with 'password' for easier testing
-       userToLogin = { ...MOCK_USER_CUSTOMER, email, name: email.split('@')[0] };
-    }
-
-
-    if (userToLogin) {
-      try {
-        localStorage.setItem('isAuthenticated', 'true');
-        localStorage.setItem('userEmail', userToLogin.email); // Store email to re-identify user type
-        setIsAuthenticated(true);
-        setUser(userToLogin);
-        setIsLoading(false);
-        // Redirect to dashboard or intended page
-        const intendedPath = pathname === '/login' || pathname === '/register' ? '/account/dashboard' : pathname;
-        router.push(intendedPath);
-        return true;
-      } catch (error) {
-        console.error("Failed to set localStorage:", error);
-        setIsLoading(false);
-        return false;
-      }
-    }
-    setIsLoading(false);
-    return false;
-  }, [router, pathname]);
-
-  const logout = useCallback(() => {
+  const login = useCallback(async (email: string, pass: string): Promise<{ success: boolean; error?: string }> => {
     setIsLoading(true);
     try {
-      localStorage.removeItem('isAuthenticated');
-      localStorage.removeItem('userEmail');
-    } catch (error) {
-      console.error("Failed to remove from localStorage:", error);
+      await signInWithEmailAndPassword(auth, email, pass);
+      // onAuthStateChanged will handle setting the user state
+      const redirectPath = searchParams.get('redirect') || '/account/dashboard';
+      router.push(redirectPath);
+      return { success: true };
+    } catch (error: any) {
+      console.error("Firebase login error:", error);
+      setIsLoading(false);
+      return { success: false, error: error.message || "Login failed. Please check your credentials." };
     }
-    setIsAuthenticated(false);
-    setUser(null);
-    setIsLoading(false);
-    router.push('/login');
+  }, [router, searchParams]);
+
+  const register = useCallback(async (name: string, email: string, pass: string): Promise<{ success: boolean; error?: string }> => {
+    setIsLoading(true);
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
+      if (userCredential.user) {
+        await updateProfile(userCredential.user, { displayName: name });
+      }
+      // onAuthStateChanged will handle setting the user state (which triggers re-map)
+      // After successful registration, Firebase automatically signs the user in.
+      // You might want to redirect to login or directly to dashboard.
+      router.push('/account/dashboard'); // Or '/login' if you want them to login again
+      return { success: true };
+    } catch (error: any) {
+      console.error("Firebase registration error:", error);
+      setIsLoading(false);
+      return { success: false, error: error.message || "Registration failed. Please try again." };
+    }
   }, [router]);
 
+  const logout = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      await firebaseSignOut(auth);
+      // onAuthStateChanged will handle setting user to null
+      router.push('/login');
+    } catch (error) {
+      console.error("Firebase logout error:", error);
+      // Still attempt to clear local state
+      setUser(null);
+      setIsLoading(false);
+    }
+  }, [router]);
+
+  const isAuthenticated = !!user;
+
   return (
-    <AuthContext.Provider value={{ isAuthenticated, user, isLoading, login, logout }}>
+    <AuthContext.Provider value={{ isAuthenticated, user, isLoading, login, register, logout }}>
       {children}
     </AuthContext.Provider>
   );
