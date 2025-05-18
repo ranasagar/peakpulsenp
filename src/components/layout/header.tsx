@@ -14,7 +14,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Icons } from '@/components/icons';
 import { useAuth } from '@/hooks/use-auth';
 import { cn } from '@/lib/utils';
@@ -101,6 +101,9 @@ export function Header() {
             </Button>
           </SheetTrigger>
           <SheetContent side="left" className="w-full max-w-xs sm:max-w-sm bg-background p-6">
+            <SheetHeader>
+              <SheetTitle className="sr-only">Main Menu</SheetTitle>
+            </SheetHeader>
             <Link href="/" className="mb-8 flex items-center gap-2" onClick={() => setIsMobileMenuOpen(false)}>
               <Icons.Logo className="h-7 w-7 text-primary" />
               <span className="font-bold text-lg text-foreground">Peak Pulse</span>
