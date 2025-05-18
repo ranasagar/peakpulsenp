@@ -12,7 +12,7 @@ interface HomepageContent {
     title: string;
     description: string;
     videoId?: string;
-    imageUrl?: string; // Added for hero image
+    imageUrl?: string;
   };
   artisanalRoots?: {
     title: string;
@@ -23,8 +23,6 @@ interface HomepageContent {
 async function getHomepageContent(): Promise<HomepageContent> {
   try {
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:9002';
-    // Fetch with no-store to ensure freshness from the API route,
-    // which itself reads the file on each request.
     const res = await fetch(`${baseUrl}/api/content/homepage`, { cache: 'no-store' });
 
     if (!res.ok) {
@@ -40,8 +38,8 @@ async function getHomepageContent(): Promise<HomepageContent> {
       hero: {
         title: "Peak Pulse (Fallback)",
         description: "Experience the fusion of ancient Nepali artistry and modern streetwear. (Content failed to load)",
-        videoId: "gCRNEJxDJKM",
-        imageUrl: "https://images.unsplash.com/photo-1506748686214-e9df14d4d9d0?q=80&w=1920&auto=format&fit=crop" // Example fallback image
+        videoId: undefined, // Explicitly undefined for fallback if API fails
+        imageUrl: undefined, // Explicitly undefined
       },
       artisanalRoots: {
         title: "Our Artisanal Roots (Fallback)",
@@ -65,7 +63,7 @@ export default async function HomePage() {
   return (
     <>
       {/* Hero Section - Updated for Full-Screen Immersive Experience */}
-      <section className="relative h-screen w-full overflow-hidden bg-black"> {/* Ultimate fallback background */}
+      <section className="relative h-screen w-full overflow-hidden bg-black">
         {/* Background Video/Image Container */}
         <div className="absolute inset-0 z-0 w-full h-full overflow-hidden pointer-events-none bg-black">
           {heroVideoId ? (
@@ -84,11 +82,11 @@ export default async function HomePage() {
               layout="fill"
               objectFit="cover"
               priority
-              className="opacity-70" // Adjust opacity as needed
+              className="opacity-70"
               data-ai-hint="fashion mountains nepal"
             />
           ) : null}
-           <div className="absolute inset-0 bg-black/50 z-[1]"></div> {/* Dark Overlay - Increased opacity for better contrast with text */}
+           <div className="absolute inset-0 bg-black/50 z-[1]"></div> {/* Dark Overlay */}
         </div>
 
         {/* Content Overlay */}
