@@ -13,14 +13,14 @@ import { Gem, Crown } from 'lucide-react';
 const mockVipProducts: Product[] = [
   {
     id: 'vip-prod-1', name: 'Exclusive Artisan Jacket', slug: 'exclusive-artisan-jacket', price: 25000,
-    images: [{ id: 'vip-img-1', url: 'https://placehold.co/600x800.png', altText: 'Exclusive VIP Artisan Jacket' }],
+    images: [{ id: 'vip-img-1', url: 'https://placehold.co/600x800.png', altText: 'Exclusive VIP Artisan Jacket', dataAiHint: 'exclusive jacket' }],
     categories: [{ id: 'cat-1', name: 'Outerwear', slug: 'outerwear' }],
     shortDescription: 'Limited edition, handcrafted masterpiece.',
     createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), description: "Full description for VIP product."
   },
   {
     id: 'vip-prod-2', name: 'Royal Silk Robe', slug: 'royal-silk-robe', price: 18000,
-    images: [{ id: 'vip-img-2', url: 'https://placehold.co/600x800.png', altText: 'Royal Silk Robe for VIPs' }],
+    images: [{ id: 'vip-img-2', url: 'https://placehold.co/600x800.png', altText: 'Royal Silk Robe for VIPs', dataAiHint: 'silk robe' }],
     categories: [{ id: 'cat-5', name: 'Loungewear', slug: 'loungewear' }],
     shortDescription: 'Luxurious pure silk with intricate embroidery.',
     createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), description: "Full description for VIP product."
@@ -61,5 +61,3 @@ export default function VipCollectionPage() {
     </div>
   );
 }
-
-    

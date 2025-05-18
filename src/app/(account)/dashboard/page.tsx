@@ -17,8 +17,8 @@ const mockRecentOrders: Partial<Order>[] = [
 ];
 
 const mockWishlistItems: Partial<Product>[] = [
-  { id: 'prod-3', name: 'Urban Nomad Pants', price: 7500, images: [{ id: 'img-wish-1', url: 'https://placehold.co/100x100.png' }] },
-  { id: 'prod-4', name: 'Silk Scarf Mandala', price: 4200, images: [{ id: 'img-wish-2', url: 'https://placehold.co/100x100.png' }] },
+  { id: 'prod-3', name: 'Urban Nomad Pants', price: 7500, images: [{ id: 'img-wish-1', url: 'https://placehold.co/100x100.png', dataAiHint: 'urban pants' }] },
+  { id: 'prod-4', name: 'Silk Scarf Mandala', price: 4200, images: [{ id: 'img-wish-2', url: 'https://placehold.co/100x100.png', dataAiHint: 'mandala scarf' }] },
 ];
 
 export default function CustomerDashboardPage() {
@@ -101,7 +101,7 @@ export default function CustomerDashboardPage() {
                           alt={item.name || 'Wishlist item'} 
                           width={150} height={150} 
                           className="w-full h-auto object-cover aspect-square"
-                          data-ai-hint="product fashion" />
+                          data-ai-hint={item.images?.[0]?.dataAiHint || "product fashion"} />
                         <div className="p-2 text-center">
                           <p className="text-xs font-medium text-foreground truncate group-hover:text-primary">{item.name}</p>
                           <p className="text-xs text-muted-foreground">रू{item.price?.toLocaleString()}</p>
@@ -162,5 +162,3 @@ export default function CustomerDashboardPage() {
     </div>
   );
 }
-
-    

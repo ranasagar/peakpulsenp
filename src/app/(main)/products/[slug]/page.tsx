@@ -26,7 +26,7 @@ const mockProduct: Product = {
   price: 12000,
   compareAtPrice: 15000, // Example for sale item
   images: [
-    { id: 'img-main', url: 'https://placehold.co/800x1000.png', altText: 'Himalayan Breeze Jacket front view', dataAiHint: 'jacket clothing fashion' },
+    { id: 'img-main', url: 'https://placehold.co/800x1000.png', altText: 'Himalayan Breeze Jacket front view', dataAiHint: 'jacket front' },
     { id: 'img-detail-1', url: 'https://placehold.co/800x1000.png', altText: 'Himalayan Breeze Jacket side view', dataAiHint: 'jacket side' },
     { id: 'img-detail-2', url: 'https://placehold.co/800x1000.png', altText: 'Himalayan Breeze Jacket back view', dataAiHint: 'jacket back' },
     { id: 'img-fabric', url: 'https://placehold.co/800x1000.png', altText: 'Himalayan Breeze Jacket fabric texture detail', dataAiHint: 'fabric texture' },
