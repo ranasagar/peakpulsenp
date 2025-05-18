@@ -9,7 +9,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Star, Plus, Minus, ShoppingCart, Check, ShieldCheck, Package, Zap, Loader2, Paintbrush, Edit2, Info } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Label } from "@/components/ui/label";
+import { Label } from "@/components/ui/label"; // Basic Label
 import type { Product, ProductImage, BreadcrumbItem, ProductVariant, CartItemCustomization, PrintDesign } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { Breadcrumbs } from '@/components/navigation/breadcrumbs';
@@ -19,7 +19,8 @@ import { useCart } from '@/context/cart-context';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { FormLabel } from '@/components/ui/form'; // Added FormLabel import
+// Removed RHF FormLabel from here as it's not used for the problematic parts
+// import { FormLabel } from '@/components/ui/form'; 
 
 
 export default function ProductDetailPage({ params: paramsPromise }: { params: Promise<{ slug: string }> | { slug:string } }) {
@@ -329,17 +330,17 @@ export default function ProductDetailPage({ params: paramsPromise }: { params: P
                   {product.customizationConfig.allowCustomDescription && (
                      <TabsContent value="custom">
                         <FormFieldItem>
-                            <FormLabel className="text-md font-semibold text-foreground mb-2 block">
+                            <Label className="text-md font-semibold text-foreground mb-2 block">
                                 {product.customizationConfig.customDescriptionLabel || 'Describe Your Design Idea'}
-                            </FormLabel>
-                            <FormControl>
+                            </Label>
+                            <div> {/* Replaced local FormControl with a simple div */}
                                 <Textarea 
                                     placeholder="e.g., 'A silhouette of a mountain range with a rising sun', or 'The text Peak Pulse in Nepali script'" 
                                     value={customDesignDescription} 
                                     onChange={(e) => setCustomDesignDescription(e.target.value)}
                                     rows={3}
                                 />
-                            </FormControl>
+                            </div>
                         </FormFieldItem>
                     </TabsContent>
                   )}
@@ -348,17 +349,17 @@ export default function ProductDetailPage({ params: paramsPromise }: { params: P
                 {product.customizationConfig.allowInstructions && (customizationType === 'predefined' || customizationType === 'custom') && (
                     <div className="mt-4">
                          <FormFieldItem>
-                             <FormLabel className="text-md font-semibold text-foreground mb-2 block">
+                             <Label className="text-md font-semibold text-foreground mb-2 block">
                                 {product.customizationConfig.instructionsLabel || 'Specific Instructions (Placement, Colors, etc.)'}
-                            </FormLabel>
-                            <FormControl>
+                            </Label>
+                            <div> {/* Replaced local FormControl with a simple div */}
                                 <Textarea 
                                     placeholder="e.g., 'Place design on the back, centered', or 'Use gold thread for the script'" 
                                     value={customInstructions}
                                     onChange={(e) => setCustomInstructions(e.target.value)}
                                     rows={3} 
                                 />
-                            </FormControl>
+                            </div>
                         </FormFieldItem>
                     </div>
                 )}
@@ -440,9 +441,7 @@ export default function ProductDetailPage({ params: paramsPromise }: { params: P
   );
 }
 
-// Helper component for FormItem and FormControl to avoid prop drilling if not using RHF context directly here
-// These are simple wrappers and don't provide full react-hook-form context like the official FormField does.
-// For sections not using the main <Form {...form}> context, these can be used.
+// Helper component for FormItem to avoid prop drilling if not using RHF context directly here
 const FormFieldItem = ({ children }: { children: React.ReactNode }) => <div className="mb-4">{children}</div>;
-const FormControl = ({ children }: { children: React.ReactNode }) => <div>{children}</div>;
+// Removed local FormControl helper as it's not the context-aware one and Textarea/RadioGroup serve as controls.
 
