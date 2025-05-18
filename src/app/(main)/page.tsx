@@ -28,22 +28,34 @@ async function getHomepageContent(): Promise<HomepageContent> {
     if (!res.ok) {
       const errorBody = await res.text();
       console.error(`Failed to fetch content: ${res.status} ${res.statusText}`, errorBody);
-      throw new Error(`Failed to fetch content: ${res.status} ${res.statusText}`);
+      // Ensure fallback has undefined for video/image if API fails
+      return {
+        hero: {
+          title: "Peak Pulse (Fallback)",
+          description: "Experience the fusion of ancient Nepali artistry and modern streetwear. (Content failed to load)",
+          videoId: undefined,
+          imageUrl: undefined,
+        },
+        artisanalRoots: {
+          title: "Our Artisanal Roots (Fallback)",
+          description: "Content failed to load. We partner with local artisans in Nepal, preserving centuries-old techniques while innovating for today's global citizen."
+        }
+      };
     }
     return res.json();
   } catch (error) {
     console.error("Error fetching homepage content in page.tsx:", error);
-    // Fallback content
+    // Ensure fallback has undefined for video/image on any catch
     return {
       hero: {
         title: "Peak Pulse (Fallback)",
         description: "Experience the fusion of ancient Nepali artistry and modern streetwear. (Content failed to load)",
-        videoId: undefined, // Explicitly undefined for fallback if API fails
-        imageUrl: undefined, // Explicitly undefined
+        videoId: undefined,
+        imageUrl: undefined,
       },
       artisanalRoots: {
         title: "Our Artisanal Roots (Fallback)",
-        description: "At Peak Pulse, every thread tells a story. (Content failed to load)"
+        description: "Content failed to load. We partner with local artisans in Nepal, preserving centuries-old techniques while innovating for today's global citizen."
       }
     };
   }
@@ -51,8 +63,8 @@ async function getHomepageContent(): Promise<HomepageContent> {
 
 export default async function HomePage() {
   const content = await getHomepageContent();
-  const heroTitle = content.hero?.title || "Peak Pulse";
-  const heroDescription = content.hero?.description || "Experience the fusion of ancient Nepali artistry and modern streetwear.";
+  const heroTitle = content.hero?.title;
+  const heroDescription = content.hero?.description;
   const heroVideoId = content.hero?.videoId;
   const heroImageUrl = content.hero?.imageUrl;
 
@@ -63,7 +75,10 @@ export default async function HomePage() {
   return (
     <>
       {/* Hero Section - Updated for Full-Screen Immersive Experience */}
-      <section className="relative h-screen w-full overflow-hidden bg-black">
+      <section 
+        style={{ backgroundColor: 'black' }} // Force black background
+        className="relative h-screen w-full overflow-hidden"
+      >
         {/* Background Video/Image Container */}
         <div className="absolute inset-0 z-0 w-full h-full overflow-hidden pointer-events-none bg-black">
           {heroVideoId ? (
@@ -82,11 +97,11 @@ export default async function HomePage() {
               layout="fill"
               objectFit="cover"
               priority
-              className="opacity-70"
+              className="opacity-70" // Adjust opacity as needed
               data-ai-hint="fashion mountains nepal"
             />
-          ) : null}
-           <div className="absolute inset-0 bg-black/50 z-[1]"></div> {/* Dark Overlay */}
+          ) : null} {/* Render nothing if no videoId or imageUrl */}
+           <div className="absolute inset-0 bg-black/50 z-[1]"></div> {/* Dark Overlay, increased opacity */}
         </div>
 
         {/* Content Overlay */}
