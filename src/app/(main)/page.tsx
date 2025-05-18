@@ -6,7 +6,8 @@ import { ProductCard } from '@/components/product/product-card';
 import type { Product } from '@/types';
 import { ArrowRight, Instagram, Send, ShoppingBag } from 'lucide-react';
 import { NewsletterSignupForm } from '@/components/forms/newsletter-signup-form';
-import { AspectRatio } from '@/components/ui/aspect-ratio';
+// AspectRatio is not directly used here after video integration, but keeping import if needed elsewhere or if video is removed.
+// import { AspectRatio } from '@/components/ui/aspect-ratio'; 
 
 // Mock products - replace with actual data fetching
 const mockFeaturedProducts: Product[] = [
@@ -38,7 +39,7 @@ interface HomepageContent {
     title: string;
     description: string;
   };
-  artisanalRoots?: { // Made optional for graceful fallback if not present
+  artisanalRoots?: { 
     title: string;
     description: string;
   };
@@ -46,7 +47,7 @@ interface HomepageContent {
 
 async function getHomepageContent(): Promise<HomepageContent> {
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:9002'; // Ensure this is set
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:9002'; 
     const res = await fetch(`${baseUrl}/api/content/homepage`, { cache: 'no-store' });
 
     if (!res.ok) {
@@ -79,7 +80,7 @@ export default async function HomePage() {
   const artisanalRootsTitle = content.artisanalRoots?.title || "Our Artisanal Roots";
   const artisanalRootsDescription = content.artisanalRoots?.description || "At Peak Pulse, every thread tells a story. We partner with local artisans in Nepal, preserving centuries-old techniques while innovating for today's global citizen.";
 
-  const videoId = "gCRNEJxDJKM"; // Extracted from https://youtu.be/gCRNEJxDJKM
+  const videoId = "gCRNEJxDJKM"; 
 
   return (
     <>
@@ -88,8 +89,7 @@ export default async function HomePage() {
         {/* Background Video Container */}
         <div className="absolute inset-0 z-0 w-full h-full overflow-hidden pointer-events-none">
           <iframe
-            className="absolute top-1/2 left-1/2 min-w-full min-h-full w-auto h-auto transform -translate-x-1/2 -translate-y-1/2"
-            style={{ aspectRatio: '16/9' }} // Maintain aspect ratio
+             className="absolute top-1/2 left-1/2 w-full h-full min-w-[177.77vh] min-h-[56.25vw] transform -translate-x-1/2 -translate-y-1/2 object-cover" // Ensures video covers the area, aspect ratio maintained
             src={`https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&loop=1&playlist=${videoId}&controls=0&showinfo=0&autohide=1&modestbranding=1&playsinline=1&enablejsapi=1`}
             title="Peak Pulse Background Video"
             frameBorder="0"
@@ -114,7 +114,7 @@ export default async function HomePage() {
       </section>
 
       {/* Featured Products Section */}
-      <section className="section-padding container-wide">
+      <section className="section-padding container-wide pt-16 md:pt-20"> {/* Reduced top padding */}
         <h2 className="text-3xl font-bold text-center mb-12 text-foreground">Featured Collection</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
           {mockFeaturedProducts.map(product => (
@@ -129,7 +129,7 @@ export default async function HomePage() {
       </section>
 
       {/* Brand Story Snippet Section */}
-      <section className="bg-card section-padding">
+      <section className="bg-card section-padding pt-12 md:pt-16"> {/* Reduced top padding */}
         <div className="container-slim text-center">
           <h2 className="text-3xl font-bold mb-6 text-foreground">{artisanalRootsTitle}</h2>
           <p className="text-lg text-muted-foreground mb-8 max-w-xl mx-auto">
@@ -142,14 +142,14 @@ export default async function HomePage() {
       </section>
       
       {/* Social Commerce Section */}
-      <section className="section-padding container-wide">
+      <section className="section-padding container-wide pt-12 md:pt-16"> {/* Reduced top padding */}
         <h2 className="text-3xl font-bold text-center mb-12 text-foreground">
           #PeakPulseStyle <Instagram className="inline-block ml-2 h-7 w-7 text-pink-500" />
         </h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[1, 2, 3, 4].map(i => (
             <Link key={i} href="https://instagram.com/peakpulsenp" target="_blank" rel="noopener noreferrer" className="block bg-muted rounded-lg overflow-hidden group">
-              <AspectRatio ratio={1 / 1}>
+              <div className="aspect-square"> {/* Use div for aspect ratio control with next/image */}
                 <Image
                   src={`https://placehold.co/400x400.png`}
                   alt={`User generated content showcasing Peak Pulse style ${i}`}
@@ -158,7 +158,7 @@ export default async function HomePage() {
                   className="group-hover:scale-105 transition-transform duration-300"
                   data-ai-hint="instagram fashion user"
                 />
-              </AspectRatio>
+              </div>
             </Link>
           ))}
         </div>
@@ -172,7 +172,7 @@ export default async function HomePage() {
       </section>
 
       {/* Newsletter Signup Section */}
-      <section className="bg-primary/5 section-padding">
+      <section className="bg-primary/5 section-padding pt-12 md:pt-16"> {/* Reduced top padding */}
         <div className="container-slim text-center">
           <Send className="h-12 w-12 text-primary mx-auto mb-4" />
           <h2 className="text-3xl font-bold mb-4 text-foreground">Join the Peak Pulse Community</h2>
