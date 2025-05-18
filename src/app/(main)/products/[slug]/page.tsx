@@ -115,7 +115,7 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-start">
         {/* Image Gallery */}
-        <div className="sticky top-24"> {/* Make image gallery sticky */}
+        <div className="sticky top-24 z-10 bg-background p-1 rounded-lg shadow-sm"> {/* Make image gallery sticky, add z-index and background */}
           <div className="mb-4">
              <AspectRatio ratio={4/5} className="bg-muted rounded-lg overflow-hidden shadow-lg">
                 <Image
