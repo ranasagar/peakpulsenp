@@ -10,18 +10,21 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { User, Edit3, KeyRound, CheckCircle, ShieldAlert } from 'lucide-react';
+import { User, Edit3, KeyRound, CheckCircle, ShieldAlert, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
+import { useEffect, useState } from 'react';
+import type { User as AuthUserType } from '@/types';
 
 const profileSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
   email: z.string().email({ message: "Invalid email address." }),
+  avatarUrl: z.string().url({ message: "Invalid URL for avatar."}).optional().or(z.literal('')),
   // Add other fields like phone, etc. if needed
 });
 
 const passwordSchema = z.object({
-  currentPassword: z.string().min(1, { message: "Current password is required." }), // Typically min 6-8
+  currentPassword: z.string().min(1, { message: "Current password is required." }),
   newPassword: z.string().min(6, { message: "New password must be at least 6 characters." }),
   confirmPassword: z.string().min(6, { message: "Confirm password must be at least 6 characters." }),
 }).refine(data => data.newPassword === data.confirmPassword, {
@@ -33,19 +36,18 @@ type ProfileFormValues = z.infer<typeof profileSchema>;
 type PasswordFormValues = z.infer<typeof passwordSchema>;
 
 export default function ProfilePage() {
-  const { user, isLoading: authLoading } = useAuth();
+  const { user: authUser, isLoading: authLoading } = useAuth();
   const { toast } = useToast();
+  const [isFetchingProfile, setIsFetchingProfile] = useState(true);
+  const [profileData, setProfileData] = useState<AuthUserType | null>(null);
 
   const profileForm = useForm<ProfileFormValues>({
     resolver: zodResolver(profileSchema),
     defaultValues: {
-      name: user?.name || '',
-      email: user?.email || '',
+      name: '',
+      email: '',
+      avatarUrl: '',
     },
-    values: { // Keep form in sync if user object changes
-        name: user?.name || '',
-        email: user?.email || '',
-    }
   });
 
   const passwordForm = useForm<PasswordFormValues>({
@@ -57,33 +59,104 @@ export default function ProfilePage() {
     },
   });
 
+  useEffect(() => {
+    if (authUser && authUser.id) {
+      setIsFetchingProfile(true);
+      fetch(`/api/account/profile?uid=${authUser.id}`)
+        .then(res => {
+          if (res.ok) return res.json();
+          if (res.status === 404) return null; // Profile not yet in Firestore
+          throw new Error('Failed to fetch profile');
+        })
+        .then(data => {
+          if (data) {
+            setProfileData(data);
+            profileForm.reset({
+              name: data.name || authUser.name || '',
+              email: data.email || authUser.email || '',
+              avatarUrl: data.avatarUrl || authUser.avatarUrl || '',
+            });
+          } else {
+            // Profile not in Firestore, use authUser details as fallback for form
+            profileForm.reset({
+              name: authUser.name || '',
+              email: authUser.email || '',
+              avatarUrl: authUser.avatarUrl || '',
+            });
+          }
+        })
+        .catch(error => {
+          console.error("Error fetching profile:", error);
+          toast({ title: "Error", description: "Could not load profile data.", variant: "destructive" });
+           profileForm.reset({ // Fallback to auth user data on error
+              name: authUser.name || '',
+              email: authUser.email || '',
+              avatarUrl: authUser.avatarUrl || '',
+            });
+        })
+        .finally(() => setIsFetchingProfile(false));
+    } else if (!authLoading) {
+        setIsFetchingProfile(false); // Not authenticated or no user.id
+    }
+  }, [authUser, authLoading, toast, profileForm]);
+
+
   const onProfileSubmit = async (data: ProfileFormValues) => {
-    // Mock API call
-    console.log("Profile update data:", data);
-    toast({
-      title: "Profile Updated",
-      description: "Your personal information has been successfully updated.",
-      action: <CheckCircle className="text-green-500" />,
-    });
+    if (!authUser || !authUser.id) {
+      toast({ title: "Error", description: "You must be logged in to update your profile.", variant: "destructive" });
+      return;
+    }
+
+    profileForm.formState.isSubmitting = true;
+    try {
+      const response = await fetch('/api/account/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ uid: authUser.id, ...data }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to update profile');
+      }
+
+      toast({
+        title: "Profile Updated",
+        description: "Your personal information has been successfully updated.",
+        action: <CheckCircle className="text-green-500" />,
+      });
+      // Optionally re-fetch profile data or update local state
+      setProfileData(prev => ({...(prev || authUser!), ...data, id: authUser.id, roles: prev?.roles || authUser?.roles || ['customer'] }));
+
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      toast({ title: "Update Failed", description: (error as Error).message, variant: "destructive" });
+    } finally {
+       profileForm.formState.isSubmitting = false;
+    }
   };
 
   const onPasswordSubmit = async (data: PasswordFormValues) => {
-    // Mock API call
-    console.log("Password change data:", data);
+    // Mock API call for password change - Firebase handles this directly on client or via Admin SDK
+    // For this example, we'll just log it and show a toast.
+    // Real implementation would involve `updatePassword` from `firebase/auth` after re-authenticating the user.
+    console.log("Password change data (client-side mock):", data);
     toast({
-      title: "Password Changed",
-      description: "Your password has been successfully updated.",
+      title: "Password Change (Mock)",
+      description: "Password change functionality needs direct Firebase SDK integration for security.",
       variant: "default",
-      action: <CheckCircle className="text-green-500" />,
+      action: <ShieldAlert className="text-yellow-500" />,
     });
     passwordForm.reset();
   };
   
-  if (authLoading) {
-      return <div className="container-wide section-padding text-center">Loading profile...</div>
+  const currentDisplayUser = profileData || authUser;
+
+  if (authLoading || isFetchingProfile) {
+      return <div className="container-wide section-padding text-center flex items-center justify-center min-h-[50vh]"><Loader2 className="h-12 w-12 animate-spin text-primary" /> <span className="ml-4 text-lg">Loading profile...</span></div>
   }
-  if (!user) {
-      return <div className="container-wide section-padding text-center text-destructive">User not found or not logged in.</div>
+  if (!authUser) { // Check authUser specifically for auth status
+      return <div className="container-wide section-padding text-center text-destructive">User not found or not logged in. Please try logging in again.</div>
   }
 
   return (
@@ -100,15 +173,13 @@ export default function ProfilePage() {
         <div className="md:col-span-1">
           <Card className="shadow-lg p-6 text-center sticky top-24">
              <Avatar className="h-28 w-28 mx-auto mb-4 border-4 border-primary p-1">
-                <AvatarImage src={user.avatarUrl || `https://placehold.co/150x150.png`} alt={user.name || 'User'} data-ai-hint="profile avatar user"/>
-                <AvatarFallback className="text-4xl">{user.name ? user.name.charAt(0).toUpperCase() : <User />}</AvatarFallback>
+                <AvatarImage src={profileForm.watch('avatarUrl') || currentDisplayUser?.avatarUrl || `https://placehold.co/150x150.png`} alt={currentDisplayUser?.name || 'User'} data-ai-hint="profile avatar user"/>
+                <AvatarFallback className="text-4xl">{currentDisplayUser?.name ? currentDisplayUser.name.charAt(0).toUpperCase() : <User />}</AvatarFallback>
             </Avatar>
-            <Button variant="outline" size="sm" className="mb-4">
-                <Edit3 className="mr-2 h-3 w-3" /> Change Avatar (UI only)
-            </Button>
-            <h2 className="text-xl font-semibold text-foreground">{user.name}</h2>
-            <p className="text-sm text-muted-foreground">{user.email}</p>
-             <p className="text-xs text-accent mt-1 capitalize">Role: {user.roles?.join(', ') || 'Customer'}</p>
+            {/* Avatar URL Field integrated into profile form */}
+            <h2 className="text-xl font-semibold text-foreground">{profileForm.watch('name') || currentDisplayUser?.name}</h2>
+            <p className="text-sm text-muted-foreground">{profileForm.watch('email') || currentDisplayUser?.email}</p>
+             <p className="text-xs text-accent mt-1 capitalize">Role: {currentDisplayUser?.roles?.join(', ') || 'Customer'}</p>
           </Card>
         </div>
 
@@ -116,7 +187,7 @@ export default function ProfilePage() {
           <Card className="shadow-xl">
             <CardHeader>
               <CardTitle className="text-2xl flex items-center"><Edit3 className="mr-3 h-6 w-6 text-primary" />Personal Information</CardTitle>
-              <CardDescription>Update your name and email address.</CardDescription>
+              <CardDescription>Update your name, email address, and avatar.</CardDescription>
             </CardHeader>
             <CardContent>
               <Form {...profileForm}>
@@ -141,13 +212,29 @@ export default function ProfilePage() {
                       <FormItem>
                         <FormLabel>Email Address</FormLabel>
                         <FormControl>
-                          <Input type="email" placeholder="your.email@example.com" {...field} />
+                          <Input type="email" placeholder="your.email@example.com" {...field} disabled />
+                          {/* Email editing is complex due to Firebase Auth constraints; disabled for now */}
+                        </FormControl>
+                        <FormMessage />
+                         <p className="text-xs text-muted-foreground pt-1">Email address cannot be changed here. This requires a separate secure process.</p>
+                      </FormItem>
+                    )}
+                  />
+                   <FormField
+                    control={profileForm.control}
+                    name="avatarUrl"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Avatar URL (Optional)</FormLabel>
+                        <FormControl>
+                          <Input placeholder="https://example.com/avatar.png" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
-                  <Button type="submit" className="w-full sm:w-auto">
+                  <Button type="submit" className="w-full sm:w-auto" disabled={profileForm.formState.isSubmitting}>
+                    {profileForm.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Save Changes
                   </Button>
                 </form>
@@ -202,7 +289,8 @@ export default function ProfilePage() {
                       </FormItem>
                     )}
                   />
-                  <Button type="submit" className="w-full sm:w-auto">
+                  <Button type="submit" className="w-full sm:w-auto" disabled={passwordForm.formState.isSubmitting}>
+                     {passwordForm.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Update Password
                   </Button>
                 </form>
@@ -214,5 +302,3 @@ export default function ProfilePage() {
     </div>
   );
 }
-
-    
