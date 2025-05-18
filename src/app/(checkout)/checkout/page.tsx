@@ -17,7 +17,7 @@ import { CreditCard, Lock, ShoppingBag, Truck, Gift, Globe, Info, Loader2, Bankn
 import { useToast } from '@/hooks/use-toast';
 import Image from 'next/image';
 import Link from 'next/link';
-import type { CartItem } from '@/types';
+import { useCart } from '@/context/cart-context'; // Import useCart
 import { calculateInternationalShipping } from '@/ai/flows/calculate-international-shipping-flow';
 import type { CalculateInternationalShippingOutput } from '@/ai/flows/calculate-international-shipping-flow';
 import { useRouter } from 'next/navigation';
@@ -55,29 +55,10 @@ const shippingSchema = z.object({
 
 const paymentCardSchema = z.object({
   cardNumber: z.string()
-    .min(13, "Card number must be between 13 and 19 digits.")
-    .max(19, "Card number must be between 13 and 19 digits.")
-    .regex(/^\d+$/, "Card number must contain only digits.")
-    .refine(luhnCheck, "Invalid credit card number.")
     .optional().or(z.literal('')),
   expiryDate: z.string()
-    .regex(/^(0[1-9]|1[0-2])\/?([0-9]{2})$/, "Expiry date must be MM/YY.")
-    .refine(val => {
-        const [month, year] = val.split('/');
-        if (!month || !year) return false;
-        const currentYear = new Date().getFullYear() % 100;
-        const currentMonth = new Date().getMonth() + 1;
-        const inputYear = parseInt(year, 10);
-        const inputMonth = parseInt(month, 10);
-        if (inputYear < currentYear) return false;
-        if (inputYear === currentYear && inputMonth < currentMonth) return false;
-        return true;
-    }, "Card has expired.")
     .optional().or(z.literal('')),
   cvc: z.string()
-    .min(3, "CVC must be 3 or 4 digits.")
-    .max(4, "CVC must be 3 or 4 digits.")
-    .regex(/^\d+$/, "CVC must contain only digits.")
     .optional().or(z.literal('')),
   cardholderName: z.string().min(2, "Cardholder name is required.").optional().or(z.literal('')),
 });
@@ -86,7 +67,7 @@ const checkoutSchema = shippingSchema.extend({
     promoCode: z.string().optional(),
     saveInfo: z.boolean().default(false).optional(),
     paymentMethod: z.string().min(1, "Please select a payment method."),
-}).merge(paymentCardSchema) // Merge directly, superRefine will handle conditional validation
+}).merge(paymentCardSchema)
 .superRefine((data, ctx) => {
     if (data.paymentMethod === 'card_international' && data.isInternational) {
         if (!data.cardholderName || data.cardholderName.length < 2) {
@@ -136,18 +117,13 @@ const checkoutSchema = shippingSchema.extend({
 
 type CheckoutFormValues = z.infer<typeof checkoutSchema>;
 
-// Mock cart items - replace with actual cart data
-const mockCartItems: CartItem[] = [
-  { id: 'prod-1-m', productId: 'prod-1', name: 'Himalayan Breeze Jacket (M)', price: 12000, quantity: 1, imageUrl: 'https://placehold.co/80x80.png', dataAiHint: "jacket fashion" },
-  { id: 'prod-2', productId: 'prod-2', name: 'Kathmandu Comfort Tee', price: 3500, quantity: 2, imageUrl: 'https://placehold.co/80x80.png', dataAiHint: "tee shirt" },
-];
-
 const DOMESTIC_SHIPPING_COST_NPR = 500;
 
 export default function CheckoutPage() {
   const { toast } = useToast();
   const router = useRouter();
-  const [subtotal, setSubtotal] = useState(0);
+  const { cartItems, subtotal, clearCart, isCartLoading } = useCart();
+  
   const [currentShippingCost, setCurrentShippingCost] = useState(DOMESTIC_SHIPPING_COST_NPR);
   const [total, setTotal] = useState(0);
   const [isInternationalShipping, setIsInternationalShipping] = useState(false);
@@ -178,9 +154,11 @@ export default function CheckoutPage() {
   });
 
   useEffect(() => {
-    const newSubtotal = mockCartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
-    setSubtotal(newSubtotal);
-  }, []);
+    if (!isCartLoading && cartItems.length === 0) {
+        toast({ title: "Cart Empty", description: "Your cart is empty. Redirecting to shop...", variant: "default" });
+        router.push('/products');
+    }
+  }, [cartItems, isCartLoading, router, toast]);
 
   useEffect(() => {
     setTotal(subtotal + currentShippingCost);
@@ -248,22 +226,21 @@ export default function CheckoutPage() {
             description: "Please review the form for errors and try again.",
             variant: "destructive",
         });
-        // Log specific errors to console for easier debugging
         console.log("Form validation errors:", form.formState.errors);
         return;
     }
     
     const orderPayload = {
-      cartItems: mockCartItems,
+      cartItems: cartItems, // Use cartItems from context
       shippingDetails: data,
-      orderSubtotal: subtotal,
+      orderSubtotal: subtotal, // Use subtotal from context
       shippingCost: currentShippingCost,
       orderTotal: total,
     };
 
     console.log("Submitting order with payload:", JSON.stringify(orderPayload, null, 2));
 
-    form.formState.isSubmitting = true; // Manually set submitting state
+    form.control.control.formState.isSubmitting = true;
     try {
       const response = await fetch('/api/orders/create', {
         method: 'POST',
@@ -277,13 +254,13 @@ export default function CheckoutPage() {
 
       if (response.ok) {
         toast({
-          title: result.title || "Order Placed (Mock)!",
+          title: result.title || "Order Placed!",
           description: result.message || "Your order is being processed.",
           action: <Link href={`/account/orders?orderId=${result.orderId || 'new'}`}><Button variant="outline" size="sm">View Order</Button></Link>
         });
+        clearCart(); // Clear cart from context
         router.push(`/account/orders?orderId=${result.orderId || 'new'}`);
         form.reset(); 
-        // TODO: Clear cart state
       } else {
         toast({
           title: result.title || "Order Failed",
@@ -299,7 +276,7 @@ export default function CheckoutPage() {
         variant: "destructive",
       });
     } finally {
-       form.formState.isSubmitting = false; // Manually reset submitting state
+       form.control.control.formState.isSubmitting = false;
     }
   };
 
@@ -315,6 +292,13 @@ export default function CheckoutPage() {
     { value: 'card_international', label: 'Credit/Debit Card (International)', icon: CreditCard, domesticOnly: false, internationalOnly: true },
   ];
 
+  if (isCartLoading) {
+    return (
+      <div className="container-slim py-12 md:py-20 flex justify-center items-center min-h-[70vh]">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="container-slim py-12 md:py-20">
@@ -487,7 +471,6 @@ export default function CheckoutPage() {
                     <FormField control={form.control} name="saveInfo" render={({ field }) => (
                         <FormItem className="flex flex-row items-start space-x-3 space-y-0">
                         <FormControl>
-                            {/* Using Input type checkbox for styling consistency if needed, or ShadCN Checkbox */}
                             <input type="checkbox" checked={field.value} onChange={field.onChange} id="saveInfoCheckbox" className="h-4 w-4 accent-primary !mt-0.5 rounded border-gray-300 focus:ring-primary" />
                         </FormControl>
                         <div className="space-y-1 leading-none">
@@ -508,7 +491,7 @@ export default function CheckoutPage() {
                 <CardTitle className="text-xl">Order Summary</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                {mockCartItems.map(item => (
+                {cartItems.map(item => (
                   <div key={item.id} className="flex justify-between items-center text-sm">
                     <div className="flex items-center">
                        <Image src={item.imageUrl!} alt={item.name} width={40} height={40} className="rounded mr-3" data-ai-hint={item.dataAiHint || "product fashion"}/>
@@ -556,8 +539,8 @@ export default function CheckoutPage() {
                 </div>
               </CardContent>
               <CardFooter>
-                <Button type="submit" size="lg" className="w-full text-base" disabled={form.formState.isSubmitting || isCalculatingShipping}>
-                  {form.formState.isSubmitting ? <Loader2 className="h-5 w-5 mr-2 animate-spin"/> : <Lock className="mr-2 h-5 w-5" />} Place Order
+                <Button type="submit" size="lg" className="w-full text-base" disabled={form.control.control.formState.isSubmitting || isCalculatingShipping || cartItems.length === 0}>
+                  {form.control.control.formState.isSubmitting ? <Loader2 className="h-5 w-5 mr-2 animate-spin"/> : <Lock className="mr-2 h-5 w-5" />} Place Order
                 </Button>
               </CardFooter>
             </Card>
@@ -568,5 +551,3 @@ export default function CheckoutPage() {
     </div>
   );
 }
-
-    

@@ -21,6 +21,7 @@ import { cn } from '@/lib/utils';
 import type { NavItem } from '@/types';
 import { ShoppingCart, Search, LogOut, UserCircle, LayoutDashboard, Settings, Star, ShoppingBag, Briefcase } from 'lucide-react';
 import { ModeToggle } from './mode-toggle';
+import { useCart } from '@/context/cart-context'; // Import useCart
 
 const mainNavItems: NavItem[] = [
   { title: 'Home', href: '/' },
@@ -38,12 +39,10 @@ const userNavItems: NavItem[] = [
 
 export function Header() {
   const { user, logout, isAuthenticated } = useAuth();
+  const { cartItemCount } = useCart(); // Use cartItemCount from context
   const pathname = usePathname();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
-
-  // Simulate cart item count for demonstration. Replace with actual cart state.
-  const [cartItemCount, setCartItemCount] = useState(3); // Example: 3 items in cart
 
   useEffect(() => setMounted(true), []);
 
@@ -99,7 +98,7 @@ export function Header() {
         <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
           <SheetTrigger asChild>
             <Button variant="ghost" size="icon" className="md:hidden mr-4">
-              <Icons.AnimatedMenuIcon className="h-8 w-8" /> {/* Adjusted size */}
+              <Icons.AnimatedMenuIcon className="h-16 w-16" /> {/* Updated size */}
               <span className="sr-only">Toggle Menu</span>
             </Button>
           </SheetTrigger>

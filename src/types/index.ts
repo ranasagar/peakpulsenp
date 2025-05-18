@@ -74,13 +74,13 @@ export interface Product {
 }
 
 export interface CartItem {
-  id: string; // Typically productId or variantId
+  id: string; // Typically productId or variantId. For products with variants, this should be unique per variant (e.g., `${productId}-${variantId}`)
   productId: string;
-  variantId?: string;
-  name: string;
-  price: number;
+  variantId?: string; // Identifier for the specific variant (e.g., size, color)
+  name: string; // Product name, potentially with variant info (e.g., "Himalayan Breeze Jacket (M, Blue)")
+  price: number; // Price of this specific item/variant
   quantity: number;
-  imageUrl?: string;
+  imageUrl?: string; // Image for this item/variant
   dataAiHint?: string; // For placeholder image hints
 }
 
@@ -164,4 +164,16 @@ export interface FilterOption {
 export interface BreadcrumbItem {
   name: string;
   href?: string;
+}
+
+// Cart Context Types
+export interface CartContextType {
+  cartItems: CartItem[];
+  cartItemCount: number;
+  subtotal: number;
+  addToCart: (product: Product, quantity: number, selectedVariant?: ProductVariant) => void;
+  removeFromCart: (itemId: string) => void;
+  updateItemQuantity: (itemId: string, newQuantity: number) => void;
+  clearCart: () => void;
+  isCartLoading: boolean;
 }

@@ -10,11 +10,12 @@ import { Star, Plus, Minus, ShoppingCart, Check, ShieldCheck, Package, Zap } fro
 import { Separator } from '@/components/ui/separator';
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
-import type { Product, ProductImage, BreadcrumbItem } from '@/types';
+import type { Product, ProductImage, BreadcrumbItem, ProductVariant } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { Breadcrumbs } from '@/components/navigation/breadcrumbs';
 import { ProductCard } from '@/components/product/product-card';
 import { AspectRatio } from '@/components/ui/aspect-ratio';
+import { useCart } from '@/context/cart-context'; // Import useCart
 
 
 // Mock product - replace with actual data fetching based on slug
@@ -25,10 +26,10 @@ const mockProduct: Product = {
   price: 12000,
   compareAtPrice: 15000, // Example for sale item
   images: [
-    { id: 'img-main', url: 'https://placehold.co/800x1000.png', altText: 'Himalayan Breeze Jacket front view' },
-    { id: 'img-detail-1', url: 'https://placehold.co/800x1000.png', altText: 'Himalayan Breeze Jacket side view' },
-    { id: 'img-detail-2', url: 'https://placehold.co/800x1000.png', altText: 'Himalayan Breeze Jacket back view' },
-    { id: 'img-fabric', url: 'https://placehold.co/800x1000.png', altText: 'Himalayan Breeze Jacket fabric texture detail' },
+    { id: 'img-main', url: 'https://placehold.co/800x1000.png', altText: 'Himalayan Breeze Jacket front view', dataAiHint: 'jacket clothing fashion' },
+    { id: 'img-detail-1', url: 'https://placehold.co/800x1000.png', altText: 'Himalayan Breeze Jacket side view', dataAiHint: 'jacket side' },
+    { id: 'img-detail-2', url: 'https://placehold.co/800x1000.png', altText: 'Himalayan Breeze Jacket back view', dataAiHint: 'jacket back' },
+    { id: 'img-fabric', url: 'https://placehold.co/800x1000.png', altText: 'Himalayan Breeze Jacket fabric texture detail', dataAiHint: 'fabric texture' },
   ],
   categories: [{ id: 'cat-1', name: 'Outerwear', slug: 'outerwear' }],
   shortDescription: 'Lightweight, wind-resistant jacket made with innovative Nepali textiles. Perfect for urban exploration and mild mountain trails.',
@@ -40,10 +41,10 @@ const mockProduct: Product = {
   averageRating: 4.8,
   reviewCount: 125,
   variants: [
-    { id: 'var-s-blue', name: 'Size', value: 'S', sku: 'HBJ-S-BLU', price: 12000, stock: 10 },
-    { id: 'var-m-blue', name: 'Size', value: 'M', sku: 'HBJ-M-BLU', price: 12000, stock: 15 },
-    { id: 'var-l-blue', name: 'Size', value: 'L', sku: 'HBJ-L-BLU', price: 12000, stock: 5 },
-    { id: 'var-xl-blue', name: 'Size', value: 'XL', sku: 'HBJ-XL-BLU', price: 12000, stock: 0 }, // Out of stock example
+    { id: 'var-s-blue', name: 'Size', value: 'S', sku: 'HBJ-S-BLU', price: 12000, stock: 10, imageId: 'img-main' },
+    { id: 'var-m-blue', name: 'Size', value: 'M', sku: 'HBJ-M-BLU', price: 12000, stock: 15, imageId: 'img-detail-1' },
+    { id: 'var-l-blue', name: 'Size', value: 'L', sku: 'HBJ-L-BLU', price: 12000, stock: 5, imageId: 'img-detail-2' },
+    { id: 'var-xl-blue', name: 'Size', value: 'XL', sku: 'HBJ-XL-BLU', price: 12000, stock: 0, imageId: 'img-main' }, // Out of stock example
   ],
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),
@@ -65,19 +66,28 @@ const mockRelatedProducts: Product[] = [
 ];
 
 
-// This would typically come from a parameter like `params.slug`
-// For this static example, we just use the mockProduct
 export default function ProductDetailPage({ params }: { params: { slug: string } }) {
   const product = mockProduct; // In real app: await fetchProductBySlug(params.slug);
   const { toast } = useToast();
+  const { addToCart: addToCartContext } = useCart(); // Use addToCart from context
   const [selectedImage, setSelectedImage] = useState<ProductImage>(product.images[0]);
   const [quantity, setQuantity] = useState(1);
-  const [selectedVariantId, setSelectedVariantId] = useState<string | undefined>(
-    product.variants?.find(v => v.stock > 0)?.id // Default to first in-stock variant
-  );
+  
+  const initialVariantId = product.variants?.find(v => v.stock > 0)?.id;
+  const [selectedVariantId, setSelectedVariantId] = useState<string | undefined>(initialVariantId);
 
+  useEffect(() => {
+    // If there are variants and no variant is selected, select the first available one
+    if (product.variants && product.variants.length > 0 && !selectedVariantId) {
+      const firstAvailableVariant = product.variants.find(v => v.stock > 0);
+      if (firstAvailableVariant) {
+        setSelectedVariantId(firstAvailableVariant.id);
+      }
+    }
+  }, [product.variants, selectedVariantId]);
+  
   const selectedVariant = product.variants?.find(v => v.id === selectedVariantId);
-  const isOutOfStock = selectedVariant ? selectedVariant.stock <= 0 : product.stock !== undefined && product.stock <= 0;
+  const isOutOfStock = selectedVariant ? selectedVariant.stock <= 0 : (product.stock !== undefined && product.stock <= 0 && (!product.variants || product.variants.length === 0));
 
 
   const handleAddToCart = () => {
@@ -85,17 +95,12 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
         toast({ title: "Out of Stock", description: "This item is currently unavailable.", variant: "destructive" });
         return;
     }
-    if (product.variants && !selectedVariant) {
+    if (product.variants && product.variants.length > 0 && !selectedVariant) {
         toast({ title: "Select Variant", description: "Please select a size.", variant: "destructive" });
         return;
     }
-    // TODO: Implement actual cart logic
-    console.log(`Added to cart: ${product.name}, Quantity: ${quantity}, Variant: ${selectedVariant?.value || 'N/A'}`);
-    toast({
-      title: "Added to Cart!",
-      description: `${quantity} x ${product.name} ${selectedVariant ? `(${selectedVariant.value})` : ''}`,
-      action: <Check className="text-green-500" />,
-    });
+    
+    addToCartContext(product, quantity, selectedVariant); // Use context addToCart
   };
 
   const breadcrumbs: BreadcrumbItem[] = [
@@ -124,7 +129,7 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
                     objectFit="cover"
                     className="transition-opacity duration-300 ease-in-out hover:opacity-90"
                     priority
-                    data-ai-hint="jacket clothing fashion"
+                    data-ai-hint={selectedImage.dataAiHint || "product fashion"}
                 />
              </AspectRatio>
           </div>
@@ -136,7 +141,7 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
                 className={`rounded-md overflow-hidden border-2 transition-all ${selectedImage.id === img.id ? 'border-primary ring-2 ring-primary ring-offset-2' : 'border-transparent hover:border-primary/50'}`}
               >
                 <AspectRatio ratio={1/1}>
-                <Image src={img.url} alt={img.altText || `Thumbnail ${img.id}`} layout="fill" objectFit="cover" data-ai-hint="clothing detail" />
+                <Image src={img.url} alt={img.altText || `Thumbnail ${img.id}`} layout="fill" objectFit="cover" data-ai-hint={img.dataAiHint || "clothing detail"} />
                 </AspectRatio>
               </button>
             ))}
@@ -204,7 +209,7 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
               {selectedVariant && selectedVariant.stock > 0 && selectedVariant.stock < 5 && (
                 <p className="text-sm text-orange-500 mt-2">Only {selectedVariant.stock} left in stock!</p>
               )}
-               {isOutOfStock && (
+               {selectedVariant && selectedVariant.stock <= 0 && (
                 <p className="text-sm text-destructive mt-2">This size is out of stock.</p>
               )}
             </div>
@@ -281,5 +286,3 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
     </div>
   );
 }
-
-    

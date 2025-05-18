@@ -1,45 +1,35 @@
 
 "use client";
 
-import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { Plus, Minus, Trash2, ShoppingCart, ShoppingBag, XCircle } from 'lucide-react';
-import type { CartItem } from '@/types';
-import { useToast } from '@/hooks/use-toast';
-
-// Mock cart items - replace with actual cart state management (e.g., Context, Zustand, Redux)
-const initialMockCartItems: CartItem[] = [
-  { id: 'prod-1-m', productId: 'prod-1', variantId: 'var-m-blue', name: 'Himalayan Breeze Jacket (M)', price: 12000, quantity: 1, imageUrl: 'https://placehold.co/100x120.png', dataAiHint: 'jacket fashion' },
-  { id: 'prod-2', productId: 'prod-2', name: 'Kathmandu Comfort Tee', price: 3500, quantity: 2, imageUrl: 'https://placehold.co/100x120.png', dataAiHint: 'tee shirt' },
-];
+import { Plus, Minus, Trash2, ShoppingCart, ShoppingBag, Loader2 } from 'lucide-react';
+import { useCart } from '@/context/cart-context';
 
 export default function CartPage() {
-  const [cartItems, setCartItems] = useState<CartItem[]>(initialMockCartItems);
-  const { toast } = useToast();
+  const { 
+    cartItems, 
+    updateItemQuantity, 
+    removeFromCart, 
+    subtotal, 
+    isCartLoading 
+  } = useCart();
 
-  const updateQuantity = (itemId: string, newQuantity: number) => {
-    if (newQuantity < 1) return; // Or remove item if quantity is 0
-    setCartItems(items => 
-      items.map(item => item.id === itemId ? { ...item, quantity: newQuantity } : item)
-    );
-  };
-
-  const removeItem = (itemId: string) => {
-    setCartItems(items => items.filter(item => item.id !== itemId));
-    toast({
-      title: "Item Removed",
-      description: "The item has been removed from your cart.",
-    });
-  };
-
-  const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const shippingCost = cartItems.length > 0 ? 500 : 0; // Example shipping cost
+  // Example shipping cost - can be dynamic later
+  const shippingCost = cartItems.length > 0 ? 500 : 0; 
   const total = subtotal + shippingCost;
+
+  if (isCartLoading) {
+    return (
+      <div className="container-wide section-padding flex justify-center items-center min-h-[50vh]">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="container-wide section-padding">
@@ -80,30 +70,29 @@ export default function CartPage() {
                     />
                   </div>
                   <div className="flex-grow">
-                    <Link href={`/products/${item.productId}`} className="hover:text-primary">
+                    <Link href={`/products/${item.productId}${item.variantId ? `?variant=${item.variantId}` : '' }`} className="hover:text-primary">
                         <h3 className="text-lg font-semibold text-foreground mb-1">{item.name}</h3>
                     </Link>
-                    {/* Add variant details if any, e.g., Size: M, Color: Blue */}
                     <p className="text-sm text-muted-foreground mb-2">Price: रू{item.price.toLocaleString()}</p>
                     <div className="flex items-center space-x-2">
-                      <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => updateQuantity(item.id, item.quantity - 1)} disabled={item.quantity <= 1} aria-label="Decrease quantity">
+                      <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => updateItemQuantity(item.id, item.quantity - 1)} disabled={item.quantity <= 1} aria-label="Decrease quantity">
                         <Minus className="h-4 w-4" />
                       </Button>
                       <Input 
                         type="number" 
                         value={item.quantity} 
-                        onChange={(e) => updateQuantity(item.id, parseInt(e.target.value) || 1)}
+                        onChange={(e) => updateItemQuantity(item.id, parseInt(e.target.value) || 1)}
                         className="h-8 w-12 text-center px-1"
                         aria-label="Item quantity"
                       />
-                      <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => updateQuantity(item.id, item.quantity + 1)} aria-label="Increase quantity">
+                      <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => updateItemQuantity(item.id, item.quantity + 1)} aria-label="Increase quantity">
                         <Plus className="h-4 w-4" />
                       </Button>
                     </div>
                   </div>
                   <div className="flex flex-col items-end justify-between sm:ml-auto">
                     <p className="text-lg font-semibold text-foreground">रू{(item.price * item.quantity).toLocaleString()}</p>
-                    <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive" onClick={() => removeItem(item.id)} aria-label="Remove item">
+                    <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive" onClick={() => removeFromCart(item.id)} aria-label="Remove item">
                       <Trash2 className="h-5 w-5" />
                     </Button>
                   </div>
@@ -149,5 +138,3 @@ export default function CartPage() {
     </div>
   );
 }
-
-    

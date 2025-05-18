@@ -1,3 +1,4 @@
+
 import type { Metadata, Viewport } from 'next';
 import { GeistSans } from 'geist/font/sans';
 import { GeistMono } from 'geist/font/mono';
@@ -5,6 +6,7 @@ import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import { AuthProvider } from '@/hooks/use-auth';
 import { ThemeProvider } from '@/components/layout/theme-provider';
+import { CartProvider } from '@/context/cart-context'; // Import CartProvider
 
 export const metadata: Metadata = {
   title: {
@@ -38,8 +40,10 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <AuthProvider>
-            {children}
-            <Toaster />
+            <CartProvider> {/* Wrap with CartProvider */}
+              {children}
+              <Toaster />
+            </CartProvider>
           </AuthProvider>
         </ThemeProvider>
       </body>
