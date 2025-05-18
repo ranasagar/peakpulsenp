@@ -85,36 +85,36 @@ export default async function HomePage() {
   return (
     <>
       {/* Hero Section - Updated for Full-Screen Immersive Experience */}
-      <section className="relative h-screen w-full flex items-center justify-center text-center text-white overflow-hidden">
+      <section className="relative h-screen w-full overflow-hidden">
         {/* Background Video Container */}
         <div className="absolute inset-0 z-0 w-full h-full overflow-hidden pointer-events-none">
           <iframe
-             className="absolute top-1/2 left-1/2 w-full h-full min-w-[177.77vh] min-h-[56.25vw] transform -translate-x-1/2 -translate-y-1/2 object-cover" // Ensures video covers the area, aspect ratio maintained
+             className="absolute top-1/2 left-1/2 w-full h-full min-w-[177.77vh] min-h-[56.25vw] transform -translate-x-1/2 -translate-y-1/2 object-cover z-0"
             src={`https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&loop=1&playlist=${videoId}&controls=0&showinfo=0&autohide=1&modestbranding=1&playsinline=1&enablejsapi=1`}
             title="Peak Pulse Background Video"
             frameBorder="0"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
             allowFullScreen={false} 
           ></iframe>
-           <div className="absolute inset-0 bg-black/40"></div> {/* Dark overlay for text contrast */}
+           <div className="absolute inset-0 bg-black/30 z-[1]"></div> {/* Dark overlay for text contrast, z-index adjusted */}
         </div>
         
         {/* Content Overlay */}
-        <div className="relative z-10 p-6 md:p-8 max-w-3xl mx-auto">
-          <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-6 animate-fade-in-down">
+        <div className="relative z-20 flex flex-col items-center justify-center h-full text-center text-white pt-[calc(theme(spacing.20)_+_theme(spacing.6))] pb-12 px-6 md:px-8 max-w-3xl mx-auto">
+          <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-6">
             {heroTitle}
           </h1>
-          <p className="text-lg md:text-xl lg:text-2xl text-neutral-200 mb-10 max-w-2xl mx-auto animate-fade-in-up delay-200">
+          <p className="text-lg md:text-xl lg:text-2xl text-neutral-200 mb-10 max-w-2xl mx-auto">
             {heroDescription}
           </p>
-          <Button size="lg" asChild className="text-base md:text-lg py-3 px-8 animate-fade-in-up delay-400">
+          <Button size="lg" asChild className="text-base md:text-lg py-3 px-8">
             <Link href="/products">Shop Collections <ShoppingBag className="ml-2 h-5 w-5" /></Link>
           </Button>
         </div>
       </section>
 
       {/* Featured Products Section */}
-      <section className="section-padding container-wide pt-16 md:pt-20"> {/* Reduced top padding */}
+      <section className="section-padding container-wide">
         <h2 className="text-3xl font-bold text-center mb-12 text-foreground">Featured Collection</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
           {mockFeaturedProducts.map(product => (
@@ -129,7 +129,7 @@ export default async function HomePage() {
       </section>
 
       {/* Brand Story Snippet Section */}
-      <section className="bg-card section-padding pt-12 md:pt-16"> {/* Reduced top padding */}
+      <section className="bg-card section-padding">
         <div className="container-slim text-center">
           <h2 className="text-3xl font-bold mb-6 text-foreground">{artisanalRootsTitle}</h2>
           <p className="text-lg text-muted-foreground mb-8 max-w-xl mx-auto">
@@ -142,7 +142,7 @@ export default async function HomePage() {
       </section>
       
       {/* Social Commerce Section */}
-      <section className="section-padding container-wide pt-12 md:pt-16"> {/* Reduced top padding */}
+      <section className="section-padding container-wide">
         <h2 className="text-3xl font-bold text-center mb-12 text-foreground">
           #PeakPulseStyle <Instagram className="inline-block ml-2 h-7 w-7 text-pink-500" />
         </h2>
@@ -172,7 +172,7 @@ export default async function HomePage() {
       </section>
 
       {/* Newsletter Signup Section */}
-      <section className="bg-primary/5 section-padding pt-12 md:pt-16"> {/* Reduced top padding */}
+      <section className="bg-primary/5 section-padding">
         <div className="container-slim text-center">
           <Send className="h-12 w-12 text-primary mx-auto mb-4" />
           <h2 className="text-3xl font-bold mb-4 text-foreground">Join the Peak Pulse Community</h2>
