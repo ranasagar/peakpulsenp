@@ -1,3 +1,4 @@
+
 import type { LucideIcon } from 'lucide-react';
 
 export interface User {
@@ -80,6 +81,7 @@ export interface CartItem {
   price: number;
   quantity: number;
   imageUrl?: string;
+  dataAiHint?: string; // For placeholder image hints
   // variantDetails?: Pick<ProductVariant, 'name' | 'value'>[];
 }
 
