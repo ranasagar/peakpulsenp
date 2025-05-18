@@ -6,14 +6,36 @@
     "slug": "himalayan-breeze-jacket",
     "price": 12500,
     "compareAtPrice": 15000,
+    "costPrice": 7500,
     "shortDescription": "Lightweight, wind-resistant, managed via admin.",
     "description": "<p>The Himalayan Breeze Jacket is a testament to Peak Pulse's commitment to blending traditional craftsmanship with modern performance. Sourced and updated via the new admin CMS. Constructed from a unique, breathable fabric woven in the Kathmandu valley, this jacket offers exceptional comfort and protection against the elements.</p><p>Its minimalist design is accented with subtle traditional motifs, making it a versatile piece for any wardrobe. Features include secure zip pockets, an adjustable hood, and ethically sourced trims.</p>",
     "images": [
-      { "id": "img-main-1", "url": "https://placehold.co/800x1000.png", "altText": "Himalayan Breeze Jacket front view", "dataAiHint": "jacket front fashion" },
-      { "id": "img-detail-1-1", "url": "https://placehold.co/800x1000.png", "altText": "Himalayan Breeze Jacket side view", "dataAiHint": "jacket side apparel" },
-      { "id": "img-detail-1-2", "url": "https://placehold.co/800x1000.png", "altText": "Himalayan Breeze Jacket back view", "dataAiHint": "jacket back clothing" }
+      {
+        "id": "img-main-1",
+        "url": "https://catalog-resize-images.thedoublef.com/606bc76216f1f9cb1ad8281eb9b7e84e/900/900/NF0A4QYXNY_P_NORTH-ZU31.a.jpg",
+        "altText": "Himalayan Breeze Jacket front view",
+        "dataAiHint": "jacket front fashion"
+      },
+      {
+        "id": "img-detail-1-1",
+        "url": "https://placehold.co/800x1000.png",
+        "altText": "Himalayan Breeze Jacket side view",
+        "dataAiHint": "jacket side apparel"
+      },
+      {
+        "id": "img-detail-1-2",
+        "url": "https://placehold.co/800x1000.png",
+        "altText": "Himalayan Breeze Jacket back view",
+        "dataAiHint": "jacket back clothing"
+      }
     ],
-    "categories": [{ "id": "cat-1", "name": "Outerwear", "slug": "outerwear" }],
+    "categories": [
+      {
+        "id": "cat-1",
+        "name": "Outerwear",
+        "slug": "outerwear"
+      }
+    ],
     "fabricDetails": "Outer Shell: 70% Recycled Polyester, 30% Himalayan Nettle (Allo) fiber. Lining: 100% Organic Cotton.",
     "careInstructions": "Machine wash cold on gentle cycle. Hang dry. Do not bleach. Iron on low heat if necessary.",
     "sustainabilityMetrics": "Made with 70% recycled materials. Ethically produced by Fair Trade certified artisans in Nepal.",
@@ -21,24 +43,66 @@
     "averageRating": 4.8,
     "reviewCount": 125,
     "variants": [
-        { "id": "var-s-blue", "name": "Size", "value": "S", "sku": "HBJ-S-BLU", "price": 12500, "stock": 10, "imageId": "img-main-1" },
-        { "id": "var-m-blue", "name": "Size", "value": "M", "sku": "HBJ-M-BLU", "price": 12500, "stock": 15, "imageId": "img-detail-1-1" },
-        { "id": "var-l-blue", "name": "Size", "value": "L", "sku": "HBJ-L-BLU", "price": 12500, "stock": 5, "imageId": "img-detail-1-2" }
+      {
+        "id": "var-s-blue",
+        "name": "Size",
+        "value": "S",
+        "sku": "HBJ-S-BLU",
+        "price": 12500,
+        "costPrice": 7500,
+        "stock": 10,
+        "imageId": "img-main-1"
+      },
+      {
+        "id": "var-m-blue",
+        "name": "Size",
+        "value": "M",
+        "sku": "HBJ-M-BLU",
+        "price": 12500,
+        "costPrice": 7500,
+        "stock": 15,
+        "imageId": "img-detail-1-1"
+      },
+      {
+        "id": "var-l-blue",
+        "name": "Size",
+        "value": "L",
+        "sku": "HBJ-L-BLU",
+        "price": 12500,
+        "costPrice": 7500,
+        "stock": 5,
+        "imageId": "img-detail-1-2"
+      }
     ],
+    "stock": 30, 
     "createdAt": "2023-01-15T10:00:00Z",
-    "updatedAt": "2023-01-20T12:30:00Z"
+    "updatedAt": "2025-05-18T14:56:01.298Z",
+    "isFeatured": false
   },
   {
     "id": "prod-2",
     "name": "Kathmandu Comfort Tee (Managed)",
     "slug": "kathmandu-comfort-tee",
     "price": 3700,
+    "costPrice": 1800,
+    "stock": 50,
     "shortDescription": "Premium cotton for everyday luxury, managed via admin.",
     "description": "<p>Experience unmatched comfort with our Kathmandu Comfort Tee. Made from the finest locally sourced organic cotton, this t-shirt is designed for a soft feel and a perfect fit. Ideal for daily wear, it features a subtle Peak Pulse logo embroidery.</p>",
     "images": [
-      { "id": "img-main-2", "url": "https://placehold.co/600x800.png", "altText": "Kathmandu Comfort Tee", "dataAiHint": "tee shirt cotton" }
+      {
+        "id": "img-main-2",
+        "url": "https://placehold.co/600x800.png",
+        "altText": "Kathmandu Comfort Tee",
+        "dataAiHint": "tee shirt cotton"
+      }
     ],
-    "categories": [{ "id": "cat-2", "name": "Tops", "slug": "tops" }],
+    "categories": [
+      {
+        "id": "cat-2",
+        "name": "Tops",
+        "slug": "tops"
+      }
+    ],
     "createdAt": "2023-02-01T09:00:00Z",
     "updatedAt": "2023-02-05T11:00:00Z"
   },
@@ -47,12 +111,25 @@
     "name": "Urban Nomad Pants (Managed)",
     "slug": "urban-nomad-pants",
     "price": 7800,
+    "costPrice": 4000,
+    "stock": 25,
     "shortDescription": "Street-ready style with traditional touches, managed via admin.",
     "description": "<p>The Urban Nomad Pants offer a unique blend of contemporary streetwear design and traditional Nepali textile patterns. Durable, comfortable, and stylish, these pants are perfect for the modern explorer. Features multiple pockets and an adjustable waistband for a custom fit.</p>",
     "images": [
-      { "id": "img-main-3", "url": "https://placehold.co/600x800.png", "altText": "Urban Nomad Pants", "dataAiHint": "pants fashion urban" }
+      {
+        "id": "img-main-3",
+        "url": "https://placehold.co/600x800.png",
+        "altText": "Urban Nomad Pants",
+        "dataAiHint": "pants fashion urban"
+      }
     ],
-    "categories": [{ "id": "cat-3", "name": "Bottoms", "slug": "bottoms" }],
+    "categories": [
+      {
+        "id": "cat-3",
+        "name": "Bottoms",
+        "slug": "bottoms"
+      }
+    ],
     "createdAt": "2023-03-10T14:00:00Z",
     "updatedAt": "2023-03-15T16:00:00Z"
   }

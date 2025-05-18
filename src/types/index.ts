@@ -33,7 +33,7 @@ export interface ProductImage {
   id: string;
   url: string;
   altText?: string;
-  dataAiHint?: string; 
+  dataAiHint?: string;
 }
 
 export interface ProductVariant {
@@ -42,6 +42,7 @@ export interface ProductVariant {
   value: string; // e.g., "M", "Red"
   sku: string;
   price: number;
+  costPrice?: number; // Cost of goods for this variant
   stock: number;
   imageId?: string; // Link to a specific image for this variant
 }
@@ -54,6 +55,7 @@ export interface Product {
   shortDescription?: string;
   price: number;
   compareAtPrice?: number; // For sales
+  costPrice?: number; // Cost of goods for the product (if no variants, or a general cost)
   images: ProductImage[];
   variants?: ProductVariant[]; // If product has variants like size/color
   categories: Pick<Category, 'id' | 'name' | 'slug'>[];
@@ -65,7 +67,7 @@ export interface Product {
   sustainabilityMetrics?: string;
   fitGuide?: string; // Could be text or link to a fit predictor tool
   sku?: string; // Base SKU if no variants or for default variant
-  stock?: number; // Base stock if no variants
+  stock?: number; // Base stock if no variants (calculated from variants if they exist)
   averageRating?: number;
   reviewCount?: number;
   isFeatured?: boolean;

@@ -12,7 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Save, PlusCircle, Trash2, Edit, XCircle } from 'lucide-react';
-import type { Product, ProductImage, Category as ProductCategoryType, ProductVariant } from '@/types'; // Adjusted Category import
+import type { Product, ProductImage, Category as ProductCategoryType, ProductVariant } from '@/types';
 import {
   Dialog,
   DialogContent,
@@ -44,6 +44,7 @@ const variantSchema = z.object({
   value: z.string().min(1, "Variant value is required (e.g., M, Red)."),
   sku: z.string().optional(),
   price: z.coerce.number().min(0, "Price must be non-negative."),
+  costPrice: z.coerce.number().min(0, "Cost price must be non-negative.").optional(),
   stock: z.coerce.number().int().min(0, "Stock must be a non-negative integer."),
   imageId: z.string().optional(),
 });
@@ -55,6 +56,8 @@ const productFormSchema = z.object({
   slug: z.string().min(3, "Slug must be at least 3 characters.").regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Slug must be lowercase alphanumeric with hyphens."),
   price: z.coerce.number().min(0, "Price must be a positive number."),
   compareAtPrice: z.coerce.number().min(0, "Compare at price must be non-negative.").optional(),
+  costPrice: z.coerce.number().min(0, "Cost price must be non-negative.").optional(),
+  stock: z.coerce.number().int().min(0, "Base stock must be a non-negative integer.").optional(),
   shortDescription: z.string().max(200, "Short description must be under 200 characters.").optional(),
   description: z.string().min(10, "Description must be at least 10 characters."),
   images: z.array(imageSchema).min(1, "At least one image is required."),
@@ -64,14 +67,13 @@ const productFormSchema = z.object({
   sustainabilityMetrics: z.string().optional(),
   fitGuide: z.string().optional(),
   variants: z.array(variantSchema).optional(),
-  stock: z.coerce.number().int().min(0, "Base stock must be a non-negative integer.").optional(), // For products without variants
 });
 
 type ProductFormValues = z.infer<typeof productFormSchema>;
 
 const defaultImage: ProductImage = { id: '', url: '', altText: '', dataAiHint: '' };
 const defaultCategory: ProductCategoryType = { id: '', name: '', slug: '' };
-const defaultVariant: ProductVariant = { id: '', name: 'Size', value: '', sku: '', price: 0, stock: 0, imageId: '' };
+const defaultVariant: ProductVariant = { id: '', name: 'Size', value: '', sku: '', price: 0, costPrice: 0, stock: 0, imageId: '' };
 
 export default function AdminProductsPage() {
   const { toast } = useToast();
@@ -84,12 +86,11 @@ export default function AdminProductsPage() {
   const form = useForm<ProductFormValues>({
     resolver: zodResolver(productFormSchema),
     defaultValues: {
-      name: '', slug: '', price: 0, compareAtPrice: undefined, shortDescription: '', description: '',
+      name: '', slug: '', price: 0, compareAtPrice: undefined, costPrice: undefined, stock: 0, shortDescription: '', description: '',
       images: [defaultImage],
       categories: [defaultCategory],
       fabricDetails: '', careInstructions: '', sustainabilityMetrics: '', fitGuide: '',
       variants: [],
-      stock: 0,
     },
   });
 
@@ -114,7 +115,7 @@ export default function AdminProductsPage() {
 
   useEffect(() => {
     fetchProducts();
-  }, [toast]);
+  }, []); // Removed toast from dependencies as it's stable
 
   const handleEdit = (product: Product) => {
     setEditingProduct(product);
@@ -124,6 +125,8 @@ export default function AdminProductsPage() {
       slug: product.slug,
       price: product.price,
       compareAtPrice: product.compareAtPrice,
+      costPrice: product.costPrice,
+      stock: product.variants && product.variants.length > 0 ? undefined : product.stock, // Only set base stock if no variants
       shortDescription: product.shortDescription || '',
       description: product.description,
       images: product.images.length > 0 ? product.images.map(img => ({ ...defaultImage, ...img })) : [defaultImage],
@@ -133,7 +136,6 @@ export default function AdminProductsPage() {
       sustainabilityMetrics: product.sustainabilityMetrics || '',
       fitGuide: product.fitGuide || '',
       variants: product.variants ? product.variants.map(v => ({...defaultVariant, ...v})) : [],
-      stock: product.stock,
     });
     setIsFormOpen(true);
   };
@@ -142,12 +144,11 @@ export default function AdminProductsPage() {
     setEditingProduct(null);
     form.reset({
       id: `prod-${Date.now()}`, // Generate a new temp ID
-      name: '', slug: '', price: 0, compareAtPrice: undefined, shortDescription: '', description: '',
+      name: '', slug: '', price: 0, compareAtPrice: undefined, costPrice: undefined, stock: 0, shortDescription: '', description: '',
       images: [defaultImage],
       categories: [defaultCategory],
       fabricDetails: '', careInstructions: '', sustainabilityMetrics: '', fitGuide: '',
       variants: [],
-      stock: 0,
     });
     setIsFormOpen(true);
   };
@@ -156,21 +157,20 @@ export default function AdminProductsPage() {
     setIsSaving(true);
     try {
       const productToSave: Product = {
-        ...(editingProduct || {}), // Spread existing product fields if editing
+        ...(editingProduct || {}),
         ...data,
         id: editingProduct?.id || data.id || `prod-${Date.now()}`,
         slug: data.slug || data.name.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, ''),
-        // Ensure all fields from Product type are present
         createdAt: editingProduct?.createdAt || new Date().toISOString(),
         updatedAt: new Date().toISOString(),
-        // averageRating and reviewCount are usually managed by a separate review system
         averageRating: editingProduct?.averageRating || 0,
         reviewCount: editingProduct?.reviewCount || 0,
         isFeatured: editingProduct?.isFeatured || false,
-        // Ensure array fields are correctly formatted
         images: data.images.map(img => ({ ...img, id: img.id || `img-${Date.now()}-${Math.random().toString(36).substr(2, 5)}` })),
         categories: data.categories.map(cat => ({ ...cat, id: cat.id || `cat-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`})),
         variants: data.variants?.map(v => ({ ...v, id: v.id || `var-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`})),
+        // If variants exist, top-level stock might be sum or undefined. For now, keep data.stock if variants are empty.
+        stock: (data.variants && data.variants.length > 0) ? data.variants.reduce((sum, v) => sum + v.stock, 0) : data.stock,
       };
 
       const response = await fetch('/api/admin/products', {
@@ -193,6 +193,8 @@ export default function AdminProductsPage() {
       setIsSaving(false);
     }
   };
+
+  const hasVariants = form.watch('variants', []).length > 0;
 
   if (isLoading) {
     return <Card><CardHeader><CardTitle>Loading Products...</CardTitle></CardHeader><CardContent className="flex justify-center py-10"><Loader2 className="h-8 w-8 animate-spin text-primary" /></CardContent></Card>;
@@ -217,7 +219,7 @@ export default function AdminProductsPage() {
                 <li key={product.id} className="p-3 border rounded-md flex justify-between items-center bg-card hover:bg-muted/50">
                   <div>
                     <h3 className="font-semibold">{product.name}</h3>
-                    <p className="text-xs text-muted-foreground">ID: {product.id} | Slug: {product.slug} | Price: रू{product.price}</p>
+                    <p className="text-xs text-muted-foreground">ID: {product.id} | Slug: {product.slug} | Price: रू{product.price} | Cost: रू{product.costPrice || 'N/A'} | Stock: {product.stock ?? 'N/A'}</p>
                   </div>
                   <Button variant="outline" size="sm" onClick={() => handleEdit(product)}><Edit className="mr-2 h-3 w-3"/> Edit</Button>
                 </li>
@@ -248,18 +250,21 @@ export default function AdminProductsPage() {
                     <FormItem><FormLabel>Slug</FormLabel><FormControl><Input {...field} placeholder="auto-generated if empty" /></FormControl><FormMessage /></FormItem>
                   )} />
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <FormField control={form.control} name="price" render={({ field }) => (
                         <FormItem><FormLabel>Price (NPR)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
                     )} />
                     <FormField control={form.control} name="compareAtPrice" render={({ field }) => (
                         <FormItem><FormLabel>Compare At Price (Optional)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
                     )} />
+                     <FormField control={form.control} name="costPrice" render={({ field }) => (
+                        <FormItem><FormLabel>Cost Price (NPR)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
+                    )} />
                 </div>
-                
-                {!form.watch('variants')?.length && (
+
+                {!hasVariants && (
                      <FormField control={form.control} name="stock" render={({ field }) => (
-                        <FormItem><FormLabel>Stock (if no variants)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                        <FormItem><FormLabel>Base Stock (if no variants)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
                     )} />
                 )}
 
@@ -328,7 +333,7 @@ export default function AdminProductsPage() {
                 <FormField control={form.control} name="fitGuide" render={({ field }) => (
                   <FormItem><FormLabel>Fit Guide</FormLabel><FormControl><Textarea {...field} rows={2} /></FormControl><FormMessage /></FormItem>
                 )} />
-                
+
                 {/* Variants Array */}
                 <fieldset className="space-y-3 p-3 border rounded-md">
                   <legend className="text-md font-medium px-1">Variants (Optional)</legend>
@@ -345,7 +350,10 @@ export default function AdminProductsPage() {
                           <FormItem><FormLabel>SKU</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                         )} />
                         <FormField control={form.control} name={`variants.${index}.price`} render={({ field }) => (
-                          <FormItem><FormLabel>Price Adj.</FormLabel><FormControl><Input type="number" {...field} placeholder="Overrides base price if set" /></FormControl><FormMessage /></FormItem>
+                          <FormItem><FormLabel>Variant Price</FormLabel><FormControl><Input type="number" {...field} placeholder="Overrides base price if set" /></FormControl><FormMessage /></FormItem>
+                        )} />
+                        <FormField control={form.control} name={`variants.${index}.costPrice`} render={({ field }) => (
+                          <FormItem><FormLabel>Variant Cost Price</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
                         )} />
                         <FormField control={form.control} name={`variants.${index}.stock`} render={({ field }) => (
                           <FormItem><FormLabel>Stock</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
@@ -358,6 +366,7 @@ export default function AdminProductsPage() {
                     </div>
                   ))}
                   <Button type="button" variant="outline" size="sm" onClick={() => appendVariant(defaultVariant)}><PlusCircle className="mr-2 h-4 w-4"/>Add Variant</Button>
+                   {hasVariants && <p className="text-xs text-muted-foreground p-1">If variants are used, their prices override the base product price. Variant stock is summed for total product stock.</p>}
                 </fieldset>
 
 

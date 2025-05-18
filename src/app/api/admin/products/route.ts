@@ -53,23 +53,43 @@ export async function POST(request: NextRequest) {
     if ('products' in productData) { // If a whole list is sent (e.g. for reordering or bulk delete)
         products = productData.products;
     } else { // Single product add or update
-        const existingProductIndex = products.findIndex(p => p.id === productData.id);
+        const productPayload = productData as Product; // Cast to Product
+        const existingProductIndex = products.findIndex(p => p.id === productPayload.id);
+
         if (existingProductIndex > -1) {
-        // Update existing product
-        products[existingProductIndex] = { ...products[existingProductIndex], ...productData, updatedAt: new Date().toISOString() };
+          // Update existing product
+          products[existingProductIndex] = {
+             ...products[existingProductIndex], // Keep existing fields not explicitly sent
+             ...productPayload, // Overwrite with new data
+             updatedAt: new Date().toISOString()
+          };
         } else {
-        // Add new product
-        // Ensure new product has necessary fields like id, slug, createdAt, updatedAt
-        const newProduct: Product = {
-            ...productData,
-            id: productData.id || `prod-${Date.now()}`, // Ensure ID
-            slug: productData.slug || productData.name.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, ''), // Basic slugify
+          // Add new product
+          const newProduct: Product = {
+            ...productPayload,
+            id: productPayload.id || `prod-${Date.now()}`,
+            slug: productPayload.slug || productPayload.name.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, ''),
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
-            images: productData.images || [], // Ensure images array exists
-            categories: productData.categories || [], // Ensure categories array exists
-        };
-        products.push(newProduct);
+            images: productPayload.images || [],
+            categories: productPayload.categories || [],
+            // Ensure variants, costPrice, and stock are included
+            variants: productPayload.variants || undefined,
+            costPrice: productPayload.costPrice,
+            stock: productPayload.stock,
+            // Default other optional fields if not provided
+            compareAtPrice: productPayload.compareAtPrice,
+            shortDescription: productPayload.shortDescription,
+            fabricDetails: productPayload.fabricDetails,
+            careInstructions: productPayload.careInstructions,
+            sustainabilityMetrics: productPayload.sustainabilityMetrics,
+            fitGuide: productPayload.fitGuide,
+            sku: productPayload.sku,
+            averageRating: productPayload.averageRating || 0,
+            reviewCount: productPayload.reviewCount || 0,
+            isFeatured: productPayload.isFeatured || false,
+          };
+          products.push(newProduct);
         }
     }
 
