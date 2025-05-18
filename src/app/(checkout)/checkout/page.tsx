@@ -20,6 +20,7 @@ import Link from 'next/link';
 import type { CartItem } from '@/types';
 import { calculateInternationalShipping } from '@/ai/flows/calculate-international-shipping-flow';
 import type { CalculateInternationalShippingOutput } from '@/ai/flows/calculate-international-shipping-flow';
+import { useRouter } from 'next/navigation';
 
 const shippingSchema = z.object({
   fullName: z.string().min(2, "Full name is required."),
@@ -45,7 +46,7 @@ const checkoutSchema = shippingSchema.extend({
     saveInfo: z.boolean().default(false).optional(),
     paymentMethod: z.string().min(1, "Please select a payment method."),
 }).superRefine((data, ctx) => {
-    if (data.paymentMethod === 'card' && data.country !== 'Nepal') { // Card payments for international might need full card details
+    if (data.paymentMethod === 'card_international' && data.isInternational) { 
       const cardValidation = paymentCardSchema.safeParse(data);
       if (!cardValidation.success) {
         cardValidation.error.errors.forEach((err) => {
@@ -69,7 +70,6 @@ const checkoutSchema = shippingSchema.extend({
 
 type CheckoutFormValues = z.infer<typeof checkoutSchema> & Partial<z.infer<typeof paymentCardSchema>>;
 
-
 // Mock cart items - replace with actual cart data
 const mockCartItems: CartItem[] = [
   { id: 'prod-1-m', productId: 'prod-1', name: 'Himalayan Breeze Jacket (M)', price: 12000, quantity: 1, imageUrl: 'https://placehold.co/80x80.png?text=Jacket', dataAiHint: "product fashion" },
@@ -80,20 +80,21 @@ const DOMESTIC_SHIPPING_COST_NPR = 500;
 
 export default function CheckoutPage() {
   const { toast } = useToast();
+  const router = useRouter();
   const [subtotal, setSubtotal] = useState(0);
   const [currentShippingCost, setCurrentShippingCost] = useState(DOMESTIC_SHIPPING_COST_NPR);
   const [total, setTotal] = useState(0);
   const [isInternationalShipping, setIsInternationalShipping] = useState(false);
   const [internationalShippingInfo, setInternationalShippingInfo] = useState<CalculateInternationalShippingOutput | null>(null);
   const [isCalculatingShipping, setIsCalculatingShipping] = useState(false);
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('card_nepal'); // Default to a local card option
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('card_nepal'); 
 
   const form = useForm<CheckoutFormValues>({
     resolver: zodResolver(checkoutSchema),
     defaultValues: {
         saveInfo: true,
         paymentMethod: 'card_nepal',
-        country: 'Nepal', // Default to Nepal
+        country: 'Nepal', 
         isInternational: false,
     },
   });
@@ -113,12 +114,20 @@ export default function CheckoutPage() {
     form.setValue('isInternational', isInternational);
     if (isInternational) {
       form.setValue('internationalDestinationCountry', countryValue);
-      setCurrentShippingCost(0); // Reset shipping cost, user needs to calculate
+      setCurrentShippingCost(0); 
       setInternationalShippingInfo(null);
+      if (selectedPaymentMethod !== 'card_international') {
+        setSelectedPaymentMethod('card_international'); // Default to international card if country changes to int'l
+        form.setValue('paymentMethod', 'card_international');
+      }
     } else {
       form.setValue('internationalDestinationCountry', '');
       setCurrentShippingCost(DOMESTIC_SHIPPING_COST_NPR);
       setInternationalShippingInfo(null);
+       if (selectedPaymentMethod === 'card_international') {
+        setSelectedPaymentMethod('card_nepal'); // Default back to local card if country changes to Nepal
+        form.setValue('paymentMethod', 'card_nepal');
+      }
     }
   };
 
@@ -138,34 +147,71 @@ export default function CheckoutPage() {
     } catch (error) {
       console.error("Error calculating international shipping:", error);
       toast({ title: "Shipping Calculation Failed", description: (error as Error).message || "Could not calculate shipping at this time.", variant: "destructive" });
-      setCurrentShippingCost(0); // Or some error indicator
+      setCurrentShippingCost(0); 
     } finally {
       setIsCalculatingShipping(false);
     }
   };
 
-
   const onSubmit = async (data: CheckoutFormValues) => {
-    console.log("Checkout data:", data);
-    // Mock API call
-    toast({
-      title: "Order Placed!",
-      description: "Thank you for your purchase. Your order is being processed.",
-      action: <Link href="/account/orders"><Button variant="outline" size="sm">View Orders</Button></Link>
-    });
-    // router.push('/order-confirmation/ORDER_ID');
+    const orderPayload = {
+      cartItems: mockCartItems, // In real app, get from cart context/state
+      shippingDetails: data,
+      orderSubtotal: subtotal,
+      shippingCost: currentShippingCost,
+      orderTotal: total,
+    };
+
+    form.control.handleSubmit(async () => { // Ensure RHF state is current
+      try {
+        const response = await fetch('/api/orders/create', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(orderPayload),
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+          toast({
+            title: "Order Placed (Mock)!",
+            description: result.message || "Your order is being processed.",
+            action: <Link href="/account/orders"><Button variant="outline" size="sm">View Orders</Button></Link>
+          });
+          // Clear cart, redirect to order confirmation, etc.
+          // router.push(`/order-confirmation/${result.orderId}`); // If orderId is returned
+          form.reset(); // Reset form
+          // Potentially reset cart state here
+        } else {
+          toast({
+            title: "Order Failed",
+            description: result.message || "There was an issue placing your order.",
+            variant: "destructive",
+          });
+        }
+      } catch (error) {
+        console.error("Failed to submit order:", error);
+        toast({
+          title: "Order Submission Error",
+          description: "Could not connect to the server. Please try again.",
+          variant: "destructive",
+        });
+      }
+    })(data); // Pass data to the wrapped RHF submit handler
   };
 
   const paymentMethods = [
-    { value: 'card_nepal', label: 'Credit/Debit Card (Nepal)', icon: CreditCard },
-    { value: 'cod', label: 'Cash on Delivery (Nepal Only)', icon: Banknote },
-    { value: 'esewa', label: 'eSewa', icon: Send }, // Replace with actual icon if available
-    { value: 'khalti', label: 'Khalti', icon: Send },
-    { value: 'imepay', label: 'IME Pay', icon: Send },
-    { value: 'connectips', label: 'ConnectIPS', icon: Globe },
-    { value: 'qr', label: 'QR Payment (Fonepay, etc.)', icon: QrCode },
-    { value: 'banktransfer', label: 'Bank Transfer (Mobile App)', icon: Banknote },
-    { value: 'card_international', label: 'Credit/Debit Card (International)', icon: CreditCard },
+    { value: 'card_nepal', label: 'Credit/Debit Card (Nepal)', icon: CreditCard, domesticOnly: true },
+    { value: 'cod', label: 'Cash on Delivery (Nepal Only, 10% Advance May Be Required)', icon: Banknote, domesticOnly: true },
+    { value: 'esewa', label: 'eSewa', icon: Send, domesticOnly: true }, 
+    { value: 'khalti', label: 'Khalti', icon: Send, domesticOnly: true },
+    { value: 'imepay', label: 'IME Pay', icon: Send, domesticOnly: true },
+    { value: 'connectips', label: 'ConnectIPS', icon: Globe, domesticOnly: true },
+    { value: 'qr', label: 'QR Payment (Fonepay, etc.)', icon: QrCode, domesticOnly: true },
+    { value: 'banktransfer', label: 'Bank Transfer (Mobile App)', icon: Banknote, domesticOnly: true },
+    { value: 'card_international', label: 'Credit/Debit Card (International)', icon: CreditCard, internationalOnly: true },
   ];
 
 
@@ -231,10 +277,20 @@ export default function CheckoutPage() {
                             <FormLabel>Destination Country (Confirm for Int'l Shipping)</FormLabel>
                             <div className="flex gap-2">
                             <FormControl>
-                                <Input {...field} placeholder="Enter destination country" />
+                                <Input {...field} placeholder="Enter destination country" 
+                                  onChange={(e) => {
+                                      field.onChange(e);
+                                      // Automatically update if country field changes directly
+                                      if (e.target.value.toLowerCase() !== 'nepal' && !isInternationalShipping) {
+                                          handleCountryChange(e.target.value);
+                                      } else if (e.target.value.toLowerCase() === 'nepal' && isInternationalShipping) {
+                                          handleCountryChange(e.target.value);
+                                      }
+                                  }}
+                                />
                             </FormControl>
                             <Button type="button" onClick={handleCalculateInternationalShipping} disabled={isCalculatingShipping}>
-                                {isCalculatingShipping ? <Loader2 className="h-4 w-4 animate-spin" /> : <Globe className="h-4 w-4 mr-2"/>}
+                                {isCalculatingShipping ? <Loader2 className="h-4 w-4 animate-spin" /> : <Globe className="h-4 w-4 mr-1"/>}
                                 Calculate
                             </Button>
                             </div>
@@ -251,7 +307,7 @@ export default function CheckoutPage() {
                     />
                 )}
                  <FormField control={form.control} name="phone" render={({ field }) => (
-                  <FormItem><FormLabel>Phone (Optional)</FormLabel><FormControl><Input type="tel" {...field} placeholder="+977 98********" /></FormControl><FormMessage /></FormItem>
+                  <FormItem><FormLabel>Phone (Optional, for delivery updates)</FormLabel><FormControl><Input type="tel" {...field} placeholder="+977 98********" /></FormControl><FormMessage /></FormItem>
                 )} />
               </CardContent>
             </Card>
@@ -272,11 +328,11 @@ export default function CheckoutPage() {
                             field.onChange(value);
                             setSelectedPaymentMethod(value);
                           }}
-                          defaultValue={field.value}
+                          value={field.value} // Ensure RHF controls the value
                           className="flex flex-col space-y-1"
                         >
                           {paymentMethods
-                            .filter(pm => isInternationalShipping ? pm.value.includes('international') || pm.value === 'card_international' : !pm.value.includes('international'))
+                            .filter(pm => isInternationalShipping ? pm.internationalOnly : pm.domesticOnly)
                             .map(pm => (
                             <FormItem key={pm.value} className="flex items-center space-x-3 space-y-0 p-3 border rounded-md hover:bg-muted/50 has-[input:checked]:bg-primary/10 has-[input:checked]:border-primary">
                                 <FormControl>
@@ -293,13 +349,10 @@ export default function CheckoutPage() {
                   )}
                 />
                 
-                {/* Conditional Card Form */}
-                {(selectedPaymentMethod === 'card_nepal' || selectedPaymentMethod === 'card_international') && !isInternationalShipping && (
+                {(selectedPaymentMethod === 'card_nepal') && !isInternationalShipping && (
                   <div className="mt-6 pt-6 border-t space-y-4">
-                    <p className="text-md font-semibold text-foreground">Enter Card Details (For Nepal)</p>
-                    {/* Simplified for Nepal: Assume local payment gateway handles this, less fields */}
-                     <p className="text-sm text-muted-foreground">You will be redirected to a secure payment gateway.</p>
-                     {/* Placeholder for actual fields if needed or just descriptive text */}
+                    <p className="text-md font-semibold text-foreground">Card Payment (Nepal)</p>
+                     <p className="text-sm text-muted-foreground">You will be redirected to a secure local payment gateway to complete your payment.</p>
                   </div>
                 )}
 
@@ -323,12 +376,18 @@ export default function CheckoutPage() {
                     </div>
                 )}
 
+                 {selectedPaymentMethod === 'cod' && (
+                    <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-md text-amber-700 text-sm">
+                        <Info className="inline h-4 w-4 mr-1.5"/> A 10% advance payment might be required for Cash on Delivery orders. Our team will contact you for confirmation.
+                    </div>
+                 )}
 
-                 <div className="flex items-center space-x-2 mt-4">
+
+                 <div className="flex items-center space-x-2 mt-6">
                     <FormField control={form.control} name="saveInfo" render={({ field }) => (
                         <FormItem className="flex flex-row items-start space-x-3 space-y-0">
                         <FormControl>
-                            <Input type="checkbox" checked={field.value} onChange={field.onChange} className="h-4 w-4 accent-primary" />
+                            <Input type="checkbox" checked={field.value} onChange={field.onChange} className="h-4 w-4 accent-primary !mt-0.5" />
                         </FormControl>
                         <div className="space-y-1 leading-none">
                             <FormLabel className="cursor-pointer">Save this information for next time</FormLabel>
@@ -408,3 +467,4 @@ export default function CheckoutPage() {
     </div>
   );
 }
+
