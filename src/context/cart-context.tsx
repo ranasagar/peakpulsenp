@@ -24,7 +24,6 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       }
     } catch (error) {
       console.error("Failed to load cart from localStorage", error);
-      // Potentially clear corrupted storage
       localStorage.removeItem(CART_STORAGE_KEY);
     }
     setIsCartLoading(false);
@@ -32,7 +31,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
 
   // Save cart to localStorage whenever it changes
   useEffect(() => {
-    if (!isCartLoading) { // Only save after initial load
+    if (!isCartLoading) { 
       try {
         localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cartItems));
       } catch (error) {
@@ -48,8 +47,8 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
 
       const itemPrice = selectedVariant?.price || product.price;
       const itemName = selectedVariant ? `${product.name} (${selectedVariant.value})` : product.name;
-      const itemImage = selectedVariant?.imageId 
-        ? product.images.find(img => img.id === selectedVariant.imageId)?.url 
+      const itemImage = selectedVariant?.imageId
+        ? product.images.find(img => img.id === selectedVariant.imageId)?.url
         : product.images[0]?.url;
 
       if (existingItem) {
@@ -78,7 +77,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       title: "Added to Cart!",
       description: `${quantity} x ${selectedVariant ? `${product.name} (${selectedVariant.value})` : product.name}`,
     });
-  }, [toast]);
+  }, [setCartItems, toast]);
 
   const removeFromCart = useCallback((itemId: string) => {
     setCartItems(prevItems => prevItems.filter(item => item.id !== itemId));
@@ -86,11 +85,11 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       title: "Item Removed",
       description: "The item has been removed from your cart.",
     });
-  }, [toast]);
+  }, [setCartItems, toast]);
 
   const updateItemQuantity = useCallback((itemId: string, newQuantity: number) => {
     if (newQuantity < 1) {
-      removeFromCart(itemId);
+      removeFromCart(itemId); // removeFromCart is already memoized and will call setCartItems
       return;
     }
     setCartItems(prevItems =>
@@ -98,12 +97,11 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         item.id === itemId ? { ...item, quantity: newQuantity } : item
       )
     );
-  }, [removeFromCart]);
+  }, [setCartItems, removeFromCart]); // Ensure removeFromCart is stable or included
 
   const clearCart = useCallback(() => {
     setCartItems([]);
-    // No toast for clearCart, typically happens after checkout or explicit user action
-  }, []);
+  }, [setCartItems]);
 
   const cartItemCount = cartItems.reduce((count, item) => count + item.quantity, 0);
   const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);

@@ -7,9 +7,9 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import type { Product } from '@/types';
 import { ShoppingCart, Heart } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+// import { useToast } from '@/hooks/use-toast'; // Toast is now handled by CartContext
 import { AspectRatio } from "@/components/ui/aspect-ratio"
-
+import { useCart } from '@/context/cart-context'; // Import useCart
 
 interface ProductCardProps {
   product: Product;
@@ -17,26 +17,23 @@ interface ProductCardProps {
 }
 
 export function ProductCard({ product, className }: ProductCardProps) {
-  const { toast } = useToast();
+  // const { toast } = useToast(); // Toast is handled by CartContext
+  const { addToCart } = useCart(); // Get addToCart from context
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault(); // Prevent link navigation if card is wrapped in Link
-    // TODO: Implement actual cart logic
-    console.log(`Added to cart: ${product.name}`);
-    toast({
-      title: "Added to Cart!",
-      description: `${product.name} has been added to your cart.`,
-    });
+    addToCart(product, 1); // Add the product, quantity 1. Variant selection handled on detail page.
+    // The toast notification is now handled by the addToCart function in CartContext.
   };
 
   const handleToggleWishlist = (e: React.MouseEvent) => {
     e.preventDefault();
     // TODO: Implement actual wishlist logic
     console.log(`Toggled wishlist for: ${product.name}`);
-    toast({
-      title: "Wishlist Updated",
-      // description: `${product.name} added/removed from wishlist.`, // Needs state to determine action
-    });
+    // Example toast, actual implementation would be in a wishlist context or similar
+    // toast({
+    //   title: "Wishlist Updated",
+    // });
   };
 
   return (
@@ -50,7 +47,7 @@ export function ProductCard({ product, className }: ProductCardProps) {
               layout="fill"
               objectFit="cover"
               className="group-hover:scale-105 transition-transform duration-500 ease-in-out"
-              data-ai-hint="fashion clothing product"
+              data-ai-hint={product.images[0]?.dataAiHint || "fashion clothing product"}
             />
           </AspectRatio>
            {/* Wishlist button positioned top-right */}
@@ -78,17 +75,17 @@ export function ProductCard({ product, className }: ProductCardProps) {
                     <span className="ml-2 text-sm text-muted-foreground line-through">रू{product.compareAtPrice.toLocaleString()}</span>
                 )}
             </p>
-            <Button 
-              variant="outline" 
-              size="sm" 
+            <Button
+              variant="outline"
+              size="sm"
               onClick={handleAddToCart}
               className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap"
             >
               <ShoppingCart className="mr-2 h-4 w-4" /> Add to Cart
             </Button>
-            <Button 
-              variant="default" 
-              size="icon" 
+            <Button
+              variant="default"
+              size="icon"
               onClick={handleAddToCart}
               className="opacity-100 group-hover:opacity-0 transition-opacity duration-300 md:hidden" /* Show on mobile, hide on hover for desktop */
             >
@@ -100,5 +97,3 @@ export function ProductCard({ product, className }: ProductCardProps) {
     </Card>
   );
 }
-
-    
