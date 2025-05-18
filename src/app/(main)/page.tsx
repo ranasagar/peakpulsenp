@@ -12,21 +12,21 @@ import { AspectRatio } from '@/components/ui/aspect-ratio';
 const mockFeaturedProducts: Product[] = [
   {
     id: 'prod-1', name: 'Himalayan Breeze Jacket', slug: 'himalayan-breeze-jacket', price: 12000,
-    images: [{ id: 'img-1', url: 'https://placehold.co/600x800.png', altText: 'Himalayan Breeze Jacket' }],
+    images: [{ id: 'img-1', url: 'https://placehold.co/600x800.png', altText: 'Himalayan Breeze Jacket', dataAiHint: 'jacket fashion' }],
     categories: [{ id: 'cat-1', name: 'Outerwear', slug: 'outerwear' }],
     shortDescription: 'Lightweight and versatile for urban adventures.',
     createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), description: "Full description here."
   },
   {
     id: 'prod-2', name: 'Kathmandu Comfort Tee', slug: 'kathmandu-comfort-tee', price: 3500,
-    images: [{ id: 'img-2', url: 'https://placehold.co/600x800.png', altText: 'Kathmandu Comfort Tee' }],
+    images: [{ id: 'img-2', url: 'https://placehold.co/600x800.png', altText: 'Kathmandu Comfort Tee', dataAiHint: 'tee shirt' }],
     categories: [{ id: 'cat-2', name: 'Tops', slug: 'tops' }],
     shortDescription: 'Premium cotton for everyday luxury.',
     createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), description: "Full description here."
   },
   {
     id: 'prod-3', name: 'Urban Nomad Pants', slug: 'urban-nomad-pants', price: 7500,
-    images: [{ id: 'img-3', url: 'https://placehold.co/600x800.png', altText: 'Urban Nomad Pants' }],
+    images: [{ id: 'img-3', url: 'https://placehold.co/600x800.png', altText: 'Urban Nomad Pants', dataAiHint: 'pants fashion' }],
     categories: [{ id: 'cat-3', name: 'Bottoms', slug: 'bottoms' }],
     shortDescription: 'Street-ready style with traditional touches.',
     createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), description: "Full description here."
@@ -70,25 +70,34 @@ export default async function HomePage() {
 
   return (
     <>
-      {/* Hero Section */}
-      <section className="relative h-[70vh] md:h-[85vh] w-full flex items-center justify-center text-center text-white bg-muted/30">
-        <Image
-          src="https://placehold.co/1920x1080.png"
-          alt="Dramatic mountain landscape with stylish model wearing Peak Pulse apparel"
-          layout="fill"
-          objectFit="cover"
-          className="z-0 opacity-50"
-          priority
-          data-ai-hint="mountain landscape fashion"
-        />
-        <div className="relative z-10 p-6 bg-black/30 backdrop-blur-sm rounded-lg">
-          <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight mb-4">
+      {/* Hero Section - Updated for Full-Screen Immersive Experience */}
+      {/* For subtle animations or parallax effects, consider libraries like Framer Motion or custom JavaScript an CSS. */}
+      {/* For video backgrounds, replace the Image component with an HTML5 <video> tag with appropriate sources, autoplay, muted, loop attributes. */}
+      <section className="relative h-screen w-full flex items-center justify-center text-center text-white overflow-hidden">
+        {/* Background Image/Video Container */}
+        <div className="absolute inset-0 z-0">
+          <Image
+            src="https://placehold.co/1920x1080.png" // Replace with high-resolution, compelling imagery
+            alt="Dramatic mountain landscape with stylish model wearing Peak Pulse apparel"
+            layout="fill"
+            objectFit="cover"
+            className="opacity-60" // Adjust opacity as needed for text legibility vs image impact
+            priority // Ensures LCP (Largest Contentful Paint) is optimized
+            data-ai-hint="immersive fashion landscape"
+          />
+          {/* Optional: Dark overlay for better text contrast */}
+          <div className="absolute inset-0 bg-black/30"></div>
+        </div>
+        
+        {/* Content Overlay */}
+        <div className="relative z-10 p-6 md:p-8 max-w-3xl mx-auto">
+          <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-6 animate-fade-in-down">
             {heroTitle}
           </h1>
-          <p className="text-lg md:text-xl text-neutral-200 mb-8 max-w-2xl mx-auto">
+          <p className="text-lg md:text-xl lg:text-2xl text-neutral-200 mb-10 max-w-2xl mx-auto animate-fade-in-up delay-200">
             {heroDescription}
           </p>
-          <Button size="lg" asChild className="text-base">
+          <Button size="lg" asChild className="text-base md:text-lg py-3 px-8 animate-fade-in-up delay-400">
             <Link href="/products">Shop Collections <ShoppingBag className="ml-2 h-5 w-5" /></Link>
           </Button>
         </div>
@@ -166,5 +175,3 @@ export default async function HomePage() {
     </>
   );
 }
-
-    
