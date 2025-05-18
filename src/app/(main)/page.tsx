@@ -33,7 +33,42 @@ const mockFeaturedProducts: Product[] = [
   },
 ];
 
-export default function HomePage() {
+interface HomepageContent {
+  hero: {
+    title: string;
+    description: string;
+  };
+}
+
+async function getHomepageContent(): Promise<HomepageContent> {
+  try {
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:9002';
+    // Using { cache: 'no-store' } to ensure fresh data on each request for dynamic content.
+    // For content that changes infrequently, consider 'force-cache' or revalidation strategies.
+    const res = await fetch(`${baseUrl}/api/content/homepage`, { cache: 'no-store' });
+
+    if (!res.ok) {
+      const errorBody = await res.text();
+      console.error(`Failed to fetch content: ${res.status} ${res.statusText}`, errorBody);
+      throw new Error(`Failed to fetch content: ${res.status} ${res.statusText}`);
+    }
+    return res.json();
+  } catch (error) {
+    console.error("Error fetching homepage content in page.tsx:", error);
+    return {
+      hero: {
+        title: "Peak Pulse (Fallback)",
+        description: "Experience the fusion of ancient Nepali artistry and modern streetwear. (Content failed to load)"
+      }
+    };
+  }
+}
+
+export default async function HomePage() {
+  const content = await getHomepageContent();
+  const heroTitle = content.hero?.title || "Peak Pulse";
+  const heroDescription = content.hero?.description || "Experience the fusion of ancient Nepali artistry and modern streetwear.";
+
   return (
     <>
       {/* Hero Section */}
@@ -49,10 +84,10 @@ export default function HomePage() {
         />
         <div className="relative z-10 p-6 bg-black/30 backdrop-blur-sm rounded-lg">
           <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight mb-4">
-            Peak Pulse
+            {heroTitle}
           </h1>
           <p className="text-lg md:text-xl text-neutral-200 mb-8 max-w-2xl mx-auto">
-            Experience the fusion of ancient Nepali artistry and modern streetwear.
+            {heroDescription}
           </p>
           <Button size="lg" asChild className="text-base">
             <Link href="/products">Shop Collections <ShoppingBag className="ml-2 h-5 w-5" /></Link>
