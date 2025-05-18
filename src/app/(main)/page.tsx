@@ -28,16 +28,16 @@ async function getHomepageContent(): Promise<HomepageContent> {
     if (!res.ok) {
       const errorBody = await res.text();
       console.error(`Failed to fetch content: ${res.status} ${res.statusText}`, errorBody);
-      // Ensure fallback has undefined for video/image if API fails
+      // Fallback content in case of an error
       return {
         hero: {
-          title: "Peak Pulse (Fallback)",
-          description: "Experience the fusion of ancient Nepali artistry and modern streetwear. (Content failed to load)",
-          videoId: undefined,
-          imageUrl: undefined,
+          title: "Peak Pulse (Content Error)",
+          description: "Experience the fusion of ancient Nepali artistry and modern streetwear. (Content failed to load, displaying fallback)",
+          videoId: undefined, 
+          imageUrl: undefined, 
         },
         artisanalRoots: {
-          title: "Our Artisanal Roots (Fallback)",
+          title: "Our Artisanal Roots (Content Error)",
           description: "Content failed to load. We partner with local artisans in Nepal, preserving centuries-old techniques while innovating for today's global citizen."
         }
       };
@@ -45,16 +45,16 @@ async function getHomepageContent(): Promise<HomepageContent> {
     return res.json();
   } catch (error) {
     console.error("Error fetching homepage content in page.tsx:", error);
-    // Ensure fallback has undefined for video/image on any catch
+    // Fallback content on any catch
     return {
       hero: {
-        title: "Peak Pulse (Fallback)",
-        description: "Experience the fusion of ancient Nepali artistry and modern streetwear. (Content failed to load)",
+        title: "Peak Pulse (Network Error)",
+        description: "Experience the fusion of ancient Nepali artistry and modern streetwear. (Content failed to load, displaying fallback)",
         videoId: undefined,
         imageUrl: undefined,
       },
       artisanalRoots: {
-        title: "Our Artisanal Roots (Fallback)",
+        title: "Our Artisanal Roots (Network Error)",
         description: "Content failed to load. We partner with local artisans in Nepal, preserving centuries-old techniques while innovating for today's global citizen."
       }
     };
@@ -75,12 +75,12 @@ export default async function HomePage() {
   return (
     <>
       {/* Hero Section - Updated for Full-Screen Immersive Experience */}
-      <section 
-        style={{ backgroundColor: 'black' }} // Force black background
+      <section
+        style={{ backgroundColor: 'black' }} // Force black background as ultimate fallback
         className="relative h-screen w-full overflow-hidden"
       >
         {/* Background Video/Image Container */}
-        <div className="absolute inset-0 z-0 w-full h-full overflow-hidden pointer-events-none bg-black">
+        <div className="absolute inset-0 z-0 w-full h-full overflow-hidden pointer-events-none"> {/* Removed bg-black here */}
           {heroVideoId ? (
             <iframe
               className="absolute top-1/2 left-1/2 w-full h-full min-w-[177.77vh] min-h-[56.25vw] transform -translate-x-1/2 -translate-y-1/2"
@@ -100,8 +100,8 @@ export default async function HomePage() {
               className="opacity-70" // Adjust opacity as needed
               data-ai-hint="fashion mountains nepal"
             />
-          ) : null} {/* Render nothing if no videoId or imageUrl */}
-           <div className="absolute inset-0 bg-black/50 z-[1]"></div> {/* Dark Overlay, increased opacity */}
+          ) : null} {/* Render nothing if no videoId or imageUrl, relies on section's black background */}
+           <div className="absolute inset-0 bg-black/30 z-[1]"></div> {/* Adjusted Dark Overlay */}
         </div>
 
         {/* Content Overlay */}
