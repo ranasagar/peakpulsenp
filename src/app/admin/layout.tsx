@@ -1,6 +1,6 @@
 
 import Link from 'next/link';
-import { Shield, LayoutDashboard, Settings, ArrowLeft, BookOpenText, ShoppingBag } from 'lucide-react'; // Added ShoppingBag
+import { Shield, LayoutDashboard, Settings, ArrowLeft, BookOpenText, ShoppingBag, BarChart3, ListOrdered } from 'lucide-react';
 import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
 import { Button } from '@/components/ui/button';
@@ -39,6 +39,11 @@ export default function AdminLayout({
                   </Link>
                 </Button>
                 <Button variant="ghost" className="w-full justify-start" asChild>
+                  <Link href="/admin/orders">
+                    <ListOrdered className="mr-2 h-4 w-4" /> View Orders
+                  </Link>
+                </Button>
+                <Button variant="ghost" className="w-full justify-start" asChild>
                   <Link href="/admin/content/homepage">
                     <Settings className="mr-2 h-4 w-4" /> Homepage Content
                   </Link>
@@ -46,6 +51,11 @@ export default function AdminLayout({
                 <Button variant="ghost" className="w-full justify-start" asChild>
                   <Link href="/admin/content/our-story">
                     <BookOpenText className="mr-2 h-4 w-4" /> Our Story Content
+                  </Link>
+                </Button>
+                <Button variant="ghost" className="w-full justify-start" asChild>
+                  <Link href="/admin/analytics">
+                    <BarChart3 className="mr-2 h-4 w-4" /> Site Analytics (AI)
                   </Link>
                 </Button>
                 {/* Add more admin links here */}

@@ -11,12 +11,13 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Save } from 'lucide-react';
+import { Loader2, Save, Youtube } from 'lucide-react';
 
 interface HomepageContentData {
   hero: {
     title: string;
     description: string;
+    videoId?: string;
   };
   artisanalRoots?: {
     title: string;
@@ -27,6 +28,9 @@ interface HomepageContentData {
 const homepageContentSchema = z.object({
   heroTitle: z.string().min(5, "Hero title must be at least 5 characters."),
   heroDescription: z.string().min(10, "Hero description must be at least 10 characters."),
+  heroVideoId: z.string().optional().refine(val => !val || /^[a-zA-Z0-9_-]{11}$/.test(val), {
+    message: "Must be a valid YouTube Video ID (11 characters) or empty.",
+  }),
   artisanalRootsTitle: z.string().min(5, "Artisanal roots title must be at least 5 characters.").optional(),
   artisanalRootsDescription: z.string().min(10, "Artisanal roots description must be at least 10 characters.").optional(),
 });
@@ -43,6 +47,7 @@ export default function AdminHomepageContentPage() {
     defaultValues: {
       heroTitle: '',
       heroDescription: '',
+      heroVideoId: '',
       artisanalRootsTitle: '',
       artisanalRootsDescription: '',
     },
@@ -60,6 +65,7 @@ export default function AdminHomepageContentPage() {
         form.reset({
           heroTitle: data.hero.title,
           heroDescription: data.hero.description,
+          heroVideoId: data.hero.videoId || '',
           artisanalRootsTitle: data.artisanalRoots?.title || '',
           artisanalRootsDescription: data.artisanalRoots?.description || '',
         });
@@ -84,6 +90,7 @@ export default function AdminHomepageContentPage() {
         hero: {
           title: data.heroTitle,
           description: data.heroDescription,
+          videoId: data.heroVideoId || undefined,
         },
         artisanalRoots: {
           title: data.artisanalRootsTitle || '',
@@ -137,8 +144,6 @@ export default function AdminHomepageContentPage() {
         <CardTitle className="text-2xl">Edit Homepage Content</CardTitle>
         <CardDescription>
           Modify the text displayed in the hero section and other areas of the homepage.
-          <br />
-          <strong className="text-destructive">Note:</strong> Saving changes here directly modifies a JSON file in the project. This method is for demonstration and has limitations in production environments.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -168,6 +173,20 @@ export default function AdminHomepageContentPage() {
                     <FormControl>
                       <Textarea placeholder="Enter hero description" {...field} rows={3} />
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="heroVideoId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="flex items-center"><Youtube className="mr-2 h-5 w-5 text-red-600"/> YouTube Video ID (Optional)</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g. gCRNEJxDJKM" {...field} />
+                    </FormControl>
+                    <FormDescription>The 11-character ID from a YouTube video URL (e.g., the XXXXXXXXXXX in youtu.be/XXXXXXXXXXX).</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}

@@ -9,6 +9,7 @@ interface HomepageContentData {
   hero: {
     title: string;
     description: string;
+    videoId?: string; // Added videoId
   };
   artisanalRoots?: {
     title: string;
@@ -19,12 +20,6 @@ interface HomepageContentData {
 const filePath = path.join(process.cwd(), 'src', 'data', 'homepage-content.json');
 
 export async function POST(request: NextRequest) {
-  // IMPORTANT: In a real application, this endpoint MUST be protected
-  // to ensure only authenticated admins can modify content.
-
-  // This file writing approach will NOT work in typical serverless environments
-  // like Vercel for deployed apps, as their filesystems are read-only.
-  // This is for demonstration purposes in a local development environment.
   if (process.env.NODE_ENV === 'production' && process.env.VERCEL) {
       console.warn("File system write attempts are disabled in Vercel production environment for this demo API.");
       return NextResponse.json({ message: 'Content modification is disabled in this environment for demo purposes.' }, { status: 403 });
@@ -33,30 +28,45 @@ export async function POST(request: NextRequest) {
   try {
     const newData = (await request.json()) as HomepageContentData;
 
-    // Basic validation of incoming data structure (can be more robust with Zod)
     if (!newData || !newData.hero || typeof newData.hero.title !== 'string' || typeof newData.hero.description !== 'string') {
-      return NextResponse.json({ message: 'Invalid data format for homepage content.' }, { status: 400 });
+      return NextResponse.json({ message: 'Invalid data format for hero section.' }, { status: 400 });
+    }
+    if (newData.hero.videoId && (typeof newData.hero.videoId !== 'string' || !/^[a-zA-Z0-9_-]{11}$/.test(newData.hero.videoId))) {
+        return NextResponse.json({ message: 'Invalid YouTube Video ID format for hero section.' }, { status: 400 });
     }
      if (newData.artisanalRoots && (typeof newData.artisanalRoots.title !== 'string' || typeof newData.artisanalRoots.description !== 'string')) {
       return NextResponse.json({ message: 'Invalid data format for artisanal roots section.' }, { status: 400 });
     }
 
-
-    // Read the current file to preserve any other keys that might exist
-    let currentData = {};
+    let currentData: Partial<HomepageContentData> = {};
     try {
       const fileContent = await fs.readFile(filePath, 'utf-8');
       currentData = JSON.parse(fileContent);
     } catch (readError) {
-      // If file doesn't exist or is malformed, we'll just overwrite with new data
       console.warn("Could not read existing homepage content file, will overwrite:", readError);
     }
 
-    const updatedData = {
-      ...currentData, // Preserve other potential top-level keys
-      hero: newData.hero,
-      artisanalRoots: newData.artisanalRoots || (currentData as HomepageContentData).artisanalRoots || { title: "", description: "" }
+    // Ensure hero object exists on currentData before merging
+    if (!currentData.hero) {
+        currentData.hero = { title: '', description: '' };
+    }
+    
+    const updatedHero = {
+        ...currentData.hero,
+        ...newData.hero // newData.hero will overwrite title and description, and add/update videoId
     };
+     // Ensure videoId is removed if newData.hero.videoId is an empty string or undefined
+    if (newData.hero.videoId === '' || newData.hero.videoId === undefined) {
+      delete updatedHero.videoId;
+    }
+
+
+    const updatedData: HomepageContentData = {
+      ...currentData,
+      hero: updatedHero,
+      artisanalRoots: newData.artisanalRoots || currentData.artisanalRoots || { title: "", description: "" }
+    };
+
 
     await fs.writeFile(filePath, JSON.stringify(updatedData, null, 2), 'utf-8');
 

@@ -1,4 +1,5 @@
 
+
 import Image from 'next/image';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -11,6 +12,7 @@ interface HomepageContent {
   hero: {
     title: string;
     description: string;
+    videoId?: string; // Added videoId
   };
   artisanalRoots?: {
     title: string;
@@ -35,7 +37,8 @@ async function getHomepageContent(): Promise<HomepageContent> {
     return {
       hero: {
         title: "Peak Pulse (Fallback)",
-        description: "Experience the fusion of ancient Nepali artistry and modern streetwear. (Content failed to load)"
+        description: "Experience the fusion of ancient Nepali artistry and modern streetwear. (Content failed to load)",
+        videoId: "gCRNEJxDJKM" // Default fallback video
       },
       artisanalRoots: {
         title: "Our Artisanal Roots (Fallback)",
@@ -49,27 +52,27 @@ export default async function HomePage() {
   const content = await getHomepageContent();
   const heroTitle = content.hero?.title || "Peak Pulse";
   const heroDescription = content.hero?.description || "Experience the fusion of ancient Nepali artistry and modern streetwear.";
+  const heroVideoId = content.hero?.videoId || "gCRNEJxDJKM"; // Use dynamic or fallback video ID
 
   const artisanalRootsTitle = content.artisanalRoots?.title || "Our Artisanal Roots";
   const artisanalRootsDescription = content.artisanalRoots?.description || "At Peak Pulse, every thread tells a story. We partner with local artisans in Nepal, preserving centuries-old techniques while innovating for today's global citizen.";
 
-  const videoId = "gCRNEJxDJKM";
 
   return (
     <>
       {/* Hero Section - Updated for Full-Screen Immersive Experience */}
       <section className="relative h-screen w-full overflow-hidden">
         {/* Background Video Container */}
-        <div className="absolute inset-0 z-0 w-full h-full overflow-hidden pointer-events-none bg-black"> {/* Added bg-black */}
+        <div className="absolute inset-0 z-0 w-full h-full overflow-hidden pointer-events-none bg-black">
           <iframe
             className="absolute top-1/2 left-1/2 w-full h-full min-w-[177.77vh] min-h-[56.25vw] transform -translate-x-1/2 -translate-y-1/2"
-            src={`https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&loop=1&playlist=${videoId}&controls=0&showinfo=0&autohide=1&modestbranding=1&playsinline=1&enablejsapi=1`}
+            src={`https://www.youtube.com/embed/${heroVideoId}?autoplay=1&mute=1&loop=1&playlist=${heroVideoId}&controls=0&showinfo=0&autohide=1&modestbranding=1&playsinline=1&enablejsapi=1`}
             title="Peak Pulse Background Video"
             frameBorder="0"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
             allowFullScreen={false}
           ></iframe>
-           <div className="absolute inset-0 bg-black/50 z-[1]"></div> {/* Dark overlay for text contrast, z-index adjusted, made slightly darker */}
+           <div className="absolute inset-0 bg-black/50 z-[1]"></div>
         </div>
 
         {/* Content Overlay */}
