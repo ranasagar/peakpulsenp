@@ -8,54 +8,34 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { ShoppingBag, Eye } from 'lucide-react';
+import { ShoppingBag, Eye, Loader2 } from 'lucide-react';
 import Image from 'next/image';
-
-// Mock Data - Replace with actual data fetching
-const mockOrders: Order[] = [
-  { 
-    id: 'ORD-001', userId: 'user-cust-123', 
-    createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), 
-    updatedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(), 
-    totalAmount: 12000, currency: 'NPR', status: 'Shipped', 
-    items: [{ productId: 'prod-1', name: 'Himalayan Breeze Jacket', quantity: 1, price: 12000, imageUrl: 'https://placehold.co/50x50.png', id: 'item-1', dataAiHint: 'jacket fashion' }],
-    shippingAddress: { fullName: 'Valued Customer', street: '123 Dharma Path', city: 'Kathmandu', postalCode: '44600', country: 'Nepal' },
-    paymentStatus: 'paid',
-  },
-  { 
-    id: 'ORD-002', userId: 'user-cust-123', 
-    createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), 
-    updatedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), 
-    totalAmount: 11000, currency: 'NPR', status: 'Delivered', 
-    items: [
-      { productId: 'prod-2', name: 'Kathmandu Comfort Tee', quantity: 2, price: 3500, imageUrl: 'https://placehold.co/50x50.png', id: 'item-2', dataAiHint: 'tee shirt' },
-      { productId: 'prod-5', name: 'Artisan Keychain', quantity: 1, price: 4000, imageUrl: 'https://placehold.co/50x50.png', id: 'item-3', dataAiHint: 'keychain craft' }
-    ],
-    shippingAddress: { fullName: 'Valued Customer', street: '123 Dharma Path', city: 'Kathmandu', postalCode: '44600', country: 'Nepal' },
-    paymentStatus: 'paid',
-  },
-  { 
-    id: 'ORD-003', userId: 'user-cust-123', 
-    createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(), 
-    updatedAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(), 
-    totalAmount: 7500, currency: 'NPR', status: 'Processing', 
-    items: [{ productId: 'prod-3', name: 'Urban Nomad Pants', quantity: 1, price: 7500, imageUrl: 'https://placehold.co/50x50.png', id: 'item-4', dataAiHint: 'pants fashion' }],
-    shippingAddress: { fullName: 'Valued Customer', street: '123 Dharma Path', city: 'Kathmandu', postalCode: '44600', country: 'Nepal' },
-    paymentStatus: 'paid',
-  },
-];
-
 
 export default function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Simulate API call
-    setTimeout(() => {
-      setOrders(mockOrders);
-      setIsLoading(false);
-    }, 500);
+    const fetchOrders = async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const response = await fetch('/api/account/orders');
+        if (!response.ok) {
+          throw new Error(`Failed to fetch orders: ${response.statusText}`);
+        }
+        const data = await response.json();
+        setOrders(data);
+      } catch (err) {
+        console.error(err);
+        setError((err as Error).message || 'Could not load orders.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchOrders();
   }, []);
 
   const getStatusBadgeVariant = (status: Order['status']): "default" | "secondary" | "destructive" | "outline" => {
@@ -69,9 +49,22 @@ export default function OrdersPage() {
     }
   };
 
-
   if (isLoading) {
-    return <div className="container-wide section-padding text-center">Loading orders...</div>;
+    return (
+      <div className="container-wide section-padding text-center">
+        <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
+        <p className="text-muted-foreground">Loading your orders...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="container-wide section-padding text-center text-destructive">
+        <p>Error: {error}</p>
+        <Button onClick={() => window.location.reload()} variant="outline" className="mt-4">Try Again</Button>
+      </div>
+    );
   }
 
   return (
@@ -107,7 +100,8 @@ export default function OrdersPage() {
                   {orders.map((order) => (
                     <TableRow key={order.id} className="hover:bg-muted/30">
                       <TableCell className="font-medium text-primary hover:underline">
-                        <Link href={`/account/orders/${order.id}`}>{order.id}</Link>
+                        {/* TODO: Create individual order detail page /account/orders/[orderId] */}
+                        <Link href={`/account/orders/#${order.id}`}>{order.id}</Link>
                       </TableCell>
                       <TableCell>{new Date(order.createdAt).toLocaleDateString()}</TableCell>
                       <TableCell>
@@ -123,8 +117,8 @@ export default function OrdersPage() {
                       </TableCell>
                       <TableCell className="text-right font-semibold">रू{order.totalAmount.toLocaleString()}</TableCell>
                       <TableCell className="text-center">
-                        <Badge variant={getStatusBadgeVariant(order.status)} 
-                               className={order.status === 'Delivered' ? 'bg-green-500/20 text-green-700 border-green-500/30' : 
+                        <Badge variant={getStatusBadgeVariant(order.status)}
+                               className={order.status === 'Delivered' ? 'bg-green-500/20 text-green-700 border-green-500/30' :
                                           order.status === 'Shipped' ? 'bg-blue-500/20 text-blue-700 border-blue-500/30' :
                                           order.status === 'Processing' ? 'bg-yellow-500/20 text-yellow-700 border-yellow-500/30' :
                                           ''}>
@@ -133,7 +127,8 @@ export default function OrdersPage() {
                       </TableCell>
                       <TableCell className="text-right">
                         <Button variant="outline" size="sm" asChild>
-                          <Link href={`/account/orders/${order.id}`}>
+                           {/* TODO: Create individual order detail page /account/orders/[orderId] */}
+                          <Link href={`/account/orders/#${order.id}`}>
                             <Eye className="mr-1.5 h-4 w-4" /> View
                           </Link>
                         </Button>
@@ -146,7 +141,7 @@ export default function OrdersPage() {
           ) : (
             <div className="text-center py-12">
               <ShoppingBag className="mx-auto h-16 w-16 text-muted-foreground mb-4" />
-              <p className="text-xl font-semibold text-foreground mb-2">No Orders Yet</p>
+              <p className="text-2xl font-semibold text-foreground mb-2">No Orders Yet</p>
               <p className="text-muted-foreground mb-6">Looks like you haven&apos;t placed any orders. Start shopping to see them here!</p>
               <Button asChild>
                 <Link href="/products">Shop Now</Link>
@@ -158,5 +153,3 @@ export default function OrdersPage() {
     </div>
   );
 }
-
-    

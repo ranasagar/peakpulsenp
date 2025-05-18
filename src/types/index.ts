@@ -34,6 +34,7 @@ export interface ProductImage {
   id: string;
   url: string;
   altText?: string;
+  dataAiHint?: string; // Added for consistency
 }
 
 export interface ProductVariant {
@@ -95,22 +96,27 @@ export interface OrderAddress {
   phone?: string;
 }
 
+export type OrderStatus = 'Pending' | 'Processing' | 'Shipped' | 'Delivered' | 'Cancelled' | 'Refunded';
+export type PaymentStatus = 'Pending' | 'Paid' | 'Failed' | 'Refunded';
+
+
 export interface Order {
   id: string;
-  userId: string;
-  items: CartItem[];
-  totalAmount: number;
+  userId: string; // ID of the user who placed the order
+  items: CartItem[]; // Array of items in the order
+  totalAmount: number; // Total amount of the order
   currency: string; // e.g., 'NPR', 'USD'
-  status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled' | 'refunded';
+  status: OrderStatus;
   shippingAddress: OrderAddress;
-  billingAddress?: OrderAddress;
-  paymentMethod?: string;
-  paymentStatus: 'pending' | 'paid' | 'failed';
-  shippingMethod?: string;
-  trackingNumber?: string;
-  createdAt: string; // ISO string
-  updatedAt: string; // ISO string
+  billingAddress?: OrderAddress; // Optional, if different from shipping
+  paymentMethod?: string; // e.g., 'Credit Card', 'eSewa', 'COD'
+  paymentStatus: PaymentStatus;
+  shippingMethod?: string; // e.g., 'Standard Shipping', 'Express Shipping'
+  trackingNumber?: string; // For shipped orders
+  createdAt: string; // ISO string date when the order was created
+  updatedAt: string; // ISO string date when the order was last updated
 }
+
 
 export interface NavItem {
   title: string;
