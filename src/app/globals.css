@@ -101,7 +101,7 @@ body {
 /* Additional styles for luxury feel */
 @layer components {
   .section-padding {
-    @apply py-16 md:py-24 lg:py-32;
+    @apply pt-8 pb-16 md:pt-12 md:pb-24 lg:pt-16 lg:pb-32;
   }
   .container-slim {
     @apply max-w-5xl mx-auto px-4 sm:px-6 lg:px-8;
