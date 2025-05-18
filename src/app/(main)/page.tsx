@@ -6,40 +6,13 @@ import { ProductCard } from '@/components/product/product-card';
 import type { Product } from '@/types';
 import { ArrowRight, Instagram, Send, ShoppingBag } from 'lucide-react';
 import { NewsletterSignupForm } from '@/components/forms/newsletter-signup-form';
-// AspectRatio is not directly used here after video integration, but keeping import if needed elsewhere or if video is removed.
-// import { AspectRatio } from '@/components/ui/aspect-ratio'; 
-
-// Mock products - replace with actual data fetching
-const mockFeaturedProducts: Product[] = [
-  {
-    id: 'prod-1', name: 'Himalayan Breeze Jacket', slug: 'himalayan-breeze-jacket', price: 12000,
-    images: [{ id: 'img-1', url: 'https://placehold.co/600x800.png', altText: 'Himalayan Breeze Jacket', dataAiHint: 'jacket fashion' }],
-    categories: [{ id: 'cat-1', name: 'Outerwear', slug: 'outerwear' }],
-    shortDescription: 'Lightweight and versatile for urban adventures.',
-    createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), description: "Full description here."
-  },
-  {
-    id: 'prod-2', name: 'Kathmandu Comfort Tee', slug: 'kathmandu-comfort-tee', price: 3500,
-    images: [{ id: 'img-2', url: 'https://placehold.co/600x800.png', altText: 'Kathmandu Comfort Tee', dataAiHint: 'tee shirt' }],
-    categories: [{ id: 'cat-2', name: 'Tops', slug: 'tops' }],
-    shortDescription: 'Premium cotton for everyday luxury.',
-    createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), description: "Full description here."
-  },
-  {
-    id: 'prod-3', name: 'Urban Nomad Pants', slug: 'urban-nomad-pants', price: 7500,
-    images: [{ id: 'img-3', url: 'https://placehold.co/600x800.png', altText: 'Urban Nomad Pants', dataAiHint: 'pants fashion' }],
-    categories: [{ id: 'cat-3', name: 'Bottoms', slug: 'bottoms' }],
-    shortDescription: 'Street-ready style with traditional touches.',
-    createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), description: "Full description here."
-  },
-];
 
 interface HomepageContent {
   hero: {
     title: string;
     description: string;
   };
-  artisanalRoots?: { 
+  artisanalRoots?: {
     title: string;
     description: string;
   };
@@ -47,7 +20,7 @@ interface HomepageContent {
 
 async function getHomepageContent(): Promise<HomepageContent> {
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:9002'; 
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:9002';
     const res = await fetch(`${baseUrl}/api/content/homepage`, { cache: 'no-store' });
 
     if (!res.ok) {
@@ -76,29 +49,29 @@ export default async function HomePage() {
   const content = await getHomepageContent();
   const heroTitle = content.hero?.title || "Peak Pulse";
   const heroDescription = content.hero?.description || "Experience the fusion of ancient Nepali artistry and modern streetwear.";
-  
+
   const artisanalRootsTitle = content.artisanalRoots?.title || "Our Artisanal Roots";
   const artisanalRootsDescription = content.artisanalRoots?.description || "At Peak Pulse, every thread tells a story. We partner with local artisans in Nepal, preserving centuries-old techniques while innovating for today's global citizen.";
 
-  const videoId = "gCRNEJxDJKM"; 
+  const videoId = "gCRNEJxDJKM";
 
   return (
     <>
       {/* Hero Section - Updated for Full-Screen Immersive Experience */}
       <section className="relative h-screen w-full overflow-hidden">
         {/* Background Video Container */}
-        <div className="absolute inset-0 z-0 w-full h-full overflow-hidden pointer-events-none">
+        <div className="absolute inset-0 z-0 w-full h-full overflow-hidden pointer-events-none bg-black"> {/* Added bg-black */}
           <iframe
-             className="absolute top-1/2 left-1/2 w-full h-full min-w-[177.77vh] min-h-[56.25vw] transform -translate-x-1/2 -translate-y-1/2 object-cover z-0"
+            className="absolute top-1/2 left-1/2 w-full h-full min-w-[177.77vh] min-h-[56.25vw] transform -translate-x-1/2 -translate-y-1/2"
             src={`https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&loop=1&playlist=${videoId}&controls=0&showinfo=0&autohide=1&modestbranding=1&playsinline=1&enablejsapi=1`}
             title="Peak Pulse Background Video"
             frameBorder="0"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowFullScreen={false} 
+            allowFullScreen={false}
           ></iframe>
-           <div className="absolute inset-0 bg-black/30 z-[1]"></div> {/* Dark overlay for text contrast, z-index adjusted */}
+           <div className="absolute inset-0 bg-black/50 z-[1]"></div> {/* Dark overlay for text contrast, z-index adjusted, made slightly darker */}
         </div>
-        
+
         {/* Content Overlay */}
         <div className="relative z-20 flex flex-col items-center justify-center h-full text-center text-white pt-[calc(theme(spacing.20)_+_theme(spacing.6))] pb-12 px-6 md:px-8 max-w-3xl mx-auto">
           <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-6">
@@ -113,12 +86,16 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* Featured Products Section */}
+      {/* Featured Products Section - Mock Data */}
       <section className="section-padding container-wide">
         <h2 className="text-3xl font-bold text-center mb-12 text-foreground">Featured Collection</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-          {mockFeaturedProducts.map(product => (
-            <ProductCard key={product.id} product={product} />
+          {[
+            { id: 'prod-1', name: 'Himalayan Breeze Jacket', slug: 'himalayan-breeze-jacket', price: 12000, images: [{id: 'img-1', url: 'https://placehold.co/600x800.png', altText: 'Himalayan Breeze Jacket', dataAiHint: 'jacket fashion'}], categories: [{id: 'cat-1', name: 'Outerwear', slug: 'outerwear'}], shortDescription: 'Lightweight and versatile.', createdAt: '', updatedAt: '', description: '' },
+            { id: 'prod-2', name: 'Kathmandu Comfort Tee', slug: 'kathmandu-comfort-tee', price: 3500, images: [{id: 'img-2', url: 'https://placehold.co/600x800.png', altText: 'Kathmandu Comfort Tee', dataAiHint: 'tee shirt'}], categories: [{id: 'cat-2', name: 'Tops', slug: 'tops'}], shortDescription: 'Premium cotton for daily wear.', createdAt: '', updatedAt: '', description: '' },
+            { id: 'prod-3', name: 'Urban Nomad Pants', slug: 'urban-nomad-pants', price: 7500, images: [{id: 'img-3', url: 'https://placehold.co/600x800.png', altText: 'Urban Nomad Pants', dataAiHint: 'pants fashion'}], categories: [{id: 'cat-3', name: 'Bottoms', slug: 'bottoms'}], shortDescription: 'Street-ready style.', createdAt: '', updatedAt: '', description: '' },
+          ].map(product => (
+            <ProductCard key={product.id} product={product as Product} />
           ))}
         </div>
         <div className="text-center mt-12">
@@ -140,7 +117,7 @@ export default async function HomePage() {
           </Button>
         </div>
       </section>
-      
+
       {/* Social Commerce Section */}
       <section className="section-padding container-wide">
         <h2 className="text-3xl font-bold text-center mb-12 text-foreground">
