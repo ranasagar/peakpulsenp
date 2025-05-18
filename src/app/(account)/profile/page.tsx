@@ -100,7 +100,7 @@ export default function ProfilePage() {
         <div className="md:col-span-1">
           <Card className="shadow-lg p-6 text-center sticky top-24">
              <Avatar className="h-28 w-28 mx-auto mb-4 border-4 border-primary p-1">
-                <AvatarImage src={user.avatarUrl || `https://placehold.co/150x150.png?text=${user.name ? user.name.charAt(0) : 'P'}`} alt={user.name || 'User'} data-ai-hint="profile avatar"/>
+                <AvatarImage src={user.avatarUrl || `https://placehold.co/150x150.png`} alt={user.name || 'User'} data-ai-hint="profile avatar user"/>
                 <AvatarFallback className="text-4xl">{user.name ? user.name.charAt(0).toUpperCase() : <User />}</AvatarFallback>
             </Avatar>
             <Button variant="outline" size="sm" className="mb-4">
@@ -214,3 +214,5 @@ export default function ProfilePage() {
     </div>
   );
 }
+
+    

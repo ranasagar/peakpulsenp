@@ -25,10 +25,10 @@ const mockProduct: Product = {
   price: 12000,
   compareAtPrice: 15000, // Example for sale item
   images: [
-    { id: 'img-main', url: 'https://placehold.co/800x1000.png?text=Jacket+View+1', altText: 'Jacket Main View' },
-    { id: 'img-detail-1', url: 'https://placehold.co/800x1000.png?text=Jacket+View+2', altText: 'Jacket Detail 1' },
-    { id: 'img-detail-2', url: 'https://placehold.co/800x1000.png?text=Jacket+View+3', altText: 'Jacket Detail 2' },
-    { id: 'img-fabric', url: 'https://placehold.co/800x1000.png?text=Fabric+Texture', altText: 'Jacket Fabric Texture' },
+    { id: 'img-main', url: 'https://placehold.co/800x1000.png', altText: 'Himalayan Breeze Jacket front view' },
+    { id: 'img-detail-1', url: 'https://placehold.co/800x1000.png', altText: 'Himalayan Breeze Jacket side view' },
+    { id: 'img-detail-2', url: 'https://placehold.co/800x1000.png', altText: 'Himalayan Breeze Jacket back view' },
+    { id: 'img-fabric', url: 'https://placehold.co/800x1000.png', altText: 'Himalayan Breeze Jacket fabric texture detail' },
   ],
   categories: [{ id: 'cat-1', name: 'Outerwear', slug: 'outerwear' }],
   shortDescription: 'Lightweight, wind-resistant jacket made with innovative Nepali textiles. Perfect for urban exploration and mild mountain trails.',
@@ -50,18 +50,17 @@ const mockProduct: Product = {
 };
 
 const mockRelatedProducts: Product[] = [
-    // Copied from products/page.tsx for quick related items, simplified
   {
     id: 'prod-2', name: 'Kathmandu Comfort Tee', slug: 'kathmandu-comfort-tee', price: 3500,
-    images: [{ id: 'img-2', url: 'https://placehold.co/600x800.png?text=Tee+Rel', altText: 'Tee 1' }], categories: [{ id: 'cat-2', name: 'Tops', slug: 'tops' }], shortDescription: 'Premium cotton.', createdAt: " ", updatedAt: " ", description: " "
+    images: [{ id: 'img-2', url: 'https://placehold.co/600x800.png', altText: 'Kathmandu Comfort Tee related product' }], categories: [{ id: 'cat-2', name: 'Tops', slug: 'tops' }], shortDescription: 'Premium cotton.', createdAt: " ", updatedAt: " ", description: " "
   },
   {
     id: 'prod-3', name: 'Urban Nomad Pants', slug: 'urban-nomad-pants', price: 7500,
-    images: [{ id: 'img-3', url: 'https://placehold.co/600x800.png?text=Pants+Rel', altText: 'Pants 1' }], categories: [{ id: 'cat-3', name: 'Bottoms', slug: 'bottoms' }], shortDescription: 'Street-ready style.', createdAt: " ", updatedAt: " ", description: " "
+    images: [{ id: 'img-3', url: 'https://placehold.co/600x800.png', altText: 'Urban Nomad Pants related product' }], categories: [{ id: 'cat-3', name: 'Bottoms', slug: 'bottoms' }], shortDescription: 'Street-ready style.', createdAt: " ", updatedAt: " ", description: " "
   },
   {
     id: 'prod-4', name: 'Silk Scarf Mandala', slug: 'silk-scarf-mandala', price: 4200, 
-    images: [{ id: 'img-4', url: 'https://placehold.co/600x800.png?text=Scarf+Rel', altText: 'Scarf 1' }], categories: [{ id: 'cat-4', name: 'Accessories', slug: 'accessories' }], shortDescription: 'Hand-painted silk.', createdAt: " ", updatedAt: " ", description: " "
+    images: [{ id: 'img-4', url: 'https://placehold.co/600x800.png', altText: 'Silk Scarf Mandala related product' }], categories: [{ id: 'cat-4', name: 'Accessories', slug: 'accessories' }], shortDescription: 'Hand-painted silk.', createdAt: " ", updatedAt: " ", description: " "
   },
 ];
 
@@ -102,7 +101,7 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
   const breadcrumbs: BreadcrumbItem[] = [
     { name: 'Home', href: '/' },
     { name: 'Shop', href: '/products' },
-    // { name: product.categories[0]?.name, href: `/products/category/${product.categories[0]?.slug}` }, // Example category breadcrumb
+    { name: product.categories[0]?.name || 'Category', href: `/products?category=${product.categories[0]?.slug || ''}` }, 
     { name: product.name },
   ];
 
@@ -115,7 +114,7 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-start">
         {/* Image Gallery */}
-        <div className="sticky top-24 z-10 bg-background p-1 rounded-lg shadow-sm"> {/* Make image gallery sticky, add z-index and background */}
+        <div className="sticky top-24 z-10 bg-background p-1 rounded-lg shadow-sm">
           <div className="mb-4">
              <AspectRatio ratio={4/5} className="bg-muted rounded-lg overflow-hidden shadow-lg">
                 <Image
@@ -125,7 +124,7 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
                     objectFit="cover"
                     className="transition-opacity duration-300 ease-in-out hover:opacity-90"
                     priority
-                    data-ai-hint="fashion product clothing"
+                    data-ai-hint="jacket clothing fashion"
                 />
              </AspectRatio>
           </div>
@@ -137,7 +136,7 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
                 className={`rounded-md overflow-hidden border-2 transition-all ${selectedImage.id === img.id ? 'border-primary ring-2 ring-primary ring-offset-2' : 'border-transparent hover:border-primary/50'}`}
               >
                 <AspectRatio ratio={1/1}>
-                <Image src={img.url} alt={img.altText || `Thumbnail ${img.id}`} layout="fill" objectFit="cover" data-ai-hint="fashion product clothing" />
+                <Image src={img.url} alt={img.altText || `Thumbnail ${img.id}`} layout="fill" objectFit="cover" data-ai-hint="clothing detail" />
                 </AspectRatio>
               </button>
             ))}
@@ -283,3 +282,4 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
   );
 }
 
+    

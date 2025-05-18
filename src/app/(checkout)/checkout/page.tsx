@@ -13,7 +13,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Separator } from '@/components/ui/separator';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { CreditCard, Lock, ShoppingBag, Truck, Gift, Globe, Info, Loader2, Banknote, QrCode, Send } from 'lucide-react';
+import { CreditCard, Lock, ShoppingBag, Truck, Gift, Globe, Info, Loader2, Banknote, QrCode, Send, CheckCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -21,6 +21,25 @@ import type { CartItem } from '@/types';
 import { calculateInternationalShipping } from '@/ai/flows/calculate-international-shipping-flow';
 import type { CalculateInternationalShippingOutput } from '@/ai/flows/calculate-international-shipping-flow';
 import { useRouter } from 'next/navigation';
+
+// Luhn algorithm check function
+function luhnCheck(val: string): boolean {
+  let sum = 0;
+  let shouldDouble = false;
+  // Remove non-digits
+  const numStr = val.replace(/\D/g, "");
+
+  for (let i = numStr.length - 1; i >= 0; i--) {
+    let digit = parseInt(numStr.charAt(i));
+
+    if (shouldDouble) {
+      if ((digit *= 2) > 9) digit -= 9;
+    }
+    sum += digit;
+    shouldDouble = !shouldDouble;
+  }
+  return (sum % 10) === 0 && numStr.length > 0;
+}
 
 const shippingSchema = z.object({
   fullName: z.string().min(2, "Full name is required."),
@@ -35,9 +54,31 @@ const shippingSchema = z.object({
 });
 
 const paymentCardSchema = z.object({
-  cardNumber: z.string().length(16, "Card number must be 16 digits.").regex(/^\d+$/, "Card number must be digits.").optional().or(z.literal('')),
-  expiryDate: z.string().regex(/^(0[1-9]|1[0-2])\/\d{2}$/, "Expiry date must be MM/YY.").optional().or(z.literal('')),
-  cvc: z.string().length(3, "CVC must be 3 digits.").regex(/^\d+$/, "CVC must be digits.").optional().or(z.literal('')),
+  cardNumber: z.string()
+    .min(13, "Card number must be between 13 and 19 digits.")
+    .max(19, "Card number must be between 13 and 19 digits.")
+    .regex(/^\d+$/, "Card number must contain only digits.")
+    .refine(luhnCheck, "Invalid credit card number.")
+    .optional().or(z.literal('')),
+  expiryDate: z.string()
+    .regex(/^(0[1-9]|1[0-2])\/?([0-9]{2})$/, "Expiry date must be MM/YY.")
+    .refine(val => {
+        const [month, year] = val.split('/');
+        if (!month || !year) return false;
+        const currentYear = new Date().getFullYear() % 100;
+        const currentMonth = new Date().getMonth() + 1;
+        const inputYear = parseInt(year, 10);
+        const inputMonth = parseInt(month, 10);
+        if (inputYear < currentYear) return false;
+        if (inputYear === currentYear && inputMonth < currentMonth) return false;
+        return true;
+    }, "Card has expired.")
+    .optional().or(z.literal('')),
+  cvc: z.string()
+    .min(3, "CVC must be 3 or 4 digits.")
+    .max(4, "CVC must be 3 or 4 digits.")
+    .regex(/^\d+$/, "CVC must contain only digits.")
+    .optional().or(z.literal('')),
   cardholderName: z.string().min(2, "Cardholder name is required.").optional().or(z.literal('')),
 });
 
@@ -45,28 +86,43 @@ const checkoutSchema = shippingSchema.extend({
     promoCode: z.string().optional(),
     saveInfo: z.boolean().default(false).optional(),
     paymentMethod: z.string().min(1, "Please select a payment method."),
-}).superRefine((data, ctx) => {
+}).merge(paymentCardSchema) // Merge directly, superRefine will handle conditional validation
+.superRefine((data, ctx) => {
     if (data.paymentMethod === 'card_international' && data.isInternational) {
-      // Only validate card details if card_international is selected AND it's an international shipment
-      const cardValidation = paymentCardSchema.safeParse(data);
-      if (!cardValidation.success) {
-        cardValidation.error.errors.forEach((err) => {
-          // Ensure path exists before adding issue
-          if (err.path.length > 0 && Object.prototype.hasOwnProperty.call(data, err.path[0] as string)) {
-            ctx.addIssue({
-              code: z.ZodIssueCode.custom,
-              message: err.message,
-              path: err.path,
-            });
-          }
-        });
-      } else {
-        // If paymentCardSchema itself passes, explicitly check required fields for this payment method
-        if (!data.cardholderName) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Cardholder name is required.", path: ["cardholderName"] });
-        if (!data.cardNumber) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Card number must be 16 digits.", path: ["cardNumber"] });
-        if (!data.expiryDate) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Expiry date must be MM/YY.", path: ["expiryDate"] });
-        if (!data.cvc) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "CVC must be 3 digits.", path: ["cvc"] });
-      }
+        if (!data.cardholderName || data.cardholderName.length < 2) {
+            ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Cardholder name is required.", path: ["cardholderName"] });
+        }
+        if (!data.cardNumber) {
+            ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Card number is required.", path: ["cardNumber"] });
+        } else if (!/^\d{13,19}$/.test(data.cardNumber.replace(/\D/g, ""))) {
+            ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Card number must be between 13 and 19 digits.", path: ["cardNumber"] });
+        } else if (!luhnCheck(data.cardNumber)) {
+            ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Invalid credit card number.", path: ["cardNumber"] });
+        }
+
+        if (!data.expiryDate) {
+            ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Expiry date is required.", path: ["expiryDate"] });
+        } else {
+            const expiryMatch = data.expiryDate.match(/^(0[1-9]|1[0-2])\/?([0-9]{2})$/);
+            if (!expiryMatch) {
+                 ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Expiry date must be MM/YY.", path: ["expiryDate"] });
+            } else {
+                const [, month, year] = expiryMatch;
+                const currentYear = new Date().getFullYear() % 100;
+                const currentMonth = new Date().getMonth() + 1;
+                const inputYear = parseInt(year, 10);
+                const inputMonth = parseInt(month, 10);
+                if (inputYear < currentYear || (inputYear === currentYear && inputMonth < currentMonth)) {
+                    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Card has expired.", path: ["expiryDate"] });
+                }
+            }
+        }
+        
+        if (!data.cvc) {
+            ctx.addIssue({ code: z.ZodIssueCode.custom, message: "CVC is required.", path: ["cvc"] });
+        } else if (!/^\d{3,4}$/.test(data.cvc)) {
+             ctx.addIssue({ code: z.ZodIssueCode.custom, message: "CVC must be 3 or 4 digits.", path: ["cvc"] });
+        }
     }
     if (data.isInternational && !data.internationalDestinationCountry) {
         ctx.addIssue({
@@ -78,12 +134,12 @@ const checkoutSchema = shippingSchema.extend({
 });
 
 
-type CheckoutFormValues = z.infer<typeof checkoutSchema> & Partial<z.infer<typeof paymentCardSchema>>;
+type CheckoutFormValues = z.infer<typeof checkoutSchema>;
 
 // Mock cart items - replace with actual cart data
 const mockCartItems: CartItem[] = [
-  { id: 'prod-1-m', productId: 'prod-1', name: 'Himalayan Breeze Jacket (M)', price: 12000, quantity: 1, imageUrl: 'https://placehold.co/80x80.png?text=Jacket', dataAiHint: "product fashion" },
-  { id: 'prod-2', productId: 'prod-2', name: 'Kathmandu Comfort Tee', price: 3500, quantity: 2, imageUrl: 'https://placehold.co/80x80.png?text=Tee', dataAiHint: "product fashion" },
+  { id: 'prod-1-m', productId: 'prod-1', name: 'Himalayan Breeze Jacket (M)', price: 12000, quantity: 1, imageUrl: 'https://placehold.co/80x80.png', dataAiHint: "jacket fashion" },
+  { id: 'prod-2', productId: 'prod-2', name: 'Kathmandu Comfort Tee', price: 3500, quantity: 2, imageUrl: 'https://placehold.co/80x80.png', dataAiHint: "tee shirt" },
 ];
 
 const DOMESTIC_SHIPPING_COST_NPR = 500;
@@ -106,7 +162,7 @@ export default function CheckoutPage() {
         paymentMethod: 'card_nepal',
         country: 'Nepal', 
         isInternational: false,
-        internationalDestinationCountry: '', // Initialize to empty string
+        internationalDestinationCountry: '',
         fullName: '',
         streetAddress: '',
         apartmentSuite: '',
@@ -114,7 +170,7 @@ export default function CheckoutPage() {
         postalCode: '',
         phone: '',
         promoCode: '',
-        cardholderName: '', // Initialize card fields
+        cardholderName: '',
         cardNumber: '',
         expiryDate: '',
         cvc: '',
@@ -165,7 +221,16 @@ export default function CheckoutPage() {
       const result = await calculateInternationalShipping({ destinationCountry });
       setInternationalShippingInfo(result);
       setCurrentShippingCost(result.rateNPR);
-      toast({ title: "Shipping Calculated", description: `Shipping to ${destinationCountry}: रू${result.rateNPR}, Estimated Delivery: ${result.estimatedDeliveryTime}` });
+      toast({ 
+        title: "Shipping Calculated", 
+        description: (
+          <div>
+            <p>Shipping to {destinationCountry}: रू{result.rateNPR.toLocaleString()}</p>
+            <p>Estimated Delivery: {result.estimatedDeliveryTime}</p>
+          </div>
+        ),
+        action: <CheckCircle className="text-green-500"/> 
+      });
     } catch (error) {
       console.error("Error calculating international shipping:", error);
       toast({ title: "Shipping Calculation Failed", description: (error as Error).message || "Could not calculate shipping at this time.", variant: "destructive" });
@@ -176,14 +241,15 @@ export default function CheckoutPage() {
   };
 
   const onSubmit = async (data: CheckoutFormValues) => {
-    // Manually trigger validation before constructing payload
     const isValid = await form.trigger();
     if (!isValid) {
         toast({
             title: "Validation Error",
-            description: "Please check the form for errors.",
+            description: "Please review the form for errors and try again.",
             variant: "destructive",
         });
+        // Log specific errors to console for easier debugging
+        console.log("Form validation errors:", form.formState.errors);
         return;
     }
     
@@ -197,7 +263,7 @@ export default function CheckoutPage() {
 
     console.log("Submitting order with payload:", JSON.stringify(orderPayload, null, 2));
 
-
+    form.formState.isSubmitting = true; // Manually set submitting state
     try {
       const response = await fetch('/api/orders/create', {
         method: 'POST',
@@ -211,16 +277,16 @@ export default function CheckoutPage() {
 
       if (response.ok) {
         toast({
-          title: "Order Placed (Mock)!",
+          title: result.title || "Order Placed (Mock)!",
           description: result.message || "Your order is being processed.",
-          action: <Link href="/account/orders"><Button variant="outline" size="sm">View Orders</Button></Link>
+          action: <Link href={`/account/orders?orderId=${result.orderId || 'new'}`}><Button variant="outline" size="sm">View Order</Button></Link>
         });
         router.push(`/account/orders?orderId=${result.orderId || 'new'}`);
         form.reset(); 
         // TODO: Clear cart state
       } else {
         toast({
-          title: "Order Failed",
+          title: result.title || "Order Failed",
           description: result.message || "There was an issue placing your order.",
           variant: "destructive",
         });
@@ -232,18 +298,20 @@ export default function CheckoutPage() {
         description: "Could not connect to the server. Please try again.",
         variant: "destructive",
       });
+    } finally {
+       form.formState.isSubmitting = false; // Manually reset submitting state
     }
   };
 
   const paymentMethods = [
-    { value: 'card_nepal', label: 'Credit/Debit Card (Nepal)', icon: CreditCard, domesticOnly: true, internationalOnly: false },
-    { value: 'cod', label: 'Cash on Delivery (Nepal Only, 10% Advance May Be Required)', icon: Banknote, domesticOnly: true, internationalOnly: false },
-    { value: 'esewa', label: 'eSewa', icon: Send, domesticOnly: true, internationalOnly: false }, 
-    { value: 'khalti', label: 'Khalti', icon: Send, domesticOnly: true, internationalOnly: false },
-    { value: 'imepay', label: 'IME Pay', icon: Send, domesticOnly: true, internationalOnly: false },
-    { value: 'connectips', label: 'ConnectIPS', icon: Globe, domesticOnly: true, internationalOnly: false },
-    { value: 'qr', label: 'QR Payment (Fonepay, etc.)', icon: QrCode, domesticOnly: true, internationalOnly: false },
-    { value: 'banktransfer', label: 'Bank Transfer (Mobile App)', icon: Banknote, domesticOnly: true, internationalOnly: false },
+    { value: 'card_nepal', label: 'Credit/Debit Card (Nepal Gateways)', icon: CreditCard, domesticOnly: true, internationalOnly: false },
+    { value: 'cod', label: 'Cash on Delivery (Nepal Only)', icon: Banknote, domesticOnly: true, internationalOnly: false },
+    { value: 'esewa', label: 'eSewa Mobile Wallet', icon: Send, domesticOnly: true, internationalOnly: false }, 
+    { value: 'khalti', label: 'Khalti Digital Wallet', icon: Send, domesticOnly: true, internationalOnly: false },
+    { value: 'imepay', label: 'IME Pay Wallet', icon: Send, domesticOnly: true, internationalOnly: false },
+    { value: 'connectips', label: 'ConnectIPS (Bank Account)', icon: Globe, domesticOnly: true, internationalOnly: false },
+    { value: 'qr', label: 'Scan QR (Fonepay, NepalPay, etc.)', icon: QrCode, domesticOnly: true, internationalOnly: false },
+    { value: 'banktransfer', label: 'Direct Bank Transfer (Mobile Banking)', icon: Banknote, domesticOnly: true, internationalOnly: false },
     { value: 'card_international', label: 'Credit/Debit Card (International)', icon: CreditCard, domesticOnly: false, internationalOnly: true },
   ];
 
@@ -321,7 +389,7 @@ export default function CheckoutPage() {
                                   }}
                                 />
                             </FormControl>
-                            <Button type="button" onClick={handleCalculateInternationalShipping} disabled={isCalculatingShipping}>
+                            <Button type="button" onClick={handleCalculateInternationalShipping} disabled={isCalculatingShipping || !field.value}>
                                 {isCalculatingShipping ? <Loader2 className="h-4 w-4 animate-spin" /> : <Globe className="h-4 w-4 mr-1"/>}
                                 Calculate
                             </Button>
@@ -384,7 +452,7 @@ export default function CheckoutPage() {
                 {(selectedPaymentMethod === 'card_nepal') && !isInternationalShipping && (
                   <div className="mt-6 pt-6 border-t space-y-4">
                     <p className="text-md font-semibold text-foreground">Card Payment (Nepal)</p>
-                     <p className="text-sm text-muted-foreground">You will be redirected to a secure local payment gateway to complete your payment.</p>
+                     <p className="text-sm text-muted-foreground">You will be redirected to a secure local payment gateway (e.g., Nabil, NIC Asia) to complete your payment after placing the order.</p>
                   </div>
                 )}
 
@@ -399,10 +467,10 @@ export default function CheckoutPage() {
                         )} />
                         <div className="grid grid-cols-2 gap-4">
                             <FormField control={form.control} name="expiryDate" render={({ field }) => (
-                            <FormItem><FormLabel>Expiry Date</FormLabel><FormControl><Input {...field} placeholder="MM/YY" /></FormControl><FormMessage /></FormItem>
+                            <FormItem><FormLabel>Expiry Date (MM/YY)</FormLabel><FormControl><Input {...field} placeholder="MM/YY" /></FormControl><FormMessage /></FormItem>
                             )} />
                             <FormField control={form.control} name="cvc" render={({ field }) => (
-                            <FormItem><FormLabel>CVC</FormLabel><FormControl><Input {...field} placeholder="123" /></FormControl><FormMessage /></FormItem>
+                            <FormItem><FormLabel>CVC/CVV</FormLabel><FormControl><Input {...field} placeholder="123" /></FormControl><FormMessage /></FormItem>
                             )} />
                         </div>
                     </div>
@@ -410,7 +478,7 @@ export default function CheckoutPage() {
 
                  {selectedPaymentMethod === 'cod' && (
                     <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-md text-amber-700 text-sm">
-                        <Info className="inline h-4 w-4 mr-1.5"/> A 10% advance payment might be required for Cash on Delivery orders. Our team will contact you for confirmation.
+                        <Info className="inline h-4 w-4 mr-1.5"/> For Cash on Delivery orders, a 10% advance payment might be required for confirmation, especially for high-value items. Our team will contact you.
                     </div>
                  )}
 
@@ -419,10 +487,11 @@ export default function CheckoutPage() {
                     <FormField control={form.control} name="saveInfo" render={({ field }) => (
                         <FormItem className="flex flex-row items-start space-x-3 space-y-0">
                         <FormControl>
-                            <Input type="checkbox" checked={field.value} onChange={field.onChange} className="h-4 w-4 accent-primary !mt-0.5" />
+                            {/* Using Input type checkbox for styling consistency if needed, or ShadCN Checkbox */}
+                            <input type="checkbox" checked={field.value} onChange={field.onChange} id="saveInfoCheckbox" className="h-4 w-4 accent-primary !mt-0.5 rounded border-gray-300 focus:ring-primary" />
                         </FormControl>
                         <div className="space-y-1 leading-none">
-                            <FormLabel className="cursor-pointer">Save this information for next time</FormLabel>
+                            <Label htmlFor="saveInfoCheckbox" className="cursor-pointer">Save this information for next time</Label>
                         </div>
                         </FormItem>
                     )} />
@@ -457,7 +526,7 @@ export default function CheckoutPage() {
                   <p className="text-foreground">रू{subtotal.toLocaleString()}</p>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <p className="text-muted-foreground">Shipping {isInternationalShipping ? `(Int'l)` : `(Domestic)`}</p>
+                  <p className="text-muted-foreground">Shipping {isInternationalShipping ? `(Int'l to ${form.getValues("internationalDestinationCountry") || 'destination'})` : `(Domestic)`}</p>
                   <p className="text-foreground">
                     {isCalculatingShipping ? <Loader2 className="h-4 w-4 animate-spin inline"/> : `रू${currentShippingCost.toLocaleString()}`}
                   </p>
@@ -500,3 +569,4 @@ export default function CheckoutPage() {
   );
 }
 
+    

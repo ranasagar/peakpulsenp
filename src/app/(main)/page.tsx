@@ -12,21 +12,21 @@ import { AspectRatio } from '@/components/ui/aspect-ratio';
 const mockFeaturedProducts: Product[] = [
   {
     id: 'prod-1', name: 'Himalayan Breeze Jacket', slug: 'himalayan-breeze-jacket', price: 12000,
-    images: [{ id: 'img-1', url: 'https://placehold.co/600x800.png?text=Jacket', altText: 'Jacket' }],
+    images: [{ id: 'img-1', url: 'https://placehold.co/600x800.png', altText: 'Himalayan Breeze Jacket' }],
     categories: [{ id: 'cat-1', name: 'Outerwear', slug: 'outerwear' }],
     shortDescription: 'Lightweight and versatile for urban adventures.',
     createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), description: "Full description here."
   },
   {
     id: 'prod-2', name: 'Kathmandu Comfort Tee', slug: 'kathmandu-comfort-tee', price: 3500,
-    images: [{ id: 'img-2', url: 'https://placehold.co/600x800.png?text=Tee', altText: 'Tee' }],
+    images: [{ id: 'img-2', url: 'https://placehold.co/600x800.png', altText: 'Kathmandu Comfort Tee' }],
     categories: [{ id: 'cat-2', name: 'Tops', slug: 'tops' }],
     shortDescription: 'Premium cotton for everyday luxury.',
     createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), description: "Full description here."
   },
   {
     id: 'prod-3', name: 'Urban Nomad Pants', slug: 'urban-nomad-pants', price: 7500,
-    images: [{ id: 'img-3', url: 'https://placehold.co/600x800.png?text=Pants', altText: 'Pants' }],
+    images: [{ id: 'img-3', url: 'https://placehold.co/600x800.png', altText: 'Urban Nomad Pants' }],
     categories: [{ id: 'cat-3', name: 'Bottoms', slug: 'bottoms' }],
     shortDescription: 'Street-ready style with traditional touches.',
     createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), description: "Full description here."
@@ -42,9 +42,7 @@ interface HomepageContent {
 
 async function getHomepageContent(): Promise<HomepageContent> {
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:9002';
-    // Using { cache: 'no-store' } to ensure fresh data on each request for dynamic content.
-    // For content that changes infrequently, consider 'force-cache' or revalidation strategies.
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:9002'; // Ensure this is set
     const res = await fetch(`${baseUrl}/api/content/homepage`, { cache: 'no-store' });
 
     if (!res.ok) {
@@ -55,6 +53,7 @@ async function getHomepageContent(): Promise<HomepageContent> {
     return res.json();
   } catch (error) {
     console.error("Error fetching homepage content in page.tsx:", error);
+    // Fallback content
     return {
       hero: {
         title: "Peak Pulse (Fallback)",
@@ -74,8 +73,8 @@ export default async function HomePage() {
       {/* Hero Section */}
       <section className="relative h-[70vh] md:h-[85vh] w-full flex items-center justify-center text-center text-white bg-muted/30">
         <Image
-          src="https://placehold.co/1920x1080.png?text=Peak+Pulse+Hero"
-          alt="Peak Pulse Hero Banner"
+          src="https://placehold.co/1920x1080.png"
+          alt="Dramatic mountain landscape with stylish model wearing Peak Pulse apparel"
           layout="fill"
           objectFit="cover"
           className="z-0 opacity-50"
@@ -123,30 +122,34 @@ export default async function HomePage() {
         </div>
       </section>
       
-      {/* Social Commerce Section - Placeholder */}
+      {/* Social Commerce Section */}
       <section className="section-padding container-wide">
         <h2 className="text-3xl font-bold text-center mb-12 text-foreground">
           #PeakPulseStyle <Instagram className="inline-block ml-2 h-7 w-7 text-pink-500" />
         </h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[1, 2, 3, 4].map(i => (
-            <div key={i} className="bg-muted rounded-lg overflow-hidden">
+            <Link key={i} href="https://instagram.com/peakpulse" target="_blank" rel="noopener noreferrer" className="block bg-muted rounded-lg overflow-hidden group">
               <AspectRatio ratio={1 / 1}>
                 <Image
-                  src={`https://placehold.co/400x400.png?text=Social+Post+${i}`}
-                  alt={`Social media post ${i}`}
+                  src={`https://placehold.co/400x400.png`}
+                  alt={`User generated content showcasing Peak Pulse style ${i}`}
                   layout="fill"
                   objectFit="cover"
-                  className="hover:scale-105 transition-transform duration-300"
+                  className="group-hover:scale-105 transition-transform duration-300"
                   data-ai-hint="fashion lifestyle social"
                 />
               </AspectRatio>
-            </div>
+            </Link>
           ))}
         </div>
-        <p className="text-center mt-8 text-muted-foreground">
-          Follow us on Instagram for daily inspiration and behind-the-scenes content.
-        </p>
+        <div className="text-center mt-8">
+            <Button variant="secondary" asChild>
+                <Link href="https://instagram.com/peakpulse" target="_blank" rel="noopener noreferrer">
+                    Follow us on Instagram <Instagram className="ml-2 h-4 w-4"/>
+                </Link>
+            </Button>
+        </div>
       </section>
 
       {/* Newsletter Signup Section */}
@@ -163,3 +166,5 @@ export default async function HomePage() {
     </>
   );
 }
+
+    

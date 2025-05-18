@@ -6,7 +6,9 @@ import { Icons } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Facebook, Instagram, Twitter, Youtube, Send } from 'lucide-react'; // Assuming use of Lucide icons
+import { Facebook, Instagram, Twitter, Youtube, Send } from 'lucide-react';
+import { NewsletterSignupForm } from '@/components/forms/newsletter-signup-form';
+
 
 const footerNavs = [
   {
@@ -14,15 +16,15 @@ const footerNavs = [
     items: [
       { href: '/our-story', name: 'Our Story' },
       { href: '/sustainability', name: 'Sustainability' },
-      { href: '/careers', name: 'Careers (Placeholder)' },
+      { href: '/careers', name: 'Careers' },
     ],
   },
   {
     label: 'Support',
     items: [
       { href: '/contact', name: 'Contact Us' },
-      { href: '/faq', name: 'FAQs (Placeholder)' },
-      { href: '/shipping-returns', name: 'Shipping & Returns (Placeholder)' },
+      { href: '/faq', name: 'FAQs' },
+      { href: '/shipping-returns', name: 'Shipping & Returns' },
     ],
   },
   {
@@ -30,16 +32,16 @@ const footerNavs = [
     items: [
       { href: '/privacy-policy', name: 'Privacy Policy' },
       { href: '/terms-of-service', name: 'Terms of Service' },
-      { href: '/accessibility', name: 'Accessibility (Placeholder)' },
+      { href: '/accessibility', name: 'Accessibility' },
     ],
   },
 ];
 
 const socialLinks = [
-  { href: '#', label: 'Facebook', icon: Facebook },
-  { href: '#', label: 'Instagram', icon: Instagram },
-  { href: '#', label: 'Twitter', icon: Twitter },
-  { href: '#', label: 'YouTube', icon: Youtube },
+  { href: 'https://facebook.com/peakpulse', label: 'Facebook', icon: Facebook },
+  { href: 'https://instagram.com/peakpulse', label: 'Instagram', icon: Instagram },
+  { href: 'https://twitter.com/peakpulse', label: 'Twitter', icon: Twitter },
+  { href: 'https://youtube.com/peakpulse', label: 'YouTube', icon: Youtube },
 ];
 
 export function Footer() {
@@ -61,13 +63,7 @@ export function Footer() {
               Blending traditional Nepali craftsmanship with contemporary streetwear aesthetics.
             </p>
             <h3 className="text-md font-semibold mb-3">Stay Connected</h3>
-            <form className="flex gap-2">
-              <Label htmlFor="newsletter-email" className="sr-only">Email for newsletter</Label>
-              <Input type="email" id="newsletter-email" placeholder="Enter your email" className="flex-grow bg-background" />
-              <Button type="submit" variant="default" size="icon" aria-label="Subscribe to newsletter">
-                <Send className="h-4 w-4" />
-              </Button>
-            </form>
+            <NewsletterSignupForm className="flex-col sm:flex-col !items-start !max-w-none !mx-0 sm:gap-2" />
           </div>
 
           {/* Footer Navigation Links */}
@@ -93,13 +89,15 @@ export function Footer() {
         {/* Bottom Bar: Copyright and Social Links */}
         <div className="mt-16 pt-8 border-t border-border/60 flex flex-col md:flex-row justify-between items-center gap-6">
           <p className="text-xs text-muted-foreground">
-            &copy; {currentYear} Peak Pulse. All rights reserved.
+            &copy; {currentYear} Peak Pulse. All rights reserved. Based in Kathmandu, Nepal.
           </p>
           <div className="flex space-x-4">
             {socialLinks.map((social) => (
               <Link
                 key={social.label}
                 href={social.href}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="text-muted-foreground hover:text-primary transition-colors"
                 aria-label={social.label}
               >
@@ -112,3 +110,5 @@ export function Footer() {
     </footer>
   );
 }
+
+    

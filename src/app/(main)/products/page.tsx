@@ -19,42 +19,42 @@ import { Separator } from '@/components/ui/separator';
 const mockProducts: Product[] = [
   {
     id: 'prod-1', name: 'Himalayan Breeze Jacket', slug: 'himalayan-breeze-jacket', price: 12000,
-    images: [{ id: 'img-1', url: 'https://placehold.co/600x800.png?text=Jacket+1', altText: 'Jacket 1' }],
+    images: [{ id: 'img-1', url: 'https://placehold.co/600x800.png', altText: 'Himalayan Breeze Jacket front view' }],
     categories: [{ id: 'cat-1', name: 'Outerwear', slug: 'outerwear' }],
     shortDescription: 'Lightweight and versatile for urban adventures.',
     createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), description: "Full description here."
   },
   {
     id: 'prod-2', name: 'Kathmandu Comfort Tee', slug: 'kathmandu-comfort-tee', price: 3500,
-    images: [{ id: 'img-2', url: 'https://placehold.co/600x800.png?text=Tee+1', altText: 'Tee 1' }],
+    images: [{ id: 'img-2', url: 'https://placehold.co/600x800.png', altText: 'Kathmandu Comfort Tee front view' }],
     categories: [{ id: 'cat-2', name: 'Tops', slug: 'tops' }],
     shortDescription: 'Premium cotton for everyday luxury.',
     createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), description: "Full description here."
   },
   {
     id: 'prod-3', name: 'Urban Nomad Pants', slug: 'urban-nomad-pants', price: 7500,
-    images: [{ id: 'img-3', url: 'https://placehold.co/600x800.png?text=Pants+1', altText: 'Pants 1' }],
+    images: [{ id: 'img-3', url: 'https://placehold.co/600x800.png', altText: 'Urban Nomad Pants front view' }],
     categories: [{ id: 'cat-3', name: 'Bottoms', slug: 'bottoms' }],
     shortDescription: 'Street-ready style with traditional touches.',
     createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), description: "Full description here."
   },
   {
     id: 'prod-4', name: 'Silk Scarf Mandala', slug: 'silk-scarf-mandala', price: 4200, 
-    images: [{ id: 'img-4', url: 'https://placehold.co/600x800.png?text=Scarf+1', altText: 'Scarf 1' }], 
+    images: [{ id: 'img-4', url: 'https://placehold.co/600x800.png', altText: 'Silk Scarf with Mandala design' }], 
     categories: [{ id: 'cat-4', name: 'Accessories', slug: 'accessories' }], 
     shortDescription: 'Hand-painted pure silk elegance.',
     createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), description: "Full desc here"
   },
   {
     id: 'prod-5', name: 'Artisan Leather Wallet', slug: 'artisan-leather-wallet', price: 5800, 
-    images: [{ id: 'img-5', url: 'https://placehold.co/600x800.png?text=Wallet+1', altText: 'Wallet 1' }], 
+    images: [{ id: 'img-5', url: 'https://placehold.co/600x800.png', altText: 'Handcrafted Artisan Leather Wallet' }], 
     categories: [{ id: 'cat-4', name: 'Accessories', slug: 'accessories' }], 
     shortDescription: 'Handcrafted full-grain leather wallet.',
     createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), description: "Full desc here"
   },
    {
     id: 'prod-6', name: 'Everest Summit Hoodie', slug: 'everest-summit-hoodie', price: 9800, 
-    images: [{ id: 'img-6', url: 'https://placehold.co/600x800.png?text=Hoodie+1', altText: 'Hoodie 1' }], 
+    images: [{ id: 'img-6', url: 'https://placehold.co/600x800.png', altText: 'Everest Summit Hoodie' }], 
     categories: [{ id: 'cat-1', name: 'Outerwear', slug: 'outerwear' }], 
     shortDescription: 'Warmth and style inspired by the highest peaks.',
     createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), description: "Full desc here"
@@ -173,10 +173,8 @@ export default function ProductsPage() {
       
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
         {/* Filters Sidebar (Desktop) */}
-        {/* Header height: 5rem (h-20), Toolbar height: 4rem (h-10 button + py-3) */}
-        {/* Sidebar top: 5rem (header) + 4rem (toolbar) + 1px (toolbar border) = calc(9rem + 1px) */}
-        {/* Sidebar height: 100vh - (new top) - 2rem (bottom padding) = calc(100vh - 11rem - 1px) */}
-        <aside className="hidden lg:block lg:col-span-1 sticky top-[calc(9rem+1px)] h-[calc(100vh-11rem-1px)]">
+        {/* Header height: 5rem (h-20), Toolbar height: approx 3.25rem (button h-10 + py-3). Total approx 8.25rem + 1px border */}
+        <aside className="hidden lg:block lg:col-span-1 sticky top-[calc(theme(spacing.20)_+_4rem_+_1px)] h-[calc(100vh_-_theme(spacing.20)_-_4rem_-_1px_-_theme(spacing.16))]">
           <div className="bg-card rounded-lg shadow-sm border h-full">
              <FilterSidebarContent filters={mockFilters} />
           </div>
@@ -207,3 +205,4 @@ export default function ProductsPage() {
   );
 }
 
+    

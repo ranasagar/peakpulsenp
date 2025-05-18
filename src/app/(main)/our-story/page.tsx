@@ -1,9 +1,11 @@
 
 import Image from 'next/image';
 import { Card, CardContent } from '@/components/ui/card';
-import { Mountain, Users, Handshake, Sparkles } from 'lucide-react';
+import { Mountain, Users, Handshake, Sparkles, Facebook, Instagram, Twitter } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { AspectRatio } from '@/components/ui/aspect-ratio';
+import { Button } from '@/components/ui/button';
+import Link from 'next/link';
 
 export default function OurStoryPage() {
   return (
@@ -37,8 +39,8 @@ export default function OurStoryPage() {
                  <div className="rounded-xl overflow-hidden shadow-2xl">
                     <AspectRatio ratio={4/3}>
                     <Image 
-                        src="https://placehold.co/800x600.png?text=Nepali+Artisans" 
-                        alt="Nepali artisans working" 
+                        src="https://placehold.co/800x600.png"
+                        alt="Nepali artisans crafting traditional textiles" 
                         layout="fill"
                         objectFit="cover"
                         className="transition-transform duration-500 hover:scale-105"
@@ -66,8 +68,8 @@ export default function OurStoryPage() {
                 <div className="rounded-xl overflow-hidden shadow-2xl md:order-1">
                     <AspectRatio ratio={4/3}>
                     <Image 
-                        src="https://placehold.co/800x600.png?text=Textile+Details" 
-                        alt="Detailed view of fabric or craft" 
+                        src="https://placehold.co/800x600.png"
+                        alt="Detailed view of hand-woven fabric or intricate embroidery" 
                         layout="fill"
                         objectFit="cover"
                         className="transition-transform duration-500 hover:scale-105"
@@ -109,15 +111,28 @@ export default function OurStoryPage() {
                 <p className="text-lg text-muted-foreground mb-8 max-w-2xl mx-auto">
                 Follow us on social media for behind-the-scenes glimpses, artisan stories, and the latest from Peak Pulse. Be part of a community that values authenticity, quality, and conscious consumption.
                 </p>
-                {/* Placeholder for social links or button to a blog/gallery */}
                 <div className="flex justify-center space-x-4">
-                    {/* Example: <Button variant="outline">Follow on Instagram</Button> */}
-                    <p className="text-sm text-muted-foreground">Placeholder for social media links or a gallery.</p>
+                    <Button variant="outline" asChild>
+                       <Link href="https://instagram.com/peakpulse" target="_blank" rel="noopener noreferrer">
+                            <Instagram className="mr-2 h-5 w-5" /> Instagram
+                       </Link>
+                    </Button>
+                     <Button variant="outline" asChild>
+                       <Link href="https://facebook.com/peakpulse" target="_blank" rel="noopener noreferrer">
+                            <Facebook className="mr-2 h-5 w-5" /> Facebook
+                       </Link>
+                    </Button>
+                     <Button variant="outline" asChild>
+                       <Link href="https://twitter.com/peakpulse" target="_blank" rel="noopener noreferrer">
+                            <Twitter className="mr-2 h-5 w-5" /> Twitter
+                       </Link>
+                    </Button>
                 </div>
             </div>
         </section>
-
       </div>
     </>
   );
 }
+
+    

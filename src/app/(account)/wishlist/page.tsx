@@ -13,21 +13,21 @@ import { Heart, ShoppingBag } from 'lucide-react';
 const mockWishlistItems: Product[] = [
   { 
     id: 'prod-3', name: 'Urban Nomad Pants', slug: 'urban-nomad-pants', price: 7500, 
-    images: [{ id: 'img-wish-1', url: 'https://placehold.co/600x800.png?text=Pants', altText: 'Pants' }], 
+    images: [{ id: 'img-wish-1', url: 'https://placehold.co/600x800.png', altText: 'Urban Nomad Pants on wishlist' }], 
     categories: [{ id: 'cat-3', name: 'Bottoms', slug: 'bottoms' }], 
     shortDescription: 'Street-ready style with traditional touches.',
     createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), description: "Full desc here"
   },
   { 
     id: 'prod-4', name: 'Silk Scarf Mandala', slug: 'silk-scarf-mandala', price: 4200, 
-    images: [{ id: 'img-wish-2', url: 'https://placehold.co/600x800.png?text=Scarf', altText: 'Scarf' }], 
+    images: [{ id: 'img-wish-2', url: 'https://placehold.co/600x800.png', altText: 'Silk Scarf with Mandala design on wishlist' }], 
     categories: [{ id: 'cat-4', name: 'Accessories', slug: 'accessories' }], 
     shortDescription: 'Hand-painted pure silk elegance.',
     createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), description: "Full desc here"
   },
   { 
     id: 'prod-6', name: 'Everest Summit Hoodie', slug: 'everest-summit-hoodie', price: 9800, 
-    images: [{ id: 'img-wish-3', url: 'https://placehold.co/600x800.png?text=Hoodie', altText: 'Hoodie' }], 
+    images: [{ id: 'img-wish-3', url: 'https://placehold.co/600x800.png', altText: 'Everest Summit Hoodie on wishlist' }], 
     categories: [{ id: 'cat-1', name: 'Outerwear', slug: 'outerwear' }], 
     shortDescription: 'Warmth and style inspired by the highest peaks.',
     createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), description: "Full desc here"
@@ -113,3 +113,5 @@ export default function WishlistPage() {
     </div>
   );
 }
+
+    

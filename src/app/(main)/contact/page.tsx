@@ -157,12 +157,12 @@ export default function ContactPage() {
              <CardContent className="p-0">
                 <div className="aspect-video bg-muted">
                 <Image 
-                    src="https://placehold.co/600x400.png?text=Map+to+Peak+Pulse" 
-                    alt="Map showing location of Peak Pulse" 
+                    src="https://placehold.co/600x400.png"
+                    alt="Map showing location of Peak Pulse in Thamel, Kathmandu" 
                     width={600} 
                     height={400} 
                     className="w-full h-full object-cover"
-                    data-ai-hint="city map location"
+                    data-ai-hint="map kathmandu thamel"
                 />
                 {/* In a real app, you would embed a Google Map or similar */}
                 </div>
@@ -173,3 +173,5 @@ export default function ContactPage() {
     </div>
   );
 }
+
+    

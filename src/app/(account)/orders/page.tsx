@@ -18,7 +18,7 @@ const mockOrders: Order[] = [
     createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), 
     updatedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(), 
     totalAmount: 12000, currency: 'NPR', status: 'Shipped', 
-    items: [{ productId: 'prod-1', name: 'Himalayan Breeze Jacket', quantity: 1, price: 12000, imageUrl: 'https://placehold.co/50x50.png?text=Jacket', id: 'item-1' }],
+    items: [{ productId: 'prod-1', name: 'Himalayan Breeze Jacket', quantity: 1, price: 12000, imageUrl: 'https://placehold.co/50x50.png', id: 'item-1', dataAiHint: 'jacket fashion' }],
     shippingAddress: { fullName: 'Valued Customer', street: '123 Dharma Path', city: 'Kathmandu', postalCode: '44600', country: 'Nepal' },
     paymentStatus: 'paid',
   },
@@ -28,8 +28,8 @@ const mockOrders: Order[] = [
     updatedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), 
     totalAmount: 11000, currency: 'NPR', status: 'Delivered', 
     items: [
-      { productId: 'prod-2', name: 'Kathmandu Comfort Tee', quantity: 2, price: 3500, imageUrl: 'https://placehold.co/50x50.png?text=Tee', id: 'item-2' },
-      { productId: 'prod-5', name: 'Artisan Keychain', quantity: 1, price: 4000, imageUrl: 'https://placehold.co/50x50.png?text=Key', id: 'item-3' }
+      { productId: 'prod-2', name: 'Kathmandu Comfort Tee', quantity: 2, price: 3500, imageUrl: 'https://placehold.co/50x50.png', id: 'item-2', dataAiHint: 'tee shirt' },
+      { productId: 'prod-5', name: 'Artisan Keychain', quantity: 1, price: 4000, imageUrl: 'https://placehold.co/50x50.png', id: 'item-3', dataAiHint: 'keychain craft' }
     ],
     shippingAddress: { fullName: 'Valued Customer', street: '123 Dharma Path', city: 'Kathmandu', postalCode: '44600', country: 'Nepal' },
     paymentStatus: 'paid',
@@ -39,7 +39,7 @@ const mockOrders: Order[] = [
     createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(), 
     updatedAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(), 
     totalAmount: 7500, currency: 'NPR', status: 'Processing', 
-    items: [{ productId: 'prod-3', name: 'Urban Nomad Pants', quantity: 1, price: 7500, imageUrl: 'https://placehold.co/50x50.png?text=Pants', id: 'item-4' }],
+    items: [{ productId: 'prod-3', name: 'Urban Nomad Pants', quantity: 1, price: 7500, imageUrl: 'https://placehold.co/50x50.png', id: 'item-4', dataAiHint: 'pants fashion' }],
     shippingAddress: { fullName: 'Valued Customer', street: '123 Dharma Path', city: 'Kathmandu', postalCode: '44600', country: 'Nepal' },
     paymentStatus: 'paid',
   },
@@ -113,7 +113,7 @@ export default function OrdersPage() {
                       <TableCell>
                         <div className="flex items-center space-x-2">
                           {order.items.slice(0, 1).map(item => (
-                             <Image key={item.id} src={item.imageUrl || `https://placehold.co/40x40.png?text=${item.name.substring(0,1)}`} alt={item.name} width={40} height={40} className="rounded-md" data-ai-hint="product fashion"/>
+                             <Image key={item.id} src={item.imageUrl || `https://placehold.co/40x40.png`} alt={item.name} width={40} height={40} className="rounded-md" data-ai-hint={item.dataAiHint || "product fashion"}/>
                           ))}
                           <span>
                             {order.items[0].name}
@@ -158,3 +158,5 @@ export default function OrdersPage() {
     </div>
   );
 }
+
+    

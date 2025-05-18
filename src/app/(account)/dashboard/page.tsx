@@ -17,8 +17,8 @@ const mockRecentOrders: Partial<Order>[] = [
 ];
 
 const mockWishlistItems: Partial<Product>[] = [
-  { id: 'prod-3', name: 'Urban Nomad Pants', price: 7500, images: [{ id: 'img-wish-1', url: 'https://placehold.co/100x100.png?text=Pants' }] },
-  { id: 'prod-4', name: 'Silk Scarf Mandala', price: 4200, images: [{ id: 'img-wish-2', url: 'https://placehold.co/100x100.png?text=Scarf' }] },
+  { id: 'prod-3', name: 'Urban Nomad Pants', price: 7500, images: [{ id: 'img-wish-1', url: 'https://placehold.co/100x100.png' }] },
+  { id: 'prod-4', name: 'Silk Scarf Mandala', price: 4200, images: [{ id: 'img-wish-2', url: 'https://placehold.co/100x100.png' }] },
 ];
 
 export default function CustomerDashboardPage() {
@@ -121,7 +121,7 @@ export default function CustomerDashboardPage() {
         <div className="lg:col-span-1 space-y-8">
           <Card className="shadow-lg text-center p-6">
             <Avatar className="h-24 w-24 mx-auto mb-4 border-2 border-primary p-1">
-              <AvatarImage src={user.avatarUrl || `https://placehold.co/150x150.png?text=${user.name ? user.name.charAt(0) : 'P'}`} alt={user.name || 'User'} data-ai-hint="profile avatar" />
+              <AvatarImage src={user.avatarUrl || `https://placehold.co/150x150.png`} alt={user.name || 'User'} data-ai-hint="profile avatar user" />
               <AvatarFallback className="text-3xl">{user.name ? user.name.charAt(0).toUpperCase() : <User />}</AvatarFallback>
             </Avatar>
             <CardTitle className="text-xl mb-1">{user.name}</CardTitle>
@@ -162,3 +162,5 @@ export default function CustomerDashboardPage() {
     </div>
   );
 }
+
+    

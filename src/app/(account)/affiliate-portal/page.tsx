@@ -5,10 +5,12 @@
 // That layout checks for authentication and user roles ('affiliate' or 'admin').
 // If the user doesn't meet criteria, they'll see an access denied message from the layout.
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Briefcase, DollarSign, Link as LinkIcon, Users, BarChart3 } from 'lucide-react';
+import { Briefcase, DollarSign, Link as LinkIcon, Users, BarChart3, Download, FileText, Edit3 } from 'lucide-react';
 import Link from 'next/link';
+import { useToast } from '@/hooks/use-toast';
+
 
 // Mock Data - Replace with actual data fetching for the affiliate
 const mockAffiliateData = {
@@ -20,8 +22,7 @@ const mockAffiliateData = {
 };
 
 export default function AffiliatePortalPage() {
-  // The layout already handles auth and role checks.
-  // If we reach here, the user is authenticated and has 'affiliate' or 'admin' role.
+  const { toast } = useToast();
 
   return (
     <div className="container-wide section-padding">
@@ -92,7 +93,7 @@ export default function AffiliatePortalPage() {
           <Button 
             onClick={() => { 
                 navigator.clipboard.writeText(mockAffiliateData.uniqueLink);
-                // toast({ title: "Link Copied!" }); // Assuming toast is available
+                toast({ title: "Link Copied!", description: "Your referral link has been copied to the clipboard." });
             }}
             variant="outline"
             size="sm"
@@ -112,11 +113,10 @@ export default function AffiliatePortalPage() {
                 <CardDescription>Find marketing materials and best practices.</CardDescription>
             </CardHeader>
             <CardContent>
-                {/* Placeholder for links to resources */}
-                <ul className="list-disc list-inside space-y-2 text-sm text-muted-foreground">
-                    <li><Link href="#" className="hover:text-primary hover:underline">Download Brand Assets</Link></li>
-                    <li><Link href="#" className="hover:text-primary hover:underline">Affiliate Program Terms & Conditions</Link></li>
-                    <li><Link href="#" className="hover:text-primary hover:underline">Content Creation Guidelines</Link></li>
+                <ul className="list-disc list-inside space-y-3 text-sm">
+                    <li><Link href="/account/affiliate-portal/brand-assets" className="text-muted-foreground hover:text-primary hover:underline flex items-center"><Download className="mr-2 h-4 w-4"/>Download Brand Assets</Link></li>
+                    <li><Link href="/account/affiliate-portal/terms" className="text-muted-foreground hover:text-primary hover:underline flex items-center"><FileText className="mr-2 h-4 w-4"/>Affiliate Program Terms & Conditions</Link></li>
+                    <li><Link href="/account/affiliate-portal/content-guidelines" className="text-muted-foreground hover:text-primary hover:underline flex items-center"><Edit3 className="mr-2 h-4 w-4"/>Content Creation Guidelines</Link></li>
                 </ul>
             </CardContent>
         </Card>
@@ -126,10 +126,9 @@ export default function AffiliatePortalPage() {
                 <CardDescription>Manage your payment details and view payout history.</CardDescription>
             </CardHeader>
             <CardContent>
-                {/* Placeholder for payout info */}
-                <p className="text-sm text-muted-foreground mb-3">Next Payout Date: July 30, 2024 (Example)</p>
+                <p className="text-sm text-muted-foreground mb-3">Next Payout Date: {new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toLocaleDateString()} (Example)</p>
                 <Button variant="secondary" asChild>
-                    <Link href="#">View Payout History (Placeholder)</Link>
+                    <Link href="/account/affiliate-portal/payouts">View Payout History</Link>
                 </Button>
             </CardContent>
         </Card>
@@ -138,3 +137,5 @@ export default function AffiliatePortalPage() {
     </div>
   );
 }
+
+    

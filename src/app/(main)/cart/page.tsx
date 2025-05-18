@@ -14,8 +14,8 @@ import { useToast } from '@/hooks/use-toast';
 
 // Mock cart items - replace with actual cart state management (e.g., Context, Zustand, Redux)
 const initialMockCartItems: CartItem[] = [
-  { id: 'prod-1-m', productId: 'prod-1', variantId: 'var-m-blue', name: 'Himalayan Breeze Jacket (M)', price: 12000, quantity: 1, imageUrl: 'https://placehold.co/100x120.png?text=Jacket' },
-  { id: 'prod-2', productId: 'prod-2', name: 'Kathmandu Comfort Tee', price: 3500, quantity: 2, imageUrl: 'https://placehold.co/100x120.png?text=Tee' },
+  { id: 'prod-1-m', productId: 'prod-1', variantId: 'var-m-blue', name: 'Himalayan Breeze Jacket (M)', price: 12000, quantity: 1, imageUrl: 'https://placehold.co/100x120.png', dataAiHint: 'jacket fashion' },
+  { id: 'prod-2', productId: 'prod-2', name: 'Kathmandu Comfort Tee', price: 3500, quantity: 2, imageUrl: 'https://placehold.co/100x120.png', dataAiHint: 'tee shirt' },
 ];
 
 export default function CartPage() {
@@ -76,7 +76,7 @@ export default function CartPage() {
                         alt={item.name} 
                         width={100} height={120} 
                         className="w-full h-full object-cover"
-                        data-ai-hint="product fashion"
+                        data-ai-hint={item.dataAiHint || "product clothing"}
                     />
                   </div>
                   <div className="flex-grow">
@@ -149,3 +149,5 @@ export default function CartPage() {
     </div>
   );
 }
+
+    
