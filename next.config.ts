@@ -31,7 +31,13 @@ const nextConfig: NextConfig = {
       },
       {
         protocol: 'https',
-        hostname: 'assets.thenorthface.com', // Added new hostname
+        hostname: 'assets.thenorthface.com',
+        port: '',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'thepipebox.com', // Added new hostname
         port: '',
         pathname: '/**',
       }

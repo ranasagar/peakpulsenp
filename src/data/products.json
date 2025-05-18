@@ -183,7 +183,7 @@
     "images": [
       {
         "id": "img-1747584328634-3gkts",
-        "url": "https://thepipebox.com/cdn/shop/collections/womens-relaxed-t-shirt-heather-blue-lagoon-front-655ff78e6bacd.jpg?v=1709172803&width=750",
+        "url": "https://thepipebox.com/cdn/shop/collections/womens-relaxed-t-shirt-heather-blue-lagoon-front-655ff78e6bacd.jpg",
         "altText": "women relaxed",
         "dataAiHint": ""
       }
@@ -218,7 +218,7 @@
       "instructionsLabel": "Specific Instructions"
     },
     "createdAt": "2025-05-18T16:05:26.563Z",
-    "updatedAt": "2025-05-18T16:05:26.563Z",
+    "updatedAt": "2025-05-18T16:14:46.440Z",
     "averageRating": 0,
     "reviewCount": 0,
     "isFeatured": false
