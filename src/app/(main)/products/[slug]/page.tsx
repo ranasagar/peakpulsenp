@@ -18,6 +18,7 @@ import { AspectRatio } from '@/components/ui/aspect-ratio';
 import { useCart } from '@/context/cart-context';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 
 
 export default function ProductDetailPage({ params: paramsPromise }: { params: Promise<{ slug: string }> | { slug:string } }) {
@@ -441,3 +442,4 @@ export default function ProductDetailPage({ params: paramsPromise }: { params: P
 // Helper component for FormItem and FormControl to avoid prop drilling if not using RHF context directly here
 const FormFieldItem = ({ children }: { children: React.ReactNode }) => <div className="mb-4">{children}</div>;
 const FormControl = ({ children }: { children: React.ReactNode }) => <div>{children}</div>;
+
