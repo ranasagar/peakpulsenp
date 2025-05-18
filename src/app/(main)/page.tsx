@@ -23,7 +23,6 @@ interface HomepageContent {
 async function getHomepageContent(): Promise<HomepageContent> {
   try {
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:9002';
-    // Force no-cache to ensure fresh data from the API route that reads the JSON
     const res = await fetch(`${baseUrl}/api/content/homepage`, { cache: 'no-store' });
 
     if (!res.ok) {
@@ -34,8 +33,8 @@ async function getHomepageContent(): Promise<HomepageContent> {
         hero: {
           title: "Peak Pulse (Content API Error)",
           description: "Experience the fusion of ancient Nepali artistry and modern streetwear. (Content failed to load, displaying fallback)",
-          videoId: undefined, 
-          imageUrl: undefined, 
+          videoId: undefined,
+          imageUrl: undefined,
         },
         artisanalRoots: {
           title: "Our Artisanal Roots (Content API Error)",
@@ -43,7 +42,15 @@ async function getHomepageContent(): Promise<HomepageContent> {
         }
       };
     }
-    return res.json();
+    const jsonData = await res.json();
+    // Ensure videoId and imageUrl are undefined if they are empty strings from JSON
+    if (jsonData.hero && jsonData.hero.videoId === "") {
+      jsonData.hero.videoId = undefined;
+    }
+    if (jsonData.hero && jsonData.hero.imageUrl === "") {
+      jsonData.hero.imageUrl = undefined;
+    }
+    return jsonData;
   } catch (error) {
     console.error("Error fetching homepage content in page.tsx:", error);
     // Fallback content on any catch
@@ -77,11 +84,11 @@ export default async function HomePage() {
     <>
       {/* Hero Section - Updated for Full-Screen Immersive Experience */}
       <section
-        style={{ backgroundColor: 'black' }} // Ultimate fallback background if no video/image
+        style={{ backgroundColor: 'black' }} // Ultimate fallback background
         className="relative h-screen w-full overflow-hidden"
       >
         {/* Background Video/Image Container */}
-        <div className="absolute inset-0 z-0 w-full h-full overflow-hidden pointer-events-none">
+        <div className="absolute inset-0 z-0 w-full h-full overflow-hidden pointer-events-none bg-black"> {/* Added bg-black here */}
           {heroVideoId ? (
             <>
               <iframe
@@ -92,7 +99,7 @@ export default async function HomePage() {
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                 allowFullScreen={false}
               ></iframe>
-              <div className="absolute inset-0 bg-black/30 z-[1]"></div> {/* Overlay specifically for video */}
+              <div className="absolute inset-0 bg-black/30 z-[1]"></div> {/* Overlay for video */}
             </>
           ) : heroImageUrl ? (
             <>
@@ -102,11 +109,11 @@ export default async function HomePage() {
                 layout="fill"
                 objectFit="cover"
                 priority
-                data-ai-hint="fashion mountains nepal" // Ensure this hint is relevant or update in CMS
+                data-ai-hint="fashion mountains nepal"
               />
-              <div className="absolute inset-0 bg-black/30 z-[1]"></div> {/* Overlay specifically for image */}
+              <div className="absolute inset-0 bg-black/30 z-[1]"></div> {/* Overlay for image */}
             </>
-          ) : null} {/* If neither videoId nor imageUrl, the section's black background is visible */}
+          ) : null}
         </div>
 
         {/* Content Overlay */}
