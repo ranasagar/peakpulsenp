@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -43,15 +44,36 @@ AccordionTrigger.displayName = AccordionPrimitive.Trigger.displayName
 const AccordionContent = React.forwardRef<
   React.ElementRef<typeof AccordionPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof AccordionPrimitive.Content>
->(({ className, children, ...props }, ref) => (
-  <AccordionPrimitive.Content
-    ref={ref}
-    className="overflow-hidden text-sm transition-all data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down"
-    {...props}
-  >
-    <div className={cn("pb-4 pt-0", className)}>{children}</div>
-  </AccordionPrimitive.Content>
-))
+>(({ className, children, ...props }, ref) => {
+  const hasDangerousHtml = props.dangerouslySetInnerHTML !== undefined;
+
+  if (hasDangerousHtml) {
+    // If dangerouslySetInnerHTML is used, apply padding and user classes directly to AccordionPrimitive.Content
+    // and do not render the inner div or children prop.
+    return (
+      <AccordionPrimitive.Content
+        ref={ref}
+        className={cn(
+          "overflow-hidden text-sm transition-all data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down",
+          "pb-4 pt-0", // Default padding for content area
+          className     // User-provided classNames
+        )}
+        {...props} // This will pass dangerouslySetInnerHTML
+      />
+    );
+  }
+
+  // Default behavior: wrap children in a div with padding and user classes.
+  return (
+    <AccordionPrimitive.Content
+      ref={ref}
+      className="overflow-hidden text-sm transition-all data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down"
+      {...props} // Props here won't include dangerouslySetInnerHTML
+    >
+      <div className={cn("pb-4 pt-0", className)}>{children}</div>
+    </AccordionPrimitive.Content>
+  );
+})
 
 AccordionContent.displayName = AccordionPrimitive.Content.displayName
 
