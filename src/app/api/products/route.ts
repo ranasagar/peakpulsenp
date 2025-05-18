@@ -10,7 +10,11 @@ const filePath = path.join(process.cwd(), 'src', 'data', 'products.json');
 export async function GET() {
   try {
     const jsonData = await fs.readFile(filePath, 'utf-8');
-    const products: Product[] = JSON.parse(jsonData);
+    let products: Product[] = JSON.parse(jsonData);
+
+    // Sort products by createdAt date in descending order (newest first)
+    products.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
     return NextResponse.json(products);
   } catch (error) {
     console.error('Failed to read products.json:', error);
