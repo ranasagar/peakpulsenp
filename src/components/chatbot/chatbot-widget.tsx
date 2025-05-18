@@ -10,6 +10,7 @@ import { MessageSquare, Send, X, Bot, User, Loader2 } from 'lucide-react';
 import type { ChatMessage } from '@/types';
 import { aiChatbotConcierge } from '@/ai/flows/ai-chatbot-concierge';
 import type { AiChatbotConciergeInput } from '@/ai/flows/ai-chatbot-concierge';
+import { Icons } from '@/components/icons'; // Added import for Icons.Logo
 
 export function ChatbotWidget() {
   const [isOpen, setIsOpen] = useState(false);
@@ -93,8 +94,8 @@ export function ChatbotWidget() {
     <Card className="fixed bottom-6 right-6 w-full max-w-sm h-[70vh] max-h-[600px] z-50 flex flex-col shadow-2xl rounded-xl border-border/80 bg-card">
       <CardHeader className="flex flex-row items-center justify-between p-4 border-b">
         <div className="flex items-center space-x-2">
-            <Bot className="h-7 w-7 text-primary" />
-            <CardTitle className="text-lg font-semibold">Peak Pulse Concierge</CardTitle>
+            <Icons.Logo className="h-7 w-7 text-primary" /> 
+            <CardTitle className="text-lg font-semibold">Peak Pulse Help</CardTitle>
         </div>
         <Button variant="ghost" size="icon" onClick={() => setIsOpen(false)} className="h-8 w-8">
           <X className="h-5 w-5" />
@@ -107,7 +108,7 @@ export function ChatbotWidget() {
             {messages.map(msg => (
               <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                 <div className={`flex items-end max-w-[80%] gap-2 ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
-                    {msg.role === 'assistant' && <Bot className="h-6 w-6 mb-1 text-primary flex-shrink-0" />}
+                    {msg.role === 'assistant' && <Icons.Logo className="h-6 w-6 mb-1 text-primary flex-shrink-0" />}
                     {msg.role === 'user' && <User className="h-6 w-6 mb-1 text-accent flex-shrink-0" />}
                     <div
                     className={`px-4 py-2.5 rounded-xl text-sm
@@ -121,7 +122,7 @@ export function ChatbotWidget() {
             {isLoading && (
                 <div className="flex justify-start">
                     <div className="flex items-end max-w-[80%] gap-2">
-                        <Bot className="h-6 w-6 mb-1 text-primary flex-shrink-0" />
+                        <Icons.Logo className="h-6 w-6 mb-1 text-primary flex-shrink-0" />
                         <div className="px-4 py-2.5 rounded-xl text-sm bg-muted text-foreground rounded-bl-none">
                             <Loader2 className="h-5 w-5 animate-spin" />
                         </div>
