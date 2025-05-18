@@ -173,7 +173,10 @@ export default function ProductsPage() {
       
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
         {/* Filters Sidebar (Desktop) */}
-        <aside className="hidden lg:block lg:col-span-1 sticky top-[calc(5rem+2.75rem+1px)] h-[calc(100vh-5rem-2.75rem-2rem)]"> {/* Adjust top based on header and toolbar height */}
+        {/* Header height: 5rem (h-20), Toolbar height: 4rem (h-10 button + py-3) */}
+        {/* Sidebar top: 5rem (header) + 4rem (toolbar) + 1px (toolbar border) = calc(9rem + 1px) */}
+        {/* Sidebar height: 100vh - (new top) - 2rem (bottom padding) = calc(100vh - 11rem - 1px) */}
+        <aside className="hidden lg:block lg:col-span-1 sticky top-[calc(9rem+1px)] h-[calc(100vh-11rem-1px)]">
           <div className="bg-card rounded-lg shadow-sm border h-full">
              <FilterSidebarContent filters={mockFilters} />
           </div>
@@ -203,3 +206,4 @@ export default function ProductsPage() {
     </div>
   );
 }
+
