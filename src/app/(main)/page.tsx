@@ -38,6 +38,10 @@ interface HomepageContent {
     title: string;
     description: string;
   };
+  artisanalRoots?: { // Made optional for graceful fallback if not present
+    title: string;
+    description: string;
+  };
 }
 
 async function getHomepageContent(): Promise<HomepageContent> {
@@ -58,6 +62,10 @@ async function getHomepageContent(): Promise<HomepageContent> {
       hero: {
         title: "Peak Pulse (Fallback)",
         description: "Experience the fusion of ancient Nepali artistry and modern streetwear. (Content failed to load)"
+      },
+      artisanalRoots: {
+        title: "Our Artisanal Roots (Fallback)",
+        description: "At Peak Pulse, every thread tells a story. (Content failed to load)"
       }
     };
   }
@@ -67,6 +75,10 @@ export default async function HomePage() {
   const content = await getHomepageContent();
   const heroTitle = content.hero?.title || "Peak Pulse";
   const heroDescription = content.hero?.description || "Experience the fusion of ancient Nepali artistry and modern streetwear.";
+  
+  const artisanalRootsTitle = content.artisanalRoots?.title || "Our Artisanal Roots";
+  const artisanalRootsDescription = content.artisanalRoots?.description || "At Peak Pulse, every thread tells a story. We partner with local artisans in Nepal, preserving centuries-old techniques while innovating for today's global citizen.";
+
   const videoId = "gCRNEJxDJKM"; // Extracted from https://youtu.be/gCRNEJxDJKM
 
   return (
@@ -77,6 +89,7 @@ export default async function HomePage() {
         <div className="absolute inset-0 z-0 w-full h-full overflow-hidden pointer-events-none">
           <iframe
             className="absolute top-1/2 left-1/2 min-w-full min-h-full w-auto h-auto transform -translate-x-1/2 -translate-y-1/2"
+            style={{ aspectRatio: '16/9' }} // Maintain aspect ratio
             src={`https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&loop=1&playlist=${videoId}&controls=0&showinfo=0&autohide=1&modestbranding=1&playsinline=1&enablejsapi=1`}
             title="Peak Pulse Background Video"
             frameBorder="0"
@@ -118,9 +131,9 @@ export default async function HomePage() {
       {/* Brand Story Snippet Section */}
       <section className="bg-card section-padding">
         <div className="container-slim text-center">
-          <h2 className="text-3xl font-bold mb-6 text-foreground">Our Artisanal Roots</h2>
+          <h2 className="text-3xl font-bold mb-6 text-foreground">{artisanalRootsTitle}</h2>
           <p className="text-lg text-muted-foreground mb-8 max-w-xl mx-auto">
-            At Peak Pulse, every thread tells a story. We partner with local artisans in Nepal, preserving centuries-old techniques while innovating for today's global citizen.
+            {artisanalRootsDescription}
           </p>
           <Button variant="default" size="lg" asChild className="text-base">
             <Link href="/our-story">Discover Our Story <ArrowRight className="ml-2 h-5 w-5" /></Link>

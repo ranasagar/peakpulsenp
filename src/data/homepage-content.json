@@ -1,6 +1,11 @@
+
 {
   "hero": {
     "title": "Peak Pulse: Ascend in Style",
     "description": "Discover unique apparel where Nepali heritage meets contemporary design. Adventure awaits."
+  },
+  "artisanalRoots": {
+    "title": "Our Artisanal Roots",
+    "description": "At Peak Pulse, every thread tells a story. We partner with local artisans in Nepal, preserving centuries-old techniques while innovating for today's global citizen."
   }
 }
