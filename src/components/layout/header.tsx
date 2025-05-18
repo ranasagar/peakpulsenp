@@ -99,7 +99,7 @@ export function Header() {
         <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
           <SheetTrigger asChild>
             <Button variant="ghost" size="icon" className="md:hidden mr-4">
-              <Icons.AnimatedMenuIcon className="h-7 w-7" /> {/* Increased size */}
+              <Icons.AnimatedMenuIcon className="h-8 w-8" /> {/* Adjusted size */}
               <span className="sr-only">Toggle Menu</span>
             </Button>
           </SheetTrigger>
