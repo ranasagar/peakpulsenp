@@ -26,7 +26,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
+  // AlertDialogTrigger, // No longer needed as direct trigger for each button
 } from "@/components/ui/alert-dialog";
 
 export default function AdminOrdersPage() {
@@ -34,8 +34,10 @@ export default function AdminOrdersPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
+  
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
   const [selectedStatus, setSelectedStatus] = useState<OrderStatus | undefined>(undefined);
+  const [isStatusDialogOpen, setIsStatusDialogOpen] = useState(false); // New state for dialog visibility
 
   const fetchOrders = async () => {
     setIsLoading(true);
@@ -61,9 +63,10 @@ export default function AdminOrdersPage() {
     fetchOrders();
   }, []);
 
-  const handleStatusChange = (orderId: string, newStatus: OrderStatus) => {
-    setEditingOrder(orders.find(o => o.id === orderId) || null);
-    setSelectedStatus(newStatus);
+  const handleOpenStatusDialog = (order: Order) => {
+    setEditingOrder(order);
+    setSelectedStatus(order.status); // Pre-fill with current status
+    setIsStatusDialogOpen(true);
   };
 
   const confirmStatusUpdate = async () => {
@@ -82,11 +85,9 @@ export default function AdminOrdersPage() {
       }
       toast({ title: "Order Status Updated", description: `Order ${editingOrder.id} status changed to ${selectedStatus}.`, action: <CheckCircle className="text-green-500"/> });
       fetchOrders(); // Refresh the orders list
+      setIsStatusDialogOpen(false); // Close dialog on success
     } catch (err) {
       toast({ title: "Update Failed", description: (err as Error).message, variant: "destructive", action: <XCircle className="text-red-500"/> });
-    } finally {
-      setEditingOrder(null);
-      setSelectedStatus(undefined);
     }
   };
 
@@ -96,7 +97,7 @@ export default function AdminOrdersPage() {
       case 'Delivered': return 'default';
       case 'Shipped': return 'secondary';
       case 'Processing': return 'outline';
-      case 'Pending': return 'outline'; // Same as processing for now
+      case 'Pending': return 'outline'; 
       case 'Cancelled': return 'destructive';
       case 'Refunded': return 'destructive';
       default: return 'secondary';
@@ -113,7 +114,7 @@ export default function AdminOrdersPage() {
     }
   };
 
-  if (isLoading && !error) { // Show loader only if no error
+  if (isLoading && !error) { 
     return (
       <Card>
         <CardHeader>
@@ -191,11 +192,10 @@ export default function AdminOrdersPage() {
                         </Badge>
                       </TableCell>
                       <TableCell className="text-center">
-                         <AlertDialogTrigger asChild>
-                           <Button variant="outline" size="sm" onClick={() => { setEditingOrder(order); setSelectedStatus(order.status); }}>
+                         {/* Changed from AlertDialogTrigger to regular Button */}
+                           <Button variant="outline" size="sm" onClick={() => handleOpenStatusDialog(order)}>
                               <Edit className="mr-1.5 h-3 w-3" /> Status
                            </Button>
-                        </AlertDialogTrigger>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -206,36 +206,54 @@ export default function AdminOrdersPage() {
         </CardContent>
       </Card>
 
-      {editingOrder && (
-         <AlertDialog open={!!editingOrder} onOpenChange={(open) => { if(!open) {setEditingOrder(null); setSelectedStatus(undefined);}}}>
-            <AlertDialogContent>
-                <AlertDialogHeader>
+      <AlertDialog 
+        open={isStatusDialogOpen} 
+        onOpenChange={(open) => {
+          setIsStatusDialogOpen(open);
+          if (!open) {
+            setEditingOrder(null);
+            setSelectedStatus(undefined);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          {editingOrder ? (
+            <>
+              <AlertDialogHeader>
                 <AlertDialogTitle>Update Status for Order {editingOrder.id}</AlertDialogTitle>
                 <AlertDialogDescription>
-                    Select the new status for this order. This action will update the order details.
+                  Select the new status for this order. This action will update the order details.
                 </AlertDialogDescription>
-                </AlertDialogHeader>
-                <div className="py-4">
-                <Select onValueChange={(value) => setSelectedStatus(value as OrderStatus)} defaultValue={editingOrder.status}>
-                    <SelectTrigger className="w-full">
+              </AlertDialogHeader>
+              <div className="py-4">
+                <Select 
+                  onValueChange={(value) => setSelectedStatus(value as OrderStatus)} 
+                  defaultValue={selectedStatus || editingOrder.status}
+                >
+                  <SelectTrigger className="w-full">
                     <SelectValue placeholder="Select new status" />
-                    </SelectTrigger>
-                    <SelectContent>
+                  </SelectTrigger>
+                  <SelectContent>
                     {ALL_ORDER_STATUSES.map(status => (
-                        <SelectItem key={status} value={status}>{status}</SelectItem>
+                      <SelectItem key={status} value={status}>{status}</SelectItem>
                     ))}
-                    </SelectContent>
+                  </SelectContent>
                 </Select>
-                </div>
-                <AlertDialogFooter>
-                <AlertDialogCancel onClick={() => { setEditingOrder(null); setSelectedStatus(undefined); }}>Cancel</AlertDialogCancel>
+              </div>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel> {/* Default close behavior will trigger onOpenChange */}
                 <AlertDialogAction onClick={confirmStatusUpdate} disabled={!selectedStatus || selectedStatus === editingOrder.status}>
-                    Update Status
+                  Update Status
                 </AlertDialogAction>
-                </AlertDialogFooter>
-            </AlertDialogContent>
-         </AlertDialog>
-      )}
+              </AlertDialogFooter>
+            </>
+          ) : (
+            <div className="flex justify-center items-center p-8">
+              <Loader2 className="h-6 w-6 animate-spin text-primary"/>
+            </div>
+          )}
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
