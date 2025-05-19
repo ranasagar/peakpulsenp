@@ -12,11 +12,7 @@ import { useCart } from '@/context/cart-context';
 // Import clsx and twMerge directly
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
-
-// Helper function similar to cn, but defined locally
-function localCn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs))
-}
+import { cn } from '@/lib/utils'; // Keep using cn from lib/utils
 
 interface ProductCardProps {
   product: Product;
@@ -37,7 +33,7 @@ export function ProductCard({ product, className }: ProductCardProps) {
   };
 
   return (
-    <Card className={localCn(`group relative overflow-hidden rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 border-border/60`, className)}>
+    <Card className={cn(`group relative overflow-hidden rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 border-border/60`, className)}>
       <Link href={`/products/${product.slug}`} className="block">
         <CardContent className="p-0">
           <AspectRatio ratio={3 / 4} className="bg-muted">
@@ -76,21 +72,23 @@ export function ProductCard({ product, className }: ProductCardProps) {
                         <span className="ml-2 text-sm text-muted-foreground line-through">रू{product.compareAtPrice.toLocaleString()}</span>
                     )}
                 </p>
+                {/* Text button - visible on hover on md screens and up */}
                 <Button
-                variant="outline"
-                size="sm"
-                onClick={handleAddToCart}
-                className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleAddToCart}
+                  className="hidden md:inline-flex opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap"
                 >
-                <ShoppingCart className="mr-2 h-4 w-4" /> Add to Cart
+                  <ShoppingCart className="mr-2 h-4 w-4" /> Add to Cart
                 </Button>
+                {/* Icon button - visible on screens smaller than md, hidden on hover if text button appears */}
                 <Button
-                variant="default"
-                size="icon"
-                onClick={handleAddToCart}
-                className="opacity-100 group-hover:opacity-0 transition-opacity duration-300 md:hidden"
+                  variant="default"
+                  size="icon"
+                  onClick={handleAddToCart}
+                  className="inline-flex md:hidden group-hover:opacity-0 md:group-hover:opacity-100" // Icon remains on md+ if text button is NOT hovered
                 >
-                <ShoppingCart className="h-4 w-4" />
+                  <ShoppingCart className="h-4 w-4" />
                 </Button>
             </div>
         </div>
