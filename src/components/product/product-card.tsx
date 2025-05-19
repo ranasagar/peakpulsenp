@@ -9,10 +9,7 @@ import type { Product } from '@/types';
 import { ShoppingCart, Heart } from 'lucide-react';
 import { AspectRatio } from "@/components/ui/aspect-ratio"
 import { useCart } from '@/context/cart-context';
-// Import clsx and twMerge directly
-import { clsx, type ClassValue } from "clsx"
-import { twMerge } from "tailwind-merge"
-import { cn } from '@/lib/utils'; // Keep using cn from lib/utils
+import { cn } from '@/lib/utils'; // Ensure cn is imported
 
 interface ProductCardProps {
   product: Product;
@@ -30,6 +27,7 @@ export function ProductCard({ product, className }: ProductCardProps) {
   const handleToggleWishlist = (e: React.MouseEvent) => {
     e.preventDefault();
     console.log(`Toggled wishlist for: ${product.name}`);
+    // Add actual wishlist logic here using a context or API call
   };
 
   return (
@@ -72,7 +70,6 @@ export function ProductCard({ product, className }: ProductCardProps) {
                         <span className="ml-2 text-sm text-muted-foreground line-through">रू{product.compareAtPrice.toLocaleString()}</span>
                     )}
                 </p>
-                {/* Text button - visible on hover on md screens and up */}
                 <Button
                   variant="outline"
                   size="sm"
@@ -81,12 +78,11 @@ export function ProductCard({ product, className }: ProductCardProps) {
                 >
                   <ShoppingCart className="mr-2 h-4 w-4" /> Add to Cart
                 </Button>
-                {/* Icon button - visible on screens smaller than md, hidden on hover if text button appears */}
                 <Button
                   variant="default"
                   size="icon"
                   onClick={handleAddToCart}
-                  className="inline-flex md:hidden group-hover:opacity-0 md:group-hover:opacity-100" // Icon remains on md+ if text button is NOT hovered
+                  className="inline-flex md:hidden md:group-hover:opacity-0"
                 >
                   <ShoppingCart className="h-4 w-4" />
                 </Button>
