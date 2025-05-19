@@ -1,12 +1,70 @@
+
 {
-  "hero": {
-    "title": "Peak Pulse: Ascend in Style",
-    "description": "Discover unique apparel where Nepali heritage meets contemporary design. Adventure awaits.",
-    "videoId": "W8f79_5tOIg",
-    "imageUrl": "https://catalog-resize-images.thedoublef.com/606bc76216f1f9cb1ad8281eb9b7e84e/900/900/NF0A4QYXNY_P_NORTH-ZU31.a.jpg"
-  },
+  "heroSlides": [
+    {
+      "id": "slide1",
+      "title": "Peak Pulse: Ascend in Style",
+      "description": "Discover unique apparel where Nepali heritage meets contemporary design. Adventure awaits.",
+      "imageUrl": "https://images.unsplash.com/photo-1552668693-2be515a07459?q=80&w=1920&h=1080&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+      "altText": "Model wearing Peak Pulse jacket in mountains",
+      "dataAiHint": "nepal fashion mountains",
+      "videoId": "gCRNEJxDJKM",
+      "ctaText": "Explore Collection",
+      "ctaLink": "/products"
+    },
+    {
+      "id": "slide2",
+      "title": "Crafted with Heritage",
+      "description": "Each piece tells a story of tradition, ethically made by Nepali artisans.",
+      "imageUrl": "https://images.unsplash.com/photo-1582804856632-193078531506?q=80&w=1920&h=1080&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+      "altText": "Artisan weaving fabric",
+      "dataAiHint": "nepali artisan craft",
+      "ctaText": "Our Story",
+      "ctaLink": "/our-story"
+    },
+    {
+      "id": "slide3",
+      "title": "New Arrivals: Urban Explorer",
+      "description": "Fresh designs for the city adventurer. Durable, stylish, and unique.",
+      "imageUrl": "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=1920&h=1080&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+      "altText": "Model in urban streetwear",
+      "dataAiHint": "streetwear fashion urban",
+      "ctaText": "Shop New",
+      "ctaLink": "/products?sort=newest"
+    }
+  ],
   "artisanalRoots": {
     "title": "Our Artisanal Roots",
     "description": "At Peak Pulse, every thread tells a story. We partner with local artisans in Nepal, preserving centuries-old techniques while innovating for today's global citizen."
-  }
+  },
+  "socialCommerceItems": [
+    {
+      "id": "insta1",
+      "imageUrl": "https://placehold.co/400x400.png?text=Insta+1",
+      "linkUrl": "https://instagram.com/peakpulsenp",
+      "altText": "Peak Pulse style on Instagram 1",
+      "dataAiHint": "instagram fashion user"
+    },
+    {
+      "id": "insta2",
+      "imageUrl": "https://placehold.co/400x400.png?text=Insta+2",
+      "linkUrl": "https://instagram.com/peakpulsenp",
+      "altText": "Peak Pulse style on Instagram 2",
+      "dataAiHint": "user generated content"
+    },
+    {
+      "id": "insta3",
+      "imageUrl": "https://placehold.co/400x400.png?text=Insta+3",
+      "linkUrl": "https://instagram.com/peakpulsenp",
+      "altText": "Peak Pulse style on Instagram 3",
+      "dataAiHint": "lifestyle clothing photo"
+    },
+    {
+      "id": "insta4",
+      "imageUrl": "https://placehold.co/400x400.png?text=Insta+4",
+      "linkUrl": "https://instagram.com/peakpulsenp",
+      "altText": "Peak Pulse style on Instagram 4",
+      "dataAiHint": "fashion influencer post"
+    }
+  ]
 }

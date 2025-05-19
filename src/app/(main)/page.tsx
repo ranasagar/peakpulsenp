@@ -5,67 +5,89 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { ProductCard } from '@/components/product/product-card';
-import type { Product, HeroSlide } from '@/types'; // Added HeroSlide
-import { ArrowRight, Instagram, Send, ShoppingBag, ChevronLeft, ChevronRight as ChevronRightIcon, Dot } from 'lucide-react'; // Added Chevron icons and Dot
+import type { Product, HeroSlide, HomepageContent, SocialCommerceItem } from '@/types';
+import { ArrowRight, Instagram, Send, ShoppingBag, ChevronLeft, ChevronRight as ChevronRightIcon } from 'lucide-react';
 import { NewsletterSignupForm } from '@/components/forms/newsletter-signup-form';
-import { AspectRatio } from '@/components/ui/aspect-ratio'; // Make sure AspectRatio is imported
-import React, { useState, useEffect, useCallback } from 'react'; // Added React imports for carousel
-
-interface HomepageContent {
-  heroSlides?: HeroSlide[]; // Changed to heroSlides array
-  artisanalRoots?: {
-    title: string;
-    description: string;
-  };
-}
+import { AspectRatio } from "@/components/ui/aspect-ratio";
+import React, { useState, useEffect, useCallback } from 'react';
 
 // Fallback content if API fails or content is missing
 const fallbackContent: HomepageContent = {
   heroSlides: [
     {
       id: 'fallback-1',
-      title: "Peak Pulse (Content Error)",
-      description: "Timeless Nepali Craft, Modern Edge. (Fallback Content)",
+      title: "Peak Pulse (Network Error)",
+      description: "Experience the fusion of ancient Nepali artistry and modern streetwear. (Content failed to load, displaying fallback)",
       imageUrl: "https://images.unsplash.com/photo-1552668693-2be515a07459?q=80&w=1920&h=1080&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
-      altText: "Fallback hero image",
-      dataAiHint: "nepal fashion mountains",
-      ctaText: "Explore Collection",
+      altText: "Fallback hero image: model in scenic location",
+      dataAiHint: "fashion model scenic",
+      ctaText: "Explore Now",
       ctaLink: "/products"
     }
   ],
   artisanalRoots: {
     title: "Our Artisanal Roots (Error)",
-    description: "Content failed to load. We partner with local artisans in Nepal, preserving centuries-old techniques while innovating for today's global citizen."
-  }
+    description: "Details about our craftsmanship are currently unavailable. We partner with local artisans in Nepal, preserving centuries-old techniques while innovating for today's global citizen."
+  },
+  socialCommerceItems: [
+    { id: 'social-fallback-1', imageUrl: 'https://placehold.co/400x400.png?text=Social+1', linkUrl: '#', altText: 'Social Post 1', dataAiHint: 'social fashion' },
+    { id: 'social-fallback-2', imageUrl: 'https://placehold.co/400x400.png?text=Social+2', linkUrl: '#', altText: 'Social Post 2', dataAiHint: 'social lifestyle' },
+  ]
 };
 
 async function getHomepageContent(): Promise<HomepageContent> {
+  const fetchUrl = `${process.env.NEXT_PUBLIC_APP_URL || ''}/api/content/homepage`;
+  console.log(`[Client Fetch] Attempting to fetch from: ${fetchUrl}`);
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || '';
-    const res = await fetch(`${baseUrl}/api/content/homepage`, { cache: 'no-store' });
+    const res = await fetch(fetchUrl, { cache: 'no-store' });
 
     if (!res.ok) {
       const errorBody = await res.text();
-      console.error(`Failed to fetch homepage content: ${res.status} ${res.statusText}`, errorBody);
-      // Return a structured fallback with an empty or default hero slide array
+      console.error(`[Client Fetch] Failed to fetch content: ${res.status} ${res.statusText}`, errorBody);
+      // Return a structured fallback that matches HomepageContent
       return {
-        heroSlides: fallbackContent.heroSlides,
-        artisanalRoots: fallbackContent.artisanalRoots
+        ...fallbackContent, // Use the base fallback
+        heroSlides: [{ // Ensure at least one valid slide
+          ...fallbackContent.heroSlides![0],
+          title: "Homepage Content Error",
+          description: `Could not load homepage details. Status: ${res.status}. Please try again later.`,
+          videoId: undefined, // Explicitly undefined
+          imageUrl: fallbackContent.heroSlides![0].imageUrl, // Ensure a valid image for fallback
+        }],
       };
     }
     const jsonData: HomepageContent = await res.json();
-    // Ensure heroSlides is an array, default to fallback if not
+    console.log("[Client Fetch] Successfully fetched content:", jsonData);
+    // Ensure heroSlides is an array and has at least one item, default to fallback if not
     if (!Array.isArray(jsonData.heroSlides) || jsonData.heroSlides.length === 0) {
+      console.warn("[Client Fetch] Fetched heroSlides was empty or not an array, using fallback.");
       jsonData.heroSlides = fallbackContent.heroSlides;
+    } else {
+       // Ensure each slide has necessary properties
+       jsonData.heroSlides = jsonData.heroSlides.map(slide => ({
+           ...fallbackContent.heroSlides![0], // Spread default slide properties first
+           ...slide // Then override with actual slide data
+       }));
     }
-    // Ensure artisanalRoots has fallback if missing
     if (!jsonData.artisanalRoots || !jsonData.artisanalRoots.title) {
       jsonData.artisanalRoots = fallbackContent.artisanalRoots;
     }
+    if (!Array.isArray(jsonData.socialCommerceItems)) {
+      jsonData.socialCommerceItems = fallbackContent.socialCommerceItems;
+    }
     return jsonData;
   } catch (error) {
-    console.error("Error in getHomepageContent:", error);
-    return fallbackContent;
+    console.error("[Client Fetch] CRITICAL ERROR in getHomepageContent:", error);
+     return {
+        ...fallbackContent,
+        heroSlides: [{
+          ...fallbackContent.heroSlides![0],
+          title: "Network Error",
+          description: "Could not connect to fetch homepage details. Please check your connection.",
+          videoId: undefined,
+          imageUrl: fallbackContent.heroSlides![0].imageUrl,
+        }],
+      };
   }
 }
 
@@ -74,9 +96,11 @@ export default function HomePage() {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isLoadingContent, setIsLoadingContent] = useState(true);
 
-  const heroSlides = content.heroSlides || fallbackContent.heroSlides || [];
+  const heroSlides = content.heroSlides || [];
   const artisanalRootsTitle = content.artisanalRoots?.title || fallbackContent.artisanalRoots?.title || "Our Artisanal Roots";
   const artisanalRootsDescription = content.artisanalRoots?.description || fallbackContent.artisanalRoots?.description || "Details about our craftsmanship are currently unavailable.";
+  const socialCommerceItems = content.socialCommerceItems || fallbackContent.socialCommerceItems || [];
+
 
   useEffect(() => {
     const loadContent = async () => {
@@ -89,24 +113,29 @@ export default function HomePage() {
   }, []);
 
   const nextSlide = useCallback(() => {
-    setCurrentSlide((prev) => (prev === heroSlides.length - 1 ? 0 : prev + 1));
+    if (heroSlides.length > 0) {
+      setCurrentSlide((prev) => (prev === heroSlides.length - 1 ? 0 : prev + 1));
+    }
   }, [heroSlides.length]);
 
   const prevSlide = () => {
-    setCurrentSlide((prev) => (prev === 0 ? heroSlides.length - 1 : prev - 1));
+    if (heroSlides.length > 0) {
+      setCurrentSlide((prev) => (prev === 0 ? heroSlides.length - 1 : prev - 1));
+    }
   };
 
   useEffect(() => {
     if (heroSlides.length > 1) {
-      const slideInterval = setInterval(nextSlide, 7000); // Auto-slide every 7 seconds
+      const slideInterval = setInterval(nextSlide, 7000);
       return () => clearInterval(slideInterval);
     }
   }, [heroSlides.length, nextSlide]);
 
-  if (isLoadingContent) {
-    // Basic loading state, can be improved with a skeleton loader
+  if (isLoadingContent && !content.heroSlides?.length) { // Show loader only if no slides available yet
     return <div className="h-screen flex items-center justify-center">Loading Peak Pulse...</div>;
   }
+
+  const activeSlide = heroSlides[currentSlide] || fallbackContent.heroSlides![0];
 
 
   return (
@@ -118,7 +147,6 @@ export default function HomePage() {
             key={slide.id || index}
             className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${index === currentSlide ? 'opacity-100' : 'opacity-0'}`}
           >
-            {/* Background Video/Image Container */}
             <div className="absolute inset-0 z-0 pointer-events-none">
               {slide.videoId ? (
                 <>
@@ -148,7 +176,6 @@ export default function HomePage() {
               ) : null}
             </div>
 
-            {/* Content Overlay for each slide */}
             <div className="relative z-20 flex flex-col items-center justify-center h-full pt-[calc(theme(spacing.20)_+_theme(spacing.6))] pb-12 px-6 md:px-8 text-center text-white max-w-3xl mx-auto">
               <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-6 text-shadow-lg">
                 {slide.title}
@@ -157,7 +184,7 @@ export default function HomePage() {
                 {slide.description}
               </p>
               {slide.ctaText && slide.ctaLink && (
-                <Button size="lg" asChild className="text-base md:text-lg py-3 px-8 animate-fade-in-up">
+                <Button size="lg" asChild className="text-base md:text-lg py-3 px-8">
                   <Link href={slide.ctaLink}>{slide.ctaText} <ShoppingBag className="ml-2 h-5 w-5" /></Link>
                 </Button>
               )}
@@ -165,7 +192,6 @@ export default function HomePage() {
           </div>
         ))}
 
-        {/* Carousel Navigation */}
         {heroSlides.length > 1 && (
           <>
             <Button
@@ -238,32 +264,35 @@ export default function HomePage() {
         <h2 className="text-3xl font-bold text-center mb-12 text-foreground">
           #PeakPulseStyle <Instagram className="inline-block ml-2 h-7 w-7 text-pink-500" />
         </h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
-          {[1, 2, 3, 4].map(i => (
-            <Link
-              key={i}
-              href="https://instagram.com/peakpulsenp"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="block group relative rounded-lg overflow-hidden shadow-md hover:shadow-xl transition-all duration-300"
-            >
-              <AspectRatio ratio={1 / 1} className="bg-muted">
-                <Image
-                  src={`https://placehold.co/400x400.png?text=Post+${i}`} // Added text to placeholder for distinction
-                  alt={`User generated content showcasing Peak Pulse style ${i}`}
-                  fill
-                  className="object-cover group-hover:scale-105 transition-transform duration-500 ease-in-out"
-                  data-ai-hint="instagram fashion user"
-                />
-              </AspectRatio>
-              {/* Hover Overlay */}
-              <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 ease-in-out">
-                <Instagram className="h-10 w-10 text-white mb-2" />
-                <p className="text-sm font-semibold text-white">View on Instagram</p>
-              </div>
-            </Link>
-          ))}
-        </div>
+        {socialCommerceItems.length > 0 ? (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+            {socialCommerceItems.map(item => (
+              <Link
+                key={item.id}
+                href={item.linkUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block group relative rounded-lg overflow-hidden shadow-md hover:shadow-xl transition-all duration-300"
+              >
+                <AspectRatio ratio={1 / 1} className="bg-muted">
+                  <Image
+                    src={item.imageUrl || `https://placehold.co/400x400.png?text=Social+Post`}
+                    alt={item.altText || `Peak Pulse style shared by community`}
+                    fill // Changed from layout="fill" to fill for Next 13+
+                    className="object-cover group-hover:scale-105 transition-transform duration-500 ease-in-out"
+                    data-ai-hint={item.dataAiHint || "instagram fashion user"}
+                  />
+                </AspectRatio>
+                <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 ease-in-out">
+                  <Instagram className="h-10 w-10 text-white mb-2" />
+                  <p className="text-sm font-semibold text-white">View on Instagram</p>
+                </div>
+              </Link>
+            ))}
+          </div>
+        ) : (
+          <p className="text-center text-muted-foreground">Follow us on Instagram @peakpulsenp to see more styles!</p>
+        )}
         <div className="text-center mt-12">
             <Button variant="secondary" asChild>
                 <Link href="https://instagram.com/peakpulsenp" target="_blank" rel="noopener noreferrer">

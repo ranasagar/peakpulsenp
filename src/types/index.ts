@@ -7,7 +7,6 @@ export interface User {
   name?: string; // Firebase displayName
   avatarUrl?: string; // Firebase photoURL
   roles: string[]; // e.g., ['customer', 'vip', 'affiliate', 'admin'] - needs separate logic to populate
-  // E-commerce specific fields (would be stored in Firestore/RTDB, not directly on Firebase Auth user)
   wishlist?: string[]; // Array of product IDs
   orders?: string[]; // Array of order IDs
 }
@@ -78,18 +77,18 @@ export interface Product {
   categories: Pick<Category, 'id' | 'name' | 'slug'>[];
   collections?: Pick<Collection, 'id' | 'name' | 'slug'>[];
   tags?: string[];
-  // Detailed Product Page fields
   fabricDetails?: string;
   careInstructions?: string;
   sustainabilityMetrics?: string;
-  fitGuide?: string; // Could be text or link to a fit predictor tool
-  sku?: string; // Base SKU if no variants or for default variant
-  stock?: number; // Base stock if no variants (calculated from variants if they exist)
+  fitGuide?: string;
+  sku?: string;
+  stock?: number;
   averageRating?: number;
   reviewCount?: number;
   isFeatured?: boolean;
   availablePrintDesigns?: PrintDesign[];
   customizationConfig?: ProductCustomizationConfig;
+  reviews?: Review[]; // Added for product reviews
   createdAt: string; // ISO string
   updatedAt: string; // ISO string
 }
@@ -106,7 +105,7 @@ export interface CartItemCustomization {
 }
 
 export interface CartItem {
-  id: string; // Unique ID for this cart line item (e.g., productId-variantId-timestampForCustom)
+  id: string;
   productId: string;
   variantId?: string;
   name: string;
@@ -130,24 +129,22 @@ export interface OrderAddress {
 export type OrderStatus = 'Pending' | 'Processing' | 'Shipped' | 'Delivered' | 'Cancelled' | 'Refunded';
 export type PaymentStatus = 'Pending' | 'Paid' | 'Failed' | 'Refunded';
 
-
 export interface Order {
   id: string;
-  userId: string; // ID of the user who placed the order
-  items: CartItem[]; // Array of items in the order, CartItem now includes customization
-  totalAmount: number; // Total amount of the order
-  currency: string; // e.g., 'NPR', 'USD'
+  userId: string;
+  items: CartItem[];
+  totalAmount: number;
+  currency: string;
   status: OrderStatus;
   shippingAddress: OrderAddress;
-  billingAddress?: OrderAddress; // Optional, if different from shipping
-  paymentMethod?: string; // e.g., 'Credit Card', 'eSewa', 'COD'
+  billingAddress?: OrderAddress;
+  paymentMethod?: string;
   paymentStatus: PaymentStatus;
-  shippingMethod?: string; // e.g., 'Standard Shipping', 'Express Shipping'
-  trackingNumber?: string; // For shipped orders
-  createdAt: string; // ISO string date when the order was created
-  updatedAt: string; // ISO string date when the order was last updated
+  shippingMethod?: string;
+  trackingNumber?: string;
+  createdAt: string;
+  updatedAt: string;
 }
-
 
 export interface NavItem {
   title: string;
@@ -156,13 +153,12 @@ export interface NavItem {
   description?: string;
   disabled?: boolean;
   external?: boolean;
-  label?: string; // Optional badge/label
-  children?: NavItem[]; // For dropdowns/mega menus
-  authRequired?: boolean; // If link should only be shown to authenticated users
-  rolesRequired?: string[]; // Specific roles needed
+  label?: string;
+  children?: NavItem[];
+  authRequired?: boolean;
+  rolesRequired?: string[];
 }
 
-// For the AI Chatbot
 export interface ChatMessage {
   id: string;
   role: 'user' | 'assistant' | 'system';
@@ -170,10 +166,9 @@ export interface ChatMessage {
   timestamp: number;
 }
 
-// For Brand Storytelling
 export interface StoryContentBlock {
   type: 'text' | 'image' | 'video' | 'quote';
-  content: string; // Text content, or URL for image/video
+  content: string;
   caption?: string;
 }
 
@@ -199,7 +194,6 @@ export interface BreadcrumbItem {
   href?: string;
 }
 
-// Cart Context Types
 export interface CartContextType {
   cartItems: CartItem[];
   cartItemCount: number;
@@ -209,4 +203,55 @@ export interface CartContextType {
   updateItemQuantity: (itemId: string, newQuantity: number) => void;
   clearCart: () => void;
   isCartLoading: boolean;
+}
+
+export interface ReviewImage {
+  id: string;
+  url: string;
+  altText?: string;
+}
+
+export interface Review {
+  id: string;
+  productId: string;
+  userId: string; // ID of the user who wrote the review
+  userName: string;
+  userAvatarUrl?: string;
+  rating: number; // 1-5 stars
+  title?: string;
+  comment: string;
+  images?: ReviewImage[]; // User-uploaded images for the review
+  verifiedPurchase?: boolean;
+  createdAt: string; // ISO date string
+  updatedAt?: string; // ISO date string
+}
+
+// For Homepage Content Management
+export interface HeroSlide {
+  id: string;
+  title: string;
+  description: string;
+  imageUrl?: string;
+  videoId?: string;
+  altText?: string;
+  dataAiHint?: string;
+  ctaText?: string;
+  ctaLink?: string;
+}
+
+export interface SocialCommerceItem {
+  id: string;
+  imageUrl: string;
+  linkUrl: string;
+  altText?: string;
+  dataAiHint?: string;
+}
+
+export interface HomepageContent {
+  heroSlides?: HeroSlide[];
+  artisanalRoots?: {
+    title: string;
+    description: string;
+  };
+  socialCommerceItems?: SocialCommerceItem[]; // Added for Instagram grid
 }
