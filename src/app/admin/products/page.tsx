@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -16,7 +15,7 @@ import type { Product, ProductImage, Category as ProductCategoryType, ProductVar
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
+  DialogDescription as DialogFormDescription, // Renamed to avoid conflict
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -24,7 +23,7 @@ import {
   DialogClose,
 } from "@/components/ui/dialog";
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Checkbox } from '@/components/ui/checkbox'; // For boolean toggles
+import { Checkbox } from '@/components/ui/checkbox'; 
 
 const imageSchema = z.object({
   id: z.string().optional(),
@@ -149,7 +148,7 @@ export default function AdminProductsPage() {
 
   useEffect(() => {
     fetchProducts();
-  }, []); 
+  }, [toast]); // Added toast to dependency array as it's used in fetchProducts
 
   const handleEdit = (product: Product) => {
     setEditingProduct(product);
@@ -195,7 +194,7 @@ export default function AdminProductsPage() {
     setIsSaving(true);
     try {
       const productToSave: Product = {
-        ...(editingProduct || {}), // Keep existing fields like averageRating, reviewCount if editing
+        ...(editingProduct || {}), 
         ...data,
         id: editingProduct?.id || data.id || `prod-${Date.now()}`,
         slug: data.slug || data.name.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, ''),
@@ -207,7 +206,6 @@ export default function AdminProductsPage() {
         availablePrintDesigns: data.availablePrintDesigns?.map(d => ({...d, id: d.id || `print-${Date.now()}-${Math.random().toString(36).substr(2,5)}`})),
         customizationConfig: data.customizationConfig,
         stock: (data.variants && data.variants.length > 0) ? data.variants.reduce((sum, v) => sum + v.stock, 0) : data.stock,
-        // Retain these fields if editing, provide defaults if new and not in form
         averageRating: editingProduct?.averageRating || 0,
         reviewCount: editingProduct?.reviewCount || 0,
         isFeatured: editingProduct?.isFeatured || false,
@@ -274,10 +272,10 @@ export default function AdminProductsPage() {
         <DialogContent className="max-w-3xl">
           <DialogHeader>
             <DialogTitle>{editingProduct ? 'Edit Product' : 'Add New Product'}</DialogTitle>
-            <DialogDescription>
+            <DialogFormDescription> {/* Changed from DialogDescription */}
               {editingProduct ? `Editing details for ${editingProduct.name}.` : 'Fill in the details for the new product.'}
               Remember: Image URLs must be publicly accessible. No direct uploads.
-            </DialogDescription>
+            </DialogFormDescription>
           </DialogHeader>
           <ScrollArea className="max-h-[70vh] p-1">
             <div className="p-5">
@@ -439,9 +437,9 @@ export default function AdminProductsPage() {
                             {form.watch("customizationConfig.allowPredefinedDesigns") && (
                                 <FormField control={form.control} name="customizationConfig.predefinedDesignsLabel" render={({ field }) => (
                                     <FormItem className="ml-6">
-                                        <FormLabel>Label for "Signature Peak Design" Section</FormLabel>
+                                        <FormLabel>Label for &apos;Signature Peak Design&apos; Section</FormLabel>
                                         <FormControl><Input {...field} /></FormControl>
-                                        <FormDescription>This is the title shown above the selectable predefined designs on the product page (e.g., "Choose a Signature Peak Design").</FormDescription>
+                                        <FormDescription>This is the title shown above the selectable predefined designs on the product page (e.g., &quot;Choose a Signature Peak Design&quot;).</FormDescription>
                                         <FormMessage />
                                     </FormItem>
                                 )} />
@@ -492,7 +490,12 @@ export default function AdminProductsPage() {
                                 <FormItem><FormLabel>Design Name {index + 1}</FormLabel><FormControl><Input {...field} placeholder="e.g. Everest Peak Outline" /></FormControl><FormMessage /></FormItem>
                             )} />
                             <FormField control={form.control} name={`availablePrintDesigns.${index}.imageUrl`} render={({ field }) => (
-                                <FormItem><FormLabel>Design Image URL</FormLabel><FormControl><Input {...field} placeholder="https://example.com/design.png" /></FormControl><FormMessage /></FormItem>
+                                <FormItem>
+                                  <FormLabel>Design Image URL</FormLabel>
+                                  <FormControl><Input {...field} placeholder="https://example.com/design.png" /></FormControl>
+                                  <FormDescription>Upload your image to a hosting service (e.g., Firebase Storage, Imgur, Cloudinary) and paste the direct URL here.</FormDescription>
+                                  <FormMessage />
+                                </FormItem>
                             )} />
                             <FormField control={form.control} name={`availablePrintDesigns.${index}.dataAiHint`} render={({ field }) => (
                                 <FormItem><FormLabel>AI Hint for Design Image</FormLabel><FormControl><Input {...field} placeholder="e.g. mountain lineart" /></FormControl><FormMessage /></FormItem>
