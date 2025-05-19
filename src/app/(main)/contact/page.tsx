@@ -11,7 +11,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Mail, Phone, MapPin, Send } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import Image from 'next/image';
+// Image component is no longer needed here for the map
+// import Image from 'next/image';
 
 const contactSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
@@ -149,22 +150,25 @@ export default function ContactPage() {
             </CardContent>
           </Card>
 
-          {/* Map Placeholder */}
+          {/* Interactive Map */}
           <Card className="shadow-lg overflow-hidden">
              <CardHeader>
                  <CardTitle className="text-xl">Find Us Here</CardTitle>
              </CardHeader>
              <CardContent className="p-0">
-                <div className="aspect-video bg-muted">
-                <Image 
-                    src="https://placehold.co/600x400.png"
-                    alt="Map showing location of Peak Pulse in Thamel, Kathmandu" 
-                    width={600} 
-                    height={400} 
-                    className="w-full h-full object-cover"
-                    data-ai-hint="map kathmandu thamel"
-                />
-                {/* In a real app, you would embed a Google Map or similar */}
+                <div className="aspect-video bg-muted w-full h-full">
+                  <iframe
+                    width="100%"
+                    height="100%"
+                    frameBorder="0"
+                    scrolling="no"
+                    marginHeight={0}
+                    marginWidth={0}
+                    src="https://www.openstreetmap.org/export/embed.html?bbox=85.30909061431886%2C27.71304485171967%2C85.31865119934083%2C27.71809090070017&amp;layer=mapnik&amp;marker=27.71556790139344%2C85.31387090682983"
+                    title="Peak Pulse Location in Thamel, Kathmandu"
+                    aria-label="Map showing location of Peak Pulse in Thamel, Kathmandu"
+                    className="border-0"
+                  ></iframe>
                 </div>
              </CardContent>
           </Card>
@@ -173,5 +177,3 @@ export default function ContactPage() {
     </div>
   );
 }
-
-    
