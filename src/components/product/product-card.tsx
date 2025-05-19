@@ -10,6 +10,7 @@ import { ShoppingCart, Heart } from 'lucide-react';
 // import { useToast } from '@/hooks/use-toast'; // Toast is now handled by CartContext
 import { AspectRatio } from "@/components/ui/aspect-ratio"
 import { useCart } from '@/context/cart-context'; // Import useCart
+import { cn } from '@/lib/utils'; // Added missing import
 
 interface ProductCardProps {
   product: Product;
@@ -37,7 +38,7 @@ export function ProductCard({ product, className }: ProductCardProps) {
   };
 
   return (
-    <Card className={`group relative overflow-hidden rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 border-border/60 ${className}`}>
+    <Card className={cn(`group relative overflow-hidden rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 border-border/60`, className)}>
       <Link href={`/products/${product.slug}`} className="block">
         <CardContent className="p-0">
           <AspectRatio ratio={3 / 4} className="bg-muted">
@@ -63,35 +64,37 @@ export function ProductCard({ product, className }: ProductCardProps) {
         </CardContent>
       </Link>
       <CardFooter className="p-4 bg-card/80 backdrop-blur-sm">
-        <div className="flex-grow">
-          <Link href={`/products/${product.slug}`} className="hover:text-primary">
-            <h3 className="text-md font-semibold text-foreground truncate mb-1">{product.name}</h3>
-          </Link>
-          <p className="text-sm text-muted-foreground mb-2 truncate">{product.shortDescription}</p>
-          <div className="flex items-center justify-between">
-            <p className="text-lg font-bold text-primary">
-                रू{product.price.toLocaleString()}
-                {product.compareAtPrice && (
-                    <span className="ml-2 text-sm text-muted-foreground line-through">रू{product.compareAtPrice.toLocaleString()}</span>
-                )}
-            </p>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleAddToCart}
-              className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap"
-            >
-              <ShoppingCart className="mr-2 h-4 w-4" /> Add to Cart
-            </Button>
-            <Button
-              variant="default"
-              size="icon"
-              onClick={handleAddToCart}
-              className="opacity-100 group-hover:opacity-0 transition-opacity duration-300 md:hidden" /* Show on mobile, hide on hover for desktop */
-            >
-              <ShoppingCart className="h-4 w-4" />
-            </Button>
-          </div>
+        <div className="flex-grow flex flex-col justify-between h-full">
+            <div>
+                <Link href={`/products/${product.slug}`} className="hover:text-primary">
+                    <h3 className="text-md font-semibold text-foreground truncate mb-1">{product.name}</h3>
+                </Link>
+                <p className="text-sm text-muted-foreground mb-2 truncate h-10">{product.shortDescription}</p> 
+            </div>
+            <div className="flex items-center justify-between mt-auto">
+                <p className="text-lg font-bold text-primary">
+                    रू{product.price.toLocaleString()}
+                    {product.compareAtPrice && (
+                        <span className="ml-2 text-sm text-muted-foreground line-through">रू{product.compareAtPrice.toLocaleString()}</span>
+                    )}
+                </p>
+                <Button
+                variant="outline"
+                size="sm"
+                onClick={handleAddToCart}
+                className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap"
+                >
+                <ShoppingCart className="mr-2 h-4 w-4" /> Add to Cart
+                </Button>
+                <Button
+                variant="default"
+                size="icon"
+                onClick={handleAddToCart}
+                className="opacity-100 group-hover:opacity-0 transition-opacity duration-300 md:hidden" /* Show on mobile, hide on hover for desktop */
+                >
+                <ShoppingCart className="h-4 w-4" />
+                </Button>
+            </div>
         </div>
       </CardFooter>
     </Card>

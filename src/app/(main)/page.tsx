@@ -101,6 +101,7 @@ export default async function HomePage() {
               ></iframe>
               <div className="absolute inset-0 bg-black/60 z-[1]"></div> {/* Overlay for video */}
             </>
+          
           ) : heroImageUrl ? (
             <>
               <Image
@@ -115,7 +116,7 @@ export default async function HomePage() {
               <div className="absolute inset-0 bg-black/60 z-[1]"></div> {/* Overlay for image */}
             </>
           ) : null}
-        </div>
+        </div> 
 
         {/* Content Overlay */}
         <div className="relative z-20 flex flex-col items-center justify-center h-full pt-[calc(theme(spacing.20)_+_theme(spacing.6))] pb-12 px-6 md:px-8 text-center text-white max-w-3xl mx-auto">

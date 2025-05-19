@@ -119,7 +119,7 @@
     "images": [
       {
         "id": "img-main-2",
-        "url": "https://placehold.co/600x800.png",
+        "url": "https://catalog-resize-images.thedoublef.com/606bc76216f1f9cb1ad8281eb9b7e84e/900/900/NF0A4QYXNY_P_NORTH-ZU31.a.jpg",
         "altText": "Kathmandu Comfort Tee",
         "dataAiHint": "tee shirt cotton"
       }
@@ -133,13 +133,24 @@
     ],
     "customizationConfig": {
       "enabled": true,
+      "allowPredefinedDesigns": false,
+      "predefinedDesignsLabel": "Choose a Signature Design",
       "allowCustomDescription": true,
       "customDescriptionLabel": "Add Custom Text (e.g., Name, Quote)",
       "allowInstructions": true,
       "instructionsLabel": "Placement Instructions for Text"
     },
     "createdAt": "2023-02-01T09:00:00Z",
-    "updatedAt": "2023-02-05T11:00:00Z"
+    "updatedAt": "2025-05-18T17:03:29.721Z",
+    "fabricDetails": "",
+    "careInstructions": "",
+    "sustainabilityMetrics": "",
+    "fitGuide": "",
+    "variants": [],
+    "availablePrintDesigns": [],
+    "averageRating": 0,
+    "reviewCount": 0,
+    "isFeatured": false
   },
   {
     "id": "prod-3",
@@ -177,7 +188,7 @@
     "slug": "sgr",
     "price": 1200,
     "costPrice": 1200,
-    "stock": 20,
+    "stock": 0,
     "shortDescription": "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, ",
     "description": "Contrary to popular belief, Lorem Ipsum is not simply random text. It has roots in a piece of classical Latin literature from 45 BC, making it over 2000 years old. Richard McClintock, a Latin professor at Hampden-Sydney College in Virginia, looked up one of the more obscure Latin words, consectetur, from a Lorem Ipsum passage, and going through the cites of the word in classical literature, discovered the undoubtable source. Lorem Ipsum comes from sections 1.10.32 and 1.10.33 of \"de Finibus Bonorum et Malorum\" (The Extremes of Good and Evil) by Cicero, written in 45 BC. This book is a treatise on the theory of ethics, very popular during the Renaissance. The first line of Lorem Ipsum, \"Lorem ipsum dolor sit amet..\", comes from a line in section 1.10.32.\n\nThe standard chunk of Lorem Ipsum used since the 1500s is reproduced below for those interested. Sections 1.10.32 and 1.10.33 from \"de Finibus Bonorum et Malorum\" by Cicero are also reproduced in their exact original form, accompanied by English versions from the 1914 translation by H. Rackham.",
     "images": [
@@ -199,7 +210,18 @@
     "careInstructions": "",
     "sustainabilityMetrics": "",
     "fitGuide": "",
-    "variants": [],
+    "variants": [
+      {
+        "id": "var-1747591208872-uobqa",
+        "name": "Size",
+        "value": "M",
+        "sku": "",
+        "price": 0,
+        "costPrice": 0,
+        "stock": 0,
+        "imageId": "img-main-0"
+      }
+    ],
     "availablePrintDesigns": [
       {
         "id": "print-1747584328634-qk1ny",
@@ -218,7 +240,7 @@
       "instructionsLabel": "Specific Instructions"
     },
     "createdAt": "2025-05-18T16:05:26.563Z",
-    "updatedAt": "2025-05-18T16:14:46.440Z",
+    "updatedAt": "2025-05-18T18:00:09.326Z",
     "averageRating": 0,
     "reviewCount": 0,
     "isFeatured": false

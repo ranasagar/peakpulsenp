@@ -27,6 +27,8 @@ function luhnCheck(val: string): boolean {
   let shouldDouble = false;
   const numStr = val.replace(/\D/g, "");
 
+  if (numStr.length < 13 || numStr.length > 19) return false; // Basic length check for common cards
+
   for (let i = numStr.length - 1; i >= 0; i--) {
     let digit = parseInt(numStr.charAt(i));
 
@@ -53,9 +55,9 @@ const shippingSchema = z.object({
 
 const paymentCardSchema = z.object({
   cardNumber: z.string().optional().or(z.literal('')),
-  expiryDate: z.string().optional().or(z.literal('')),
+  expiryDate: z.string().optional().or(z.literal('')), // MM/YY
   cvc: z.string().optional().or(z.literal('')),
-  cardholderName: z.string().min(2, "Cardholder name is required.").optional().or(z.literal('')),
+  cardholderName: z.string().optional().or(z.literal('')),
 });
 
 const checkoutSchema = shippingSchema.extend({
@@ -65,18 +67,16 @@ const checkoutSchema = shippingSchema.extend({
 }).merge(paymentCardSchema)
 .superRefine((data, ctx) => {
     if (data.paymentMethod === 'card_international' && data.isInternational) {
-        if (!data.cardholderName || data.cardholderName.length < 2) {
+        if (!data.cardholderName || data.cardholderName.trim().length < 2) {
             ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Cardholder name is required.", path: ["cardholderName"] });
         }
-        if (!data.cardNumber) {
+        if (!data.cardNumber || data.cardNumber.trim() === '') {
             ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Card number is required.", path: ["cardNumber"] });
-        } else if (!/^\d{13,19}$/.test(data.cardNumber.replace(/\D/g, ""))) {
-            ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Card number must be between 13 and 19 digits.", path: ["cardNumber"] });
         } else if (!luhnCheck(data.cardNumber)) {
             ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Invalid credit card number.", path: ["cardNumber"] });
         }
 
-        if (!data.expiryDate) {
+        if (!data.expiryDate || data.expiryDate.trim() === '') {
             ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Expiry date is required.", path: ["expiryDate"] });
         } else {
             const expiryMatch = data.expiryDate.match(/^(0[1-9]|1[0-2])\/?([0-9]{2})$/);
@@ -84,23 +84,27 @@ const checkoutSchema = shippingSchema.extend({
                  ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Expiry date must be MM/YY.", path: ["expiryDate"] });
             } else {
                 const [, month, year] = expiryMatch;
-                const currentYear = new Date().getFullYear() % 100;
+                const currentFullYear = new Date().getFullYear();
+                const currentYear = currentFullYear % 100;
                 const currentMonth = new Date().getMonth() + 1;
                 const inputYear = parseInt(year, 10);
                 const inputMonth = parseInt(month, 10);
+
                 if (inputYear < currentYear || (inputYear === currentYear && inputMonth < currentMonth)) {
                     ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Card has expired.", path: ["expiryDate"] });
+                } else if (inputYear > currentYear + 20) { // Arbitrary future limit
+                    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Expiry date seems too far in the future.", path: ["expiryDate"] });
                 }
             }
         }
         
-        if (!data.cvc) {
+        if (!data.cvc || data.cvc.trim() === '') {
             ctx.addIssue({ code: z.ZodIssueCode.custom, message: "CVC is required.", path: ["cvc"] });
-        } else if (!/^\d{3,4}$/.test(data.cvc)) {
+        } else if (!/^\d{3,4}$/.test(data.cvc.trim())) {
              ctx.addIssue({ code: z.ZodIssueCode.custom, message: "CVC must be 3 or 4 digits.", path: ["cvc"] });
         }
     }
-    if (data.isInternational && !data.internationalDestinationCountry) {
+    if (data.isInternational && (!data.internationalDestinationCountry || data.internationalDestinationCountry.trim() === '')) {
         ctx.addIssue({
             code: z.ZodIssueCode.custom,
             message: "Destination country is required for international shipping.",
@@ -184,7 +188,7 @@ export default function CheckoutPage() {
 
   const handleCalculateInternationalShipping = async () => {
     const destinationCountry = form.getValues("internationalDestinationCountry");
-    if (!destinationCountry) {
+    if (!destinationCountry || destinationCountry.trim() === '') {
       toast({ title: "Error", description: "Please enter a destination country.", variant: "destructive" });
       return;
     }
@@ -235,7 +239,6 @@ export default function CheckoutPage() {
 
     console.log("Submitting order with payload:", JSON.stringify(orderPayload, null, 2));
 
-    form.control.control.formState.isSubmitting = true;
     try {
       const response = await fetch('/api/orders/create', {
         method: 'POST',
@@ -270,8 +273,6 @@ export default function CheckoutPage() {
         description: "Could not connect to the server. Please try again.",
         variant: "destructive",
       });
-    } finally {
-       form.control.control.formState.isSubmitting = false;
     }
   };
 
@@ -547,8 +548,8 @@ export default function CheckoutPage() {
                 </div>
               </CardContent>
               <CardFooter>
-                <Button type="submit" size="lg" className="w-full text-base" disabled={form.control.control.formState.isSubmitting || isCalculatingShipping || cartItems.length === 0}>
-                  {form.control.control.formState.isSubmitting ? <Loader2 className="h-5 w-5 mr-2 animate-spin"/> : <Lock className="mr-2 h-5 w-5" />} Place Order
+                <Button type="submit" size="lg" className="w-full text-base" disabled={form.formState.isSubmitting || isCalculatingShipping || cartItems.length === 0}>
+                  {form.formState.isSubmitting ? <Loader2 className="h-5 w-5 mr-2 animate-spin"/> : <Lock className="mr-2 h-5 w-5" />} Place Order
                 </Button>
               </CardFooter>
             </Card>
@@ -559,3 +560,6 @@ export default function CheckoutPage() {
     </div>
   );
 }
+
+
+    
