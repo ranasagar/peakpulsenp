@@ -15,139 +15,145 @@ import React, { useState, useEffect, useCallback } from 'react';
 const fallbackContent: HomepageContent = {
   heroSlides: [
     {
-      id: 'fallback-1',
-      title: "Peak Pulse (Network Error)",
-      description: "Experience the fusion of ancient Nepali artistry and modern streetwear. (Content failed to load, displaying fallback)",
+      id: 'fallback-hero-1',
+      title: "Peak Pulse (Content Error)",
+      description: "Experience the fusion of ancient Nepali artistry and modern streetwear. (Default content shown due to an issue loading live data).",
       imageUrl: "https://images.unsplash.com/photo-1552668693-2be515a07459?q=80&w=1920&h=1080&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
       altText: "Fallback hero image: model in scenic location",
       dataAiHint: "fashion model scenic",
-      ctaText: "Explore Now",
-      ctaLink: "/products"
+      ctaText: "Explore Collections",
+      ctaLink: "/products",
+      videoId: undefined,
     }
   ],
   artisanalRoots: {
-    title: "Our Artisanal Roots (Error)",
+    title: "Our Artisanal Roots (Fallback)",
     description: "Details about our craftsmanship are currently unavailable. We partner with local artisans in Nepal, preserving centuries-old techniques while innovating for today's global citizen."
   },
   socialCommerceItems: [
-    { id: 'social-fallback-1', imageUrl: 'https://placehold.co/400x400.png?text=Social+1', linkUrl: '#', altText: 'Social Post 1', dataAiHint: 'social fashion' },
-    { id: 'social-fallback-2', imageUrl: 'https://placehold.co/400x400.png?text=Social+2', linkUrl: '#', altText: 'Social Post 2', dataAiHint: 'social lifestyle' },
+    { id: 'social-fallback-1', imageUrl: 'https://placehold.co/400x400.png?text=Social+1', linkUrl: 'https://instagram.com/peakpulsenp', altText: 'Social Post 1', dataAiHint: 'social fashion' },
+    { id: 'social-fallback-2', imageUrl: 'https://placehold.co/400x400.png?text=Social+2', linkUrl: 'https://instagram.com/peakpulsenp', altText: 'Social Post 2', dataAiHint: 'social lifestyle' },
+    { id: 'social-fallback-3', imageUrl: 'https://placehold.co/400x400.png?text=Social+3', linkUrl: 'https://instagram.com/peakpulsenp', altText: 'Social Post 3', dataAiHint: 'social product' },
+    { id: 'social-fallback-4', imageUrl: 'https://placehold.co/400x400.png?text=Social+4', linkUrl: 'https://instagram.com/peakpulsenp', altText: 'Social Post 4', dataAiHint: 'social community' },
   ]
 };
 
 async function getHomepageContent(): Promise<HomepageContent> {
-  const fetchUrl = `${process.env.NEXT_PUBLIC_APP_URL || ''}/api/content/homepage`;
-  console.log(`[Client Fetch] Attempting to fetch from: ${fetchUrl}`);
+  console.log("[Client Fetch] getHomepageContent called");
   try {
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || '';
+    const fetchUrl = `${baseUrl}/api/content/homepage`;
+    console.log(`[Client Fetch] Attempting to fetch from: ${fetchUrl}`);
     const res = await fetch(fetchUrl, { cache: 'no-store' });
 
     if (!res.ok) {
       const errorBody = await res.text();
-      console.error(`[Client Fetch] Failed to fetch content: ${res.status} ${res.statusText}`, errorBody);
-      // Return a structured fallback that matches HomepageContent
+      console.error(`[Client Fetch] Failed to fetch content: ${res.status} ${res.statusText}. Body:`, errorBody);
+      // Return structured fallback matching HomepageContent
       return {
-        ...fallbackContent, // Use the base fallback
-        heroSlides: [{ // Ensure at least one valid slide
-          ...fallbackContent.heroSlides![0],
-          title: "Homepage Content Error",
-          description: `Could not load homepage details. Status: ${res.status}. Please try again later.`,
-          videoId: undefined, // Explicitly undefined
-          imageUrl: fallbackContent.heroSlides![0].imageUrl, // Ensure a valid image for fallback
-        }],
+        heroSlides: fallbackContent.heroSlides || [{ ...fallbackContent.heroSlides![0], title: "API Fetch Error", description: `Status: ${res.status}. Using fallback.`}],
+        artisanalRoots: fallbackContent.artisanalRoots,
+        socialCommerceItems: fallbackContent.socialCommerceItems,
       };
     }
     const jsonData: HomepageContent = await res.json();
-    console.log("[Client Fetch] Successfully fetched content:", jsonData);
-    // Ensure heroSlides is an array and has at least one item, default to fallback if not
-    if (!Array.isArray(jsonData.heroSlides) || jsonData.heroSlides.length === 0) {
-      console.warn("[Client Fetch] Fetched heroSlides was empty or not an array, using fallback.");
-      jsonData.heroSlides = fallbackContent.heroSlides;
-    } else {
-       // Ensure each slide has necessary properties
-       jsonData.heroSlides = jsonData.heroSlides.map(slide => ({
-           ...fallbackContent.heroSlides![0], // Spread default slide properties first
-           ...slide // Then override with actual slide data
-       }));
+    console.log("[Client Fetch] Successfully fetched content:", JSON.stringify(jsonData, null, 2));
+    
+    const processedHeroSlides = (Array.isArray(jsonData.heroSlides) ? jsonData.heroSlides : fallbackContent.heroSlides || [])
+        .map(slide => ({
+            id: slide.id || `fallback-slide-${Math.random()}`,
+            title: slide.title || "Discover Peak Pulse",
+            description: slide.description || "Unique styles await.",
+            imageUrl: slide.imageUrl,
+            videoId: slide.videoId,
+            altText: slide.altText || "Hero image",
+            dataAiHint: slide.dataAiHint || "fashion background",
+            ctaText: slide.ctaText || "Shop Now",
+            ctaLink: slide.ctaLink || "/products",
+        }));
+    
+    if (processedHeroSlides.length === 0 && fallbackContent.heroSlides && fallbackContent.heroSlides.length > 0) {
+        console.warn("[Client Fetch] No hero slides from API, using the first fallback slide.");
+        processedHeroSlides.push(fallbackContent.heroSlides[0]);
     }
-    if (!jsonData.artisanalRoots || !jsonData.artisanalRoots.title) {
-      jsonData.artisanalRoots = fallbackContent.artisanalRoots;
-    }
-    if (!Array.isArray(jsonData.socialCommerceItems)) {
-      jsonData.socialCommerceItems = fallbackContent.socialCommerceItems;
-    }
-    return jsonData;
+
+    const finalContent: HomepageContent = {
+        heroSlides: processedHeroSlides,
+        artisanalRoots: jsonData.artisanalRoots || fallbackContent.artisanalRoots,
+        socialCommerceItems: Array.isArray(jsonData.socialCommerceItems) ? jsonData.socialCommerceItems : fallbackContent.socialCommerceItems || [],
+    };
+    console.log("[Client Fetch] Processed content to be set:", finalContent);
+    return finalContent;
+
   } catch (error) {
     console.error("[Client Fetch] CRITICAL ERROR in getHomepageContent:", error);
      return {
-        ...fallbackContent,
-        heroSlides: [{
-          ...fallbackContent.heroSlides![0],
-          title: "Network Error",
-          description: "Could not connect to fetch homepage details. Please check your connection.",
-          videoId: undefined,
-          imageUrl: fallbackContent.heroSlides![0].imageUrl,
-        }],
+        heroSlides: fallbackContent.heroSlides || [{ ...fallbackContent.heroSlides![0], title: "Network Error", description: "Could not connect to fetch homepage details. Using fallback."}],
+        artisanalRoots: fallbackContent.artisanalRoots,
+        socialCommerceItems: fallbackContent.socialCommerceItems,
       };
   }
 }
 
 export default function HomePage() {
-  const [content, setContent] = useState<HomepageContent>(fallbackContent);
+  const [content, setContent] = useState<HomepageContent>(fallbackContent); // Initialize with fallback
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isLoadingContent, setIsLoadingContent] = useState(true);
 
-  const heroSlides = content.heroSlides || [];
-  const artisanalRootsTitle = content.artisanalRoots?.title || fallbackContent.artisanalRoots?.title || "Our Artisanal Roots";
-  const artisanalRootsDescription = content.artisanalRoots?.description || fallbackContent.artisanalRoots?.description || "Details about our craftsmanship are currently unavailable.";
-  const socialCommerceItems = content.socialCommerceItems || fallbackContent.socialCommerceItems || [];
-
-
   useEffect(() => {
     const loadContent = async () => {
+      console.log("[Client Effect] Loading content...");
       setIsLoadingContent(true);
       const fetchedContent = await getHomepageContent();
       setContent(fetchedContent);
       setIsLoadingContent(false);
+      console.log("[Client Effect] Content loaded and set.");
     };
     loadContent();
   }, []);
 
+  const activeHeroSlides = content.heroSlides && content.heroSlides.length > 0 ? content.heroSlides : fallbackContent.heroSlides || [];
+  const activeSlideData = activeHeroSlides[currentSlide];
+
+  const artisanalRootsTitle = content.artisanalRoots?.title || fallbackContent.artisanalRoots!.title;
+  const artisanalRootsDescription = content.artisanalRoots?.description || fallbackContent.artisanalRoots!.description;
+  const socialCommerceItems = content.socialCommerceItems && content.socialCommerceItems.length > 0 ? content.socialCommerceItems : fallbackContent.socialCommerceItems || [];
+
+
   const nextSlide = useCallback(() => {
-    if (heroSlides.length > 0) {
-      setCurrentSlide((prev) => (prev === heroSlides.length - 1 ? 0 : prev + 1));
+    if (activeHeroSlides.length > 0) {
+      setCurrentSlide((prev) => (prev === activeHeroSlides.length - 1 ? 0 : prev + 1));
     }
-  }, [heroSlides.length]);
+  }, [activeHeroSlides.length]);
 
   const prevSlide = () => {
-    if (heroSlides.length > 0) {
-      setCurrentSlide((prev) => (prev === 0 ? heroSlides.length - 1 : prev - 1));
+    if (activeHeroSlides.length > 0) {
+      setCurrentSlide((prev) => (prev === 0 ? activeHeroSlides.length - 1 : prev - 1));
     }
   };
 
   useEffect(() => {
-    if (heroSlides.length > 1) {
+    if (activeHeroSlides.length > 1) {
       const slideInterval = setInterval(nextSlide, 7000);
       return () => clearInterval(slideInterval);
     }
-  }, [heroSlides.length, nextSlide]);
+  }, [activeHeroSlides.length, nextSlide]);
 
-  if (isLoadingContent && !content.heroSlides?.length) { // Show loader only if no slides available yet
-    return <div className="h-screen flex items-center justify-center">Loading Peak Pulse...</div>;
+  if (isLoadingContent && !activeHeroSlides.length) {
+    return <div className="h-screen flex items-center justify-center bg-black text-white">Loading Peak Pulse...</div>;
   }
-
-  const activeSlide = heroSlides[currentSlide] || fallbackContent.heroSlides![0];
 
 
   return (
     <>
       {/* Hero Section - Carousel */}
       <section style={{ backgroundColor: 'black' }} className="relative h-screen w-full overflow-hidden">
-        {heroSlides.map((slide, index) => (
+        {activeHeroSlides.map((slide, index) => (
           <div
             key={slide.id || index}
-            className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${index === currentSlide ? 'opacity-100' : 'opacity-0'}`}
+            className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${index === currentSlide ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
           >
-            <div className="absolute inset-0 z-0 pointer-events-none">
+            <div className="absolute inset-0 z-0 pointer-events-none"> {/* Removed bg-black here */}
               {slide.videoId ? (
                 <>
                   <iframe
@@ -192,7 +198,7 @@ export default function HomePage() {
           </div>
         ))}
 
-        {heroSlides.length > 1 && (
+        {activeHeroSlides.length > 1 && (
           <>
             <Button
               variant="ghost"
@@ -213,7 +219,7 @@ export default function HomePage() {
               <ChevronRightIcon className="h-7 w-7" />
             </Button>
             <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 z-30 flex space-x-2">
-              {heroSlides.map((_, index) => (
+              {activeHeroSlides.map((_, index) => (
                 <button
                   key={`dot-${index}`}
                   onClick={() => setCurrentSlide(index)}
@@ -227,7 +233,7 @@ export default function HomePage() {
       </section>
 
 
-      {/* Featured Products Section - Mock Data */}
+      {/* Featured Products Section */}
       <section className="section-padding container-wide relative z-[1]">
         <h2 className="text-3xl font-bold text-center mb-12 text-foreground">Featured Collection</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -278,7 +284,7 @@ export default function HomePage() {
                   <Image
                     src={item.imageUrl || `https://placehold.co/400x400.png?text=Social+Post`}
                     alt={item.altText || `Peak Pulse style shared by community`}
-                    fill // Changed from layout="fill" to fill for Next 13+
+                    fill
                     className="object-cover group-hover:scale-105 transition-transform duration-500 ease-in-out"
                     data-ai-hint={item.dataAiHint || "instagram fashion user"}
                   />
