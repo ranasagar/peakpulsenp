@@ -17,8 +17,10 @@ interface OurStoryContent {
 
 async function getOurStoryContent(): Promise<OurStoryContent> {
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:9002';
-    const res = await fetch(`${baseUrl}/api/content/our-story`, { cache: 'no-store' });
+    // Always use a relative path for client-side API calls to the same origin
+    const fetchUrl = `/api/content/our-story`;
+    console.log(`[OurStory Page] Attempting to fetch from: ${fetchUrl}`);
+    const res = await fetch(fetchUrl, { cache: 'no-store' });
 
     if (!res.ok) {
       const errorBody = await res.text();
