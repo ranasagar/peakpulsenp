@@ -5,6 +5,8 @@ import { NextResponse } from 'next/server';
 import fs from 'fs/promises';
 import path from 'path';
 
+export const dynamic = 'force-dynamic'; // Ensures the route is re-executed on every request
+
 export async function GET() {
   try {
     const filePath = path.join(process.cwd(), 'src', 'data', 'our-story-content.json');
