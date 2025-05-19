@@ -1,31 +1,47 @@
+// src/app/api/content/homepage/route.ts
+import type { HeroSlide, HomepageContent } from '@/types';
 
-'use server';
+// DO NOT USE 'use server'; here. This is an API route.
 
-import { NextResponse } from 'next/server';
-import fs from 'fs/promises';
-import path from 'path';
-
-export async function GET() {
-  try {
-    // Construct the absolute path to the JSON file
-    // process.cwd() gives the root of the project
-    const filePath = path.join(process.cwd(), 'src', 'data', 'homepage-content.json');
-    const jsonData = await fs.readFile(filePath, 'utf-8');
-    const data = JSON.parse(jsonData);
-    return NextResponse.json(data);
-  } catch (error) {
-    console.error('Failed to read homepage content:', error);
-    // Fallback content in case of an error (e.g., file not found or malformed JSON)
-    const fallbackContent = {
-      hero: {
-        title: "Peak Pulse (Error)",
-        description: "Welcome! Content is temporarily unavailable."
-      },
-      artisanalRoots: {
-        title: "Our Heritage (Error)",
-        description: "Details about our craftsmanship are currently unavailable."
+export function GET() {
+  console.log("[API /api/content/homepage] Barebones GET request received by API route.");
+  const data: HomepageContent = {
+    heroSlides: [
+      {
+        id: 'barebones-debug-1',
+        title: "Barebones API Title (Hardcoded)",
+        description: "This content is served directly from a very simplified API route.",
+        imageUrl: "https://placehold.co/1920x1080.png?text=Barebones+API+Image",
+        altText: "Barebones API Image",
+        dataAiHint: "debug placeholder",
+        ctaText: "Debug CTA",
+        ctaLink: "/"
       }
-    };
-    return NextResponse.json(fallbackContent, { status: 500 });
+    ],
+    artisanalRoots: {
+        title: "Barebones Artisanal Roots (Hardcoded)",
+        description: "Minimal API content for artisanal roots section."
+    }
+  };
+
+  try {
+    return new Response(JSON.stringify(data), {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+      },
+    });
+  } catch (error) {
+    console.error('[API /api/content/homepage] CRITICAL ERROR in barebones route:', error);
+    // Fallback in case JSON.stringify fails (highly unlikely with this simple object)
+    return new Response(JSON.stringify({ message: 'Internal Server Error in API', heroSlides: [], artisanalRoots: {title: 'Error', description: 'Error'} }), {
+      status: 500,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
   }
 }
