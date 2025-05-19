@@ -6,9 +6,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import type { Order, OrderStatus } from '@/types';
-import { ALL_ORDER_STATUSES } from '@/types'; // Import defined statuses
-import { Loader2, RefreshCw, ShoppingBag, Edit, CheckCircle, XCircle } from 'lucide-react';
+import type { Order, OrderStatus, PaymentStatus } from '@/types';
+import { ALL_ORDER_STATUSES, ALL_PAYMENT_STATUSES } from '@/types';
+import { Loader2, RefreshCw, ShoppingBag, Edit, CheckCircle, XCircle, CreditCard } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import {
   Select,
@@ -26,7 +26,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  // AlertDialogTrigger, // No longer needed as direct trigger for each button
 } from "@/components/ui/alert-dialog";
 
 export default function AdminOrdersPage() {
@@ -35,9 +34,14 @@ export default function AdminOrdersPage() {
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
   
-  const [editingOrder, setEditingOrder] = useState<Order | null>(null);
-  const [selectedStatus, setSelectedStatus] = useState<OrderStatus | undefined>(undefined);
-  const [isStatusDialogOpen, setIsStatusDialogOpen] = useState(false); // New state for dialog visibility
+  const [editingOrderStatusOrder, setEditingOrderStatusOrder] = useState<Order | null>(null);
+  const [selectedOrderStatus, setSelectedOrderStatus] = useState<OrderStatus | undefined>(undefined);
+  const [isOrderStatusDialogOpen, setIsOrderStatusDialogOpen] = useState(false);
+
+  const [editingPaymentStatusOrder, setEditingPaymentStatusOrder] = useState<Order | null>(null);
+  const [selectedPaymentStatus, setSelectedPaymentStatus] = useState<PaymentStatus | undefined>(undefined);
+  const [isPaymentStatusDialogOpen, setIsPaymentStatusDialogOpen] = useState(false);
+
 
   const fetchOrders = async () => {
     setIsLoading(true);
@@ -63,36 +67,64 @@ export default function AdminOrdersPage() {
     fetchOrders();
   }, []);
 
-  const handleOpenStatusDialog = (order: Order) => {
-    setEditingOrder(order);
-    setSelectedStatus(order.status); // Pre-fill with current status
-    setIsStatusDialogOpen(true);
+  const handleOpenOrderStatusDialog = (order: Order) => {
+    setEditingOrderStatusOrder(order);
+    setSelectedOrderStatus(order.status);
+    setIsOrderStatusDialogOpen(true);
   };
 
-  const confirmStatusUpdate = async () => {
-    if (!editingOrder || !selectedStatus) return;
+  const confirmOrderStatusUpdate = async () => {
+    if (!editingOrderStatusOrder || !selectedOrderStatus) return;
 
     try {
-      const response = await fetch(`/api/admin/orders/${editingOrder.id}`, {
+      const response = await fetch(`/api/admin/orders/${editingOrderStatusOrder.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: selectedStatus }),
+        body: JSON.stringify({ status: selectedOrderStatus }),
       });
 
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || 'Failed to update order status');
       }
-      toast({ title: "Order Status Updated", description: `Order ${editingOrder.id} status changed to ${selectedStatus}.`, action: <CheckCircle className="text-green-500"/> });
-      fetchOrders(); // Refresh the orders list
-      setIsStatusDialogOpen(false); // Close dialog on success
+      toast({ title: "Order Status Updated", description: `Order ${editingOrderStatusOrder.id} status changed to ${selectedOrderStatus}.`, action: <CheckCircle className="text-green-500"/> });
+      fetchOrders(); 
+      setIsOrderStatusDialogOpen(false); 
+    } catch (err) {
+      toast({ title: "Update Failed", description: (err as Error).message, variant: "destructive", action: <XCircle className="text-red-500"/> });
+    }
+  };
+
+  const handleOpenPaymentStatusDialog = (order: Order) => {
+    setEditingPaymentStatusOrder(order);
+    setSelectedPaymentStatus(order.paymentStatus);
+    setIsPaymentStatusDialogOpen(true);
+  };
+
+  const confirmPaymentStatusUpdate = async () => {
+    if (!editingPaymentStatusOrder || !selectedPaymentStatus) return;
+
+    try {
+      const response = await fetch(`/api/admin/orders/${editingPaymentStatusOrder.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ paymentStatus: selectedPaymentStatus }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to update payment status');
+      }
+      toast({ title: "Payment Status Updated", description: `Order ${editingPaymentStatusOrder.id} payment status changed to ${selectedPaymentStatus}.`, action: <CheckCircle className="text-green-500"/> });
+      fetchOrders(); 
+      setIsPaymentStatusDialogOpen(false); 
     } catch (err) {
       toast({ title: "Update Failed", description: (err as Error).message, variant: "destructive", action: <XCircle className="text-red-500"/> });
     }
   };
 
 
-  const getStatusBadgeVariant = (status: Order['status']): "default" | "secondary" | "destructive" | "outline" => {
+  const getOrderStatusBadgeVariant = (status: Order['status']): "default" | "secondary" | "destructive" | "outline" => {
     switch (status) {
       case 'Delivered': return 'default';
       case 'Shipped': return 'secondary';
@@ -173,28 +205,37 @@ export default function AdminOrdersPage() {
                       <TableCell className="text-center">{order.items.reduce((sum, item) => sum + item.quantity, 0)}</TableCell>
                       <TableCell className="text-right font-semibold">रू{order.totalAmount.toLocaleString()}</TableCell>
                       <TableCell className="text-center">
-                        <Badge variant={getStatusBadgeVariant(order.status)}
-                          className={order.status === 'Delivered' ? 'bg-green-500/20 text-green-700 border-green-500/30' : 
-                                     order.status === 'Shipped' ? 'bg-blue-500/20 text-blue-700 border-blue-500/30' :
-                                     order.status === 'Processing' ? 'bg-yellow-500/20 text-yellow-700 border-yellow-500/30' :
-                                     order.status === 'Pending' ? 'bg-gray-500/20 text-gray-700 border-gray-500/30' :
-                                     ''
-                                    }
+                        <Badge variant={getOrderStatusBadgeVariant(order.status)}
+                          className={
+                            order.status === 'Delivered' ? 'bg-green-500/20 text-green-700 border-green-500/30' : 
+                            order.status === 'Shipped' ? 'bg-blue-500/20 text-blue-700 border-blue-500/30' :
+                            order.status === 'Processing' ? 'bg-yellow-500/20 text-yellow-700 border-yellow-500/30' :
+                            order.status === 'Pending' ? 'bg-slate-500/20 text-slate-700 border-slate-500/30 dark:bg-slate-700/20 dark:text-slate-300 dark:border-slate-700/30' :
+                            order.status === 'Cancelled' || order.status === 'Refunded' ? 'bg-red-500/20 text-red-700 border-red-500/30' :
+                            ''
+                          }
                         >
                           {order.status}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-center">
                         <Badge variant={getPaymentStatusBadgeVariant(order.paymentStatus)}
-                          className={order.paymentStatus === 'Paid' ? 'bg-green-500/20 text-green-700 border-green-500/30' : ''}
+                           className={
+                            order.paymentStatus === 'Paid' ? 'bg-green-500/20 text-green-700 border-green-500/30' : 
+                            order.paymentStatus === 'Pending' ? 'bg-slate-500/20 text-slate-700 border-slate-500/30 dark:bg-slate-700/20 dark:text-slate-300 dark:border-slate-700/30' :
+                            order.paymentStatus === 'Failed' || order.paymentStatus === 'Refunded' ? 'bg-red-500/20 text-red-700 border-red-500/30' :
+                            ''
+                           }
                         >
                           {order.paymentStatus}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-center">
-                         {/* Changed from AlertDialogTrigger to regular Button */}
-                           <Button variant="outline" size="sm" onClick={() => handleOpenStatusDialog(order)}>
-                              <Edit className="mr-1.5 h-3 w-3" /> Status
+                      <TableCell className="text-center space-x-2">
+                           <Button variant="outline" size="sm" onClick={() => handleOpenOrderStatusDialog(order)}>
+                              <Edit className="mr-1.5 h-3 w-3" /> Order
+                           </Button>
+                           <Button variant="outline" size="sm" onClick={() => handleOpenPaymentStatusDialog(order)}>
+                              <CreditCard className="mr-1.5 h-3 w-3" /> Payment
                            </Button>
                       </TableCell>
                     </TableRow>
@@ -206,32 +247,33 @@ export default function AdminOrdersPage() {
         </CardContent>
       </Card>
 
+      {/* Dialog for Order Status */}
       <AlertDialog 
-        open={isStatusDialogOpen} 
+        open={isOrderStatusDialogOpen} 
         onOpenChange={(open) => {
-          setIsStatusDialogOpen(open);
+          setIsOrderStatusDialogOpen(open);
           if (!open) {
-            setEditingOrder(null);
-            setSelectedStatus(undefined);
+            setEditingOrderStatusOrder(null);
+            setSelectedOrderStatus(undefined);
           }
         }}
       >
         <AlertDialogContent>
-          {editingOrder ? (
+          {editingOrderStatusOrder ? (
             <>
               <AlertDialogHeader>
-                <AlertDialogTitle>Update Status for Order {editingOrder.id}</AlertDialogTitle>
+                <AlertDialogTitle>Update Order Status for {editingOrderStatusOrder.id}</AlertDialogTitle>
                 <AlertDialogDescription>
-                  Select the new status for this order. This action will update the order details.
+                  Select the new order status. This action will update the order details.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <div className="py-4">
                 <Select 
-                  onValueChange={(value) => setSelectedStatus(value as OrderStatus)} 
-                  defaultValue={selectedStatus || editingOrder.status}
+                  onValueChange={(value) => setSelectedOrderStatus(value as OrderStatus)} 
+                  defaultValue={selectedOrderStatus || editingOrderStatusOrder.status}
                 >
                   <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select new status" />
+                    <SelectValue placeholder="Select new order status" />
                   </SelectTrigger>
                   <SelectContent>
                     {ALL_ORDER_STATUSES.map(status => (
@@ -241,9 +283,59 @@ export default function AdminOrdersPage() {
                 </Select>
               </div>
               <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel> {/* Default close behavior will trigger onOpenChange */}
-                <AlertDialogAction onClick={confirmStatusUpdate} disabled={!selectedStatus || selectedStatus === editingOrder.status}>
-                  Update Status
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={confirmOrderStatusUpdate} disabled={!selectedOrderStatus || selectedOrderStatus === editingOrderStatusOrder.status}>
+                  Update Order Status
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </>
+          ) : (
+            <div className="flex justify-center items-center p-8">
+              <Loader2 className="h-6 w-6 animate-spin text-primary"/>
+            </div>
+          )}
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Dialog for Payment Status */}
+      <AlertDialog 
+        open={isPaymentStatusDialogOpen} 
+        onOpenChange={(open) => {
+          setIsPaymentStatusDialogOpen(open);
+          if (!open) {
+            setEditingPaymentStatusOrder(null);
+            setSelectedPaymentStatus(undefined);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          {editingPaymentStatusOrder ? (
+            <>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Update Payment Status for {editingPaymentStatusOrder.id}</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Select the new payment status. This action will update the order details.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <div className="py-4">
+                <Select 
+                  onValueChange={(value) => setSelectedPaymentStatus(value as PaymentStatus)} 
+                  defaultValue={selectedPaymentStatus || editingPaymentStatusOrder.paymentStatus}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select new payment status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ALL_PAYMENT_STATUSES.map(status => (
+                      <SelectItem key={status} value={status}>{status}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={confirmPaymentStatusUpdate} disabled={!selectedPaymentStatus || selectedPaymentStatus === editingPaymentStatusOrder.paymentStatus}>
+                  Update Payment Status
                 </AlertDialogAction>
               </AlertDialogFooter>
             </>
