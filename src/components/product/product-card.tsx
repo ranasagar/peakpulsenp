@@ -27,8 +27,8 @@ export function ProductCard({ product, className }: ProductCardProps) {
   const { addToCart } = useCart();
 
   const handleAddToCart = (e: React.MouseEvent) => {
-    e.preventDefault(); 
-    addToCart(product, 1); 
+    e.preventDefault();
+    addToCart(product, 1);
   };
 
   const handleToggleWishlist = (e: React.MouseEvent) => {
@@ -67,7 +67,7 @@ export function ProductCard({ product, className }: ProductCardProps) {
                 <Link href={`/products/${product.slug}`} className="hover:text-primary">
                     <h3 className="text-md font-semibold text-foreground truncate mb-1">{product.name}</h3>
                 </Link>
-                <p className="text-sm text-muted-foreground mb-2 truncate h-10">{product.shortDescription}</p> 
+                <p className="text-sm text-muted-foreground mb-2 h-10 overflow-hidden">{product.shortDescription}</p>
             </div>
             <div className="flex items-center justify-between mt-auto">
                 <p className="text-lg font-bold text-primary">
@@ -88,7 +88,7 @@ export function ProductCard({ product, className }: ProductCardProps) {
                 variant="default"
                 size="icon"
                 onClick={handleAddToCart}
-                className="opacity-100 group-hover:opacity-0 transition-opacity duration-300 md:hidden" 
+                className="opacity-100 group-hover:opacity-0 transition-opacity duration-300 md:hidden"
                 >
                 <ShoppingCart className="h-4 w-4" />
                 </Button>
