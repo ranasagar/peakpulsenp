@@ -7,10 +7,16 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import type { Product } from '@/types';
 import { ShoppingCart, Heart } from 'lucide-react';
-// import { useToast } from '@/hooks/use-toast'; // Toast is now handled by CartContext
 import { AspectRatio } from "@/components/ui/aspect-ratio"
-import { useCart } from '@/context/cart-context'; // Import useCart
-import { cn } from '@/lib/utils'; // Added missing import
+import { useCart } from '@/context/cart-context';
+// Import clsx and twMerge directly
+import { clsx, type ClassValue } from "clsx"
+import { twMerge } from "tailwind-merge"
+
+// Helper function similar to cn, but defined locally
+function localCn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs))
+}
 
 interface ProductCardProps {
   product: Product;
@@ -18,27 +24,20 @@ interface ProductCardProps {
 }
 
 export function ProductCard({ product, className }: ProductCardProps) {
-  // const { toast } = useToast(); // Toast is handled by CartContext
-  const { addToCart } = useCart(); // Get addToCart from context
+  const { addToCart } = useCart();
 
   const handleAddToCart = (e: React.MouseEvent) => {
-    e.preventDefault(); // Prevent link navigation if card is wrapped in Link
-    addToCart(product, 1); // Add the product, quantity 1. Variant selection handled on detail page.
-    // The toast notification is now handled by the addToCart function in CartContext.
+    e.preventDefault(); 
+    addToCart(product, 1); 
   };
 
   const handleToggleWishlist = (e: React.MouseEvent) => {
     e.preventDefault();
-    // TODO: Implement actual wishlist logic
     console.log(`Toggled wishlist for: ${product.name}`);
-    // Example toast, actual implementation would be in a wishlist context or similar
-    // toast({
-    //   title: "Wishlist Updated",
-    // });
   };
 
   return (
-    <Card className={cn(`group relative overflow-hidden rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 border-border/60`, className)}>
+    <Card className={localCn(`group relative overflow-hidden rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 border-border/60`, className)}>
       <Link href={`/products/${product.slug}`} className="block">
         <CardContent className="p-0">
           <AspectRatio ratio={3 / 4} className="bg-muted">
@@ -51,7 +50,6 @@ export function ProductCard({ product, className }: ProductCardProps) {
               data-ai-hint={product.images[0]?.dataAiHint || "fashion clothing product"}
             />
           </AspectRatio>
-           {/* Wishlist button positioned top-right */}
            <Button
             variant="ghost"
             size="icon"
@@ -90,7 +88,7 @@ export function ProductCard({ product, className }: ProductCardProps) {
                 variant="default"
                 size="icon"
                 onClick={handleAddToCart}
-                className="opacity-100 group-hover:opacity-0 transition-opacity duration-300 md:hidden" /* Show on mobile, hide on hover for desktop */
+                className="opacity-100 group-hover:opacity-0 transition-opacity duration-300 md:hidden" 
                 >
                 <ShoppingCart className="h-4 w-4" />
                 </Button>
