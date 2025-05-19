@@ -5,8 +5,8 @@
       "title": "Test 1",
       "description": "This content is served directly from a very simplified API route.",
       "videoId": "gCRNEJxDJKM",
-      "altText": "",
-      "dataAiHint": "",
+      "altText": "Peak Pulse Hero",
+      "dataAiHint": "fashion background",
       "ctaText": "Debug CTA",
       "ctaLink": "/"
     }
@@ -20,7 +20,7 @@
       "id": "social-1747660015749",
       "imageUrl": "https://www.fashiongonerogue.com/wp-content/uploads/2023/01/Streetwear-Aesthetic-Hoodie-Sweater.jpg",
       "linkUrl": "https://www.instagram.com/sagarrana7/",
-      "altText": "",
+      "altText": "Peak Pulse Social",
       "dataAiHint": "ppinsta"
     }
   ]
