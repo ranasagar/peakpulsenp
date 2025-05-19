@@ -33,7 +33,7 @@ async function getHomepageContent(): Promise<HomepageContent> {
         hero: {
           title: "Peak Pulse (Content API Error)",
           description: "Experience the fusion of ancient Nepali artistry and modern streetwear. (Content failed to load, displaying fallback)",
-          videoId: undefined, // Ensure these are undefined in fallback
+          videoId: undefined,
           imageUrl: undefined,
         },
         artisanalRoots: {
@@ -58,7 +58,7 @@ async function getHomepageContent(): Promise<HomepageContent> {
       hero: {
         title: "Peak Pulse (Network Error)",
         description: "Experience the fusion of ancient Nepali artistry and modern streetwear. (Content failed to load, displaying fallback)",
-        videoId: undefined, // Ensure these are undefined in fallback
+        videoId: undefined,
         imageUrl: undefined,
       },
       artisanalRoots: {
@@ -133,7 +133,7 @@ export default async function HomePage() {
       </section>
 
       {/* Featured Products Section - Mock Data */}
-      <section className="section-padding container-wide">
+      <section className="section-padding container-wide relative z-[1]">
         <h2 className="text-3xl font-bold text-center mb-12 text-foreground">Featured Collection</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
           {[
@@ -152,7 +152,7 @@ export default async function HomePage() {
       </section>
 
       {/* Brand Story Snippet Section */}
-      <section className="bg-card section-padding">
+      <section className="bg-card section-padding relative z-[1]">
         <div className="container-slim text-center">
           <h2 className="text-3xl font-bold mb-6 text-foreground">{artisanalRootsTitle}</h2>
           <p className="text-lg text-muted-foreground mb-8 max-w-xl mx-auto">
@@ -165,7 +165,7 @@ export default async function HomePage() {
       </section>
 
       {/* Social Commerce Section */}
-      <section className="section-padding container-wide">
+      <section className="section-padding container-wide relative z-[1]">
         <h2 className="text-3xl font-bold text-center mb-12 text-foreground">
           #PeakPulseStyle <Instagram className="inline-block ml-2 h-7 w-7 text-pink-500" />
         </h2>
@@ -195,7 +195,7 @@ export default async function HomePage() {
       </section>
 
       {/* Newsletter Signup Section */}
-      <section className="bg-primary/5 section-padding">
+      <section className="bg-primary/5 section-padding relative z-[1]">
         <div className="container-slim text-center">
           <Send className="h-12 w-12 text-primary mx-auto mb-4" />
           <h2 className="text-3xl font-bold mb-4 text-foreground">Join the Peak Pulse Community</h2>
