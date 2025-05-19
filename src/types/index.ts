@@ -126,25 +126,33 @@ export interface OrderAddress {
   phone?: string;
 }
 
-export type OrderStatus = 'Pending' | 'Processing' | 'Shipped' | 'Delivered' | 'Cancelled' | 'Refunded';
-export type PaymentStatus = 'Pending' | 'Paid' | 'Failed' | 'Refunded';
+export const ALL_ORDER_STATUSES = ['Pending', 'Processing', 'Shipped', 'Delivered', 'Cancelled', 'Refunded'] as const;
+export type OrderStatus = typeof ALL_ORDER_STATUSES[number];
+
+export const ALL_PAYMENT_STATUSES = ['Pending', 'Paid', 'Failed', 'Refunded'] as const;
+export type PaymentStatus = typeof ALL_PAYMENT_STATUSES[number];
+
 
 export interface Order {
   id: string;
-  userId: string;
+  userId: string; // Consider linking to User.id
   items: CartItem[];
   totalAmount: number;
-  currency: string;
+  currency: string; // e.g., "NPR", "USD"
   status: OrderStatus;
   shippingAddress: OrderAddress;
-  billingAddress?: OrderAddress;
+  billingAddress?: OrderAddress; // Optional, if different from shipping
   paymentMethod?: string;
   paymentStatus: PaymentStatus;
   shippingMethod?: string;
   trackingNumber?: string;
-  createdAt: string;
-  updatedAt: string;
+  // notes?: string; // Admin notes about the order
+  // discountCode?: string;
+  // discountAmount?: number;
+  createdAt: string; // ISO date string
+  updatedAt: string; // ISO date string
 }
+
 
 export interface NavItem {
   title: string;
@@ -253,5 +261,5 @@ export interface HomepageContent {
     title: string;
     description: string;
   };
-  socialCommerceItems?: SocialCommerceItem[]; // Added for Instagram grid
+  socialCommerceItems?: SocialCommerceItem[];
 }

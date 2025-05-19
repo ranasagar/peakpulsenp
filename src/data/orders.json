@@ -1,2 +1,33 @@
-
-[]
+[
+  {
+    "id": "PP-MOCK-1747663161934",
+    "userId": "mock-user-id",
+    "items": [
+      {
+        "id": "prod-1-var-s-blue",
+        "productId": "prod-1",
+        "variantId": "var-s-blue",
+        "name": "Himalayan Breeze Jacket (Managed) (S)",
+        "price": 12500,
+        "quantity": 1,
+        "imageUrl": "https://catalog-resize-images.thedoublef.com/606bc76216f1f9cb1ad8281eb9b7e84e/900/900/NF0A4QYXNY_P_NORTH-ZU31.a.jpg",
+        "dataAiHint": "jacket front fashion"
+      }
+    ],
+    "totalAmount": 13000,
+    "currency": "NPR",
+    "status": "Processing",
+    "shippingAddress": {
+      "street": "50 East Derry Road",
+      "city": "kathmandu",
+      "postalCode": "977",
+      "country": "nepal",
+      "fullName": "Sagar Rana",
+      "phone": "14154249763"
+    },
+    "paymentMethod": "card_nepal",
+    "paymentStatus": "Pending",
+    "createdAt": "2025-05-19T13:59:21.934Z",
+    "updatedAt": "2025-05-19T13:59:21.934Z"
+  }
+]
