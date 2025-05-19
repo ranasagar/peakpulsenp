@@ -21,6 +21,7 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  output: 'standalone', // Add this line
 };
 
 export default nextConfig;
