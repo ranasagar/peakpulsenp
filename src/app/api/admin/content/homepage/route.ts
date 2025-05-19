@@ -1,4 +1,3 @@
-
 // /src/app/api/admin/content/homepage/route.ts
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
@@ -8,6 +7,29 @@ import type { HomepageContent, HeroSlide, SocialCommerceItem } from '@/types';
 
 const filePath = path.join(process.cwd(), 'src', 'data', 'homepage-content.json');
 
+// Helper function to read existing content or return a default structure
+async function getCurrentContent(): Promise<HomepageContent> {
+    try {
+        const fileContent = await fs.readFile(filePath, 'utf-8');
+        const parsedData = JSON.parse(fileContent);
+        // Ensure the basic structure exists
+        return {
+            heroSlides: Array.isArray(parsedData.heroSlides) ? parsedData.heroSlides : [],
+            artisanalRoots: parsedData.artisanalRoots || { title: "", description: "" },
+            socialCommerceItems: Array.isArray(parsedData.socialCommerceItems) ? parsedData.socialCommerceItems : [],
+        };
+    } catch (error) {
+        // If file doesn't exist or is invalid, return a default structure
+        console.warn("[Admin API POST] Error reading existing homepage content file or file is empty/corrupt. Starting with a default structure. Error:", (error as Error).message);
+        return {
+            heroSlides: [],
+            artisanalRoots: { title: "", description: "" },
+            socialCommerceItems: [],
+        };
+    }
+}
+
+
 export async function POST(request: NextRequest) {
   if (process.env.NODE_ENV === 'production' && process.env.VERCEL) {
       console.warn("File system write attempts are disabled in Vercel production environment for this demo API.");
@@ -15,87 +37,45 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const newDataFromRequest = (await request.json()) as Partial<HomepageContent>; // Data from admin form
-    console.log("[Admin API POST] Received newDataFromRequest:", JSON.stringify(newDataFromRequest, null, 2));
+    const newContentFromAdmin = (await request.json()) as Partial<HomepageContent>; // Data from admin form, might be partial
+    console.log("[Admin API POST] Received newDataFromRequest:", JSON.stringify(newContentFromAdmin, null, 2));
 
-    let currentData: HomepageContent = {
-        heroSlides: [],
-        artisanalRoots: { title: "", description: "" },
-        socialCommerceItems: [],
-    };
+    // The admin form should ideally send the full intended structure for HomepageContent.
+    // We will treat the incoming data as the new desired state for these sections.
+    // If a section is missing from newContentFromAdmin, it implies no changes were made to it, or it was cleared.
 
-    try {
-      const fileContent = await fs.readFile(filePath, 'utf-8');
-      if (fileContent) {
-        const parsedData = JSON.parse(fileContent);
-        // Ensure currentData has the full structure even if file is partially formed
-        currentData = {
-            heroSlides: parsedData.heroSlides || [],
-            artisanalRoots: parsedData.artisanalRoots || { title: "", description: "" },
-            socialCommerceItems: parsedData.socialCommerceItems || [],
-        };
-      }
-      console.log("[Admin API POST] Read currentData:", JSON.stringify(currentData, null, 2));
-    } catch (readError: any) {
-      if (readError.code !== 'ENOENT') {
-        console.warn("Error reading existing homepage content file. Defaulting to empty structure. Error:", readError.message);
-      } else {
-        console.log("Homepage content file not found, will be created with new data.");
-      }
-    }
-    
-    const updatedData: HomepageContent = {
-      heroSlides: (newDataFromRequest.heroSlides || currentData.heroSlides || []).map((slide: HeroSlide) => ({
-        id: slide.id || `slide-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
-        title: slide.title || "",
-        description: slide.description || "",
-        imageUrl: slide.imageUrl || undefined,
-        videoId: slide.videoId || undefined,
-        altText: slide.altText || "",
-        dataAiHint: slide.dataAiHint || "",
-        ctaText: slide.ctaText || "",
-        ctaLink: slide.ctaLink || "",
-      })),
-      artisanalRoots: newDataFromRequest.artisanalRoots || currentData.artisanalRoots || { title: "", description: "" },
-      socialCommerceItems: (newDataFromRequest.socialCommerceItems || currentData.socialCommerceItems || []).map((item: SocialCommerceItem) => ({
-          id: item.id || `social-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
-          imageUrl: item.imageUrl || "",
-          linkUrl: item.linkUrl || "",
-          altText: item.altText || "",
-          dataAiHint: item.dataAiHint || "",
-      })),
-    };
-    
-    // If newDataFromRequest explicitly sends an empty array for a section, it should overwrite
-    if (newDataFromRequest.heroSlides !== undefined) {
-        updatedData.heroSlides = newDataFromRequest.heroSlides.map((slide: HeroSlide) => ({
+    const finalDataToWrite: HomepageContent = {
+        heroSlides: (newContentFromAdmin.heroSlides || []).map((slide: Partial<HeroSlide>) => ({
             id: slide.id || `slide-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
             title: slide.title || "",
             description: slide.description || "",
-            imageUrl: slide.imageUrl || undefined,
-            videoId: slide.videoId || undefined,
+            imageUrl: slide.imageUrl || undefined, // Ensure undefined if empty string
+            videoId: slide.videoId || undefined,   // Ensure undefined if empty string
             altText: slide.altText || "",
             dataAiHint: slide.dataAiHint || "",
             ctaText: slide.ctaText || "",
             ctaLink: slide.ctaLink || "",
-        }));
-    }
-    if (newDataFromRequest.artisanalRoots !== undefined) {
-        updatedData.artisanalRoots = newDataFromRequest.artisanalRoots;
-    }
-    if (newDataFromRequest.socialCommerceItems !== undefined) {
-        updatedData.socialCommerceItems = newDataFromRequest.socialCommerceItems.map((item: SocialCommerceItem) => ({
+        })),
+        artisanalRoots: newContentFromAdmin.artisanalRoots || { title: "", description: "" }, // Default if not provided
+        socialCommerceItems: (newContentFromAdmin.socialCommerceItems || []).map((item: Partial<SocialCommerceItem>) => ({
             id: item.id || `social-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
-            imageUrl: item.imageUrl || "",
-            linkUrl: item.linkUrl || "",
+            imageUrl: item.imageUrl || "", // Should have URL
+            linkUrl: item.linkUrl || "",   // Should have URL
             altText: item.altText || "",
             dataAiHint: item.dataAiHint || "",
-        }));
+        })),
+    };
+    
+    console.log("[Admin API POST] Writing finalDataToWrite to homepage-content.json:", JSON.stringify(finalDataToWrite, null, 2));
+    await fs.writeFile(filePath, JSON.stringify(finalDataToWrite, null, 2), 'utf-8');
+    console.log("[Admin API POST] Attempted to write finalDataToWrite to homepage-content.json");
+
+    try {
+      const writtenContent = await fs.readFile(filePath, 'utf-8');
+      console.log("[Admin API POST] Content read back from file immediately after write:", writtenContent);
+    } catch (e) {
+      console.error("[Admin API POST] Error reading file back immediately after write:", e);
     }
-
-
-    console.log("[Admin API POST] Writing updatedData:", JSON.stringify(updatedData, null, 2));
-    await fs.writeFile(filePath, JSON.stringify(updatedData, null, 2), 'utf-8');
 
     return NextResponse.json({ message: 'Homepage content updated successfully.' });
   } catch (error) {

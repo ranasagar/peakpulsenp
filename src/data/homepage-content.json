@@ -2,12 +2,11 @@
   "heroSlides": [
     {
       "id": "barebones-debug-1",
-      "title": "Barebones API Title (Hardcoded)",
+      "title": "Test 1",
       "description": "This content is served directly from a very simplified API route.",
       "videoId": "gCRNEJxDJKM",
-      "imageUrl": "https://placehold.co/1920x1080.png?text=Barebones+API+Image",
-      "altText": "Barebones API Image",
-      "dataAiHint": "debug placeholder",
+      "altText": "",
+      "dataAiHint": "",
       "ctaText": "Debug CTA",
       "ctaLink": "/"
     }
@@ -16,5 +15,13 @@
     "title": "Barebones Artisanal Roots (Hardcoded)",
     "description": "Minimal API content for artisanal roots section."
   },
-  "socialCommerceItems": []
+  "socialCommerceItems": [
+    {
+      "id": "social-1747660015749",
+      "imageUrl": "https://www.fashiongonerogue.com/wp-content/uploads/2023/01/Streetwear-Aesthetic-Hoodie-Sweater.jpg",
+      "linkUrl": "https://www.instagram.com/sagarrana7/",
+      "altText": "",
+      "dataAiHint": "ppinsta"
+    }
+  ]
 }
