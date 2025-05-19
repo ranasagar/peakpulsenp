@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Save, PlusCircle, Trash2, Edit, XCircle, Paintbrush } from 'lucide-react';
 import type { Product, ProductImage, Category as ProductCategoryType, ProductVariant, PrintDesign, ProductCustomizationConfig } from '@/types';
@@ -438,7 +438,12 @@ export default function AdminProductsPage() {
                             />
                             {form.watch("customizationConfig.allowPredefinedDesigns") && (
                                 <FormField control={form.control} name="customizationConfig.predefinedDesignsLabel" render={({ field }) => (
-                                    <FormItem className="ml-6"><FormLabel>Label for Predefined Designs Section</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                                    <FormItem className="ml-6">
+                                        <FormLabel>Label for "Signature Peak Design" Section</FormLabel>
+                                        <FormControl><Input {...field} /></FormControl>
+                                        <FormDescription>This is the title shown above the selectable predefined designs on the product page (e.g., "Choose a Signature Peak Design").</FormDescription>
+                                        <FormMessage />
+                                    </FormItem>
                                 )} />
                             )}
 
@@ -518,3 +523,4 @@ export default function AdminProductsPage() {
     </div>
   );
 }
+
