@@ -19,7 +19,7 @@ import Link from 'next/link';
 const userPostSchema = z.object({
   imageUrl: z.string().url({ message: "Please enter a valid image URL." }),
   caption: z.string().max(500, "Caption can be up to 500 characters.").optional(),
-  productTags: z.string().optional().transform(val => val ? val.split(',').map(tag => tag.trim()).filter(tag => tag) : []),
+  productTags: z.string().optional(), // Store as string in form, transform on submit
 });
 
 type UserPostFormValues = z.infer<typeof userPostSchema>;
@@ -35,7 +35,7 @@ export default function CreateUserPostPage() {
     defaultValues: {
       imageUrl: '',
       caption: '',
-      productTags: [],
+      productTags: '', // Initialize as empty string
     },
   });
 
@@ -48,11 +48,15 @@ export default function CreateUserPostPage() {
 
     setIsSubmitting(true);
     try {
+      const productTagsArray = data.productTags
+        ? data.productTags.split(',').map(tag => tag.trim()).filter(tag => tag)
+        : []; // Handle empty or undefined string by creating an empty array
+
       const payload = {
         userId: user.id,
         imageUrl: data.imageUrl,
         caption: data.caption,
-        productTags: data.productTags,
+        productTags: productTagsArray, // Send the processed array
       };
 
       const response = await fetch('/api/user-posts', {
@@ -74,7 +78,6 @@ export default function CreateUserPostPage() {
                 errorDetail = `Server responded with ${response.status}: ${response.statusText}`;
             }
         } catch (e) {
-            // If response is not JSON or errorData structure is unexpected
             errorDetail = `Failed to submit post. Server returned ${response.status}.`;
         }
         throw new Error(errorDetail);
@@ -86,7 +89,7 @@ export default function CreateUserPostPage() {
       });
       form.reset();
       // Consider redirecting to the main community page or user's posts page after successful submission
-      // router.push('/'); 
+      // router.push('/');
     } catch (error) {
       toast({
         title: "Submission Failed",
@@ -163,14 +166,14 @@ export default function CreateUserPostPage() {
               />
               <FormField
                 control={form.control}
-                name="productTags"
+                name="productTags" // This will now be a string
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel className="flex items-center"><Tag className="mr-2 h-4 w-4 text-muted-foreground" />Featured Products (Optional)</FormLabel>
                     <FormControl>
-                      <Input placeholder="e.g., Himalayan Breeze Jacket, Urban Nomad Pants" {...field} 
-                       onChange={(e) => field.onChange(e.target.value)}
-                       value={Array.isArray(field.value) ? field.value.join(', ') : ''}
+                      <Input
+                        placeholder="e.g., Himalayan Breeze Jacket, Urban Nomad Pants"
+                        {...field} // field.value will be a string, field.onChange expects a string
                       />
                     </FormControl>
                     <p className="text-xs text-muted-foreground">Separate product names with commas.</p>
