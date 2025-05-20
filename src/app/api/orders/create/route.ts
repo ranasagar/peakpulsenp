@@ -2,8 +2,8 @@
 // /src/app/api/orders/create/route.ts
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { supabase } from '../../../lib/supabaseClient.ts'; // Using relative path
-import type { CartItem, OrderAddress, OrderStatus, PaymentStatus, Order as OrderType } from '@/types'; // Renamed to avoid conflict
+import { supabase } from '../../../lib/supabaseClient.ts';
+import type { CartItem, OrderAddress, OrderStatus, PaymentStatus } from '@/types';
 
 interface ShippingDetails {
   fullName: string;
@@ -26,7 +26,7 @@ interface ShippingDetails {
 
 interface CreateOrderPayload {
   userId?: string; 
-  cartItems: CartItem[];
+  cartItems: CartItem[]; // CartItem should now include costPrice
   shippingDetails: ShippingDetails;
   orderSubtotal: number;
   shippingCost: number;
@@ -120,9 +120,23 @@ export async function POST(request: NextRequest) {
        return NextResponse.json({ title: "Payment Failed", message: 'Invalid payment method selected.' }, { status: 400 });
     }
 
+    // Ensure all cart items have essential properties before saving
+    const sanitizedCartItems = cartItems.map(item => ({
+      id: item.id,
+      productId: item.productId,
+      variantId: item.variantId,
+      name: item.name,
+      price: item.price,
+      costPrice: item.costPrice, // Ensure costPrice is included
+      quantity: item.quantity,
+      imageUrl: item.imageUrl,
+      dataAiHint: item.dataAiHint,
+      customization: item.customization,
+    }));
+
     const orderToInsert = {
       userId: userId,
-      items: cartItems,
+      items: sanitizedCartItems, // Use sanitized items
       totalAmount: orderTotal,
       currency: 'NPR',
       status: orderStatus,
@@ -133,7 +147,7 @@ export async function POST(request: NextRequest) {
         country: country,
         fullName: fullName,
         phone: phone || undefined,
-        state: shippingDetails.isInternational ? undefined : country,
+        state: shippingDetails.isInternational ? undefined : country, // Assuming 'country' doubles as state for Nepal
         apartmentSuite: apartmentSuite || undefined,
       } as OrderAddress,
       paymentMethod: paymentMethod,
@@ -151,7 +165,7 @@ export async function POST(request: NextRequest) {
 
     if (insertError) {
       console.error('[API /api/orders/create] Supabase error inserting order:', insertError);
-      return NextResponse.json({ title: "Order Creation Failed", message: 'Could not save your order to the database.', rawError: insertError.message }, { status: 500 });
+      return NextResponse.json({ title: "Order Creation Failed", message: 'Could not save your order to the database.', rawError: insertError.message, rawSupabaseError: insertError }, { status: 500 });
     }
     
     console.log(`[API /api/orders/create] Order ${newOrderData.id} saved successfully to Supabase for user ${userId}.`);

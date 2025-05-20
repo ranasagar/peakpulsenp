@@ -6,9 +6,9 @@ export interface User {
   email: string;
   name?: string; // Firebase displayName
   avatarUrl?: string; // Firebase photoURL
-  roles: string[]; // e.g., ['customer', 'vip', 'affiliate', 'admin'] - needs separate logic to populate
+  roles: string[]; // e.g., ['customer', 'vip', 'affiliate', 'admin']
   wishlist?: string[]; // Array of product IDs
-  orders?: string[]; // Array of order IDs
+  // Orders are fetched separately, not stored directly on user object in context
 }
 
 export interface Category {
@@ -39,7 +39,7 @@ export interface ProductVariant {
   id: string;
   name: string; // e.g., "Size", "Color"
   value: string; // e.g., "M", "Red"
-  sku: string;
+  sku?: string; // Optional SKU
   price: number;
   costPrice?: number; // Cost of goods for this variant
   stock: number;
@@ -81,8 +81,8 @@ export interface Product {
   careInstructions?: string;
   sustainabilityMetrics?: string;
   fitGuide?: string;
-  sku?: string;
-  stock?: number;
+  sku?: string; // Base SKU if no variants
+  stock?: number; // Base stock if no variants
   averageRating?: number;
   reviewCount?: number;
   isFeatured?: boolean;
@@ -105,11 +105,12 @@ export interface CartItemCustomization {
 }
 
 export interface CartItem {
-  id: string;
+  id: string; // Unique ID for this cart line item (e.g., productId-variantId-timestampIfCustomized)
   productId: string;
   variantId?: string;
   name: string;
-  price: number;
+  price: number; // Price at the time of adding to cart
+  costPrice?: number; // Cost price at the time of adding to cart
   quantity: number;
   imageUrl?: string;
   dataAiHint?: string;
@@ -119,7 +120,7 @@ export interface CartItem {
 export interface OrderAddress {
   street: string;
   city: string;
-  state?: string;
+  state?: string; // For countries that use states
   postalCode: string;
   country: string;
   fullName: string;
@@ -135,20 +136,19 @@ export type PaymentStatus = typeof ALL_PAYMENT_STATUSES[number];
 
 
 export interface Order {
-  id: string;
-  userId: string; 
-  items: CartItem[];
+  id: string; // UUID from Supabase
+  userId: string; // Firebase UID
+  items: CartItem[]; // Stored as JSONB in Supabase
   totalAmount: number;
-  currency: string; 
+  currency: string; // e.g., "NPR"
   status: OrderStatus;
-  shippingAddress: OrderAddress;
-  billingAddress?: OrderAddress;
+  shippingAddress: OrderAddress; // Stored as JSONB
   paymentMethod?: string;
   paymentStatus: PaymentStatus;
   shippingMethod?: string;
   trackingNumber?: string;
-  createdAt: string; 
-  updatedAt: string; 
+  createdAt: string; // ISO string
+  updatedAt: string; // ISO string
 }
 
 
@@ -228,8 +228,8 @@ export interface Review {
   comment: string;
   images?: ReviewImage[]; 
   verifiedPurchase?: boolean;
-  createdAt: string; 
-  updatedAt?: string; 
+  createdAt: string; // ISO string
+  updatedAt?: string; // ISO string
 }
 
 export interface HeroSlide {
@@ -259,9 +259,11 @@ export interface HomepageContent {
     description: string;
   };
   socialCommerceItems?: SocialCommerceItem[];
+  // Removed heroVideoId and heroImageUrl as they are now part of heroSlides
 }
 
-// New type for User Posts
+
+// For user posts
 export interface UserPost {
   id: string; // uuid from Supabase
   user_id: string; // Firebase UID, links to User.id

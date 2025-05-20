@@ -46,34 +46,28 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   ) => {
     setCartItems(prevItems => {
       const baseItemId = selectedVariant ? `${product.id}-${selectedVariant.id}` : product.id;
-      // If there's customization, always treat as a new item for simplicity in this iteration.
-      // Otherwise, check if an identical (non-customized or same customization) item exists.
-      // For true merging of identical customizations, a deep comparison of the customization object would be needed.
-      // Here, if any customization exists, we make the ID unique with a timestamp to ensure it's a new line item.
-      
       const cartItemId = customization 
-        ? `${baseItemId}-${Date.now()}` // Ensures uniqueness for customized items
+        ? `${baseItemId}-custom-${Date.now()}` // Ensures uniqueness for customized items
         : baseItemId;
 
       const existingItemIndex = customization 
-        ? -1 // Don't merge customized items automatically by simple ID
-        : prevItems.findIndex(item => item.id === cartItemId && !item.customization); // Only merge if existing is not customized
+        ? -1 
+        : prevItems.findIndex(item => item.id === cartItemId && !item.customization);
 
-
-      const itemPrice = selectedVariant?.price || product.price;
+      const itemPrice = selectedVariant?.price ?? product.price;
+      const itemCostPrice = selectedVariant?.costPrice ?? product.costPrice; // Get cost price
       const itemName = selectedVariant ? `${product.name} (${selectedVariant.value})` : product.name;
       const itemImage = selectedVariant?.imageId
         ? product.images.find(img => img.id === selectedVariant.imageId)?.url
         : product.images[0]?.url;
 
-      if (existingItemIndex > -1 && !customization) { // Only merge if no new customization and existing has no customization
+      if (existingItemIndex > -1 && !customization) { 
         return prevItems.map((item, index) =>
           index === existingItemIndex
             ? { ...item, quantity: item.quantity + quantity }
             : item
         );
       } else {
-        // Add as new item
         return [
           ...prevItems,
           {
@@ -82,6 +76,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
             variantId: selectedVariant?.id,
             name: itemName,
             price: itemPrice,
+            costPrice: itemCostPrice, // Store cost price
             quantity: quantity,
             imageUrl: itemImage || 'https://placehold.co/100x120.png',
             dataAiHint: product.images[0]?.dataAiHint || 'product fashion',
