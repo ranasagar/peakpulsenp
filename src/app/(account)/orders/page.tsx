@@ -10,46 +10,64 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { ShoppingBag, Eye, Loader2 } from 'lucide-react';
 import Image from 'next/image';
+import { useAuth } from '@/hooks/use-auth'; // Import useAuth
+import { useToast } from '@/hooks/use-toast'; // Import useToast
 
 export default function OrdersPage() {
+  const { user, isLoading: authLoading } = useAuth();
+  const { toast } = useToast();
   const [orders, setOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchOrders = async () => {
+      if (!user || !user.id) {
+        setIsLoading(false);
+        // Optionally, if not authLoading and no user, redirect or show message,
+        // but AccountLayout should handle primary auth check.
+        if (!authLoading) setError("Please log in to view your orders.");
+        return;
+      }
+
       setIsLoading(true);
       setError(null);
       try {
-        const response = await fetch('/api/account/orders');
+        const response = await fetch(`/api/account/orders?userId=${user.id}`);
         if (!response.ok) {
-          throw new Error(`Failed to fetch orders: ${response.statusText}`);
+          const errorData = await response.json();
+          throw new Error(errorData.message || `Failed to fetch orders: ${response.statusText}`);
         }
         const data = await response.json();
         setOrders(data);
       } catch (err) {
         console.error(err);
-        setError((err as Error).message || 'Could not load orders.');
+        const errorMessage = (err as Error).message || 'Could not load orders.';
+        setError(errorMessage);
+        toast({ title: "Error", description: errorMessage, variant: "destructive" });
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchOrders();
-  }, []);
+    if (!authLoading) { // Only fetch if auth state is resolved
+      fetchOrders();
+    }
+  }, [user, authLoading, toast]);
 
   const getStatusBadgeVariant = (status: Order['status']): "default" | "secondary" | "destructive" | "outline" => {
     switch (status) {
-      case 'Delivered': return 'default'; // Green-like with default primary
-      case 'Shipped': return 'secondary'; // Blue-like
-      case 'Processing': return 'outline'; // Yellow-like
+      case 'Delivered': return 'default';
+      case 'Shipped': return 'secondary';
+      case 'Processing': return 'outline';
+      case 'Pending': return 'outline';
       case 'Cancelled': return 'destructive';
       case 'Refunded': return 'destructive';
       default: return 'secondary';
     }
   };
 
-  if (isLoading) {
+  if (isLoading || authLoading) {
     return (
       <div className="container-wide section-padding text-center">
         <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
@@ -79,7 +97,6 @@ export default function OrdersPage() {
               </CardTitle>
               <CardDescription className="mt-1">Track and manage your past and current orders.</CardDescription>
             </div>
-            {/* Optional: Add filters or search here */}
           </div>
         </CardHeader>
         <CardContent>
@@ -100,8 +117,7 @@ export default function OrdersPage() {
                   {orders.map((order) => (
                     <TableRow key={order.id} className="hover:bg-muted/30">
                       <TableCell className="font-medium text-primary hover:underline">
-                        {/* TODO: Create individual order detail page /account/orders/[orderId] */}
-                        <Link href={`/account/orders/#${order.id}`}>{order.id}</Link>
+                        <Link href={`/account/orders/#${order.id}`}>{order.id.substring(0,15)}...</Link>
                       </TableCell>
                       <TableCell>{new Date(order.createdAt).toLocaleDateString()}</TableCell>
                       <TableCell>
@@ -120,14 +136,13 @@ export default function OrdersPage() {
                         <Badge variant={getStatusBadgeVariant(order.status)}
                                className={order.status === 'Delivered' ? 'bg-green-500/20 text-green-700 border-green-500/30' :
                                           order.status === 'Shipped' ? 'bg-blue-500/20 text-blue-700 border-blue-500/30' :
-                                          order.status === 'Processing' ? 'bg-yellow-500/20 text-yellow-700 border-yellow-500/30' :
+                                          order.status === 'Processing' || order.status === 'Pending' ? 'bg-yellow-500/20 text-yellow-700 border-yellow-500/30' :
                                           ''}>
                           {order.status}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right">
                         <Button variant="outline" size="sm" asChild>
-                           {/* TODO: Create individual order detail page /account/orders/[orderId] */}
                           <Link href={`/account/orders/#${order.id}`}>
                             <Eye className="mr-1.5 h-4 w-4" /> View
                           </Link>
@@ -153,3 +168,5 @@ export default function OrdersPage() {
     </div>
   );
 }
+
+  

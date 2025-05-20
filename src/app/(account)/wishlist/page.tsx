@@ -1,60 +1,107 @@
 
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import type { Product } from '@/types';
-import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardDescription, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ProductCard } from '@/components/product/product-card'; // Re-use product card for consistency
+import { ProductCard } from '@/components/product/product-card';
 import Link from 'next/link';
-import { Heart, ShoppingBag } from 'lucide-react';
-
-// Mock Data - Replace with actual data fetching
-const mockWishlistItems: Product[] = [
-  { 
-    id: 'prod-3', name: 'Urban Nomad Pants', slug: 'urban-nomad-pants', price: 7500, 
-    images: [{ id: 'img-wish-1', url: 'https://placehold.co/600x800.png', altText: 'Urban Nomad Pants on wishlist', dataAiHint: 'urban pants' }], 
-    categories: [{ id: 'cat-3', name: 'Bottoms', slug: 'bottoms' }], 
-    shortDescription: 'Street-ready style with traditional touches.',
-    createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), description: "Full desc here"
-  },
-  { 
-    id: 'prod-4', name: 'Silk Scarf Mandala', slug: 'silk-scarf-mandala', price: 4200, 
-    images: [{ id: 'img-wish-2', url: 'https://placehold.co/600x800.png', altText: 'Silk Scarf with Mandala design on wishlist', dataAiHint: 'mandala scarf' }], 
-    categories: [{ id: 'cat-4', name: 'Accessories', slug: 'accessories' }], 
-    shortDescription: 'Hand-painted pure silk elegance.',
-    createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), description: "Full desc here"
-  },
-  { 
-    id: 'prod-6', name: 'Everest Summit Hoodie', slug: 'everest-summit-hoodie', price: 9800, 
-    images: [{ id: 'img-wish-3', url: 'https://placehold.co/600x800.png', altText: 'Everest Summit Hoodie on wishlist', dataAiHint: 'summit hoodie' }], 
-    categories: [{ id: 'cat-1', name: 'Outerwear', slug: 'outerwear' }], 
-    shortDescription: 'Warmth and style inspired by the highest peaks.',
-    createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), description: "Full desc here"
-  },
-];
+import { Heart, ShoppingBag, Loader2, Trash2 } from 'lucide-react';
+import { useAuth } from '@/hooks/use-auth';
+import { useToast } from '@/hooks/use-toast';
 
 export default function WishlistPage() {
+  const { user, isLoading: authLoading } = useAuth();
+  const { toast } = useToast();
   const [wishlistItems, setWishlistItems] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    // Simulate API call
-    setTimeout(() => {
-      setWishlistItems(mockWishlistItems);
-      setIsLoading(false);
-    }, 500);
-  }, []);
+  const fetchWishlistProducts = useCallback(async () => {
+    if (!user || !user.id) {
+        setIsLoading(false);
+        if(!authLoading) setWishlistItems([]); // Clear if not loading and no user
+        return;
+    }
+    setIsLoading(true);
+    try {
+      const wishlistResponse = await fetch(`/api/account/wishlist?userId=${user.id}`);
+      if (!wishlistResponse.ok) {
+        const errorData = await wishlistResponse.json();
+        throw new Error(errorData.message || 'Failed to fetch wishlist IDs');
+      }
+      const { wishlist: wishlistProductIds } = await wishlistResponse.json();
 
-  // TODO: Implement remove from wishlist functionality
-  const handleRemoveFromWishlist = (productId: string) => {
-    console.log("Removing product from wishlist:", productId);
-    // setWishlistItems(prev => prev.filter(item => item.id !== productId));
-    // toast({ title: "Item removed from wishlist" });
+      if (wishlistProductIds && wishlistProductIds.length > 0) {
+        // Fetch details for each product ID. This could be optimized with a bulk fetch endpoint.
+        // For now, fetching one by one if slug is needed, or we can adapt ProductCard to take simpler data if we only have IDs.
+        // Assuming /api/products/[idOrSlug] exists and can take an ID.
+        // Or, if your product IDs are the same as slugs, this might work.
+        // For a robust solution, you'd fetch product details via an API that accepts multiple IDs.
+        const productDetailsPromises = wishlistProductIds.map((productId: string) =>
+          fetch(`/api/products/${productId}`) // Assuming API can fetch by ID too, or slug if ID is slug
+            .then(res => {
+              if (res.ok) return res.json();
+              // If a specific product fetch fails, log it but don't break all wishlist items
+              console.warn(`Failed to fetch product details for ID: ${productId}`);
+              return null; 
+            })
+            .catch(err => {
+              console.warn(`Error fetching product details for ID: ${productId}`, err);
+              return null;
+            })
+        );
+        const products = (await Promise.all(productDetailsPromises)).filter(p => p !== null) as Product[];
+        setWishlistItems(products);
+      } else {
+        setWishlistItems([]);
+      }
+    } catch (error) {
+      console.error("Error fetching wishlist products:", error);
+      toast({ title: "Error", description: "Could not load your wishlist.", variant: "destructive" });
+      setWishlistItems([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [user, authLoading, toast]);
+
+  useEffect(() => {
+    if(!authLoading){ // Only fetch if auth state is resolved
+        fetchWishlistProducts();
+    }
+  }, [authLoading, fetchWishlistProducts]);
+
+
+  const handleRemoveFromWishlist = async (productId: string) => {
+    if (!user || !user.id) {
+      toast({ title: "Error", description: "You must be logged in.", variant: "destructive" });
+      return;
+    }
+    try {
+      const response = await fetch(`/api/account/wishlist/remove`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id, productId }),
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to remove item from wishlist');
+      }
+      toast({ title: "Item Removed", description: "The item has been removed from your wishlist." });
+      fetchWishlistProducts(); // Refresh wishlist
+    } catch (error) {
+      console.error("Error removing from wishlist:", error);
+      toast({ title: "Error", description: (error as Error).message, variant: "destructive" });
+    }
   };
 
-  if (isLoading) {
-    return <div className="container-wide section-padding text-center">Loading wishlist...</div>;
+  if (isLoading || authLoading) {
+    return (
+        <div className="container-wide section-padding flex justify-center items-center min-h-[50vh]">
+            <Loader2 className="h-12 w-12 animate-spin text-primary" />
+            <p className="ml-4 text-lg text-muted-foreground">Loading your wishlist...</p>
+        </div>
+    );
   }
 
   return (
@@ -80,16 +127,15 @@ export default function WishlistPage() {
               {wishlistItems.map((product) => (
                 <div key={product.id} className="relative group">
                     <ProductCard product={product} />
-                    {/* TODO: Add a more prominent remove button if needed, ProductCard might have AddToCart, which could change to Remove here */}
-                    {/* Example:
                     <Button 
                         variant="destructive" 
-                        size="sm" 
-                        className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                        size="icon" 
+                        className="absolute top-3 right-14 z-10 h-9 w-9 bg-card/70 hover:bg-destructive text-foreground hover:text-destructive-foreground rounded-full backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-300"
                         onClick={() => handleRemoveFromWishlist(product.id)}
+                        aria-label="Remove from wishlist"
                     >
-                        Remove
-                    </Button> */}
+                        <Trash2 className="h-5 w-5" />
+                    </Button>
                 </div>
               ))}
             </div>
@@ -113,3 +159,5 @@ export default function WishlistPage() {
     </div>
   );
 }
+
+  

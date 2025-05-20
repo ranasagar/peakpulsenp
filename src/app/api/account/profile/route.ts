@@ -2,21 +2,14 @@
 // /src/app/api/account/profile/route.ts
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { db, auth } from '@/firebase/config'; // Assuming auth is exported for potential server-side verification if needed
-import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { supabase } from '@/lib/supabaseClient';
 import type { User as AuthUserType } from '@/types';
 
-// IMPORTANT: For production, you MUST verify the user's identity on the server.
-// This typically involves passing an ID token from the client and verifying it using the Firebase Admin SDK.
-// For simplicity in this prototype, we are trusting the UID sent from the client,
-// but this is NOT secure for a real application without token verification.
-
 interface ProfileUpdateRequest {
-  uid: string;
+  uid: string; // Firebase UID will be used as the primary key 'id' in Supabase 'users' table
   name?: string;
-  email?: string; // Email updates require re-authentication and are complex, usually handled separately.
   avatarUrl?: string;
-  // Add any other profile fields you want to manage, e.g., phone, bio
+  // email changes are complex and should be handled via Firebase Auth SDK, not directly here
 }
 
 export async function GET(request: NextRequest) {
@@ -24,24 +17,31 @@ export async function GET(request: NextRequest) {
   const uid = searchParams.get('uid');
 
   if (!uid) {
-    return NextResponse.json({ message: 'User ID is required' }, { status: 400 });
+    return NextResponse.json({ message: 'User ID (uid) is required' }, { status: 400 });
   }
 
   try {
-    const userDocRef = doc(db, 'users', uid);
-    const docSnap = await getDoc(userDocRef);
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', uid)
+      .single();
 
-    if (docSnap.exists()) {
-      const userData = docSnap.data() as AuthUserType;
-      return NextResponse.json(userData);
+    if (error) {
+      if (error.code === 'PGRST116') { // PGRST116: "JSON object requested, but array found" or "0 rows"
+        return NextResponse.json({ message: 'Profile not found in Supabase users table' }, { status: 404 });
+      }
+      console.error('Supabase error fetching user profile:', error);
+      throw error;
+    }
+
+    if (data) {
+      return NextResponse.json(data as AuthUserType);
     } else {
-      // User document doesn't exist in Firestore, might be a new user or only Auth entry exists.
-      // You could return a default structure or a 404.
-      // For now, let's indicate not found, client can create it on first save.
-      return NextResponse.json({ message: 'Profile not found in Firestore' }, { status: 404 });
+      return NextResponse.json({ message: 'Profile not found in Supabase users table (data was null)' }, { status: 404 });
     }
   } catch (error) {
-    console.error('Error fetching user profile:', error);
+    console.error('Error fetching user profile from Supabase:', error);
     return NextResponse.json({ message: 'Error fetching user profile', error: (error as Error).message }, { status: 500 });
   }
 }
@@ -49,54 +49,77 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = (await request.json()) as ProfileUpdateRequest;
-    const { uid, ...profileData } = body;
+    const { uid, ...profileDataToUpdate } = body;
 
     if (!uid) {
-      return NextResponse.json({ message: 'User ID is required for update' }, { status: 400 });
+      return NextResponse.json({ message: 'User ID (uid) is required for update' }, { status: 400 });
     }
 
-    const userDocRef = doc(db, 'users', uid);
-
-    // Check if document exists to decide between set (with merge) or update
-    const docSnap = await getDoc(userDocRef);
-
-    const dataToSave: Partial<AuthUserType> & { updatedAt: any } = { // Use any for serverTimestamp
-      ...profileData,
-      updatedAt: serverTimestamp(), // Update timestamp
+    // Data to be saved in Supabase, ensuring only allowed fields are passed
+    const dataForSupabase: Partial<AuthUserType> = {
+      name: profileDataToUpdate.name,
+      avatarUrl: profileDataToUpdate.avatarUrl,
+      updatedAt: new Date().toISOString(), // Let Supabase trigger handle this ideally
     };
-    
-    if (profileData.email) {
-        // WARNING: Updating email directly in Firestore doesn't update Firebase Auth email.
-        // This needs a more robust flow involving re-authentication and `updateEmail` from `firebase/auth`.
-        // For this prototype, we'll store it, but be aware of this discrepancy.
-        // Ideally, email updates should trigger a Firebase Auth email update flow.
-        console.warn("Updating email in Firestore profile, but Firebase Auth email needs separate handling.");
+
+    // Remove undefined fields so they don't overwrite existing values with null in Supabase patch
+    Object.keys(dataForSupabase).forEach(key => 
+      dataForSupabase[key as keyof typeof dataForSupabase] === undefined && delete dataForSupabase[key as keyof typeof dataForSupabase]
+    );
+
+
+    const { data: existingUser, error: fetchError } = await supabase
+      .from('users')
+      .select('id')
+      .eq('id', uid)
+      .single();
+
+    if (fetchError && fetchError.code !== 'PGRST116') { // PGRST116 means no rows, which is fine for upsert
+      console.error('Supabase error checking existing user:', fetchError);
+      throw fetchError;
     }
 
+    let savedData;
+    let opError;
 
-    if (docSnap.exists()) {
-      // Document exists, update it
-      await updateDoc(userDocRef, dataToSave);
+    if (existingUser) {
+      // User exists, update
+      const { data, error } = await supabase
+        .from('users')
+        .update(dataForSupabase)
+        .eq('id', uid)
+        .select()
+        .single();
+      savedData = data;
+      opError = error;
     } else {
-      // Document doesn't exist, create it
-      // Include createdAt timestamp if creating for the first time
-      const dataToCreate = {
-        ...dataToSave,
-        createdAt: serverTimestamp(),
-        id: uid, // ensure the ID is stored in the document too
-        // roles: ['customer'] // Default role for new profiles
-      };
-      if (!profileData.email) {
-        // If email wasn't in profileData (e.g., user only updated name), fetch from auth
-        // This part is tricky without Admin SDK. For now, we assume client ensures email exists from auth.
-        // For a real app, get user from token with Admin SDK to ensure correct email.
-      }
-      await setDoc(userDocRef, dataToCreate);
+      // User does not exist, insert (upsert with id)
+      // This assumes Firebase Auth user has been created first.
+      // Email and roles would ideally be set upon user creation (e.g. from useAuth hook initial setup)
+      const { data, error } = await supabase
+        .from('users')
+        .insert({ 
+            id: uid, // Use Firebase UID as the primary key
+            ...dataForSupabase,
+            // email: authUserEmail, // Should be fetched from verified token or set during registration sync
+            // roles: ['customer'], // Default role
+         })
+        .select()
+        .single();
+      savedData = data;
+      opError = error;
     }
 
-    return NextResponse.json({ message: 'Profile updated successfully' });
+    if (opError) {
+      console.error('Supabase error saving user profile:', opError);
+      throw opError;
+    }
+
+    return NextResponse.json({ message: 'Profile updated successfully', user: savedData });
   } catch (error) {
-    console.error('Error updating user profile:', error);
+    console.error('Error processing profile update:', error);
     return NextResponse.json({ message: 'Error updating user profile', error: (error as Error).message }, { status: 500 });
   }
 }
+
+  

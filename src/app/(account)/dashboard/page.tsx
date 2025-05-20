@@ -5,27 +5,88 @@ import { useAuth } from '@/hooks/use-auth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { ShoppingBag, Heart, User, Edit3, MapPin, CreditCard as CreditCardIcon } from 'lucide-react'; // Renamed CreditCard to avoid conflict
+import { ShoppingBag, Heart, User, Edit3, MapPin, CreditCard as CreditCardIcon, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import type { Order, Product } from '@/types';
-
-// Mock Data - Replace with actual data fetching
-const mockRecentOrders: Partial<Order>[] = [
-  { id: 'ORD-001', createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), totalAmount: 12000, status: 'Shipped', items: [{ name: 'Himalayan Breeze Jacket', quantity: 1, price: 12000, productId: 'prod-1' }] },
-  { id: 'ORD-002', createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), totalAmount: 3500, status: 'Delivered', items: [{ name: 'Kathmandu Comfort Tee', quantity: 1, price: 3500, productId: 'prod-2' }] },
-];
-
-const mockWishlistItems: Partial<Product>[] = [
-  { id: 'prod-3', name: 'Urban Nomad Pants', price: 7500, images: [{ id: 'img-wish-1', url: 'https://placehold.co/100x100.png', dataAiHint: 'urban pants' }] },
-  { id: 'prod-4', name: 'Silk Scarf Mandala', price: 4200, images: [{ id: 'img-wish-2', url: 'https://placehold.co/100x100.png', dataAiHint: 'mandala scarf' }] },
-];
+import { useEffect, useState } from 'react';
+import { useToast } from '@/hooks/use-toast';
 
 export default function CustomerDashboardPage() {
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
+  const { toast } = useToast();
+  const [recentOrders, setRecentOrders] = useState<Order[]>([]);
+  const [wishlistItems, setWishlistItems] = useState<Product[]>([]);
+  const [isLoadingOrders, setIsLoadingOrders] = useState(true);
+  const [isLoadingWishlist, setIsLoadingWishlist] = useState(true);
+
+  useEffect(() => {
+    if (user && user.id) {
+      // Fetch Recent Orders
+      const fetchOrders = async () => {
+        setIsLoadingOrders(true);
+        try {
+          const response = await fetch(`/api/account/orders?userId=${user.id}`);
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Failed to fetch orders');
+          }
+          const ordersData: Order[] = await response.json();
+          setRecentOrders(ordersData.slice(0, 2)); // Show first 2 recent orders
+        } catch (err) {
+          console.error("Error fetching recent orders:", err);
+          toast({ title: "Error", description: "Could not load recent orders.", variant: "destructive" });
+        } finally {
+          setIsLoadingOrders(false);
+        }
+      };
+
+      // Fetch Wishlist Items
+      const fetchWishlist = async () => {
+        setIsLoadingWishlist(true);
+        try {
+          const wishlistResponse = await fetch(`/api/account/wishlist?userId=${user.id}`);
+          if (!wishlistResponse.ok) {
+            const errorData = await wishlistResponse.json();
+            throw new Error(errorData.message || 'Failed to fetch wishlist IDs');
+          }
+          const { wishlist: wishlistProductIds } = await wishlistResponse.json();
+
+          if (wishlistProductIds && wishlistProductIds.length > 0) {
+            // Fetch details for products in wishlist
+            // This could be optimized with a bulk fetch API endpoint
+            const productDetailsPromises = wishlistProductIds.slice(0, 4).map((productId: string) =>
+              fetch(`/api/products/${productId}`).then(res => res.ok ? res.json() : Promise.reject(new Error(`Failed to fetch product ${productId}`)))
+            );
+            const products = await Promise.all(productDetailsPromises);
+            setWishlistItems(products.filter(p => p) as Product[]); // Filter out any nulls from failed fetches
+          } else {
+            setWishlistItems([]);
+          }
+        } catch (err) {
+          console.error("Error fetching wishlist items:", err);
+          toast({ title: "Error", description: "Could not load wishlist items.", variant: "destructive" });
+        } finally {
+          setIsLoadingWishlist(false);
+        }
+      };
+      fetchOrders();
+      fetchWishlist();
+    } else if (!authLoading) { // If not loading and no user, clear states
+        setIsLoadingOrders(false);
+        setIsLoadingWishlist(false);
+        setRecentOrders([]);
+        setWishlistItems([]);
+    }
+  }, [user, authLoading, toast]);
+
+  if (authLoading) {
+    return <div className="container-wide section-padding text-center flex justify-center items-center min-h-[50vh]"><Loader2 className="h-12 w-12 animate-spin text-primary" /> <span className="ml-4 text-lg">Loading user data...</span></div>;
+  }
 
   if (!user) {
-    return <div className="container-wide section-padding text-center">Loading user data...</div>; // Or a more styled loader
+    // This case should ideally be handled by the AccountLayout redirecting to login
+    return <div className="container-wide section-padding text-center">Please log in to view your dashboard.</div>;
   }
 
   return (
@@ -36,9 +97,7 @@ export default function CustomerDashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Main Content Area */}
         <div className="lg:col-span-2 space-y-8">
-          {/* Recent Orders */}
           <Card className="shadow-lg">
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
@@ -50,13 +109,14 @@ export default function CustomerDashboardPage() {
               </Button>
             </CardHeader>
             <CardContent>
-              {mockRecentOrders.length > 0 ? (
+              {isLoadingOrders ? <div className="flex justify-center py-8"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div> :
+               recentOrders.length > 0 ? (
                 <ul className="space-y-4">
-                  {mockRecentOrders.map(order => (
+                  {recentOrders.map(order => (
                     <li key={order.id} className="p-4 border rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
                       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
                         <div>
-                          <p className="font-semibold text-foreground">Order ID: {order.id}</p>
+                          <p className="font-semibold text-foreground">Order ID: {order.id.substring(0,15)}...</p>
                           <p className="text-sm text-muted-foreground">
                             Date: {new Date(order.createdAt!).toLocaleDateString()}
                           </p>
@@ -79,21 +139,21 @@ export default function CustomerDashboardPage() {
             </CardContent>
           </Card>
 
-          {/* Wishlist Summary */}
           <Card className="shadow-lg">
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
                 <CardTitle className="text-2xl flex items-center"><Heart className="mr-3 h-6 w-6 text-pink-500" />Your Wishlist</CardTitle>
-                <CardDescription>Items You Love</CardDescription>
+                <CardDescription>Items You Love (Showing up to 4)</CardDescription>
               </div>
               <Button variant="outline" size="sm" asChild>
                 <Link href="/account/wishlist">View Full Wishlist</Link>
               </Button>
             </CardHeader>
             <CardContent>
-              {mockWishlistItems.length > 0 ? (
+              {isLoadingWishlist ? <div className="flex justify-center py-8"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div> :
+               wishlistItems.length > 0 ? (
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                  {mockWishlistItems.slice(0,4).map(item => ( // Show first 4
+                  {wishlistItems.map(item => (
                     <Link key={item.id} href={`/products/${item.slug || item.id}`} className="group">
                       <Card className="overflow-hidden transition-all group-hover:shadow-md">
                         <Image 
@@ -117,7 +177,6 @@ export default function CustomerDashboardPage() {
           </Card>
         </div>
 
-        {/* Sidebar / Profile Quick View */}
         <div className="lg:col-span-1 space-y-8">
           <Card className="shadow-lg text-center p-6">
             <Avatar className="h-24 w-24 mx-auto mb-4 border-2 border-primary p-1">
@@ -140,10 +199,10 @@ export default function CustomerDashboardPage() {
                 <Link href="/account/profile"><User className="mr-3 h-5 w-5 text-primary/70"/> Personal Information</Link>
               </Button>
               <Button variant="ghost" className="w-full justify-start text-muted-foreground hover:text-primary hover:bg-muted/50" asChild>
-                <Link href="/account/addresses"><MapPin className="mr-3 h-5 w-5 text-primary/70"/> Saved Addresses</Link>
+                <Link href="/account/addresses"><MapPin className="mr-3 h-5 w-5 text-primary/70"/> Saved Addresses (UI Only)</Link>
               </Button>
               <Button variant="ghost" className="w-full justify-start text-muted-foreground hover:text-primary hover:bg-muted/50" asChild>
-                <Link href="/account/payment-methods"><CreditCardIcon className="mr-3 h-5 w-5 text-primary/70"/> Payment Methods</Link>
+                <Link href="/account/payment-methods"><CreditCardIcon className="mr-3 h-5 w-5 text-primary/70"/> Payment Methods (UI Only)</Link>
               </Button>
             </CardContent>
           </Card>
@@ -162,3 +221,5 @@ export default function CustomerDashboardPage() {
     </div>
   );
 }
+
+  
