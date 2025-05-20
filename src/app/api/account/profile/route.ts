@@ -2,109 +2,77 @@
 // /src/app/api/account/profile/route.ts
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { supabase } from '../../../../lib/supabaseClient.ts'; // Changed to relative path
+// File system or database interaction for profiles would go here if not using Supabase directly from useAuth.
+// For this rollback, we'll make it a mock API.
 import type { User as AuthUserType } from '@/types';
+
+// Mock data store (in-memory for demo, not persistent)
+let userProfiles: { [key: string]: AuthUserType } = {};
+
+export async function GET(request: NextRequest) {
+  const { searchParams } = new URL(request.url);
+  const uid = searchParams.get('uid');
+  console.log(`[API /api/account/profile] (Mock) GET request for uid: ${uid}`);
+
+  if (!uid) {
+    return NextResponse.json({ message: 'User ID (uid) is required' }, { status: 400 });
+  }
+
+  const profile = userProfiles[uid];
+
+  if (profile) {
+    console.log(`[API /api/account/profile] (Mock) Found profile for ${uid}`);
+    return NextResponse.json(profile);
+  } else {
+    console.log(`[API /api/account/profile] (Mock) Profile not found for ${uid}, returning 404.`);
+    // Fallback to a default structure if profile doesn't exist, or could return 404.
+    // For now, to align with frontend expectation of getting user data,
+    // we might return a partial object or what Firebase Auth would give.
+    // However, a real system might create the profile on first POST.
+    return NextResponse.json({ message: 'Profile not found' }, { status: 404 });
+  }
+}
 
 interface ProfileUpdateRequest {
   uid: string;
   name?: string;
   avatarUrl?: string;
-  // Email changes are complex and should be handled via Firebase Auth SDK, not directly here
-}
-
-export async function GET(request: NextRequest) {
-  const { searchParams } = new URL(request.url);
-  const uid = searchParams.get('uid');
-  console.log(`[API /api/account/profile] GET request for uid: ${uid}`);
-
-  if (!uid) {
-    console.warn("[API /api/account/profile] User ID (uid) is required for GET, but not provided.");
-    return NextResponse.json({ message: 'User ID (uid) is required' }, { status: 400 });
-  }
-
-  try {
-    const { data, error } = await supabase
-      .from('users')
-      .select('*')
-      .eq('id', uid)
-      .single();
-
-    if (error) {
-      if (error.code === 'PGRST116') { // User not found
-        console.warn(`[API /api/account/profile] Profile not found in Supabase users table for uid: ${uid}. Supabase error:`, error);
-        return NextResponse.json({ message: 'Profile not found in Supabase users table' }, { status: 404 });
-      }
-      console.error('[API /api/account/profile] Supabase error fetching user profile:', error);
-      return NextResponse.json({ message: 'Error fetching user profile from Supabase', error: error.message, details: error.details }, { status: 500 });
-    }
-
-    if (data) {
-      console.log(`[API /api/account/profile] Successfully fetched profile for uid: ${uid}`);
-      return NextResponse.json(data as AuthUserType);
-    } else {
-      // This case should ideally be covered by PGRST116, but as a fallback
-      console.warn(`[API /api/account/profile] Profile not found (data was null) for uid: ${uid}, though no Supabase error.`);
-      return NextResponse.json({ message: 'Profile not found in Supabase users table (data was null)' }, { status: 404 });
-    }
-  } catch (error) {
-    console.error('[API /api/account/profile] Unhandled error fetching user profile:', error);
-    return NextResponse.json({ message: 'Error fetching user profile', error: (error as Error).message }, { status: 500 });
-  }
+  email?: string; // Though email changes are complex with Firebase Auth
 }
 
 export async function POST(request: NextRequest) {
-  console.log("[API /api/account/profile] POST request received.");
+  console.log("[API /api/account/profile] (Mock) POST request received.");
   try {
     const body = (await request.json()) as ProfileUpdateRequest;
-    const { uid, ...profileDataToUpdate } = body;
+    const { uid, name, avatarUrl, email } = body;
 
     if (!uid) {
-      console.warn("[API /api/account/profile] User ID (uid) is required for POST update, but not provided.");
       return NextResponse.json({ message: 'User ID (uid) is required for update' }, { status: 400 });
     }
 
-    const dataForSupabase: Partial<AuthUserType> & { updatedAt: string } = {
-      // id: uid, // This is the primary key for matching
-      name: profileDataToUpdate.name,
-      avatarUrl: profileDataToUpdate.avatarUrl,
-      // roles are managed elsewhere (e.g. by admin or specific flows), not typically by user profile update
-      updatedAt: new Date().toISOString(),
-    };
-
-    // Remove undefined fields before sending to Supabase, except 'id' for upsert to work
-    Object.keys(dataForSupabase).forEach(key =>
-      (dataForSupabase as any)[key] === undefined && delete (dataForSupabase as any)[key]
-    );
+    if (!userProfiles[uid]) {
+        // Simulate creating a new profile if it doesn't exist
+        userProfiles[uid] = {
+            id: uid,
+            email: email || `mock-${uid}@example.com`, // Use provided email or a mock one
+            name: name || 'New User',
+            avatarUrl: avatarUrl || undefined,
+            roles: ['customer'],
+            wishlist: [],
+        };
+        console.log(`[API /api/account/profile] (Mock) Created new profile for ${uid}:`, userProfiles[uid]);
+    } else {
+        // Update existing profile
+        if (name) userProfiles[uid].name = name;
+        if (avatarUrl !== undefined) userProfiles[uid].avatarUrl = avatarUrl; // Allow setting to empty string
+        // Email changes are usually not done this way directly with Firebase Auth
+        console.log(`[API /api/account/profile] (Mock) Updated profile for ${uid}:`, userProfiles[uid]);
+    }
     
-    console.log(`[API /api/account/profile] Data for Supabase update/insert for uid ${uid}:`, dataForSupabase);
+    return NextResponse.json({ message: 'Profile updated successfully (mock)', user: userProfiles[uid] });
 
-    const { data: savedData, error: opError } = await supabase
-      .from('users')
-      .update(dataForSupabase) // update only existing fields
-      .eq('id', uid)
-      .select()
-      .single();
-
-    if (opError) {
-      console.error('[API /api/account/profile] Supabase error saving user profile (update):', opError);
-      // If user doc doesn't exist, insert might be intended but current logic updates.
-      // A true upsert (insert if not exists) is needed if profiles are created this way.
-      // The useAuth hook attempts to create a basic user doc on first login, so this POST should usually be an update.
-      return NextResponse.json({ message: 'Error saving user profile to Supabase', error: opError.message, details: opError.details }, { status: 500 });
-    }
-
-    if (!savedData) {
-        console.error('[API /api/account/profile] User profile was not updated/returned after Supabase operation, but no explicit error.');
-        // This might happen if the user document does not exist and you're only attempting an update.
-        // The useAuth hook should create a user doc on first login.
-        // Consider if an upsert or separate insert logic is needed if this API is the first point of profile creation.
-        return NextResponse.json({ message: 'Profile operation completed but no data returned. User may not exist or no changes made.' }, { status: 200 }); // Changed to 200 if no data but no error
-    }
-
-    console.log(`[API /api/account/profile] Profile updated successfully for uid ${uid}:`, savedData);
-    return NextResponse.json({ message: 'Profile updated successfully', user: savedData });
   } catch (error) {
-    console.error('[API /api/account/profile] Unhandled error processing profile update:', error);
-    return NextResponse.json({ message: 'Error updating user profile', error: (error as Error).message }, { status: 500 });
+    console.error('[API /api/account/profile] (Mock) Error processing profile update:', error);
+    return NextResponse.json({ message: 'Error updating user profile (mock)', error: (error as Error).message }, { status: 500 });
   }
 }

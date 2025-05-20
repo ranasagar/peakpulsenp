@@ -2,10 +2,13 @@
 // /src/app/api/products/[slug]/route.ts
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { supabase } from '../../../../lib/supabaseClient.ts'; // Changed to relative path
+import fs from 'fs/promises';
+import path from 'path';
 import type { Product } from '@/types';
 
 export const dynamic = 'force-dynamic';
+
+const productsFilePath = path.join(process.cwd(), 'src', 'data', 'products.json');
 
 export async function GET(
   request: NextRequest,
@@ -19,31 +22,19 @@ export async function GET(
   }
 
   try {
-    const { data, error } = await supabase
-      .from('products')
-      .select('*')
-      .eq('slug', slug)
-      .single(); 
+    const jsonData = await fs.readFile(productsFilePath, 'utf-8');
+    const products: Product[] = JSON.parse(jsonData);
+    const product = products.find(p => p.slug === slug);
 
-    if (error) {
-      if (error.code === 'PGRST116') { 
-        console.warn(`[API /api/products/[slug]] Product not found in Supabase for slug ${slug}. Supabase error:`, error);
-        return NextResponse.json({ message: `Product with slug '${slug}' not found.` }, { status: 404 });
-      }
-      console.error(`[API /api/products/[slug]] Supabase error fetching product for slug ${slug}:`, error);
-      return NextResponse.json({ message: 'Error fetching product from Supabase.', error: error.message, details: error.details }, { status: 500 });
+    if (product) {
+      console.log(`[API /api/products/[slug]] Product found for slug ${slug}:`, product.name);
+      return NextResponse.json(product);
+    } else {
+      console.warn(`[API /api/products/[slug]] Product not found for slug ${slug} in products.json.`);
+      return NextResponse.json({ message: `Product with slug '${slug}' not found.` }, { status: 404 });
     }
-
-    if (!data) {
-      console.warn(`[API /api/products/[slug]] Product data is null for slug ${slug}, though no Supabase error.`);
-      return NextResponse.json({ message: `Product with slug '${slug}' not found (data was null).` }, { status: 404 });
-    }
-
-    console.log(`[API /api/products/[slug]] Supabase query result for slug ${slug}:`, data);
-    return NextResponse.json(data as Product);
-
   } catch (error) {
-    console.error(`[API /api/products/[slug]] Unhandled error for slug ${slug}:`, error);
-    return NextResponse.json({ message: 'Internal server error.', error: (error as Error).message }, { status: 500 });
+    console.error(`[API /api/products/[slug]] Error reading or parsing products.json for slug ${slug}:`, error);
+    return NextResponse.json({ message: 'Error fetching product.', error: (error as Error).message }, { status: 500 });
   }
 }

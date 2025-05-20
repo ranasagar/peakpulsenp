@@ -2,8 +2,23 @@
 // /src/app/api/account/orders/route.ts
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { supabase } from '../../../../lib/supabaseClient.ts'; // Changed to relative path
+import fs from 'fs/promises';
+import path from 'path';
 import type { Order } from '@/types';
+
+const ordersFilePath = path.join(process.cwd(), 'src', 'data', 'orders.json');
+
+async function getOrders(): Promise<Order[]> {
+  try {
+    const jsonData = await fs.readFile(ordersFilePath, 'utf-8');
+    return JSON.parse(jsonData);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      return []; // File doesn't exist, return empty array
+    }
+    throw error;
+  }
+}
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -16,21 +31,14 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const { data, error } = await supabase
-      .from('orders')
-      .select('*')
-      .eq('userId', userId)
-      .order('createdAt', { ascending: false });
+    const allOrders = await getOrders();
+    const userOrders = allOrders.filter(order => order.userId === userId)
+                                 .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
-    if (error) {
-      console.error('[API /api/account/orders] Supabase error fetching orders:', error);
-      return NextResponse.json({ message: 'Error fetching user orders from Supabase', error: error.message, details: error.details }, { status: 500 });
-    }
-
-    console.log(`[API /api/account/orders] Successfully fetched ${data?.length || 0} orders for userId: ${userId}`);
-    return NextResponse.json(data as Order[]);
+    console.log(`[API /api/account/orders] Successfully fetched ${userOrders.length} orders for userId: ${userId} from JSON.`);
+    return NextResponse.json(userOrders);
   } catch (error) {
-    console.error('[API /api/account/orders] Unhandled error fetching user orders:', error);
+    console.error('[API /api/account/orders] Error fetching user orders from JSON:', error);
     return NextResponse.json({ message: 'Error fetching user orders', error: (error as Error).message }, { status: 500 });
   }
 }

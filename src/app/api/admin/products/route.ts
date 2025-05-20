@@ -2,115 +2,106 @@
 // /src/app/api/admin/products/route.ts
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { supabase } from '../../../../lib/supabaseClient.ts'; // Changed to relative path
+import fs from 'fs/promises';
+import path from 'path';
 import type { Product } from '@/types';
-import { v4 as uuidv4, validate as isValidUUID } from 'uuid';
+import { v4 as uuidv4 } from 'uuid'; // For generating IDs if necessary
 
+const productsFilePath = path.join(process.cwd(), 'src', 'data', 'products.json');
+
+async function getProducts(): Promise<Product[]> {
+  try {
+    const jsonData = await fs.readFile(productsFilePath, 'utf-8');
+    return JSON.parse(jsonData);
+  } catch (error) {
+    // If file doesn't exist or is empty, return empty array
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT' || error instanceof SyntaxError) {
+      return [];
+    }
+    throw error; // Re-throw other errors
+  }
+}
+
+async function saveProducts(products: Product[]) {
+  const jsonData = JSON.stringify(products, null, 2);
+  await fs.writeFile(productsFilePath, jsonData, 'utf-8');
+}
 
 export async function GET() {
   console.log("[API /api/admin/products] GET request received.");
   try {
-    const { data, error } = await supabase
-      .from('products')
-      .select('*')
-      .order('createdAt', { ascending: false });
-
-    if (error) {
-      console.error('[API /api/admin/products] Supabase error fetching products:', error);
-      return NextResponse.json(
-        { message: 'Error fetching products for admin', error: error.message, details: error.details, hint: error.hint, code: error.code },
-        { status: 500 }
-      );
-    }
-    return NextResponse.json(data as Product[]);
+    const products = await getProducts();
+    console.log(`[API /api/admin/products] Fetched ${products.length} products for admin.`);
+    return NextResponse.json(products);
   } catch (error) {
-    console.error('[API /api/admin/products] Unhandled error in GET handler:', error);
+    console.error('[API /api/admin/products] Error fetching products for admin:', error);
     return NextResponse.json({ message: 'Error fetching products for admin', error: (error as Error).message }, { status: 500 });
   }
 }
 
 export async function POST(request: NextRequest) {
-  console.log("[API /api/admin/products] POST request received.");
+  console.log("[API /api/admin/products] POST request received to save product.");
   if (process.env.NODE_ENV === 'production' && process.env.VERCEL) {
-    console.warn("[API /api/admin/products] Product modification is disabled in Vercel production environment for this demo.");
-    return NextResponse.json({ message: 'Product modification is disabled in this environment for demo purposes.' }, { status: 403 });
+    console.warn("[API /api/admin/products] Product modification (JSON file write) is disabled in Vercel production environment for this demo.");
+    return NextResponse.json({ message: 'Product modification is disabled in this environment.' }, { status: 403 });
   }
 
   try {
     const productData = (await request.json()) as Product;
-    console.log("[API /api/admin/products] Received product data for save/update:", JSON.stringify(productData, null, 2));
+    console.log("[API /api/admin/products] Received product data:", JSON.stringify(productData, null, 2));
 
-    const { id: clientProvidedId, slug: providedSlug, name, ...restOfProductData } = productData;
+    let products = await getProducts();
+    const productIndex = products.findIndex(p => p.id === productData.id);
 
-    const slug = providedSlug || name.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, '');
-    console.log(`[API /api/admin/products] Slug being processed: ${slug}`);
-
-    // Sanitize optional numeric fields and ensure arrays are properly formatted
-    const sanitizedData = {
-      ...restOfProductData,
-      name, 
-      slug, 
-      price: Number(restOfProductData.price) || 0,
-      compareAtPrice: (restOfProductData.compareAtPrice === undefined || isNaN(Number(restOfProductData.compareAtPrice))) ? null : Number(restOfProductData.compareAtPrice),
-      costPrice: (restOfProductData.costPrice === undefined || isNaN(Number(restOfProductData.costPrice))) ? null : Number(restOfProductData.costPrice),
-      stock: (restOfProductData.variants && restOfProductData.variants.length > 0) 
-             ? restOfProductData.variants.reduce((sum, v) => sum + (Number(v.stock) || 0), 0)
-             : (Number(restOfProductData.stock) || 0),
-      images: Array.isArray(restOfProductData.images) ? restOfProductData.images : [],
-      categories: Array.isArray(restOfProductData.categories) ? restOfProductData.categories : [],
-      variants: (Array.isArray(restOfProductData.variants) ? restOfProductData.variants : []).map(variant => ({
-        ...variant,
-        price: Number(variant.price) || 0,
-        costPrice: (variant.costPrice === undefined || isNaN(Number(variant.costPrice))) ? null : Number(variant.costPrice),
-        stock: Number(variant.stock) || 0,
-      })),
-      availablePrintDesigns: Array.isArray(restOfProductData.availablePrintDesigns) ? restOfProductData.availablePrintDesigns : null, // Use null if not provided/empty
-      customizationConfig: restOfProductData.customizationConfig || null, // Use null if not provided
+    const slug = productData.slug || productData.name.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, '');
+    const finalProductData = {
+      ...productData,
+      slug,
       updatedAt: new Date().toISOString(),
     };
-
-    let savedProduct;
-    let operationError;
-
-    if (clientProvidedId && isValidUUID(clientProvidedId)) {
-      console.log(`[API /api/admin/products] Attempting to UPDATE product with ID: ${clientProvidedId}`);
-      const { data, error } = await supabase
-        .from('products')
-        .update(sanitizedData)
-        .eq('id', clientProvidedId)
-        .select()
-        .single();
-      savedProduct = data;
-      operationError = error;
-    } else {
-      // For insert, do not include 'id' if it's not a valid UUID, let Supabase generate it.
-      // Also, createdAt is handled by DB default.
-      const { createdAt, ...dataForInsert } = sanitizedData;
-      console.log(`[API /api/admin/products] Attempting to INSERT new product. Client-provided ID was: ${clientProvidedId}`);
-      const { data, error } = await supabase
-        .from('products')
-        .insert(dataForInsert)
-        .select()
-        .single();
-      savedProduct = data;
-      operationError = error;
-    }
-
-    if (operationError) {
-      console.error('[API /api/admin/products] Supabase error saving product:', operationError);
-      return NextResponse.json({ message: 'Error saving product to Supabase.', error: operationError.message, details: operationError.details }, { status: 500 });
-    }
-
-    if (!savedProduct) {
-      console.error('[API /api/admin/products] Product was not saved/returned after Supabase operation, but no explicit error.');
-      return NextResponse.json({ message: 'Product operation completed but no product data returned from Supabase.'}, { status: 500 });
-    }
     
-    console.log("[API /api/admin/products] Product saved successfully to Supabase:", savedProduct);
-    return NextResponse.json(savedProduct); // Return only the saved product
+    // Sanitize optional numeric fields, ensure arrays are properly formatted
+    finalProductData.price = Number(finalProductData.price) || 0;
+    finalProductData.compareAtPrice = finalProductData.compareAtPrice ? Number(finalProductData.compareAtPrice) : undefined;
+    finalProductData.costPrice = finalProductData.costPrice ? Number(finalProductData.costPrice) : undefined;
+    finalProductData.stock = (finalProductData.variants && finalProductData.variants.length > 0)
+                           ? finalProductData.variants.reduce((sum, v) => sum + (Number(v.stock) || 0), 0)
+                           : (Number(finalProductData.stock) || 0);
+    finalProductData.images = Array.isArray(finalProductData.images) ? finalProductData.images.map(img => ({...img, id: img.id || uuidv4()})) : [];
+    finalProductData.categories = Array.isArray(finalProductData.categories) ? finalProductData.categories.map(cat => ({...cat, id: cat.id || uuidv4()})) : [];
+    finalProductData.variants = (Array.isArray(finalProductData.variants) ? finalProductData.variants : []).map(variant => ({
+      ...variant,
+      id: variant.id || uuidv4(),
+      price: Number(variant.price) || 0,
+      costPrice: variant.costPrice ? Number(variant.costPrice) : undefined,
+      stock: Number(variant.stock) || 0,
+    }));
+    finalProductData.availablePrintDesigns = Array.isArray(finalProductData.availablePrintDesigns) ? finalProductData.availablePrintDesigns.map(d => ({...d, id: d.id || uuidv4()})) : [];
+
+
+    if (productIndex > -1) {
+      // Update existing product
+      console.log(`[API /api/admin/products] Updating product with ID: ${finalProductData.id}`);
+      products[productIndex] = { ...products[productIndex], ...finalProductData };
+    } else {
+      // Add new product
+      const newProduct = {
+        ...finalProductData,
+        id: finalProductData.id || uuidv4(), // Ensure new products get a UUID if not client-generated correctly
+        createdAt: new Date().toISOString(),
+      };
+      console.log(`[API /api/admin/products] Adding new product with ID: ${newProduct.id}`);
+      products.push(newProduct);
+    }
+
+    await saveProducts(products);
+    console.log("[API /api/admin/products] Products saved successfully to products.json.");
+    // Return the saved/updated product
+    const savedProduct = products.find(p => p.id === (productIndex > -1 ? finalProductData.id : products[products.length-1].id));
+    return NextResponse.json(savedProduct);
 
   } catch (error) {
-    console.error('[API /api/admin/products] Unhandled error in POST handler:', error);
-    return NextResponse.json({ message: 'Error processing product save request.', error: (error as Error).message }, { status: 500 });
+    console.error('[API /api/admin/products] Error saving product:', error);
+    return NextResponse.json({ message: 'Error saving product.', error: (error as Error).message }, { status: 500 });
   }
 }
