@@ -1,7 +1,7 @@
 
 // /src/app/api/products/route.ts
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabaseClient.ts'; // Added .ts extension
+import { supabase } from '../../../lib/supabaseClient.ts'; // Changed to relative path
 import type { Product } from '@/types';
 
 export const dynamic = 'force-dynamic'; // Ensure fresh data
@@ -31,3 +31,4 @@ export async function GET() {
     );
   }
 }
+

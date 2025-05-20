@@ -2,105 +2,112 @@
 // /src/app/api/admin/products/route.ts
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import fs from 'fs/promises';
-import path from 'path';
+import { supabase } from '../../../../lib/supabaseClient.ts'; // Changed to relative path
 import type { Product } from '@/types';
+import { v4 as uuidv4 } from 'uuid'; // For checking if ID is UUID
 
-const filePath = path.join(process.cwd(), 'src', 'data', 'products.json');
-
-// Helper function to read products
-async function getProducts(): Promise<Product[]> {
-  try {
-    const jsonData = await fs.readFile(filePath, 'utf-8');
-    return JSON.parse(jsonData);
-  } catch (error) {
-    // If file doesn't exist or is empty, return empty array
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-      return [];
-    }
-    console.error('Error reading products file for admin:', error);
-    throw error; // Re-throw to be caught by the handler
-  }
-}
-
-// Helper function to write products
-async function saveProducts(products: Product[]): Promise<void> {
-  await fs.writeFile(filePath, JSON.stringify(products, null, 2), 'utf-8');
+// Helper to check if a string is a valid UUID
+function isValidUUID(str: string): boolean {
+  const uuidRegex = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+  return uuidRegex.test(str);
 }
 
 export async function GET() {
-  // IMPORTANT: Add authentication/authorization for admin access here in a real app
+  console.log("[API /api/admin/products] GET request received.");
   try {
-    const products = await getProducts();
-    return NextResponse.json(products);
+    const { data, error } = await supabase
+      .from('products')
+      .select('*')
+      .order('createdAt', { ascending: false });
+
+    if (error) {
+      console.error('[API /api/admin/products] Supabase error fetching products:', error);
+      return NextResponse.json(
+        { message: 'Error fetching products for admin', error: error.message, details: error.details, hint: error.hint, code: error.code },
+        { status: 500 }
+      );
+    }
+    return NextResponse.json(data as Product[]);
   } catch (error) {
+    console.error('[API /api/admin/products] Unhandled error in GET handler:', error);
     return NextResponse.json({ message: 'Error fetching products for admin', error: (error as Error).message }, { status: 500 });
   }
 }
 
 export async function POST(request: NextRequest) {
-  // IMPORTANT: Add authentication/authorization for admin access here
-  // This file writing approach is NOT suitable for production serverless environments
+  console.log("[API /api/admin/products] POST request received.");
   if (process.env.NODE_ENV === 'production' && process.env.VERCEL) {
-    console.warn("File system write attempts for products are disabled in Vercel production environment for this demo API.");
+    console.warn("[API /api/admin/products] Product modification is disabled in Vercel production environment for this demo.");
     return NextResponse.json({ message: 'Product modification is disabled in this environment for demo purposes.' }, { status: 403 });
   }
 
   try {
-    const productData = (await request.json()) as Product | { products: Product[] }; // Can receive a single product or a full list
-    let products = await getProducts();
+    const productData = (await request.json()) as Product;
+    console.log("[API /api/admin/products] Received product data for save/update:", JSON.stringify(productData, null, 2));
 
-    if ('products' in productData) { // If a whole list is sent (e.g. for reordering or bulk delete)
-        products = productData.products;
-    } else { // Single product add or update
-        const productPayload = productData as Product; // Cast to Product
-        const existingProductIndex = products.findIndex(p => p.id === productPayload.id);
+    const { id, slug: providedSlug, name, ...restOfProductData } = productData;
 
-        if (existingProductIndex > -1) {
-          // Update existing product
-          products[existingProductIndex] = {
-             ...products[existingProductIndex], 
-             ...productPayload, 
-             updatedAt: new Date().toISOString(),
-             // Ensure customizationConfig and availablePrintDesigns are properly merged or replaced
-             customizationConfig: productPayload.customizationConfig !== undefined ? productPayload.customizationConfig : products[existingProductIndex].customizationConfig,
-             availablePrintDesigns: productPayload.availablePrintDesigns !== undefined ? productPayload.availablePrintDesigns : products[existingProductIndex].availablePrintDesigns,
-          };
-        } else {
-          // Add new product
-          const newProduct: Product = {
-            ...productPayload,
-            id: productPayload.id || `prod-${Date.now()}`,
-            slug: productPayload.slug || productPayload.name.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, ''),
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            images: productPayload.images || [],
-            categories: productPayload.categories || [],
-            variants: productPayload.variants || undefined,
-            costPrice: productPayload.costPrice,
-            stock: productPayload.stock,
-            compareAtPrice: productPayload.compareAtPrice,
-            shortDescription: productPayload.shortDescription,
-            fabricDetails: productPayload.fabricDetails,
-            careInstructions: productPayload.careInstructions,
-            sustainabilityMetrics: productPayload.sustainabilityMetrics,
-            fitGuide: productPayload.fitGuide,
-            sku: productPayload.sku,
-            averageRating: productPayload.averageRating || 0,
-            reviewCount: productPayload.reviewCount || 0,
-            isFeatured: productPayload.isFeatured || false,
-            availablePrintDesigns: productPayload.availablePrintDesigns || [],
-            customizationConfig: productPayload.customizationConfig || { enabled: false },
-          };
-          products.push(newProduct);
-        }
+    const slug = providedSlug || name.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, '');
+    console.log(`[API /api/admin/products] Slug being processed: ${slug}`);
+
+    // Sanitize optional numeric fields
+    const sanitizedData = {
+      ...restOfProductData,
+      name, // ensure name is included
+      slug, // ensure slug is included
+      compareAtPrice: isNaN(Number(restOfProductData.compareAtPrice)) || restOfProductData.compareAtPrice === undefined ? null : Number(restOfProductData.compareAtPrice),
+      costPrice: isNaN(Number(restOfProductData.costPrice)) || restOfProductData.costPrice === undefined ? null : Number(restOfProductData.costPrice),
+      stock: isNaN(Number(restOfProductData.stock)) || restOfProductData.stock === undefined ? 0 : Number(restOfProductData.stock),
+      variants: (restOfProductData.variants || []).map(variant => ({
+        ...variant,
+        price: isNaN(Number(variant.price)) ? 0 : Number(variant.price),
+        costPrice: isNaN(Number(variant.costPrice)) || variant.costPrice === undefined ? null : Number(variant.costPrice),
+        stock: isNaN(Number(variant.stock)) ? 0 : Number(variant.stock),
+      })),
+      updatedAt: new Date().toISOString(),
+    };
+
+    let savedProduct;
+    let operationError;
+
+    if (id && isValidUUID(id)) {
+      console.log(`[API /api/admin/products] Attempting to UPDATE product with ID: ${id}`);
+      const { data, error } = await supabase
+        .from('products')
+        .update(sanitizedData)
+        .eq('id', id)
+        .select()
+        .single();
+      savedProduct = data;
+      operationError = error;
+    } else {
+      console.log(`[API /api/admin/products] Attempting to INSERT new product (client-generated ID was: ${id})`);
+      // Do not pass the client-generated 'prod-...' ID to Supabase for insert
+      const { createdAt, ...dataForInsert } = sanitizedData; // Supabase handles createdAt
+      const { data, error } = await supabase
+        .from('products')
+        .insert(dataForInsert)
+        .select()
+        .single();
+      savedProduct = data;
+      operationError = error;
     }
 
-    await saveProducts(products);
-    return NextResponse.json({ message: 'Products updated successfully.', products });
+    if (operationError) {
+      console.error('[API /api/admin/products] Supabase error saving product:', operationError);
+      return NextResponse.json({ message: 'Error saving product to Supabase.', error: operationError.message, details: operationError.details }, { status: 500 });
+    }
+
+    if (!savedProduct) {
+      console.error('[API /api/admin/products] Product was not saved/returned after Supabase operation, but no explicit error.');
+      return NextResponse.json({ message: 'Product operation completed but no product data returned from Supabase.'}, { status: 500 });
+    }
+    
+    console.log("[API /api/admin/products] Product saved successfully to Supabase:", savedProduct);
+    return NextResponse.json({ message: 'Product saved successfully.', product: savedProduct });
 
   } catch (error) {
-    console.error('Error updating products.json:', error);
-    return NextResponse.json({ message: 'Error updating products', error: (error as Error).message }, { status: 500 });
+    console.error('[API /api/admin/products] Unhandled error in POST handler:', error);
+    return NextResponse.json({ message: 'Error processing product save request.', error: (error as Error).message }, { status: 500 });
   }
 }

@@ -2,8 +2,8 @@
 // /src/app/api/orders/create/route.ts
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import type { CartItem, Order, OrderAddress, OrderStatus, PaymentStatus } from '@/types';
-import { supabase } from '@/lib/supabaseClient'; // Import Supabase client
+import type { CartItem, OrderAddress, OrderStatus, PaymentStatus } from '@/types';
+import { supabase } from '../../../../lib/supabaseClient.ts'; // Changed to relative path
 
 function luhnCheck(val: string): boolean {
   let sum = 0;
@@ -43,7 +43,7 @@ interface ShippingDetails {
 }
 
 interface CreateOrderPayload {
-  userId: string; // Added userId
+  userId?: string; // Make userId optional for now, but log if missing
   cartItems: CartItem[];
   shippingDetails: ShippingDetails;
   orderSubtotal: number;
@@ -52,39 +52,44 @@ interface CreateOrderPayload {
 }
 
 export async function POST(request: NextRequest) {
+  console.log("[API /api/orders/create] POST request received.");
   try {
     const payload = (await request.json()) as CreateOrderPayload;
-    console.log('Received order payload for Supabase:', JSON.stringify(payload, null, 2));
+    console.log('[API /api/orders/create] Received order payload for Supabase:', JSON.stringify(payload, null, 2));
 
     const { userId, cartItems, shippingDetails, orderSubtotal, shippingCost, orderTotal } = payload;
-    const { paymentMethod, country, cardNumber, expiryDate, cvc, cardholderName, streetAddress, city, postalCode, fullName, phone } = shippingDetails;
+    const { paymentMethod, country, cardNumber, expiryDate, cvc, cardholderName, streetAddress, city, postalCode, fullName, phone, apartmentSuite } = shippingDetails;
 
     if (!userId) {
-      return NextResponse.json({ title: "Order Error", message: 'User ID is missing.' }, { status: 400 });
+      // In a real app, userId would be derived from a server-verified session/token
+      console.warn("[API /api/orders/create] User ID is missing. This is required for saving orders.");
+      return NextResponse.json({ title: "Order Error", message: 'User ID is missing. Unable to process order.' }, { status: 400 });
     }
     if (!cartItems || cartItems.length === 0) {
+      console.warn("[API /api/orders/create] Cart is empty. Order cannot be processed.");
       return NextResponse.json({ title: "Order Error", message: 'Cart is empty.' }, { status: 400 });
     }
-
 
     let responseMessage = `Order for ${shippingDetails.fullName} (Total: रू${orderTotal.toLocaleString()}) received.`;
     let responseTitle = "Order Received";
     let paymentStatus: PaymentStatus = 'Pending';
-    let orderStatus: OrderStatus = 'Pending'; // Default to Pending, then Processing after payment success
+    let orderStatus: OrderStatus = 'Pending';
 
     if (paymentMethod === 'cod') {
       responseMessage += ' Payment: Cash on Delivery. Our team may contact you for confirmation.';
       responseTitle = "COD Order Placed";
       paymentStatus = 'Pending';
-      orderStatus = 'Processing'; // COD orders can move to processing
+      orderStatus = 'Processing';
     } else if (paymentMethod === 'card_international') {
       if (!cardNumber || !expiryDate || !cvc || !cardholderName) {
+        console.warn("[API /api/orders/create] Missing international card details for card_international payment.");
         return NextResponse.json({ title: "Payment Failed", message: 'Missing international card details.' }, { status: 400 });
       }
       if (!luhnCheck(cardNumber)) {
+        console.warn("[API /api/orders/create] Invalid credit card number (Luhn check failed).");
         return NextResponse.json({ title: "Payment Failed", message: 'Invalid credit card number (Luhn check failed).' }, { status: 400 });
       }
-      // Further card validation logic...
+      // Further card validation logic can be added here
       responseMessage += ` Payment: International Card (ending ${cardNumber.slice(-4)}). Shipping fee: रू${shippingCost.toLocaleString()}.`;
       responseTitle = "International Order Placed";
       paymentStatus = 'Paid'; // Simulate successful payment for demo
@@ -93,48 +98,55 @@ export async function POST(request: NextRequest) {
       responseMessage += ` Payment: ${paymentMethod}. You will be prompted to complete your payment via the ${paymentMethod} interface.`;
       responseTitle = "Order Pending Payment";
       paymentStatus = 'Pending';
-      orderStatus = 'Pending'; // Stays pending until payment is confirmed
+      orderStatus = 'Pending';
     } else {
+       console.warn(`[API /api/orders/create] Invalid payment method selected: ${paymentMethod}`);
        return NextResponse.json({ title: "Payment Failed", message: 'Invalid payment method selected.' }, { status: 400 });
     }
 
     const orderToInsert = {
       userId: userId,
-      items: cartItems,
+      items: cartItems as any, // Supabase client handles JSONB stringification
       totalAmount: orderTotal,
       currency: 'NPR',
       status: orderStatus,
-      shippingAddress: {
+      shippingAddress: { // Ensure this matches OrderAddress type structure
         street: streetAddress,
         city: city,
         postalCode: postalCode,
         country: country,
         fullName: fullName,
         phone: phone || null,
-        apartmentSuite: shippingDetails.apartmentSuite || null,
-      },
+        apartmentSuite: apartmentSuite || null,
+      } as any, // Supabase client handles JSONB stringification
       paymentMethod: paymentMethod,
       paymentStatus: paymentStatus,
       // createdAt and updatedAt will be set by Supabase default or trigger
     };
+    
+    console.log("[API /api/orders/create] Order object being sent to Supabase:", JSON.stringify(orderToInsert, null, 2));
 
     const { data: newOrder, error: insertError } = await supabase
       .from('orders')
-      .insert(orderToInsert)
+      .insert([orderToInsert]) // Pass as an array for insert
       .select()
-      .single();
+      .single(); // Expecting a single row back after insert
 
     if (insertError) {
-      console.error('Supabase order insert error:', insertError);
-      return NextResponse.json({ title: "Database Error", message: 'Could not save order to database.', error: insertError.message }, { status: 500 });
+      console.error('[API /api/orders/create] Supabase order insert error:', insertError);
+      return NextResponse.json({ title: "Database Error", message: 'Could not save order to database.', error: insertError.message, details: insertError.details }, { status: 500 });
     }
     
-    console.log('Order successfully inserted into Supabase:', newOrder);
-
+    if (!newOrder) {
+        console.error('[API /api/orders/create] Order was not saved/returned after Supabase insert, but no explicit error.');
+        return NextResponse.json({ title: "Database Error", message: 'Order created but no data returned from database.' }, { status: 500 });
+    }
+    
+    console.log('[API /api/orders/create] Order successfully inserted into Supabase:', newOrder);
     return NextResponse.json({ title: responseTitle, message: responseMessage, orderId: newOrder.id }, { status: 201 });
 
   } catch (error) {
-    console.error('Error processing order API:', error);
+    console.error('[API /api/orders/create] Unhandled error processing order API:', error);
     let errorMessage = 'Failed to process order.';
     if (error instanceof Error) {
         errorMessage = error.message;
@@ -142,5 +154,3 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ title: "Order Error", message: 'Error processing order.', error: errorMessage }, { status: 500 });
   }
 }
-
-  
