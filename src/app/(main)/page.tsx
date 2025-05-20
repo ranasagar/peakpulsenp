@@ -7,10 +7,13 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { ProductCard } from '@/components/product/product-card';
 import { Icons } from '@/components/icons';
-import { ChevronLeft, ChevronRight, ShoppingBag, ArrowRight, Instagram, Send } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ShoppingBag, ArrowRight, Instagram, Send, Users, ImagePlus } from 'lucide-react';
 import { NewsletterSignupForm } from '@/components/forms/newsletter-signup-form';
-import type { HomepageContent, Product, HeroSlide, SocialCommerceItem } from '@/types';
+import type { HomepageContent, Product, HeroSlide, SocialCommerceItem, UserPost } from '@/types'; // Added UserPost
 import { useToast } from '@/hooks/use-toast';
+import { Card, CardContent } from '@/components/ui/card';
+import { AspectRatio } from '@/components/ui/aspect-ratio';
+
 
 // Fallback content structure, mirrors HomepageContent type
 const fallbackContent: HomepageContent = {
@@ -34,29 +37,33 @@ const fallbackContent: HomepageContent = {
   socialCommerceItems: [],
 };
 
+
 async function getHomepageContent(): Promise<HomepageContent> {
-  const fetchUrl = `/api/content/homepage`; // Always use relative path for client-side fetch to same origin
+  const fetchUrl = `/api/content/homepage`; 
   console.log(`[Client Fetch] Attempting to fetch from: ${fetchUrl}`);
   try {
     const res = await fetch(fetchUrl, { cache: 'no-store' });
 
     if (!res.ok) {
-      const errorBody = await res.text().catch(() => "Could not read error body");
+      let errorBody = "Could not read error body";
+      try {
+        errorBody = await res.text();
+      } catch (e) { /* ignore */ }
       console.error(`[Client Fetch] Failed to fetch content. Status: ${res.status} ${res.statusText}. Body:`, errorBody);
       throw new Error(`API Error: ${res.status} ${res.statusText}`);
     }
 
     const data = await res.json();
     console.log("[Client Fetch] Successfully fetched content:", data);
-    // Ensure data has the expected structure, using fallbacks if parts are missing
+    
     const processedData: HomepageContent = {
       heroSlides: (Array.isArray(data.heroSlides) && data.heroSlides.length > 0)
         ? data.heroSlides.map((slide: Partial<HeroSlide>) => ({
             id: slide.id || `slide-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
             title: slide.title || fallbackContent.heroSlides![0].title,
             description: slide.description || fallbackContent.heroSlides![0].description,
-            imageUrl: slide.imageUrl,
-            videoId: slide.videoId,
+            imageUrl: slide.imageUrl || undefined,
+            videoId: slide.videoId || undefined,
             altText: slide.altText || fallbackContent.heroSlides![0].altText,
             dataAiHint: slide.dataAiHint || fallbackContent.heroSlides![0].dataAiHint,
             ctaText: slide.ctaText || fallbackContent.heroSlides![0].ctaText,
@@ -80,16 +87,20 @@ async function getHomepageContent(): Promise<HomepageContent> {
     return processedData;
   } catch (error) {
     console.error("[Client Fetch] CRITICAL ERROR in getHomepageContent:", error);
-    return fallbackContent; // Return fallback on any critical error
+    return { // Ensure a valid HomepageContent structure is always returned
+        heroSlides: fallbackContent.heroSlides?.map(slide => ({...slide, videoId: undefined, imageUrl: slide.imageUrl || "https://placehold.co/1920x1080.png?text=Content+Error"})) || [],
+        artisanalRoots: fallbackContent.artisanalRoots,
+        socialCommerceItems: fallbackContent.socialCommerceItems || []
+    };
   }
 }
 
 
 // Mock products for "Featured Collection" - replace with actual data fetching later
 const mockFeaturedProducts: Product[] = [
-  { id: 'prod-1', name: 'Himalayan Breeze Jacket', slug: 'himalayan-breeze-jacket', price: 12000, images: [{ id: 'img-1', url: 'https://catalog-resize-images.thedoublef.com/606bc76216f1f9cb1ad8281eb9b7e84e/900/900/NF0A4QYXNY_P_NORTH-ZU31.a.jpg', altText: 'Himalayan Breeze Jacket', dataAiHint: 'jacket fashion' }], categories: [{ id: 'cat-1', name: 'Outerwear', slug: 'outerwear' }], shortDescription: 'Lightweight and versatile for any adventure.', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), description: "Full description here." },
-  { id: 'prod-2', name: 'Kathmandu Comfort Tee', slug: 'kathmandu-comfort-tee', price: 3500, images: [{ id: 'img-2', url: 'https://placehold.co/600x800.png?text=Tee', altText: 'Kathmandu Comfort Tee', dataAiHint: 'tee shirt' }], categories: [{ id: 'cat-2', name: 'Tops', slug: 'tops' }], shortDescription: 'Premium cotton for everyday luxury and style.', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), description: "Full description here." },
-  { id: 'prod-3', name: 'Urban Nomad Pants', slug: 'urban-nomad-pants', price: 7500, images: [{ id: 'img-3', url: 'https://placehold.co/600x800.png?text=Pants', altText: 'Urban Nomad Pants', dataAiHint: 'pants fashion' }], categories: [{ id: 'cat-3', name: 'Bottoms', slug: 'bottoms' }], shortDescription: 'Street-ready style with traditional Nepali touches.', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), description: "Full description here." },
+  { id: 'prod-1', name: 'Himalayan Breeze Jacket', slug: 'himalayan-breeze-jacket', price: 12000, images: [{ id: 'img-1', url: 'https://catalog-resize-images.thedoublef.com/606bc76216f1f9cb1ad8281eb9b7e84e/900/900/NF0A4QYXNY_P_NORTH-ZU31.a.jpg', altText: 'Himalayan Breeze Jacket', dataAiHint: 'jacket fashion' }], categories: [{ id: 'cat-1', name: 'Outerwear', slug: 'outerwear' }], shortDescription: 'Lightweight and versatile.', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), description: "Full description here." },
+  { id: 'prod-2', name: 'Kathmandu Comfort Tee', slug: 'kathmandu-comfort-tee', price: 3500, images: [{ id: 'img-2', url: 'https://placehold.co/600x800.png', altText: 'Kathmandu Comfort Tee', dataAiHint: 'tee shirt' }], categories: [{ id: 'cat-2', name: 'Tops', slug: 'tops' }], shortDescription: 'Premium cotton for daily wear.', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), description: "Full description here." },
+  { id: 'prod-3', name: 'Urban Nomad Pants', slug: 'urban-nomad-pants', price: 7500, images: [{ id: 'img-3', url: 'https://placehold.co/600x800.png', altText: 'Urban Nomad Pants', dataAiHint: 'pants fashion' }], categories: [{ id: 'cat-3', name: 'Bottoms', slug: 'bottoms' }], shortDescription: 'Street-ready style.', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), description: "Full description here." },
 ];
 
 
@@ -98,6 +109,8 @@ export default function HomePage() {
   const [content, setContent] = useState<HomepageContent>(fallbackContent);
   const [currentSlide, setCurrentSlide] = useState(0);
   const { toast } = useToast();
+  const [userPosts, setUserPosts] = useState<UserPost[]>([]);
+  const [isLoadingUserPosts, setIsLoadingUserPosts] = useState(true);
 
   const activeHeroSlides = content.heroSlides?.filter(slide => slide.title && (slide.imageUrl || slide.videoId)) || [];
 
@@ -119,9 +132,27 @@ export default function HomePage() {
     }
   }, [toast]);
 
+  const loadUserPosts = useCallback(async () => {
+    setIsLoadingUserPosts(true);
+    try {
+      const response = await fetch('/api/user-posts'); // Fetches approved posts
+      if (!response.ok) {
+        throw new Error('Failed to fetch user posts');
+      }
+      const postsData: UserPost[] = await response.json();
+      setUserPosts(postsData.slice(0, 4)); // Show up to 4 approved posts
+    } catch (error) {
+      console.error("Error fetching user posts:", error);
+      // Optionally toast error
+    } finally {
+      setIsLoadingUserPosts(false);
+    }
+  }, []);
+
   useEffect(() => {
     loadContent();
-  }, [loadContent]);
+    loadUserPosts();
+  }, [loadContent, loadUserPosts]);
 
   const nextSlide = useCallback(() => {
     setCurrentSlide((prev) => (prev === activeHeroSlides.length - 1 ? 0 : prev + 1));
@@ -137,7 +168,7 @@ export default function HomePage() {
 
   useEffect(() => {
     if (activeHeroSlides.length > 1) {
-      const slideInterval = setInterval(nextSlide, 7000); // Auto-slide every 7 seconds
+      const slideInterval = setInterval(nextSlide, 7000); 
       return () => clearInterval(slideInterval);
     }
   }, [activeHeroSlides.length, nextSlide]);
@@ -150,18 +181,7 @@ export default function HomePage() {
     );
   }
 
-  const heroTitle = activeHeroSlides[currentSlide]?.title || fallbackContent.heroSlides![0].title;
-  const heroDescription = activeHeroSlides[currentSlide]?.description || fallbackContent.heroSlides![0].description;
-  const heroVideoId = activeHeroSlides[currentSlide]?.videoId;
-  const heroImageUrl = activeHeroSlides[currentSlide]?.imageUrl;
-  const heroImageAlt = activeHeroSlides[currentSlide]?.altText || fallbackContent.heroSlides![0].altText;
-  const heroDataAiHint = activeHeroSlides[currentSlide]?.dataAiHint || fallbackContent.heroSlides![0].dataAiHint;
-  const heroCtaText = activeHeroSlides[currentSlide]?.ctaText || fallbackContent.heroSlides![0].ctaText;
-  const heroCtaLink = activeHeroSlides[currentSlide]?.ctaLink || fallbackContent.heroSlides![0].ctaLink;
-  
-  const artisanalRootsTitle = content.artisanalRoots?.title || fallbackContent.artisanalRoots!.title;
-  const artisanalRootsDescription = content.artisanalRoots?.description || fallbackContent.artisanalRoots!.description;
-  const socialItems = content.socialCommerceItems || [];
+  const currentHeroSlide = activeHeroSlides[currentSlide] || fallbackContent.heroSlides![0];
 
 
   return (
@@ -187,7 +207,7 @@ export default function HomePage() {
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                     allowFullScreen={false}
                   />
-                  <div className="absolute inset-0 bg-black/60 z-[1]" /> {/* Darker overlay for video */}
+                  <div className="absolute inset-0 bg-black/60 z-[1]" /> 
                 </>
               ) : slide.imageUrl ? (
                 <>
@@ -200,7 +220,7 @@ export default function HomePage() {
                     className="absolute inset-0 w-full h-full object-cover"
                     data-ai-hint={slide.dataAiHint || "fashion background"}
                   />
-                  <div className="absolute inset-0 bg-black/60 z-[1]" /> {/* Darker overlay for image */}
+                  <div className="absolute inset-0 bg-black/60 z-[1]" /> 
                 </>
               ) : null}
             </div>
@@ -209,16 +229,16 @@ export default function HomePage() {
 
         {/* Text Content Overlay */}
         <div className="relative z-20 flex flex-col items-center justify-center h-full pt-[calc(theme(spacing.20)_+_theme(spacing.6))] pb-12 px-6 md:px-8 text-center text-white max-w-3xl mx-auto">
-          <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-6 text-shadow-lg animate-fade-in-down">
-            {heroTitle}
+          <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-6 text-shadow-lg">
+            {currentHeroSlide.title}
           </h1>
-          <p className="text-lg md:text-xl lg:text-2xl text-neutral-200 mb-10 max-w-2xl mx-auto text-shadow-md animate-fade-in-up">
-            {heroDescription}
+          <p className="text-lg md:text-xl lg:text-2xl text-neutral-200 mb-10 max-w-2xl mx-auto text-shadow-md">
+            {currentHeroSlide.description}
           </p>
-          {heroCtaText && heroCtaLink && (
-            <Button size="lg" asChild className="text-base md:text-lg py-3 px-8 animate-fade-in-up animation-delay-300">
-              <Link href={heroCtaLink}>
-                {heroCtaText} <ShoppingBag className="ml-2 h-5 w-5" />
+          {currentHeroSlide.ctaText && currentHeroSlide.ctaLink && (
+            <Button size="lg" asChild className="text-base md:text-lg py-3 px-8">
+              <Link href={currentHeroSlide.ctaLink}>
+                {currentHeroSlide.ctaText} <ShoppingBag className="ml-2 h-5 w-5" />
               </Link>
             </Button>
           )}
@@ -248,7 +268,7 @@ export default function HomePage() {
             <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-30 flex space-x-2">
               {activeHeroSlides.map((_, index) => (
                 <button
-                  key={index}
+                  key={`dot-${index}`}
                   onClick={() => goToSlide(index)}
                   className={`h-2.5 w-2.5 rounded-full transition-all ${
                     currentSlide === index ? 'bg-white scale-125' : 'bg-white/50 hover:bg-white/80'
@@ -279,22 +299,22 @@ export default function HomePage() {
       {/* Brand Story Snippet / Artisanal Roots Section */}
       <section className="bg-card section-padding relative z-[1]">
         <div className="container-slim text-center">
-          <h2 className="text-3xl font-bold mb-6 text-foreground">{artisanalRootsTitle}</h2>
-          <p className="text-lg text-muted-foreground mb-8 max-w-xl mx-auto">{artisanalRootsDescription}</p>
+          <h2 className="text-3xl font-bold mb-6 text-foreground">{content.artisanalRoots?.title || "Our Artisanal Roots"}</h2>
+          <p className="text-lg text-muted-foreground mb-8 max-w-xl mx-auto">{content.artisanalRoots?.description || "Details about our craftsmanship are currently loading."}</p>
           <Button variant="default" size="lg" asChild className="text-base">
             <Link href="/our-story">Discover Our Story <ArrowRight className="ml-2 h-5 w-5" /></Link>
           </Button>
         </div>
       </section>
 
-      {/* Social Commerce Section (#PeakPulseStyle) */}
-      {socialItems && socialItems.length > 0 && (
+      {/* Social Commerce Section (#PeakPulseStyle) - Curated by Admin */}
+      {content.socialCommerceItems && content.socialCommerceItems.length > 0 && (
         <section className="section-padding container-wide relative z-[1] bg-background">
           <h2 className="text-3xl font-bold text-center mb-12 text-foreground">
             #PeakPulseStyle <Instagram className="inline-block ml-2 h-7 w-7 text-pink-500" />
           </h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {socialItems.map((item) => (
+            {content.socialCommerceItems.map((item) => (
               <Link
                 key={item.id}
                 href={item.linkUrl}
@@ -327,8 +347,59 @@ export default function HomePage() {
         </section>
       )}
 
+      {/* New User Posts Section */}
+      <section className="section-padding container-wide relative z-[1] bg-muted/30">
+        <div className="text-center mb-12">
+            <Users className="h-10 w-10 text-primary mx-auto mb-3" />
+            <h2 className="text-3xl font-bold text-foreground">Community Spotlights</h2>
+            <p className="text-muted-foreground mt-2 max-w-xl mx-auto">See how our community styles Peak Pulse. Share your look!</p>
+        </div>
+        {isLoadingUserPosts ? (
+            <div className="flex justify-center items-center py-10"><Loader2 className="h-8 w-8 animate-spin text-primary"/></div>
+        ) : userPosts.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            {userPosts.map(post => (
+              <Card key={post.id} className="overflow-hidden shadow-lg group">
+                <AspectRatio ratio={1/1} className="bg-background">
+                  <Image 
+                    src={post.image_url} 
+                    alt={post.caption || `Peak Pulse style by ${post.user_name}`} 
+                    layout="fill" 
+                    objectFit="cover"
+                    className="group-hover:scale-105 transition-transform"
+                    data-ai-hint="community fashion style"
+                  />
+                </AspectRatio>
+                <CardContent className="p-4">
+                  <div className="flex items-center mb-2">
+                    <Image src={post.user_avatar_url || 'https://placehold.co/40x40.png'} alt={post.user_name || 'User'} width={32} height={32} className="rounded-full mr-2" data-ai-hint="user avatar community"/>
+                    <span className="text-sm font-semibold text-foreground truncate">{post.user_name || 'Peak Pulse Fan'}</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground truncate h-10">{post.caption || "Loving my Peak Pulse gear!"}</p>
+                  {post.product_tags && post.product_tags.length > 0 && (
+                    <div className="mt-2">
+                      <span className="text-xs font-medium text-primary">Wearing: </span>
+                      <span className="text-xs text-muted-foreground">{post.product_tags.join(', ')}</span>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        ) : (
+          <p className="text-center text-muted-foreground py-8">No community posts yet. Be the first to share your style!</p>
+        )}
+        <div className="text-center mt-12">
+          <Button size="lg" asChild>
+            <Link href="/community/create-post">
+              <ImagePlus className="mr-2 h-5 w-5" /> Share Your Style
+            </Link>
+          </Button>
+        </div>
+      </section>
+
       {/* Newsletter Signup Section */}
-      <section className="bg-primary/5 section-padding relative z-[1]">
+      <section className="bg-card section-padding relative z-[1]">
         <div className="container-slim text-center">
           <Send className="h-12 w-12 text-primary mx-auto mb-4" />
           <h2 className="text-3xl font-bold mb-4 text-foreground">Join the Peak Pulse Community</h2>

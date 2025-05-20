@@ -88,7 +88,7 @@ export interface Product {
   isFeatured?: boolean;
   availablePrintDesigns?: PrintDesign[];
   customizationConfig?: ProductCustomizationConfig;
-  reviews?: Review[]; // Added for product reviews
+  reviews?: Review[];
   createdAt: string; // ISO string
   updatedAt: string; // ISO string
 }
@@ -124,6 +124,7 @@ export interface OrderAddress {
   country: string;
   fullName: string;
   phone?: string;
+  apartmentSuite?: string;
 }
 
 export const ALL_ORDER_STATUSES = ['Pending', 'Processing', 'Shipped', 'Delivered', 'Cancelled', 'Refunded'] as const;
@@ -135,22 +136,19 @@ export type PaymentStatus = typeof ALL_PAYMENT_STATUSES[number];
 
 export interface Order {
   id: string;
-  userId: string; // Consider linking to User.id
+  userId: string; 
   items: CartItem[];
   totalAmount: number;
-  currency: string; // e.g., "NPR", "USD"
+  currency: string; 
   status: OrderStatus;
   shippingAddress: OrderAddress;
-  billingAddress?: OrderAddress; // Optional, if different from shipping
+  billingAddress?: OrderAddress;
   paymentMethod?: string;
   paymentStatus: PaymentStatus;
   shippingMethod?: string;
   trackingNumber?: string;
-  // notes?: string; // Admin notes about the order
-  // discountCode?: string;
-  // discountAmount?: number;
-  createdAt: string; // ISO date string
-  updatedAt: string; // ISO date string
+  createdAt: string; 
+  updatedAt: string; 
 }
 
 
@@ -222,19 +220,18 @@ export interface ReviewImage {
 export interface Review {
   id: string;
   productId: string;
-  userId: string; // ID of the user who wrote the review
+  userId: string; 
   userName: string;
   userAvatarUrl?: string;
-  rating: number; // 1-5 stars
+  rating: number; 
   title?: string;
   comment: string;
-  images?: ReviewImage[]; // User-uploaded images for the review
+  images?: ReviewImage[]; 
   verifiedPurchase?: boolean;
-  createdAt: string; // ISO date string
-  updatedAt?: string; // ISO date string
+  createdAt: string; 
+  updatedAt?: string; 
 }
 
-// For Homepage Content Management
 export interface HeroSlide {
   id: string;
   title: string;
@@ -262,4 +259,18 @@ export interface HomepageContent {
     description: string;
   };
   socialCommerceItems?: SocialCommerceItem[];
+}
+
+// New type for User Posts
+export interface UserPost {
+  id: string; // uuid from Supabase
+  user_id: string; // Firebase UID, links to User.id
+  user_name?: string; // Denormalized for easier display
+  user_avatar_url?: string; // Denormalized
+  image_url: string;
+  caption?: string;
+  product_tags?: string[]; // Array of product names/slugs
+  status: 'pending' | 'approved' | 'rejected';
+  created_at: string; // ISO string
+  updated_at: string; // ISO string
 }
