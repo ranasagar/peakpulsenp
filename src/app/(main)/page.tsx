@@ -9,20 +9,19 @@ import { ProductCard } from '@/components/product/product-card';
 import { Icons } from '@/components/icons';
 import { ChevronLeft, ChevronRight, ShoppingBag, ArrowRight, Instagram, Send, Users, ImagePlus, Loader2 } from 'lucide-react';
 import { NewsletterSignupForm } from '@/components/forms/newsletter-signup-form';
-import type { HomepageContent, Product, HeroSlide, SocialCommerceItem, UserPost } from '@/types'; 
+import type { HomepageContent, Product, HeroSlide, SocialCommerceItem, UserPost } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent } from '@/components/ui/card';
 import { AspectRatio } from "@/components/ui/aspect-ratio";
-
 
 // Fallback content in case API fetch fails
 const fallbackContent: HomepageContent = {
   heroSlides: [
     {
       id: 'fallback-hero-1',
-      title: "Peak Pulse (Content Error)",
-      description: "Experience the fusion of ancient Nepali artistry and modern streetwear. (Content failed to load, displaying fallback).",
-      imageUrl: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?q=80&w=1920&h=1080&fit=crop&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D", 
+      title: "Peak Pulse (Fallback)",
+      description: "Experience the fusion of ancient Nepali artistry and modern streetwear. (Content loading or temporarily unavailable).",
+      imageUrl: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?q=80&w=1920&h=1080&fit=crop&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
       altText: "Fallback hero image: abstract fashion",
       dataAiHint: "fashion abstract modern",
       ctaText: "Explore Collections",
@@ -31,11 +30,11 @@ const fallbackContent: HomepageContent = {
     }
   ],
   artisanalRoots: {
-    title: "Our Artisanal Roots (Content Error)",
-    description: "Details about our craftsmanship are temporarily unavailable. We partner with local artisans in Nepal, preserving centuries-old techniques while innovating for today's global citizen."
+    title: "Our Artisanal Roots (Fallback)",
+    description: "Details about our craftsmanship are currently unavailable. We partner with local artisans in Nepal, preserving centuries-old techniques while innovating for today's global citizen."
   },
   socialCommerceItems: [
-    { id: 'social-fallback-1', imageUrl: 'https://placehold.co/400x400.png?text=Social+Error+1', linkUrl: 'https://instagram.com/peakpulsenp', altText: 'Social Post 1 Fallback', dataAiHint: 'social fashion fallback' },
+    { id: 'social-fallback-1', imageUrl: 'https://placehold.co/400x400.png?text=Social+Fallback+1', linkUrl: 'https://instagram.com/peakpulsenp', altText: 'Social Post 1 Fallback', dataAiHint: 'social fashion fallback' },
   ],
 };
 
@@ -43,7 +42,7 @@ const fallbackContent: HomepageContent = {
 async function getHomepageContent(): Promise<HomepageContent> {
   console.log("[Client Fetch] getHomepageContent called");
   try {
-    const fetchUrl = `/api/content/homepage`; 
+    const fetchUrl = `/api/content/homepage`; // Always use relative path for client-side fetch
     console.log(`[Client Fetch] Attempting to fetch from: ${fetchUrl}`);
     const res = await fetch(fetchUrl, { cache: 'no-store' });
 
@@ -53,55 +52,30 @@ async function getHomepageContent(): Promise<HomepageContent> {
         errorBody = await res.text();
       } catch (e) {/* ignore */}
       console.error(`[Client Fetch] Failed to fetch content. Status: ${res.status} ${res.statusText}. Body:`, errorBody);
-      if (res.status === 0 || res.statusText === "Failed to fetch") {
-         throw new Error("Network error or API route not found during homepage content fetch. Ensure your API route '/api/content/homepage' is working.");
-      }
-      throw new Error(`API Error fetching homepage content: ${res.status} ${res.statusText}. Details: ${errorBody}`);
+      throw new Error(`API Error fetching homepage content: ${res.status} ${res.statusText}. Details: ${errorBody.substring(0, 200)}`);
     }
 
     const data = await res.json();
     console.log("[Client Fetch] Successfully fetched homepage content:", data);
-    
-    const processedHeroSlides = (Array.isArray(data.heroSlides) && data.heroSlides.length > 0)
-        ? data.heroSlides.map((slide: Partial<HeroSlide>) => ({
-            id: slide.id || `slide-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
-            title: slide.title || fallbackContent.heroSlides![0].title,
-            description: slide.description || fallbackContent.heroSlides![0].description,
-            imageUrl: slide.imageUrl || undefined,
-            videoId: slide.videoId || undefined,
-            altText: slide.altText || fallbackContent.heroSlides![0].altText,
-            dataAiHint: slide.dataAiHint || fallbackContent.heroSlides![0].dataAiHint,
-            ctaText: slide.ctaText || fallbackContent.heroSlides![0].ctaText,
-            ctaLink: slide.ctaLink || fallbackContent.heroSlides![0].ctaLink,
-          }))
-        : fallbackContent.heroSlides;
-        
-    // Ensure at least one valid slide is present for rendering
-    const finalHeroSlides = processedHeroSlides && processedHeroSlides.length > 0 && processedHeroSlides.some(s => s.imageUrl || s.videoId)
-        ? processedHeroSlides.filter(s => s.imageUrl || s.videoId) // Filter out slides with no image or video
-        : fallbackContent.heroSlides;
-     if (finalHeroSlides.length === 0 && fallbackContent.heroSlides && fallbackContent.heroSlides.length > 0) {
-        finalHeroSlides.push(fallbackContent.heroSlides[0]); // Add fallback if filtering removed all
-    }
 
+    // Ensure heroSlides is always an array and each slide has required fields
+    const processedHeroSlides = (Array.isArray(data.heroSlides) ? data.heroSlides : []).map((slide: Partial<HeroSlide>) => ({
+        ...fallbackContent.heroSlides![0], // Provide defaults for all fields from the first fallback slide
+        ...slide, // Override with fetched data
+        id: slide.id || `slide-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`, // Ensure ID
+        imageUrl: slide.imageUrl || undefined,
+        videoId: slide.videoId || undefined,
+    })).filter(slide => slide.imageUrl || slide.videoId); // Only keep slides with media
 
     return {
-      heroSlides: finalHeroSlides,
-      artisanalRoots: (data.artisanalRoots && data.artisanalRoots.title && data.artisanalRoots.description)
-        ? data.artisanalRoots
-        : fallbackContent.artisanalRoots,
-      socialCommerceItems: (Array.isArray(data.socialCommerceItems))
-        ? data.socialCommerceItems.map((item: Partial<SocialCommerceItem>) => ({
-            id: item.id || `social-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
-            imageUrl: item.imageUrl || "https://placehold.co/400x400.png",
-            linkUrl: item.linkUrl || "#",
-            altText: item.altText || "Social post",
-            dataAiHint: item.dataAiHint || "social fashion",
-          }))
-        : fallbackContent.socialCommerceItems,
+      ...fallbackContent, // Start with fallback to ensure all sections always have some default structure
+      ...data, // Override with fetched content where available
+      heroSlides: processedHeroSlides.length > 0 ? processedHeroSlides : fallbackContent.heroSlides, // Ensure at least one valid slide
     };
+
   } catch (error) {
     console.error("[Client Fetch] CRITICAL ERROR in getHomepageContent:", error);
+    // Return a structured fallback that won't break rendering
     return { 
         ...fallbackContent,
         heroSlides: fallbackContent.heroSlides?.map(slide => ({...slide, imageUrl: slide.imageUrl || "https://placehold.co/1920x1080.png?text=Content+Load+Error"})) || [],
@@ -125,11 +99,7 @@ export default function HomePage() {
   const [userPosts, setUserPosts] = useState<UserPost[]>([]);
   const [isLoadingUserPosts, setIsLoadingUserPosts] = useState(true);
 
-  // Ensure heroSlides is always an array, defaulting to fallback if necessary
-  const activeHeroSlides = (content.heroSlides && content.heroSlides.length > 0)
-    ? content.heroSlides.filter(s => s.videoId || s.imageUrl) // Ensure slides have media
-    : fallbackContent.heroSlides || [];
-  
+  const activeHeroSlides = content.heroSlides || fallbackContent.heroSlides || [];
   const currentHeroSlideData = activeHeroSlides.length > 0 
     ? activeHeroSlides[currentSlide % activeHeroSlides.length] 
     : fallbackContent.heroSlides![0];
@@ -180,7 +150,7 @@ export default function HomePage() {
       setUserPosts(postsData.slice(0, 4)); 
     } catch (error) {
       console.error("Error fetching user posts:", error);
-      toast({ title: "Error Loading Community Posts", description: (error as Error).message, variant: "destructive" });
+      toast({ title: "Error Loading Community Posts", description: (error as Error).message + " Check server logs for more details from Supabase.", variant: "destructive" });
     } finally {
       setIsLoadingUserPosts(false);
     }
@@ -235,7 +205,7 @@ export default function HomePage() {
           <div
             key={slide.id || index}
             className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${
-              index === currentSlide ? 'opacity-100' : 'opacity-0'
+              index === currentSlide ? 'opacity-100' : 'opacity-0 pointer-events-none'
             }`}
           >
             <div className="absolute inset-0 z-0 pointer-events-none"> 
@@ -258,9 +228,8 @@ export default function HomePage() {
                     alt={slide.altText || "Peak Pulse Hero Background"}
                     fill
                     sizes="100vw"
-                    objectFit="cover"
-                    priority={index === 0} 
                     className="absolute inset-0 w-full h-full object-cover"
+                    priority={index === 0} 
                     data-ai-hint={slide.dataAiHint || "fashion background"}
                   />
                   <div className="absolute inset-0 bg-black/30 z-[1]" /> 
@@ -269,10 +238,10 @@ export default function HomePage() {
             </div>
             {index === currentSlide && (
                 <div className="relative z-20 flex flex-col items-center justify-center h-full pt-[calc(theme(spacing.20)_+_theme(spacing.6))] pb-12 px-6 md:px-8 text-center text-white max-w-3xl mx-auto">
-                <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-6 text-shadow-lg">
+                <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-6">
                     {slide.title}
                 </h1>
-                <p className="text-lg md:text-xl lg:text-2xl text-neutral-200 mb-10 max-w-2xl mx-auto text-shadow-md">
+                <p className="text-lg md:text-xl lg:text-2xl text-neutral-200 mb-10 max-w-2xl mx-auto">
                     {slide.description}
                 </p>
                 {slide.ctaText && slide.ctaLink && (
@@ -292,29 +261,28 @@ export default function HomePage() {
             <Button
               variant="ghost"
               size="icon"
-              className="absolute left-4 top-1/2 -translate-y-1/2 z-30 text-white hover:bg-white/20 hover:text-white h-12 w-12 rounded-full"
+              className="absolute left-2 md:left-4 top-1/2 -translate-y-1/2 z-30 h-10 w-10 md:h-14 md:w-14 rounded-full bg-black/25 text-white/80 hover:bg-black/50 hover:text-white focus-visible:bg-black/50 focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent transition-all duration-200 flex items-center justify-center"
               onClick={prevSlide}
               aria-label="Previous slide"
             >
-              <ChevronLeft className="h-7 w-7" />
+              <ChevronLeft className="h-6 w-6 md:h-7 md:w-7" />
             </Button>
             <Button
               variant="ghost"
               size="icon"
-              className="absolute right-4 top-1/2 -translate-y-1/2 z-30 text-white hover:bg-white/20 hover:text-white h-12 w-12 rounded-full"
+              className="absolute right-2 md:right-4 top-1/2 -translate-y-1/2 z-30 h-10 w-10 md:h-14 md:w-14 rounded-full bg-black/25 text-white/80 hover:bg-black/50 hover:text-white focus-visible:bg-black/50 focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent transition-all duration-200 flex items-center justify-center"
               onClick={nextSlide}
               aria-label="Next slide"
             >
-              <ChevronRight className="h-7 w-7" />
+              <ChevronRight className="h-6 w-6 md:h-7 md:w-7" />
             </Button>
-            <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-30 flex space-x-2">
+            <div className="absolute bottom-6 md:bottom-8 left-1/2 -translate-x-1/2 z-30 flex space-x-3 items-center bg-black/20 p-1.5 rounded-full backdrop-blur-sm">
               {activeHeroSlides.map((_, index) => (
                 <button
                   key={`dot-${index}`}
                   onClick={() => goToSlide(index)}
-                  className={`h-2.5 w-2.5 rounded-full transition-all ${
-                    currentSlide === index ? 'bg-white scale-125' : 'bg-white/50 hover:bg-white/80'
-                  }`}
+                  className={`h-2 w-2 md:h-2.5 md:w-2.5 rounded-full cursor-pointer transition-all duration-300 ease-in-out hover:bg-white/90 
+                    ${currentSlide === index ? 'bg-white scale-125 ring-2 ring-white/30 ring-offset-1 ring-offset-transparent p-1 w-5 md:w-6' : 'bg-white/40 hover:bg-white/70'}`}
                   aria-label={`Go to slide ${index + 1}`}
                 />
               ))}
@@ -462,4 +430,3 @@ export default function HomePage() {
     </>
   );
 }
-
