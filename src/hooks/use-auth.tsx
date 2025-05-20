@@ -5,7 +5,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import type { User as AuthUserType } from '@/types';
 import { auth, db } from '@/firebase/config'; // Import db
-import { doc, getDoc, setDoc } from 'firebase/firestore'; // Import Firestore functions
+import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore'; // Import Firestore functions
 import {
   onAuthStateChanged,
   createUserWithEmailAndPassword,
@@ -43,7 +43,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<AuthUserType | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
-  const searchParams = useSearchParams();
+  const pathname = usePathname(); // Get current pathname
 
   const fetchAppUser = useCallback(async (firebaseUser: FirebaseUser): Promise<AuthUserType | null> => {
     if (!firebaseUser) return null;
@@ -52,7 +52,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       const userDocSnap = await getDoc(userDocRef);
       if (userDocSnap.exists()) {
         const dbUser = userDocSnap.data() as AuthUserType;
-        // Merge Firebase Auth data (potentially more up-to-date displayName/photoURL) with Firestore data (roles, wishlist)
         return {
           id: firebaseUser.uid,
           email: firebaseUser.email || dbUser.email,
@@ -62,8 +61,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           wishlist: dbUser.wishlist || [],
         };
       } else {
-        // User exists in Firebase Auth but not in Firestore users collection yet
-        // Create a basic profile in Firestore
         console.log(`User ${firebaseUser.uid} not found in Firestore. Creating new document.`);
         const newAppUser: AuthUserType = {
           id: firebaseUser.uid,
@@ -74,21 +71,19 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           wishlist: [],
         };
         await setDoc(userDocRef, {
-          // id: newAppUser.id, // Not needed, doc ID is the UID
           email: newAppUser.email,
           name: newAppUser.name,
-          avatarUrl: newAppUser.avatarUrl || null, // Ensure null if undefined for Firestore
+          avatarUrl: newAppUser.avatarUrl || null,
           roles: newAppUser.roles,
           wishlist: newAppUser.wishlist,
-          createdAt: new Date().toISOString(), 
-          updatedAt: new Date().toISOString(),
+          createdAt: serverTimestamp(), 
+          updatedAt: serverTimestamp(),
         });
         console.log(`New user document created in Firestore for ${firebaseUser.uid}`);
         return newAppUser;
       }
     } catch (error) {
       console.error("Error fetching or creating user document in Firestore:", error);
-      // Fallback to basic user info from Firebase Auth if Firestore fetch fails
       return mapFirebaseUserToInitialAppUser(firebaseUser);
     }
   }, []);
@@ -96,71 +91,66 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      setIsLoading(true); // Always set loading true when auth state might change
       if (firebaseUser) {
-        setIsLoading(true); // Set loading true while fetching app user
-        console.log("Firebase auth state changed, user:", firebaseUser.uid);
+        console.log("Firebase auth state changed, user found:", firebaseUser.uid);
         const appUser = await fetchAppUser(firebaseUser);
         setUser(appUser);
         console.log("App user set in context:", appUser);
-        setIsLoading(false);
       } else {
         console.log("Firebase auth state changed, no user.");
         setUser(null);
-        setIsLoading(false);
       }
+      setIsLoading(false); // Set loading false after processing
     });
     return () => unsubscribe();
   }, [fetchAppUser]);
 
   const login = useCallback(async (email: string, pass: string): Promise<{ success: boolean; error?: string }> => {
-    setIsLoading(true);
+    // Global isLoading is handled by onAuthStateChanged
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, pass);
-      // Auth state change will be handled by onAuthStateChanged, which calls fetchAppUser
-      const redirectPath = searchParams.get('redirect') || '/account/dashboard';
-      router.push(redirectPath);
-      router.refresh(); 
+      await signInWithEmailAndPassword(auth, email, pass);
+      // Success! onAuthStateChanged will handle setting user state and isLoading.
+      // Redirect will be handled by the LoginPage component based on isAuthenticated.
       return { success: true };
     } catch (error: any) {
       console.error("Firebase login error:", error);
-      setIsLoading(false);
       return { success: false, error: error.message || "Login failed. Please check your credentials." };
     }
-  }, [router, searchParams]); // fetchAppUser is not directly called here, but onAuthStateChanged handles it
+  }, []);
 
   const register = useCallback(async (name: string, email: string, pass: string): Promise<{ success: boolean; error?: string }> => {
-    setIsLoading(true);
+    // Global isLoading is handled by onAuthStateChanged
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
       if (userCredential.user) {
         await updateProfile(userCredential.user, { displayName: name });
-        // Fetch/create user in Firestore. onAuthStateChanged will also trigger this, but doing it here ensures
-        // the user document might be ready sooner or displayName is reflected if Firestore doc is created here.
-        await fetchAppUser(userCredential.user); // This will create the Firestore doc if it doesn't exist
+        await fetchAppUser(userCredential.user); // This will create the Firestore doc
       }
-      // onAuthStateChanged will handle setting the user state and final isLoading=false
-      router.push('/account/dashboard');
-      router.refresh();
+      // Success! onAuthStateChanged will handle setting user state and isLoading.
+      // Redirect will be handled by the RegisterPage component based on isAuthenticated.
       return { success: true };
-    } catch (error: any) { // Corrected: Added opening curly brace
-        setIsLoading(false);
+    } catch (error: any) {
         return { success: false, error: error.message || "Registration failed. Please try again." };
       }
-    }, [router, fetchAppUser]);
+    }, [fetchAppUser]);
 
     const logout = useCallback(async () => {
-      setIsLoading(true);
+      // setIsLoading(true); // Optional: can set loading here if preferred for immediate UI feedback
       try {
         await firebaseSignOut(auth);
-        // setUser(null) will be handled by onAuthStateChanged
-        router.push('/login');
-        router.refresh();
+        // setUser(null) and isLoading will be handled by onAuthStateChanged
+        if (pathname.startsWith('/account') || pathname.startsWith('/admin')) {
+          router.push('/login'); // Redirect if logging out from a protected area
+        } else {
+          router.push('/'); // Or to homepage
+        }
+        router.refresh(); // Refresh to ensure server components reflect logout
       } catch (error) {
         console.error("Firebase logout error:", error);
-        // setUser(null); // Ensure user is cleared even if signout fails for some reason
-        setIsLoading(false); // Explicitly set loading to false on error here
+        // setIsLoading(false); // Ensure loading is false if it was set true at start of logout
       }
-    }, [router]);
+    }, [router, pathname]);
 
     const isAuthenticated = !!user && !isLoading; 
 
@@ -178,5 +168,3 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
     return context;
   };
-
-    

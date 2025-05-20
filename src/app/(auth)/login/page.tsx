@@ -1,21 +1,20 @@
 
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-// Label not used directly but kept for consistency from previous state
-// import { Label } from '@/components/ui/label'; 
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useAuth } from '@/hooks/use-auth';
 import { Icons } from '@/components/icons';
-import { AlertCircle, LogIn } from 'lucide-react';
+import { AlertCircle, LogIn, Loader2 as LocalLoader } from 'lucide-react'; // Renamed Loader2 to avoid conflict if any
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 const loginSchema = z.object({
   email: z.string().email({ message: 'Invalid email address.' }),
@@ -25,8 +24,19 @@ const loginSchema = z.object({
 type LoginFormValues = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
-  const { login, isLoading } = useAuth();
+  const { login, isAuthenticated, isLoading: authIsLoading } = useAuth();
   const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false); // Local loading state for the form
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    // Redirect if user is already authenticated and not in the process of auth loading
+    if (!authIsLoading && isAuthenticated) {
+      const redirectPath = searchParams.get('redirect') || '/account/dashboard';
+      router.push(redirectPath);
+    }
+  }, [isAuthenticated, authIsLoading, router, searchParams]);
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -38,13 +48,35 @@ export default function LoginPage() {
 
   const onSubmit = async (data: LoginFormValues) => {
     setError(null);
+    setIsSubmitting(true);
     const result = await login(data.email, data.password); 
+    setIsSubmitting(false);
     if (!result.success) {
       setError(result.error || 'Invalid email or password. Please try again.');
       form.resetField("password");
     }
-    // Successful login is handled by redirect in useAuth
+    // If login is successful, the useEffect above will handle the redirect
+    // once isAuthenticated and authIsLoading states are updated by useAuth.
   };
+
+  // If auth is still loading or user is authenticated, show a loading/message or let useEffect redirect
+  if (authIsLoading) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center p-4">
+        <LocalLoader className="h-12 w-12 animate-spin text-primary" />
+        <p className="mt-4 text-muted-foreground">Loading session...</p>
+      </div>
+    );
+  }
+  // If already authenticated, useEffect will redirect. This is a fallback/quick render state.
+  if (isAuthenticated) {
+     return (
+      <div className="flex min-h-screen flex-col items-center justify-center p-4">
+        <p className="text-muted-foreground">Already logged in. Redirecting...</p>
+      </div>
+    );
+  }
+
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-br from-background to-muted/30 p-4">
@@ -93,12 +125,9 @@ export default function LoginPage() {
                   <AlertDescription>{error}</AlertDescription>
                 </Alert>
               )}
-              <Button type="submit" className="w-full !mt-8 text-base py-3" disabled={isLoading}>
-                {isLoading ? (
-                  <svg className="animate-spin h-5 w-5 mr-3" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
+              <Button type="submit" className="w-full !mt-8 text-base py-3" disabled={isSubmitting || authIsLoading}>
+                {isSubmitting ? (
+                  <LocalLoader className="mr-2 h-5 w-5 animate-spin" />
                 ) : <LogIn className="mr-2 h-4 w-4" /> }
                 Sign In
               </Button>
@@ -112,7 +141,6 @@ export default function LoginPage() {
                 <Link href="/register">Sign Up</Link>
             </Button>
           </p>
-          {/* Removed mock credentials hint as it's now real auth */}
         </CardFooter>
       </Card>
     </div>

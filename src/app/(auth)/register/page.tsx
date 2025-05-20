@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -11,9 +11,10 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useAuth } from '@/hooks/use-auth';
 import { Icons } from '@/components/icons';
-import { AlertCircle, UserPlus } from 'lucide-react';
+import { AlertCircle, UserPlus, Loader2 as LocalLoader } from 'lucide-react'; // Renamed Loader2
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 const registerSchema = z.object({
   name: z.string().min(2, { message: 'Name must be at least 2 characters.' }),
@@ -24,8 +25,19 @@ const registerSchema = z.object({
 type RegisterFormValues = z.infer<typeof registerSchema>;
 
 export default function RegisterPage() {
-  const { register, isLoading } = useAuth();
+  const { register, isAuthenticated, isLoading: authIsLoading } = useAuth();
   const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false); // Local loading state
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    // Redirect if user is already authenticated
+    if (!authIsLoading && isAuthenticated) {
+      const redirectPath = searchParams.get('redirect') || '/account/dashboard';
+      router.push(redirectPath);
+    }
+  }, [isAuthenticated, authIsLoading, router, searchParams]);
 
   const form = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
@@ -38,12 +50,32 @@ export default function RegisterPage() {
 
   const onSubmit = async (data: RegisterFormValues) => {
     setError(null);
+    setIsSubmitting(true);
     const result = await register(data.name, data.email, data.password);
+    setIsSubmitting(false);
     if (!result.success) {
       setError(result.error || 'An unknown error occurred during registration.');
     }
-    // Successful registration is handled by redirect in useAuth
+    // If registration is successful, the useEffect above will handle redirect
+    // once isAuthenticated becomes true.
   };
+  
+  // If auth is still loading or user is authenticated, show a loading/message or let useEffect redirect
+  if (authIsLoading) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center p-4">
+        <LocalLoader className="h-12 w-12 animate-spin text-primary" />
+        <p className="mt-4 text-muted-foreground">Loading session...</p>
+      </div>
+    );
+  }
+  if (isAuthenticated) {
+     return (
+      <div className="flex min-h-screen flex-col items-center justify-center p-4">
+        <p className="text-muted-foreground">Already logged in. Redirecting...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-br from-background to-muted/30 p-4">
@@ -105,12 +137,9 @@ export default function RegisterPage() {
                   <AlertDescription>{error}</AlertDescription>
                 </Alert>
               )}
-              <Button type="submit" className="w-full !mt-8 text-base py-3" disabled={isLoading}>
-                {isLoading ? (
-                  <svg className="animate-spin h-5 w-5 mr-3" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
+              <Button type="submit" className="w-full !mt-8 text-base py-3" disabled={isSubmitting || authIsLoading}>
+                {isSubmitting ? (
+                  <LocalLoader className="mr-2 h-5 w-5 animate-spin" />
                 ) : <UserPlus className="mr-2 h-4 w-4" /> }
                 Sign Up
               </Button>
