@@ -1,3 +1,4 @@
+
 // src/app/api/content/homepage/route.ts
 import { NextResponse } from 'next/server';
 import type { HomepageContent, HeroSlide, SocialCommerceItem } from '@/types';
@@ -13,12 +14,12 @@ const hardcodedFallbackContent: HomepageContent = {
       id: 'fallback-hero-1',
       title: "Peak Pulse (API Fallback)",
       description: "Experience the fusion of ancient Nepali artistry and modern streetwear. (Content may be loading or temporarily unavailable).",
-      imageUrl: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?q=80&w=1920&h=1080&fit=crop&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+      imageUrl: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?q=80&w=1920&h=1080&fit=crop&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D", // A generic placeholder
       altText: "Fallback hero image: abstract fashion",
       dataAiHint: "fashion abstract modern",
       ctaText: "Explore Collections",
       ctaLink: "/products",
-      videoId: undefined,
+      videoId: undefined, // Explicitly undefined
     }
   ],
   artisanalRoots: {
