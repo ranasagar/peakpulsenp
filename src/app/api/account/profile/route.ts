@@ -32,16 +32,18 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ message: 'Profile not found in Supabase users table' }, { status: 404 });
       }
       console.error('Supabase error fetching user profile:', error);
-      throw error;
+      // Return a JSON response instead of throwing the error directly
+      return NextResponse.json({ message: 'Error fetching user profile from Supabase', error: error.message }, { status: 500 });
     }
 
     if (data) {
       return NextResponse.json(data as AuthUserType);
     } else {
+      // This case should ideally be covered by PGRST116 if .single() returns no rows.
       return NextResponse.json({ message: 'Profile not found in Supabase users table (data was null)' }, { status: 404 });
     }
   } catch (error) {
-    console.error('Error fetching user profile from Supabase:', error);
+    console.error('Error fetching user profile from Supabase (outer catch):', error);
     return NextResponse.json({ message: 'Error fetching user profile', error: (error as Error).message }, { status: 500 });
   }
 }
@@ -55,18 +57,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: 'User ID (uid) is required for update' }, { status: 400 });
     }
 
-    // Data to be saved in Supabase, ensuring only allowed fields are passed
     const dataForSupabase: Partial<AuthUserType> = {
       name: profileDataToUpdate.name,
       avatarUrl: profileDataToUpdate.avatarUrl,
-      updatedAt: new Date().toISOString(), // Let Supabase trigger handle this ideally
+      updatedAt: new Date().toISOString(),
     };
 
-    // Remove undefined fields so they don't overwrite existing values with null in Supabase patch
-    Object.keys(dataForSupabase).forEach(key => 
+    Object.keys(dataForSupabase).forEach(key =>
       dataForSupabase[key as keyof typeof dataForSupabase] === undefined && delete dataForSupabase[key as keyof typeof dataForSupabase]
     );
-
 
     const { data: existingUser, error: fetchError } = await supabase
       .from('users')
@@ -74,16 +73,15 @@ export async function POST(request: NextRequest) {
       .eq('id', uid)
       .single();
 
-    if (fetchError && fetchError.code !== 'PGRST116') { // PGRST116 means no rows, which is fine for upsert
+    if (fetchError && fetchError.code !== 'PGRST116') {
       console.error('Supabase error checking existing user:', fetchError);
-      throw fetchError;
+      return NextResponse.json({ message: 'Error checking user existence in Supabase', error: fetchError.message }, { status: 500 });
     }
 
     let savedData;
     let opError;
 
     if (existingUser) {
-      // User exists, update
       const { data, error } = await supabase
         .from('users')
         .update(dataForSupabase)
@@ -93,17 +91,16 @@ export async function POST(request: NextRequest) {
       savedData = data;
       opError = error;
     } else {
-      // User does not exist, insert (upsert with id)
-      // This assumes Firebase Auth user has been created first.
-      // Email and roles would ideally be set upon user creation (e.g. from useAuth hook initial setup)
       const { data, error } = await supabase
         .from('users')
-        .insert({ 
-            id: uid, // Use Firebase UID as the primary key
+        .insert({
+            id: uid,
             ...dataForSupabase,
-            // email: authUserEmail, // Should be fetched from verified token or set during registration sync
-            // roles: ['customer'], // Default role
-         })
+            // email and roles should be set during initial sync from Firebase Auth
+            // or have defaults in the table.
+            // Forcing an email here might not be right if it wasn't part of the update request.
+            // It's better if useAuth ensures the basic user row exists with email.
+        })
         .select()
         .single();
       savedData = data;
@@ -112,14 +109,12 @@ export async function POST(request: NextRequest) {
 
     if (opError) {
       console.error('Supabase error saving user profile:', opError);
-      throw opError;
+      return NextResponse.json({ message: 'Error saving user profile to Supabase', error: opError.message }, { status: 500 });
     }
 
     return NextResponse.json({ message: 'Profile updated successfully', user: savedData });
   } catch (error) {
-    console.error('Error processing profile update:', error);
+    console.error('Error processing profile update (outer catch):', error);
     return NextResponse.json({ message: 'Error updating user profile', error: (error as Error).message }, { status: 500 });
   }
 }
-
-  

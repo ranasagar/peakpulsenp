@@ -4,8 +4,8 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import type { User as AuthUserType } from '@/types';
-import { auth, db } from '@/firebase/config'; // Import db
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore'; // Import Firestore functions
+import { auth, db } from '@/firebase/config';
+import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import {
   onAuthStateChanged,
   createUserWithEmailAndPassword,
@@ -34,8 +34,8 @@ const mapFirebaseUserToInitialAppUser = (firebaseUser: FirebaseUser | null): Aut
     email: firebaseUser.email || '',
     name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'User',
     avatarUrl: firebaseUser.photoURL || undefined,
-    roles: ['customer'], // Initial default role, Firestore will be the source of truth
-    wishlist: [], // Initial empty wishlist
+    roles: ['customer'],
+    wishlist: [],
   };
 };
 
@@ -43,7 +43,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<AuthUserType | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
-  const pathname = usePathname(); // Get current pathname
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
 
   const fetchAppUser = useCallback(async (firebaseUser: FirebaseUser): Promise<AuthUserType | null> => {
     if (!firebaseUser) return null;
@@ -52,12 +53,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       const userDocSnap = await getDoc(userDocRef);
       if (userDocSnap.exists()) {
         const dbUser = userDocSnap.data() as AuthUserType;
+        // Combine Firebase Auth data (source of truth for email/name/avatar if recently updated there)
+        // with Firestore data (source of truth for roles/wishlist/etc.)
         return {
           id: firebaseUser.uid,
-          email: firebaseUser.email || dbUser.email,
-          name: firebaseUser.displayName || dbUser.name,
-          avatarUrl: firebaseUser.photoURL || dbUser.avatarUrl,
-          roles: dbUser.roles || ['customer'],
+          email: firebaseUser.email || dbUser.email || '', // Prioritize Firebase, then DB, then empty
+          name: firebaseUser.displayName || dbUser.name || firebaseUser.email?.split('@')[0] || 'User', // Similar priority
+          avatarUrl: firebaseUser.photoURL || dbUser.avatarUrl || undefined,
+          roles: dbUser.roles && dbUser.roles.length > 0 ? dbUser.roles : ['customer'],
           wishlist: dbUser.wishlist || [],
         };
       } else {
@@ -71,12 +74,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           wishlist: [],
         };
         await setDoc(userDocRef, {
+          // id is not needed in the doc data itself as it's the doc ID
           email: newAppUser.email,
           name: newAppUser.name,
-          avatarUrl: newAppUser.avatarUrl || null,
+          avatarUrl: newAppUser.avatarUrl || null, // Ensure null if undefined for Firestore
           roles: newAppUser.roles,
           wishlist: newAppUser.wishlist,
-          createdAt: serverTimestamp(), 
+          createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
         });
         console.log(`New user document created in Firestore for ${firebaseUser.uid}`);
@@ -84,6 +88,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
     } catch (error) {
       console.error("Error fetching or creating user document in Firestore:", error);
+      // Fallback to a user object derived purely from Firebase Auth if DB interaction fails
       return mapFirebaseUserToInitialAppUser(firebaseUser);
     }
   }, []);
@@ -91,27 +96,37 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      setIsLoading(true); // Always set loading true when auth state might change
+      setIsLoading(true);
       if (firebaseUser) {
         console.log("Firebase auth state changed, user found:", firebaseUser.uid);
-        const appUser = await fetchAppUser(firebaseUser);
-        setUser(appUser);
-        console.log("App user set in context:", appUser);
+        const newAppUser = await fetchAppUser(firebaseUser);
+        
+        setUser(currentUser => {
+          // Only update if newAppUser is meaningfully different from currentUser
+          // This helps prevent unnecessary re-renders for consumers of useAuth
+          if (JSON.stringify(currentUser) !== JSON.stringify(newAppUser)) {
+            console.log("App user state updated in context:", newAppUser);
+            return newAppUser;
+          }
+          console.log("App user state unchanged in context:", currentUser);
+          return currentUser;
+        });
+
       } else {
         console.log("Firebase auth state changed, no user.");
         setUser(null);
       }
-      setIsLoading(false); // Set loading false after processing
+      setIsLoading(false);
     });
     return () => unsubscribe();
   }, [fetchAppUser]);
 
   const login = useCallback(async (email: string, pass: string): Promise<{ success: boolean; error?: string }> => {
-    // Global isLoading is handled by onAuthStateChanged
+    // Local loading state should be handled by the LoginPage component
     try {
       await signInWithEmailAndPassword(auth, email, pass);
-      // Success! onAuthStateChanged will handle setting user state and isLoading.
-      // Redirect will be handled by the LoginPage component based on isAuthenticated.
+      // onAuthStateChanged will handle setting global user state and isLoading.
+      // LoginPage will handle redirect based on isAuthenticated.
       return { success: true };
     } catch (error: any) {
       console.error("Firebase login error:", error);
@@ -120,39 +135,46 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   const register = useCallback(async (name: string, email: string, pass: string): Promise<{ success: boolean; error?: string }> => {
-    // Global isLoading is handled by onAuthStateChanged
+    // Local loading state should be handled by the RegisterPage component
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
       if (userCredential.user) {
         await updateProfile(userCredential.user, { displayName: name });
-        await fetchAppUser(userCredential.user); // This will create the Firestore doc
+        // fetchAppUser will be called by onAuthStateChanged, ensuring Firestore doc is created/synced.
       }
-      // Success! onAuthStateChanged will handle setting user state and isLoading.
-      // Redirect will be handled by the RegisterPage component based on isAuthenticated.
+      // onAuthStateChanged will handle setting global user state and isLoading.
+      // RegisterPage will handle redirect.
       return { success: true };
     } catch (error: any) {
-        return { success: false, error: error.message || "Registration failed. Please try again." };
-      }
-    }, [fetchAppUser]);
+      console.error("Firebase registration error:", error);
+      return { success: false, error: error.message || "Registration failed. Please try again." };
+    }
+  }, []); // Removed fetchAppUser from here as onAuthStateChanged handles it
 
     const logout = useCallback(async () => {
-      // setIsLoading(true); // Optional: can set loading here if preferred for immediate UI feedback
       try {
         await firebaseSignOut(auth);
-        // setUser(null) and isLoading will be handled by onAuthStateChanged
-        if (pathname.startsWith('/account') || pathname.startsWith('/admin')) {
-          router.push('/login'); // Redirect if logging out from a protected area
+        // setUser(null) and isLoading will be handled by onAuthStateChanged.
+        // Redirect logic:
+        const publicRoutes = ['/', '/products', '/our-story', '/contact', '/faq', '/shipping-returns', '/privacy-policy', '/terms-of-service', '/accessibility'];
+        const isAuthPage = pathname.startsWith('/login') || pathname.startsWith('/register');
+
+        if (!publicRoutes.some(route => pathname === route || pathname.startsWith(route + '/')) && !isAuthPage) {
+             // If on a protected page (e.g., /account/*, /admin/*) or other non-public, non-auth page
+            router.push('/login');
         } else {
-          router.push('/'); // Or to homepage
+            // If on a public page or auth page, might refresh or push to home.
+            // Refreshing current page is often fine for public pages.
+            router.refresh();
         }
-        router.refresh(); // Refresh to ensure server components reflect logout
+        // Consider a general toast or notification for logout.
       } catch (error) {
         console.error("Firebase logout error:", error);
-        // setIsLoading(false); // Ensure loading is false if it was set true at start of logout
+        // Potentially show an error toast to the user.
       }
     }, [router, pathname]);
 
-    const isAuthenticated = !!user && !isLoading; 
+    const isAuthenticated = !!user && !isLoading;
 
     return (
       <AuthContext.Provider value={{ isAuthenticated, user, isLoading, login, register, logout, fetchAppUser }}>
