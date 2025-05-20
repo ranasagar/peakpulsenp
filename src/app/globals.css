@@ -80,6 +80,80 @@ body {
     --chart-4: 43 74% 70%;
     --chart-5: 27 87% 71%;
   }
+
+  /* Sustainable Theme (Primarily Light) */
+  .theme-sustainable {
+    --background: 45 30% 96%; /* Light Parchment: hsl(45, 30%, 96%) -> #F9F7F2 */
+    --foreground: 100 25% 20%; /* Dark Moss Green: hsl(100, 25%, 20%) -> #264026 */
+
+    --card: 45 30% 98%; /* Very Light Parchment: hsl(45, 30%, 98%) -> #FCFAF7 */
+    --card-foreground: 100 25% 20%; /* Dark Moss Green */
+
+    --popover: 45 30% 98%; /* Very Light Parchment */
+    --popover-foreground: 100 25% 20%; /* Dark Moss Green */
+
+    --primary: 150 40% 40%; /* Muted Forest Green: hsl(150, 40%, 40%) -> #3D8C5A */
+    --primary-foreground: 45 30% 96%; /* Light Parchment */
+
+    --secondary: 40 20% 85%; /* Light Khaki/Sand: hsl(40, 20%, 85%) -> #DBD7D1 */
+    --secondary-foreground: 100 25% 25%; /* Slightly Lighter Moss Green: hsl(100, 25%, 25%) -> #304D30 */
+
+    --muted: 40 15% 92%; /* Very Light Khaki/Sand: hsl(40, 15%, 92%) -> #ECEAE7 */
+    --muted-foreground: 100 15% 45%; /* Medium Moss Green: hsl(100, 15%, 45%) -> #637A63 */
+
+    --accent: 35 65% 55%; /* Warm Ochre/Terracotta: hsl(35, 65%, 55%) -> #E0A44A */
+    --accent-foreground: 100 25% 15%; /* Darker Moss for text on accent: hsl(100, 25%, 15%) -> #1B331B */
+
+    --destructive: 0 60% 50%; /* Desaturated Red: hsl(0, 60%, 50%) -> #CC3333 */
+    --destructive-foreground: 0 0% 100%; /* White */
+
+    --border: 40 20% 80%; /* Slightly Darker Khaki: hsl(40, 20%, 80%) -> #D1CCC5 */
+    --input: 40 20% 80%; /* Slightly Darker Khaki */
+    --ring: 150 40% 50%; /* Brighter Forest Green for focus: hsl(150, 40%, 50%) -> #4DB372 */
+
+    --chart-1: 150 40% 40%;
+    --chart-2: 35 65% 55%;
+    --chart-3: 100 20% 50%; /* Muted Olive */
+    --chart-4: 25 30% 60%; /* Light Brown */
+    --chart-5: 180 25% 55%; /* Soft Teal */
+  }
+
+  /* Dark variant of the Sustainable Theme (when .dark and .theme-sustainable are both on html) */
+  .dark.theme-sustainable {
+    --background: 100 15% 12%; /* Very Dark Moss Green: hsl(100, 15%, 12%) -> #1A211A */
+    --foreground: 45 25% 88%; /* Off-White/Light Parchment: hsl(45, 25%, 88%) -> #E8E4D8 */
+
+    --card: 100 15% 15%; /* Darker Moss for Cards: hsl(100, 15%, 15%) -> #202920 */
+    --card-foreground: 45 25% 88%;
+
+    --popover: 100 15% 15%;
+    --popover-foreground: 45 25% 88%;
+
+    --primary: 150 35% 55%; /* Lighter Muted Forest Green: hsl(150, 35%, 55%) -> #6BBF8A */
+    --primary-foreground: 100 25% 10%; /* Very Dark Moss for text on primary: hsl(100, 25%, 10%) -> #132613 */
+
+    --secondary: 40 10% 25%; /* Dark Sand/Stone: hsl(40, 10%, 25%) -> #45423D */
+    --secondary-foreground: 45 20% 75%; /* Lighter Khaki: hsl(45, 20%, 75%) -> #C9C5BB */
+
+    --muted: 40 10% 20%; /* Darker Sand/Stone: hsl(40, 10%, 20%) -> #383633 */
+    --muted-foreground: 45 15% 60%; /* Medium Khaki: hsl(45, 15%, 60%) -> #A9A59B */
+
+    --accent: 35 60% 65%; /* Lighter Ochre: hsl(35, 60%, 65%) -> #E8B76E */
+    --accent-foreground: 100 25% 10%;
+
+    --destructive: 0 50% 55%; /* Slightly less intense red for dark mode: hsl(0, 50%, 55%) -> #D94A4A */
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 40 10% 30%; /* Darker Khaki Border: hsl(40, 10%, 30%) -> #524F4A */
+    --input: 40 10% 30%;
+    --ring: 150 35% 65%; /* Brighter Forest Green ring: hsl(150, 35%, 65%) -> #82CCA4 */
+
+    --chart-1: 150 35% 55%;
+    --chart-2: 35 60% 65%;
+    --chart-3: 100 15% 60%;
+    --chart-4: 25 25% 70%;
+    --chart-5: 180 20% 65%;
+  }
 }
 
 @layer base {

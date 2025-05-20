@@ -2,7 +2,7 @@
 "use client"
 
 import * as React from "react"
-import { Moon, Sun } from "lucide-react"
+import { Moon, Sun, Leaf } from "lucide-react" // Added Leaf for sustainable theme
 import { useTheme } from "next-themes"
 
 import { Button } from "@/components/ui/button"
@@ -31,6 +31,10 @@ export function ModeToggle() {
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => setTheme("dark")}>
           Dark
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => setTheme("sustainable")}>
+          <Leaf className="mr-2 h-4 w-4" /> {/* Added icon */}
+          Sustainable
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => setTheme("system")}>
           System
