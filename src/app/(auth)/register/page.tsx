@@ -11,7 +11,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useAuth } from '@/hooks/use-auth';
 import { Icons } from '@/components/icons';
-import { AlertCircle, UserPlus, Loader2 as LocalLoader } from 'lucide-react'; // Renamed Loader2
+import { AlertCircle, UserPlus, Loader2 as LocalLoader } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -27,14 +27,14 @@ type RegisterFormValues = z.infer<typeof registerSchema>;
 export default function RegisterPage() {
   const { register, isAuthenticated, isLoading: authIsLoading } = useAuth();
   const [error, setError] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false); // Local loading state
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
 
   useEffect(() => {
-    // Redirect if user is already authenticated
     if (!authIsLoading && isAuthenticated) {
       const redirectPath = searchParams.get('redirect') || '/account/dashboard';
+      // console.log(`Register Page: User authenticated, redirecting to ${redirectPath}`);
       router.push(redirectPath);
     }
   }, [isAuthenticated, authIsLoading, router, searchParams]);
@@ -52,7 +52,7 @@ export default function RegisterPage() {
     setError(null);
     setIsSubmitting(true);
     const result = await register(data.name, data.email, data.password);
-    setIsSubmitting(false);
+    setIsSubmitting(false); // Reset local submitting state after attempt
     if (!result.success) {
       setError(result.error || 'An unknown error occurred during registration.');
     }
@@ -60,7 +60,6 @@ export default function RegisterPage() {
     // once isAuthenticated becomes true.
   };
   
-  // If auth is still loading or user is authenticated, show a loading/message or let useEffect redirect
   if (authIsLoading) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center p-4">
@@ -69,10 +68,12 @@ export default function RegisterPage() {
       </div>
     );
   }
-  if (isAuthenticated) {
+  
+  if (isAuthenticated && !authIsLoading) {
      return (
       <div className="flex min-h-screen flex-col items-center justify-center p-4">
-        <p className="text-muted-foreground">Already logged in. Redirecting...</p>
+        <LocalLoader className="h-12 w-12 animate-spin text-primary" />
+        <p className="mt-4 text-muted-foreground">Registration successful. Redirecting to dashboard...</p>
       </div>
     );
   }
@@ -137,7 +138,7 @@ export default function RegisterPage() {
                   <AlertDescription>{error}</AlertDescription>
                 </Alert>
               )}
-              <Button type="submit" className="w-full !mt-8 text-base py-3" disabled={isSubmitting || authIsLoading}>
+              <Button type="submit" className="w-full !mt-8 text-base py-3" disabled={isSubmitting}>
                 {isSubmitting ? (
                   <LocalLoader className="mr-2 h-5 w-5 animate-spin" />
                 ) : <UserPlus className="mr-2 h-4 w-4" /> }

@@ -11,7 +11,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useAuth } from '@/hooks/use-auth';
 import { Icons } from '@/components/icons';
-import { AlertCircle, LogIn, Loader2 as LocalLoader } from 'lucide-react'; // Renamed Loader2 to avoid conflict if any
+import { AlertCircle, LogIn, Loader2 as LocalLoader } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -26,14 +26,14 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 export default function LoginPage() {
   const { login, isAuthenticated, isLoading: authIsLoading } = useAuth();
   const [error, setError] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false); // Local loading state for the form
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
 
   useEffect(() => {
-    // Redirect if user is already authenticated and not in the process of auth loading
     if (!authIsLoading && isAuthenticated) {
       const redirectPath = searchParams.get('redirect') || '/account/dashboard';
+      // console.log(`Login Page: User authenticated, redirecting to ${redirectPath}`);
       router.push(redirectPath);
     }
   }, [isAuthenticated, authIsLoading, router, searchParams]);
@@ -50,7 +50,7 @@ export default function LoginPage() {
     setError(null);
     setIsSubmitting(true);
     const result = await login(data.email, data.password); 
-    setIsSubmitting(false);
+    setIsSubmitting(false); // Reset local submitting state after login attempt
     if (!result.success) {
       setError(result.error || 'Invalid email or password. Please try again.');
       form.resetField("password");
@@ -59,7 +59,6 @@ export default function LoginPage() {
     // once isAuthenticated and authIsLoading states are updated by useAuth.
   };
 
-  // If auth is still loading or user is authenticated, show a loading/message or let useEffect redirect
   if (authIsLoading) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center p-4">
@@ -68,15 +67,15 @@ export default function LoginPage() {
       </div>
     );
   }
-  // If already authenticated, useEffect will redirect. This is a fallback/quick render state.
-  if (isAuthenticated) {
+  
+  if (isAuthenticated && !authIsLoading) {
      return (
       <div className="flex min-h-screen flex-col items-center justify-center p-4">
-        <p className="text-muted-foreground">Already logged in. Redirecting...</p>
+        <LocalLoader className="h-12 w-12 animate-spin text-primary" />
+        <p className="mt-4 text-muted-foreground">Login successful. Redirecting to dashboard...</p>
       </div>
     );
   }
-
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-br from-background to-muted/30 p-4">
@@ -125,7 +124,7 @@ export default function LoginPage() {
                   <AlertDescription>{error}</AlertDescription>
                 </Alert>
               )}
-              <Button type="submit" className="w-full !mt-8 text-base py-3" disabled={isSubmitting || authIsLoading}>
+              <Button type="submit" className="w-full !mt-8 text-base py-3" disabled={isSubmitting}>
                 {isSubmitting ? (
                   <LocalLoader className="mr-2 h-5 w-5 animate-spin" />
                 ) : <LogIn className="mr-2 h-4 w-4" /> }
