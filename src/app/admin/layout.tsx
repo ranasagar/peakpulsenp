@@ -1,9 +1,10 @@
 
 import Link from 'next/link';
-import { Shield, LayoutDashboard, Settings, ArrowLeft, BookOpenText, ShoppingBag, BarChart3, ListOrdered } from 'lucide-react';
+import { Shield, LayoutDashboard, Settings, ArrowLeft, BookOpenText, ShoppingBag, BarChart3, ListOrdered, Landmark } from 'lucide-react';
 import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
 import { Button } from '@/components/ui/button';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
 export default function AdminLayout({
   children,
@@ -27,7 +28,7 @@ export default function AdminLayout({
           
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <aside className="md:col-span-1">
-              <nav className="bg-card p-4 rounded-lg shadow-sm space-y-2 sticky top-28">
+              <nav className="bg-card p-4 rounded-lg shadow-sm space-y-1 sticky top-28">
                 <Button variant="ghost" className="w-full justify-start" asChild>
                   <Link href="/admin">
                     <LayoutDashboard className="mr-2 h-4 w-4" /> Dashboard
@@ -43,16 +44,46 @@ export default function AdminLayout({
                     <ListOrdered className="mr-2 h-4 w-4" /> View Orders
                   </Link>
                 </Button>
-                <Button variant="ghost" className="w-full justify-start" asChild>
-                  <Link href="/admin/content/homepage">
-                    <Settings className="mr-2 h-4 w-4" /> Homepage Content
-                  </Link>
-                </Button>
-                <Button variant="ghost" className="w-full justify-start" asChild>
-                  <Link href="/admin/content/our-story">
-                    <BookOpenText className="mr-2 h-4 w-4" /> Our Story Content
-                  </Link>
-                </Button>
+                
+                <Accordion type="single" collapsible className="w-full">
+                  <AccordionItem value="content-management" className="border-b-0">
+                    <AccordionTrigger className="py-2 px-3 hover:bg-accent hover:text-accent-foreground rounded-md text-sm font-medium hover:no-underline [&[data-state=open]>svg]:text-primary">
+                       <div className="flex items-center">
+                         <Settings className="mr-2 h-4 w-4" /> Content Management
+                       </div>
+                    </AccordionTrigger>
+                    <AccordionContent className="pt-1 pl-4">
+                      <Button variant="ghost" className="w-full justify-start text-sm font-normal h-9" asChild>
+                        <Link href="/admin/content/homepage">
+                           Homepage Content
+                        </Link>
+                      </Button>
+                      <Button variant="ghost" className="w-full justify-start text-sm font-normal h-9" asChild>
+                        <Link href="/admin/content/our-story">
+                           Our Story Content
+                        </Link>
+                      </Button>
+                      {/* Add more content links here */}
+                    </AccordionContent>
+                  </AccordionItem>
+
+                  <AccordionItem value="accounting" className="border-b-0">
+                    <AccordionTrigger className="py-2 px-3 hover:bg-accent hover:text-accent-foreground rounded-md text-sm font-medium hover:no-underline [&[data-state=open]>svg]:text-primary">
+                       <div className="flex items-center">
+                         <Landmark className="mr-2 h-4 w-4" /> Accounting
+                       </div>
+                    </AccordionTrigger>
+                    <AccordionContent className="pt-1 pl-4">
+                        <Button variant="ghost" className="w-full justify-start text-sm font-normal h-9" asChild>
+                        <Link href="/admin/accounting/tax-report">
+                           Tax Data Export
+                        </Link>
+                        </Button>
+                        {/* Add more accounting links here */}
+                    </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
+
                 <Button variant="ghost" className="w-full justify-start" asChild>
                   <Link href="/admin/analytics">
                     <BarChart3 className="mr-2 h-4 w-4" /> Site Analytics (AI)
