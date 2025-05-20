@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
 import { useRouter } from 'next/navigation';
@@ -71,7 +71,7 @@ export default function CreateUserPostPage() {
         description: "Your style has been submitted for review. Thank you for sharing!",
       });
       form.reset();
-      router.push('/'); // Redirect to homepage or a community page
+      router.push('/'); 
     } catch (error) {
       toast({
         title: "Submission Failed",
@@ -128,6 +128,7 @@ export default function CreateUserPostPage() {
                     <FormControl>
                       <Input placeholder="https://example.com/your-image.jpg" {...field} />
                     </FormControl>
+                    <FormDescription>Tip: Upload your image to a free hosting service (e.g., Imgur, Cloudinary free tier, Firebase Storage) then paste the direct image URL (ending in .jpg, .png, .gif, etc.) here.</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}

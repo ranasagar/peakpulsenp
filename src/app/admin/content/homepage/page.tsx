@@ -12,10 +12,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Save, Youtube, Image as ImageIcon, PlusCircle, Trash2, Package } from 'lucide-react';
-import type { HomepageContent } from '@/types'; // Use the main HomepageContent type
+import type { HomepageContent, HeroSlide, SocialCommerceItem } from '@/types';
 
 const heroSlideSchema = z.object({
-  id: z.string().optional(), // Will be generated if new
+  id: z.string().optional(),
   title: z.string().min(5, "Slide title must be at least 5 characters."),
   description: z.string().min(10, "Slide description must be at least 10 characters."),
   videoId: z.string().optional().refine(val => !val || /^[a-zA-Z0-9_-]{11}$/.test(val), {
@@ -39,19 +39,23 @@ const socialCommerceItemSchema = z.object({
 });
 
 const homepageContentSchema = z.object({
-  heroSlides: z.array(heroSlideSchema).min(1, "At least one hero slide is required."),
+  heroSlides: z.array(heroSlideSchema).min(1, "At least one hero slide is required.").optional(),
   artisanalRootsTitle: z.string().min(5, "Artisanal roots title must be at least 5 characters.").optional(),
   artisanalRootsDescription: z.string().min(10, "Artisanal roots description must be at least 10 characters.").optional(),
   socialCommerceItems: z.array(socialCommerceItemSchema).optional(),
+  heroVideoId: z.string().optional().refine(val => !val || /^[a-zA-Z0-9_-]{11}$/.test(val), { // For standalone hero video
+    message: "Must be a valid YouTube Video ID (11 characters) or empty.",
+  }),
+  heroImageUrl: z.string().url({ message: "Must be a valid URL or empty." }).optional().or(z.literal('')), // For standalone hero image
 });
 
 type HomepageContentFormValues = z.infer<typeof homepageContentSchema>;
 
-const defaultHeroSlide = {
+const defaultHeroSlide: HeroSlide = {
   id: '', title: '', description: '', videoId: '', imageUrl: '', altText: '', dataAiHint: '', ctaText: '', ctaLink: ''
 };
 
-const defaultSocialCommerceItem = {
+const defaultSocialCommerceItem: SocialCommerceItem = {
   id: '', imageUrl: '', linkUrl: '', altText: '', dataAiHint: ''
 };
 
@@ -67,6 +71,8 @@ export default function AdminHomepageContentPage() {
       artisanalRootsTitle: '',
       artisanalRootsDescription: '',
       socialCommerceItems: [],
+      heroVideoId: '',
+      heroImageUrl: '',
     },
   });
 
@@ -94,6 +100,8 @@ export default function AdminHomepageContentPage() {
           artisanalRootsTitle: data.artisanalRoots?.title || '',
           artisanalRootsDescription: data.artisanalRoots?.description || '',
           socialCommerceItems: data.socialCommerceItems ? data.socialCommerceItems.map(item => ({ ...defaultSocialCommerceItem, ...item })) : [],
+          heroVideoId: data.heroVideoId || '',
+          heroImageUrl: data.heroImageUrl || '',
         });
       } catch (error) {
         console.error("Error fetching content:", error);
@@ -113,9 +121,9 @@ export default function AdminHomepageContentPage() {
     setIsSaving(true);
     try {
       const payload: HomepageContent = {
-        heroSlides: data.heroSlides.map(slide => ({
+        heroSlides: (data.heroSlides || []).map(slide => ({
           ...slide,
-          id: slide.id || `slide-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`, // Ensure ID
+          id: slide.id || `slide-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
           videoId: slide.videoId || undefined,
           imageUrl: slide.imageUrl || undefined,
         })),
@@ -123,10 +131,12 @@ export default function AdminHomepageContentPage() {
           title: data.artisanalRootsTitle || '',
           description: data.artisanalRootsDescription || '',
         },
-        socialCommerceItems: data.socialCommerceItems?.map(item => ({
+        socialCommerceItems: (data.socialCommerceItems || []).map(item => ({
           ...item,
           id: item.id || `social-${Date.now()}-${Math.random().toString(36).substr(2,5)}`,
         })),
+        heroVideoId: data.heroVideoId || undefined, // Ensure undefined if empty
+        heroImageUrl: data.heroImageUrl || undefined, // Ensure undefined if empty
       };
 
       const response = await fetch('/api/admin/content/homepage', {
@@ -181,9 +191,8 @@ export default function AdminHomepageContentPage() {
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
             
-            {/* Hero Slides Section */}
             <fieldset className="space-y-4 p-4 border rounded-md">
-              <legend className="text-xl font-semibold px-1 mb-2">Hero Section Carousel</legend>
+              <legend className="text-xl font-semibold px-1 mb-2">Hero Section Carousel Slides</legend>
               {heroSlidesFields.map((field, index) => (
                 <Card key={field.id} className="p-4 space-y-3 bg-muted/30">
                   <div className="flex justify-between items-center mb-2">
@@ -193,7 +202,7 @@ export default function AdminHomepageContentPage() {
                       variant="destructive"
                       size="sm"
                       onClick={() => removeHeroSlide(index)}
-                      disabled={heroSlidesFields.length <= 1}
+                      disabled={heroSlidesFields.length <= 1 && !(form.getValues('heroVideoId') || form.getValues('heroImageUrl'))}
                     >
                       <Trash2 className="mr-1 h-4 w-4" /> Remove Slide
                     </Button>
@@ -227,6 +236,7 @@ export default function AdminHomepageContentPage() {
                       <FormItem>
                         <FormLabel className="flex items-center"><ImageIcon className="mr-2 h-5 w-5 text-blue-500"/> Background Image URL</FormLabel>
                         <FormControl><Input {...field} placeholder="e.g. https://example.com/hero-image.jpg" /></FormControl>
+                        <FormDescription>Tip: Upload your image to a free hosting service (e.g., Imgur, Cloudinary free tier, Firebase Storage) then paste the direct image URL (ending in .jpg, .png, .gif, etc.) here.</FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -242,16 +252,17 @@ export default function AdminHomepageContentPage() {
                     control={form.control}
                     name={`heroSlides.${index}.dataAiHint`}
                     render={({ field }) => (
-                      <FormItem><FormLabel>Image AI Hint</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                      <FormItem><FormLabel>Image AI Hint (for placeholder)</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                     )}
                   />
-                  <FormField
+                   <FormField
                     control={form.control}
                     name={`heroSlides.${index}.videoId`}
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel className="flex items-center"><Youtube className="mr-2 h-5 w-5 text-red-600"/> YouTube Video ID (Overrides Image)</FormLabel>
-                        <FormControl><Input {...field} placeholder="e.g. gCRNEJxDJKM" /></FormControl>
+                        <FormControl><Input {...field} placeholder="e.g. gCRNEJxDJKM (11 characters)" /></FormControl>
+                         <FormDescription>The 11-character ID from a YouTube video URL (e.g., the XXXXXXXXXXX in youtu.be/XXXXXXXXXXX).</FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -276,10 +287,38 @@ export default function AdminHomepageContentPage() {
                 type="button"
                 variant="outline"
                 size="sm"
-                onClick={() => appendHeroSlide({ ...defaultHeroSlide, id: `slide-${Date.now()}` })}
+                onClick={() => appendHeroSlide({ ...defaultHeroSlide, id: `slide-${Date.now()}-${Math.random().toString(36).substr(2, 5)}` })}
               >
                 <PlusCircle className="mr-2 h-4 w-4" /> Add Hero Slide
               </Button>
+            </fieldset>
+
+            <fieldset className="space-y-4 p-4 border rounded-md">
+               <legend className="text-xl font-semibold px-1 mb-2">Standalone Hero Background (If not using Carousel)</legend>
+                 <FormField
+                    control={form.control}
+                    name="heroImageUrl"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="flex items-center"><ImageIcon className="mr-2 h-5 w-5 text-blue-500"/> Standalone Hero Background Image URL</FormLabel>
+                        <FormControl><Input {...field} placeholder="e.g. https://example.com/main-hero-image.jpg" /></FormControl>
+                        <FormDescription>Used if no carousel slides are active or if you prefer a single static image. Tip: Upload your image to a free hosting service (e.g., Imgur, Cloudinary free tier, Firebase Storage) then paste the direct image URL here.</FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="heroVideoId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="flex items-center"><Youtube className="mr-2 h-5 w-5 text-red-600"/> Standalone Hero YouTube Video ID (Overrides Image)</FormLabel>
+                        <FormControl><Input {...field} placeholder="e.g. gCRNEJxDJKM (11 characters)" /></FormControl>
+                        <FormDescription>Used if no carousel slides are active and you prefer a single video. The 11-character ID from a YouTube video URL.</FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
             </fieldset>
 
 
@@ -313,7 +352,6 @@ export default function AdminHomepageContentPage() {
               />
             </fieldset>
 
-            {/* Social Commerce Section */}
             <fieldset className="space-y-4 p-4 border rounded-md">
               <legend className="text-xl font-semibold px-1 mb-2 flex items-center"><Package className="mr-2 h-5 w-5 text-pink-500"/>Social Commerce Section (#PeakPulseStyle)</legend>
               {socialCommerceFields.map((field, index) => (
@@ -336,6 +374,7 @@ export default function AdminHomepageContentPage() {
                       <FormItem>
                         <FormLabel>Image URL</FormLabel>
                         <FormControl><Input {...field} placeholder="https://example.com/insta-image.jpg" /></FormControl>
+                         <FormDescription>Tip: Upload your image to a free hosting service (e.g., Imgur, Cloudinary free tier, Firebase Storage) then paste the direct image URL here.</FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -362,7 +401,7 @@ export default function AdminHomepageContentPage() {
                     control={form.control}
                     name={`socialCommerceItems.${index}.dataAiHint`}
                     render={({ field }) => (
-                      <FormItem><FormLabel>Image AI Hint</FormLabel><FormControl><Input {...field} placeholder="e.g. instagram fashion user" /></FormControl><FormMessage /></FormItem>
+                      <FormItem><FormLabel>Image AI Hint (for placeholder)</FormLabel><FormControl><Input {...field} placeholder="e.g. instagram fashion user" /></FormControl><FormMessage /></FormItem>
                     )}
                   />
                 </Card>
@@ -371,7 +410,7 @@ export default function AdminHomepageContentPage() {
                 type="button"
                 variant="outline"
                 size="sm"
-                onClick={() => appendSocialCommerceItem({ ...defaultSocialCommerceItem, id: `social-${Date.now()}`})}
+                onClick={() => appendSocialCommerceItem({ ...defaultSocialCommerceItem, id: `social-${Date.now()}-${Math.random().toString(36).substr(2,5)}`})}
               >
                 <PlusCircle className="mr-2 h-4 w-4" /> Add Instagram Post Item
               </Button>

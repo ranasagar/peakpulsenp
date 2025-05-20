@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -15,7 +16,7 @@ import type { Product, ProductImage, Category as ProductCategoryType, ProductVar
 import {
   Dialog,
   DialogContent,
-  DialogDescription as DialogFormDescription, // Renamed to avoid conflict
+  DialogDescription as DialogFormDescription, 
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -72,9 +73,9 @@ const productFormSchema = z.object({
   name: z.string().min(3, "Product name must be at least 3 characters."),
   slug: z.string().min(3, "Slug must be at least 3 characters.").regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Slug must be lowercase alphanumeric with hyphens."),
   price: z.coerce.number().min(0, "Price must be a positive number."),
-  compareAtPrice: z.coerce.number().min(0, "Compare at price must be non-negative.").optional(),
-  costPrice: z.coerce.number().min(0, "Cost price must be non-negative.").optional(),
-  stock: z.coerce.number().int().min(0, "Base stock must be a non-negative integer.").optional(),
+  compareAtPrice: z.coerce.number().min(0, "Compare at price must be non-negative.").optional().nullable(),
+  costPrice: z.coerce.number().min(0, "Cost price must be non-negative.").optional().nullable(),
+  stock: z.coerce.number().int().min(0, "Base stock must be a non-negative integer.").optional().nullable(),
   shortDescription: z.string().max(200, "Short description must be under 200 characters.").optional(),
   description: z.string().min(10, "Description must be at least 10 characters."),
   images: z.array(imageSchema).min(1, "At least one image is required."),
@@ -148,7 +149,7 @@ export default function AdminProductsPage() {
 
   useEffect(() => {
     fetchProducts();
-  }, [toast]); // Added toast to dependency array as it's used in fetchProducts
+  }, []); 
 
   const handleEdit = (product: Product) => {
     setEditingProduct(product);
@@ -157,9 +158,9 @@ export default function AdminProductsPage() {
       name: product.name,
       slug: product.slug,
       price: product.price,
-      compareAtPrice: product.compareAtPrice,
-      costPrice: product.costPrice,
-      stock: product.variants && product.variants.length > 0 ? undefined : product.stock,
+      compareAtPrice: product.compareAtPrice === undefined ? null : product.compareAtPrice,
+      costPrice: product.costPrice === undefined ? null : product.costPrice,
+      stock: product.variants && product.variants.length > 0 ? null : (product.stock === undefined ? null : product.stock),
       shortDescription: product.shortDescription || '',
       description: product.description,
       images: product.images.length > 0 ? product.images.map(img => ({ ...defaultImage, ...img })) : [{...defaultImage}],
@@ -168,7 +169,7 @@ export default function AdminProductsPage() {
       careInstructions: product.careInstructions || '',
       sustainabilityMetrics: product.sustainabilityMetrics || '',
       fitGuide: product.fitGuide || '',
-      variants: product.variants ? product.variants.map(v => ({...defaultVariant, ...v})) : [],
+      variants: product.variants ? product.variants.map(v => ({...defaultVariant, ...v, costPrice: v.costPrice === undefined ? undefined : v.costPrice })) : [],
       availablePrintDesigns: product.availablePrintDesigns ? product.availablePrintDesigns.map(d => ({...defaultPrintDesign, ...d})) : [],
       customizationConfig: product.customizationConfig ? {...defaultCustomizationConfig, ...product.customizationConfig} : {...defaultCustomizationConfig},
     });
@@ -179,7 +180,7 @@ export default function AdminProductsPage() {
     setEditingProduct(null);
     form.reset({
       id: `prod-${Date.now()}`, 
-      name: '', slug: '', price: 0, compareAtPrice: undefined, costPrice: undefined, stock: 0, shortDescription: '', description: '',
+      name: '', slug: '', price: 0, compareAtPrice: null, costPrice: null, stock: 0, shortDescription: '', description: '',
       images: [{...defaultImage}],
       categories: [{...defaultCategory}],
       fabricDetails: '', careInstructions: '', sustainabilityMetrics: '', fitGuide: '',
@@ -205,7 +206,7 @@ export default function AdminProductsPage() {
         variants: data.variants?.map(v => ({ ...v, id: v.id || `var-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`})),
         availablePrintDesigns: data.availablePrintDesigns?.map(d => ({...d, id: d.id || `print-${Date.now()}-${Math.random().toString(36).substr(2,5)}`})),
         customizationConfig: data.customizationConfig,
-        stock: (data.variants && data.variants.length > 0) ? data.variants.reduce((sum, v) => sum + v.stock, 0) : data.stock,
+        stock: (data.variants && data.variants.length > 0) ? data.variants.reduce((sum, v) => sum + v.stock, 0) : data.stock || 0,
         averageRating: editingProduct?.averageRating || 0,
         reviewCount: editingProduct?.reviewCount || 0,
         isFeatured: editingProduct?.isFeatured || false,
@@ -258,7 +259,7 @@ export default function AdminProductsPage() {
                 <li key={product.id} className="p-3 border rounded-md flex justify-between items-center bg-card hover:bg-muted/50">
                   <div>
                     <h3 className="font-semibold">{product.name}</h3>
-                    <p className="text-xs text-muted-foreground">ID: {product.id} | Slug: {product.slug} | Price: रू{product.price} | Cost: रू{product.costPrice || 'N/A'} | Stock: {product.stock ?? 'N/A'}</p>
+                    <p className="text-xs text-muted-foreground">ID: {product.id} | Slug: {product.slug} | Price: रू{product.price} | Cost: रू{product.costPrice ?? 'N/A'} | Stock: {product.stock ?? 'N/A'}</p>
                   </div>
                   <Button variant="outline" size="sm" onClick={() => handleEdit(product)}><Edit className="mr-2 h-3 w-3"/> Edit</Button>
                 </li>
@@ -272,9 +273,8 @@ export default function AdminProductsPage() {
         <DialogContent className="max-w-3xl">
           <DialogHeader>
             <DialogTitle>{editingProduct ? 'Edit Product' : 'Add New Product'}</DialogTitle>
-            <DialogFormDescription> {/* Changed from DialogDescription */}
+            <DialogFormDescription>
               {editingProduct ? `Editing details for ${editingProduct.name}.` : 'Fill in the details for the new product.'}
-              Remember: Image URLs must be publicly accessible. No direct uploads.
             </DialogFormDescription>
           </DialogHeader>
           <ScrollArea className="max-h-[70vh] p-1">
@@ -294,16 +294,16 @@ export default function AdminProductsPage() {
                         <FormItem><FormLabel>Price (NPR)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
                     )} />
                     <FormField control={form.control} name="compareAtPrice" render={({ field }) => (
-                        <FormItem><FormLabel>Compare At Price (Optional)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
+                        <FormItem><FormLabel>Compare At Price (Optional)</FormLabel><FormControl><Input type="number" step="0.01" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? null : parseFloat(e.target.value))} /></FormControl><FormMessage /></FormItem>
                     )} />
                      <FormField control={form.control} name="costPrice" render={({ field }) => (
-                        <FormItem><FormLabel>Cost Price (NPR)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
+                        <FormItem><FormLabel>Cost Price (NPR)</FormLabel><FormControl><Input type="number" step="0.01" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? null : parseFloat(e.target.value))}/></FormControl><FormMessage /></FormItem>
                     )} />
                 </div>
 
                 {!hasVariants && (
                      <FormField control={form.control} name="stock" render={({ field }) => (
-                        <FormItem><FormLabel>Base Stock (if no variants)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                        <FormItem><FormLabel>Base Stock (if no variants)</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? null : parseInt(e.target.value, 10))} /></FormControl><FormMessage /></FormItem>
                     )} />
                 )}
 
@@ -320,7 +320,12 @@ export default function AdminProductsPage() {
                   {imagesFields.map((field, index) => (
                     <div key={field.id} className="space-y-2 p-2 border rounded bg-muted/30">
                       <FormField control={form.control} name={`images.${index}.url`} render={({ field }) => (
-                        <FormItem><FormLabel>Image URL {index + 1}</FormLabel><FormControl><Input {...field} placeholder="https://example.com/image.jpg" /></FormControl><FormMessage /></FormItem>
+                        <FormItem>
+                            <FormLabel>Image URL {index + 1}</FormLabel>
+                            <FormControl><Input {...field} placeholder="https://example.com/image.jpg" /></FormControl>
+                            <FormDescription>Tip: Upload your image to a free hosting service (e.g., Imgur, Cloudinary free tier, Firebase Storage) then paste the direct image URL (ending in .jpg, .png, .gif, etc.) here.</FormDescription>
+                            <FormMessage />
+                        </FormItem>
                       )} />
                       <div className="grid grid-cols-2 gap-2">
                         <FormField control={form.control} name={`images.${index}.altText`} render={({ field }) => (
@@ -385,13 +390,13 @@ export default function AdminProductsPage() {
                           <FormItem><FormLabel>SKU</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                         )} />
                         <FormField control={form.control} name={`variants.${index}.price`} render={({ field }) => (
-                          <FormItem><FormLabel>Variant Price</FormLabel><FormControl><Input type="number" {...field} placeholder="Overrides base price if set" /></FormControl><FormMessage /></FormItem>
+                          <FormItem><FormLabel>Variant Price</FormLabel><FormControl><Input type="number" step="0.01" {...field} value={field.value ?? 0} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} placeholder="Overrides base price if set" /></FormControl><FormMessage /></FormItem>
                         )} />
                         <FormField control={form.control} name={`variants.${index}.costPrice`} render={({ field }) => (
-                          <FormItem><FormLabel>Variant Cost Price</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                          <FormItem><FormLabel>Variant Cost Price</FormLabel><FormControl><Input type="number" step="0.01" {...field} value={field.value ?? ''}  onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))} /></FormControl><FormMessage /></FormItem>
                         )} />
                         <FormField control={form.control} name={`variants.${index}.stock`} render={({ field }) => (
-                          <FormItem><FormLabel>Stock</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                          <FormItem><FormLabel>Stock</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? 0} onChange={e => field.onChange(parseInt(e.target.value, 10) || 0)} /></FormControl><FormMessage /></FormItem>
                         )} />
                         <FormField control={form.control} name={`variants.${index}.imageId`} render={({ field }) => (
                           <FormItem><FormLabel>Image ID (Optional)</FormLabel><FormControl><Input {...field} placeholder="img-variant-id" /></FormControl><FormMessage /></FormItem>
@@ -404,7 +409,6 @@ export default function AdminProductsPage() {
                    {hasVariants && <p className="text-xs text-muted-foreground p-1">If variants are used, their prices override the base product price. Variant stock is summed for total product stock.</p>}
                 </fieldset>
 
-                {/* Customization Configuration Section */}
                 <fieldset className="space-y-4 p-4 border rounded-md">
                     <legend className="text-lg font-semibold px-1 flex items-center"><Paintbrush className="mr-2 h-5 w-5 text-primary"/>Product Customization Options</legend>
                      <FormField
@@ -480,7 +484,6 @@ export default function AdminProductsPage() {
                     )}
                 </fieldset>
 
-                {/* Available Print Designs Array (only if customization and predefined designs are enabled) */}
                 {customizationEnabled && form.watch("customizationConfig.allowPredefinedDesigns") && (
                     <fieldset className="space-y-3 p-3 border rounded-md">
                         <legend className="text-md font-medium px-1">Available Predefined Print Designs</legend>
@@ -493,7 +496,7 @@ export default function AdminProductsPage() {
                                 <FormItem>
                                   <FormLabel>Design Image URL</FormLabel>
                                   <FormControl><Input {...field} placeholder="https://example.com/design.png" /></FormControl>
-                                  <FormDescription>Upload your image to a hosting service (e.g., Firebase Storage, Imgur, Cloudinary) and paste the direct URL here.</FormDescription>
+                                  <FormDescription>Tip: Upload your image to a free hosting service (e.g., Imgur, Cloudinary free tier, Firebase Storage) then paste the direct image URL (ending in .jpg, .png, .gif, etc.) here.</FormDescription>
                                   <FormMessage />
                                 </FormItem>
                             )} />
