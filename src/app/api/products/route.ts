@@ -1,24 +1,33 @@
 
 // /src/app/api/products/route.ts
 import { NextResponse } from 'next/server';
-import fs from 'fs/promises';
-import path from 'path';
+import { supabase } from '@/lib/supabaseClient';
 import type { Product } from '@/types';
 
-const filePath = path.join(process.cwd(), 'src', 'data', 'products.json');
+export const dynamic = 'force-dynamic'; // Ensure fresh data
 
 export async function GET() {
   try {
-    const jsonData = await fs.readFile(filePath, 'utf-8');
-    let products: Product[] = JSON.parse(jsonData);
+    const { data, error } = await supabase
+      .from('products')
+      .select('*')
+      .order('createdAt', { ascending: false });
 
-    // Sort products by createdAt date in descending order (newest first)
-    products.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    if (error) {
+      console.error('Supabase error fetching products:', error);
+      return NextResponse.json(
+        { message: 'Error fetching products from Supabase', error: error.message },
+        { status: 500 }
+      );
+    }
 
-    return NextResponse.json(products);
+    // Corrected: use 'data' which is the result from Supabase
+    return NextResponse.json(data as Product[]);
   } catch (error) {
-    console.error('Failed to read products.json:', error);
-    // Return an empty array or an error message if the file is not found or malformed
-    return NextResponse.json({ message: 'Error fetching products', error: (error as Error).message }, { status: 500 });
+    console.error('Failed to fetch products from Supabase API (outer catch):', error);
+    return NextResponse.json(
+      { message: 'Error fetching products', error: (error as Error).message },
+      { status: 500 }
+    );
   }
 }
