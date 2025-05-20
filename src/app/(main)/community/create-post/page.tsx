@@ -62,8 +62,22 @@ export default function CreateUserPostPage() {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to submit post.');
+        let errorDetail = 'Failed to submit post.';
+        try {
+            const errorData = await response.json();
+            if (errorData.rawSupabaseError) {
+                errorDetail = `Database error: ${errorData.rawSupabaseError.message || 'Unknown Supabase error.'}`;
+                if (errorData.rawSupabaseError.hint) errorDetail += ` Hint: ${errorData.rawSupabaseError.hint}`;
+            } else if (errorData.message) {
+                errorDetail = errorData.message;
+            } else {
+                errorDetail = `Server responded with ${response.status}: ${response.statusText}`;
+            }
+        } catch (e) {
+            // If response is not JSON or errorData structure is unexpected
+            errorDetail = `Failed to submit post. Server returned ${response.status}.`;
+        }
+        throw new Error(errorDetail);
       }
 
       toast({
@@ -71,7 +85,8 @@ export default function CreateUserPostPage() {
         description: "Your style has been submitted for review. Thank you for sharing!",
       });
       form.reset();
-      router.push('/'); 
+      // Consider redirecting to the main community page or user's posts page after successful submission
+      // router.push('/'); 
     } catch (error) {
       toast({
         title: "Submission Failed",

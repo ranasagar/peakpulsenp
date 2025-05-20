@@ -12,11 +12,11 @@ export async function GET(request: NextRequest) {
   console.log("[API /api/user-posts] GET request received for approved posts.");
 
   if (!supabase) {
-    console.error('[API /api/user-posts] Supabase client is not initialized. Check environment variables.');
+    console.error('[API /api/user-posts GET] Supabase client is not initialized. Check environment variables.');
     return NextResponse.json({
-      message: 'Supabase client is not configured. Server error.',
-      rawSupabaseError: { message: 'Supabase client not initialized. Check server logs and environment variables.' }
-    }, { status: 503 }); // 503 Service Unavailable
+      message: 'Database service not available.',
+      rawSupabaseError: { message: 'Supabase client not initialized on server. Check server logs and environment variables.' }
+    }, { status: 503 });
   }
 
   try {
@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
       .order('created_at', { ascending: false });
 
     if (error) {
-      console.error('[API /api/user-posts] Supabase error fetching approved posts:', error);
+      console.error('[API /api/user-posts GET] Supabase error fetching approved posts:', error);
       return NextResponse.json({
         message: 'Failed to fetch user posts from database.',
         rawSupabaseError: { 
@@ -58,7 +58,7 @@ export async function GET(request: NextRequest) {
         // @ts-ignore supabase types might not be perfect for nested select
         user_name: post.users?.name || 'Peak Pulse User', 
         // @ts-ignore
-        user_avatar_url: post.users?.["avatarUrl"], // Ensure correct casing for "avatarUrl"
+        user_avatar_url: post.users?.["avatarUrl"] || undefined,
         image_url: post.image_url,
         caption: post.caption,
         product_tags: post.product_tags,
@@ -67,10 +67,10 @@ export async function GET(request: NextRequest) {
         updated_at: post.updated_at,
     })) || [];
 
-    console.log(`[API /api/user-posts] Successfully fetched ${posts.length} approved posts.`);
+    console.log(`[API /api/user-posts GET] Successfully fetched ${posts.length} approved posts.`);
     return NextResponse.json(posts);
   } catch (error) {
-    console.error('[API /api/user-posts] Unhandled error fetching approved posts:', error);
+    console.error('[API /api/user-posts GET] Unhandled error fetching approved posts:', error);
     return NextResponse.json({
       message: 'Error fetching approved posts',
       rawSupabaseError: { message: (error as Error).message || 'An unexpected server error occurred.' }
@@ -86,13 +86,13 @@ interface CreateUserPostPayload {
   productTags?: string[];
 }
 export async function POST(request: NextRequest) {
-  console.log("[API /api/user-posts] POST request received to create user post.");
+  console.log("[API /api/user-posts POST] request received to create user post.");
 
   if (!supabase) {
-    console.error('[API /api/user-posts] Supabase client is not initialized for POST. Check environment variables.');
+    console.error('[API /api/user-posts POST] Supabase client is not initialized. Check environment variables.');
     return NextResponse.json({
-      message: 'Supabase client is not configured. Server error.',
-      rawSupabaseError: { message: 'Supabase client not initialized for POST. Check server logs and environment variables.' }
+      message: 'Database service not available. Cannot create post.',
+      rawSupabaseError: { message: 'Supabase client not initialized on server for POST. Check server logs and environment variables.' }
     }, { status: 503 });
   }
 
@@ -107,9 +107,11 @@ export async function POST(request: NextRequest) {
       user_id: userId,
       image_url: imageUrl,
       caption: caption || null,
-      product_tags: productTags || null,
+      product_tags: productTags && productTags.length > 0 ? productTags : null,
       status: 'pending', // New posts default to pending
     };
+    
+    console.log('[API /api/user-posts POST] Attempting to insert new post data:', JSON.stringify(newPostData, null, 2));
 
     const { data, error } = await supabase
       .from('user_posts')
@@ -118,7 +120,7 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (error) {
-      console.error('[API /api/user-posts] Supabase error creating post:', error);
+      console.error('[API /api/user-posts POST] Supabase error creating post:', error);
       return NextResponse.json({
         message: 'Failed to create post in database.',
         rawSupabaseError: {
@@ -130,13 +132,14 @@ export async function POST(request: NextRequest) {
       }, { status: 500 });
     }
 
-    console.log('[API /api/user-posts] User post created successfully:', data);
+    console.log('[API /api/user-posts POST] User post created successfully:', data);
     return NextResponse.json(data, { status: 201 });
   } catch (error) {
-    console.error('[API /api/user-posts] Unhandled error creating user post:', error);
+    console.error('[API /api/user-posts POST] Unhandled error creating user post:', error);
     return NextResponse.json({
       message: 'Error creating user post',
       rawSupabaseError: { message: (error as Error).message || 'An unexpected server error occurred.' }
     }, { status: 500 });
   }
 }
+
