@@ -9,8 +9,8 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Star, Plus, Minus, ShoppingCart, ShieldCheck, Package, Zap, Loader2, Paintbrush, Edit2, Info, Heart as HeartIcon } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Label } from '@/components/ui/label';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Label } from "@/components/ui/label";
+import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card'; // Added CardDescription
 import type { Product, ProductImage, BreadcrumbItem, ProductVariant, CartItemCustomization, PrintDesign, Review } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { Breadcrumbs } from '@/components/navigation/breadcrumbs';
@@ -22,6 +22,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RatingStars } from '@/components/ui/rating-stars';
 import { cn } from '@/lib/utils';
+import { Input } from '@/components/ui/input'; // Added Input
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'; // Added Avatar components
 
 
 export default function ProductDetailPage({ params: paramsPromise }: { params: Promise<{ slug: string }> | { slug:string } }) {
@@ -55,21 +57,34 @@ export default function ProductDetailPage({ params: paramsPromise }: { params: P
 
 
   const fetchProductData = useCallback(async () => {
-    if (!resolvedParams?.slug) return;
+    if (!resolvedParams?.slug) {
+      setError("Product slug not available.");
+      setIsLoading(false);
+      return;
+    }
     setIsLoading(true);
     setError(null);
+    console.log(`[ProductDetail] Fetching product with slug: ${resolvedParams.slug}`);
     try {
       const response = await fetch(`/api/products/${resolvedParams.slug}`);
       if (!response.ok) {
+        let errorMsg = `Failed to fetch product. Status: ${response.status}`;
+        try {
+          const errorData = await response.json();
+          errorMsg = errorData.message || errorMsg;
+        } catch (e) { /* ignore if response is not json */ }
+        
         if (response.status === 404) {
-          throw new Error('Product not found.');
+           setError(`Product with slug '${resolvedParams.slug}' not found.`);
+        } else {
+           setError(errorMsg);
         }
-        const errorData = await response.json().catch(() => ({ message: `Failed to fetch product: ${response.statusText}` }));
-        throw new Error(errorData.message || `Failed to fetch product: ${response.statusText}`);
+        throw new Error(errorMsg); // Throw to stop further processing
       }
       const currentProduct: Product = await response.json();
 
       if (currentProduct) {
+        console.log(`[ProductDetail] Product found:`, currentProduct.name);
         setProduct(currentProduct);
         setSelectedImage(currentProduct.images[0] || null);
         
@@ -86,32 +101,37 @@ export default function ProductDetailPage({ params: paramsPromise }: { params: P
         }
 
         // Fetch related products (simplified)
+        // This could be optimized to fetch based on category directly from API
         const allProductsResponse = await fetch('/api/products');
         if (allProductsResponse.ok) {
           const allProducts: Product[] = await allProductsResponse.json();
           const related = allProducts.filter(
             p => p.id !== currentProduct.id && 
-                 p.categories.some(cat => currentProduct.categories.map(ccat => ccat.slug).includes(cat.slug))
+                 currentProduct.categories.some(ccat => p.categories.map(pcat => pcat.slug).includes(ccat.slug))
           ).slice(0, 4); 
           setRelatedProducts(related);
+        } else {
+          console.warn("[ProductDetail] Failed to fetch all products for related items.");
         }
 
       } else {
-        setError("Product data is null or invalid.");
+        setError(`Product with slug '${resolvedParams.slug}' not found or data is invalid.`);
       }
     } catch (err) {
-      console.error("Error fetching product data:", err);
-      const errorMessage = (err as Error).message || "Could not load product data.";
-      setError(errorMessage);
-      toast({ title: "Error", description: errorMessage, variant: "destructive" });
+      console.error("[ProductDetail] Error fetching product data:", err);
+      // setError is already set if it's a fetch error or 404
+      if (!error) { // only set general error if not already set by specific conditions
+        setError((err as Error).message || "Could not load product data.");
+      }
+      // toast({ title: "Error", description: (err as Error).message || "Could not load product data.", variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
-  }, [resolvedParams?.slug, toast]);
+  }, [resolvedParams?.slug, toast, error]); // Added 'error' to dependency array
 
   useEffect(() => {
     fetchProductData();
-  }, [fetchProductData]);
+  }, [fetchProductData]); // fetchProductData is memoized, so this runs once or when slug changes
 
   useEffect(() => {
     if (isAuthenticated && user?.wishlist && product) {
@@ -125,18 +145,17 @@ export default function ProductDetailPage({ params: paramsPromise }: { params: P
   const selectedVariant = product?.variants?.find(v => v.id === selectedVariantId);
   const displayPrice = selectedVariant?.price ?? product?.price ?? 0;
   const displayCompareAtPrice = selectedVariant?.costPrice !== undefined 
-    ? undefined 
+    ? undefined // If variant has costPrice, assume compareAtPrice is not applicable at variant level for this logic
     : product?.compareAtPrice;
 
   const isOutOfStock = useMemo(() => {
     if (selectedVariant) return selectedVariant.stock <= 0;
-    if (product?.variants && product.variants.length > 0 && !selectedVariant) return true;
+    if (product?.variants && product.variants.length > 0 && !selectedVariant) return true; // No variant selected but variants exist
     return (product?.stock !== undefined && product.stock <= 0 && (!product?.variants || product.variants.length === 0));
   }, [product, selectedVariant]);
 
   const handleAddToCart = () => {
     if (!product) return;
-    // ... (rest of the Add to Cart logic as previously implemented)
     if (isOutOfStock) {
         toast({ title: "Out of Stock", description: "This item is currently unavailable.", variant: "destructive" });
         return;
@@ -193,7 +212,7 @@ export default function ProductDetailPage({ params: paramsPromise }: { params: P
       const { wishlist: updatedWishlistFromServer } = await response.json();
       setIsWishlisted(!isWishlisted);
       // Update user in AuthContext (simplified - full update would involve calling a method from useAuth)
-      if (user.wishlist) {
+      if (user.wishlist) { // Ensure user.wishlist exists before trying to assign to it
          user.wishlist = updatedWishlistFromServer;
       }
       toast({
@@ -265,7 +284,7 @@ export default function ProductDetailPage({ params: paramsPromise }: { params: P
   }
   
   if (!product) {
-     return ( // Should ideally not be reached if error state is handled, but as a fallback
+     return ( 
       <div className="container-wide section-padding text-center">
         <h1 className="text-2xl font-bold text-destructive">Product data could not be loaded.</h1>
         <Button asChild variant="link" className="mt-4"><Link href="/products">Back to Shop</Link></Button>
@@ -294,9 +313,9 @@ export default function ProductDetailPage({ params: paramsPromise }: { params: P
                 <Image
                     src={selectedImage.url}
                     alt={selectedImage.altText || product.name}
-                    layout="fill"
-                    objectFit="cover"
-                    className="transition-opacity duration-300 ease-in-out hover:opacity-90"
+                    fill
+                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                    className="object-cover transition-opacity duration-300 ease-in-out hover:opacity-90"
                     priority
                     data-ai-hint={selectedImage.dataAiHint || "product fashion"}
                 />
@@ -311,7 +330,7 @@ export default function ProductDetailPage({ params: paramsPromise }: { params: P
                 className={`rounded-md overflow-hidden border-2 transition-all ${selectedImage?.id === img.id ? 'border-primary ring-2 ring-primary ring-offset-2' : 'border-transparent hover:border-primary/50'}`}
               >
                 <AspectRatio ratio={1/1}>
-                <Image src={img.url} alt={img.altText || `Thumbnail ${img.id}`} layout="fill" objectFit="cover" data-ai-hint={img.dataAiHint || "clothing detail"} />
+                <Image src={img.url} alt={img.altText || `Thumbnail ${img.id}`} fill sizes="25vw" className="object-cover" data-ai-hint={img.dataAiHint || "clothing detail"} />
                 </AspectRatio>
               </button>
             ))}
@@ -392,17 +411,17 @@ export default function ProductDetailPage({ params: paramsPromise }: { params: P
                 <Tabs value={customizationType || undefined} onValueChange={(value) => setCustomizationType(value as 'predefined' | 'custom' | null)}>
                   <TabsList className="grid w-full grid-cols-2 mb-4">
                     {product.customizationConfig.allowPredefinedDesigns && product.availablePrintDesigns && product.availablePrintDesigns.length > 0 && (
-                        <TabsTrigger value="predefined">Use Peak Pulse Design</TabsTrigger>
+                        <TabsTrigger value="predefined">{product.customizationConfig.predefinedDesignsLabel || 'Choose a Signature Design'}</TabsTrigger>
                     )}
                     {product.customizationConfig.allowCustomDescription && (
-                        <TabsTrigger value="custom">Describe Your Own</TabsTrigger>
+                        <TabsTrigger value="custom">{product.customizationConfig.customDescriptionLabel || 'Describe Your Own'}</TabsTrigger>
                     )}
                   </TabsList>
 
                   {product.customizationConfig.allowPredefinedDesigns && product.availablePrintDesigns && product.availablePrintDesigns.length > 0 && (
                     <TabsContent value="predefined">
                         <Label className="text-md font-semibold text-foreground mb-2 block">
-                            {product.customizationConfig.predefinedDesignsLabel || 'Choose a Signature Design'}
+                            Choose a Signature Design
                         </Label>
                         <RadioGroup 
                             value={selectedPredefinedDesign?.id} 
@@ -418,7 +437,7 @@ export default function ProductDetailPage({ params: paramsPromise }: { params: P
                                 >
                                     <RadioGroupItem value={design.id} id={`design-${design.id}`} className="sr-only" />
                                     <AspectRatio ratio={1/1} className="w-20 h-20 bg-muted rounded overflow-hidden">
-                                      <Image src={design.imageUrl} alt={design.name} layout="fill" objectFit="contain" data-ai-hint={design.dataAiHint || "design graphic"}/>
+                                      <Image src={design.imageUrl} alt={design.name} fill sizes="10vw" className="object-contain" data-ai-hint={design.dataAiHint || "design graphic"}/>
                                     </AspectRatio>
                                     <span className="text-xs text-center font-medium">{design.name}</span>
                                 </Label>
@@ -431,16 +450,14 @@ export default function ProductDetailPage({ params: paramsPromise }: { params: P
                      <TabsContent value="custom">
                         <FormFieldItem>
                             <Label className="text-md font-semibold text-foreground mb-2 block">
-                                {product.customizationConfig.customDescriptionLabel || 'Describe Your Design Idea'}
+                                Describe Your Design Idea
                             </Label>
-                            <div> 
-                                <Textarea 
-                                    placeholder="e.g., 'A silhouette of a mountain range with a rising sun', or 'The text Peak Pulse in Nepali script'" 
-                                    value={customDesignDescription} 
-                                    onChange={(e) => setCustomDesignDescription(e.target.value)}
-                                    rows={3}
-                                />
-                            </div>
+                            <Textarea 
+                                placeholder="e.g., 'A silhouette of a mountain range with a rising sun', or 'The text Peak Pulse in Nepali script'" 
+                                value={customDesignDescription} 
+                                onChange={(e) => setCustomDesignDescription(e.target.value)}
+                                rows={3}
+                            />
                         </FormFieldItem>
                     </TabsContent>
                   )}
@@ -452,14 +469,12 @@ export default function ProductDetailPage({ params: paramsPromise }: { params: P
                              <Label className="text-md font-semibold text-foreground mb-2 block">
                                 {product.customizationConfig.instructionsLabel || 'Specific Instructions (Placement, Colors, etc.)'}
                             </Label>
-                            <div> 
-                                <Textarea 
-                                    placeholder="e.g., 'Place design on the back, centered', or 'Use gold thread for the script'" 
-                                    value={customInstructions}
-                                    onChange={(e) => setCustomInstructions(e.target.value)}
-                                    rows={3} 
-                                />
-                            </div>
+                            <Textarea 
+                                placeholder="e.g., 'Place design on the back, centered', or 'Use gold thread for the script'" 
+                                value={customInstructions}
+                                onChange={(e) => setCustomInstructions(e.target.value)}
+                                rows={3} 
+                            />
                         </FormFieldItem>
                     </div>
                 )}
@@ -572,7 +587,7 @@ export default function ProductDetailPage({ params: paramsPromise }: { params: P
                     <div className="mt-3 grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
                       {review.images.map(img => (
                         <AspectRatio key={img.id} ratio={1/1} className="bg-muted rounded-md overflow-hidden">
-                          <Image src={img.url} alt={img.altText || 'Review image'} layout="fill" objectFit="cover" data-ai-hint="review product image"/>
+                          <Image src={img.url} alt={img.altText || 'Review image'} fill sizes="20vw" className="object-cover" data-ai-hint="review product image"/>
                         </AspectRatio>
                       ))}
                     </div>
