@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { DatePickerWithRange } from '@/components/ui/date-range-picker'; // Assume this component will be created or exists
+import { DatePickerWithRange } from '@/components/ui/date-range-picker';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Download, AlertTriangle, FileText } from 'lucide-react';
@@ -111,14 +111,12 @@ export default function AdminTaxReportPage() {
       currency: order.currency,
       orderStatus: order.status,
       paymentStatus: order.paymentStatus,
-      paymentMethod: order.paymentMethod || 'N/A',
-      // For more detailed tax reports, you might include item details, tax amounts (if applicable), etc.
+      paymentMethod: order.paymentMethod || 'N/A', // Added paymentMethod
     }));
     exportToCsv(`peakpulse-sales-report-${dateRange?.from ? format(dateRange.from, "yyyyMMdd") : ''}-${dateRange?.to ? format(dateRange.to, "yyyyMMdd") : ''}.csv`, dataToExport);
   };
   
   const getOrderStatusBadgeVariant = (status: Order['status']): "default" | "secondary" | "destructive" | "outline" => {
-    // ... (copy from /admin/orders/page.tsx)
     switch (status) {
       case 'Delivered': return 'default';
       case 'Shipped': return 'secondary';
@@ -131,7 +129,6 @@ export default function AdminTaxReportPage() {
   };
   
   const getPaymentStatusBadgeVariant = (status: Order['paymentStatus']): "default" | "secondary" | "destructive" | "outline" => {
-    // ... (copy from /admin/orders/page.tsx)
     switch (status) {
       case 'Paid': return 'default';
       case 'Pending': return 'outline';
@@ -214,6 +211,7 @@ export default function AdminTaxReportPage() {
                     <TableHead>Date</TableHead>
                     <TableHead>Customer</TableHead>
                     <TableHead className="text-right">Total (NPR)</TableHead>
+                    <TableHead>Payment Method</TableHead> 
                     <TableHead className="text-center">Order Status</TableHead>
                     <TableHead className="text-center">Payment Status</TableHead>
                   </TableRow>
@@ -225,6 +223,7 @@ export default function AdminTaxReportPage() {
                       <TableCell>{format(new Date(order.createdAt), "yyyy-MM-dd HH:mm")}</TableCell>
                       <TableCell>{order.shippingAddress.fullName}</TableCell>
                       <TableCell className="text-right font-semibold">रू{order.totalAmount.toLocaleString()}</TableCell>
+                      <TableCell>{order.paymentMethod || 'N/A'}</TableCell> 
                       <TableCell className="text-center">
                         <Badge variant={getOrderStatusBadgeVariant(order.status)}
                           className={
