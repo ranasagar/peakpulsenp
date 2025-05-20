@@ -1,12 +1,13 @@
 
 // /src/app/api/products/route.ts
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabaseClient';
+import { supabase } from '@/lib/supabaseClient.ts'; // Added .ts extension
 import type { Product } from '@/types';
 
 export const dynamic = 'force-dynamic'; // Ensure fresh data
 
 export async function GET() {
+  console.log("[API /api/products] GET request received.");
   try {
     const { data, error } = await supabase
       .from('products')
@@ -14,17 +15,16 @@ export async function GET() {
       .order('createdAt', { ascending: false });
 
     if (error) {
-      console.error('Supabase error fetching products:', error);
+      console.error('[API /api/products] Supabase query error:', error);
       return NextResponse.json(
-        { message: 'Error fetching products from Supabase', error: error.message },
+        { message: 'Error fetching products from Supabase', error: error.message, details: error.details, hint: error.hint, code: error.code },
         { status: 500 }
       );
     }
 
-    // Corrected: use 'data' which is the result from Supabase
     return NextResponse.json(data as Product[]);
   } catch (error) {
-    console.error('Failed to fetch products from Supabase API (outer catch):', error);
+    console.error('[API /api/products] Unhandled error in GET handler:', error);
     return NextResponse.json(
       { message: 'Error fetching products', error: (error as Error).message },
       { status: 500 }
