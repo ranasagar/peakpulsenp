@@ -83,20 +83,16 @@ body {
 }
 
 @layer base {
-  /* Removed global border: * { @apply border-border; } */
   body {
     @apply bg-background text-foreground;
-    /* Enable smooth scrolling for anchor links */
     scroll-behavior: smooth;
   }
-  /* Ensure high-resolution images scale properly and don't lose quality */
   img, video {
     max-width: 100%;
     height: auto;
   }
 }
 
-/* Additional styles for luxury feel */
 @layer components {
   .section-padding {
     @apply pt-8 pb-16 md:pt-12 md:pb-24 lg:pt-16 lg:pb-32;
@@ -106,5 +102,26 @@ body {
   }
   .container-wide {
     @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+  }
+
+  /* Subtle pulse animation on hover for header links */
+  .header-link-pulse:hover {
+    animation: subtle-pulse 0.7s ease-in-out;
+  }
+}
+
+@layer utilities {
+  @keyframes subtle-pulse {
+    0%, 100% {
+      transform: scale(1);
+      opacity: 1;
+    }
+    50% {
+      transform: scale(1.03);
+      opacity: 0.9;
+    }
+  }
+  .animate-subtle-pulse {
+    animation: subtle-pulse 0.7s ease-in-out;
   }
 }

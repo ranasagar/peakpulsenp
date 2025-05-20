@@ -21,7 +21,7 @@ import { cn } from '@/lib/utils';
 import type { NavItem } from '@/types';
 import { ShoppingCart, Search, LogOut, UserCircle, LayoutDashboard, Settings, Star, ShoppingBag, Briefcase } from 'lucide-react';
 import { ModeToggle } from './mode-toggle';
-import { useCart } from '@/context/cart-context'; // Import useCart
+import { useCart } from '@/context/cart-context';
 
 const mainNavItems: NavItem[] = [
   { title: 'Home', href: '/' },
@@ -39,7 +39,7 @@ const userNavItems: NavItem[] = [
 
 export function Header() {
   const { user, logout, isAuthenticated } = useAuth();
-  const { cartItemCount } = useCart(); // Use cartItemCount from context
+  const { cartItemCount } = useCart();
   const pathname = usePathname();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -49,13 +49,13 @@ export function Header() {
 
   const navLinks = mainNavItems.map((item) => {
     const isVipLink = item.href === '/vip-collection';
-    if (isVipLink && !isAuthenticated) return null; // Hide VIP if not logged in
+    if (isVipLink && !isAuthenticated) return null;
     return (
       <Link
         key={item.href}
         href={item.href}
         className={cn(
-          "text-sm font-medium transition-colors hover:text-primary",
+          "text-sm font-medium transition-colors hover:text-primary header-link-pulse", // Added header-link-pulse
           pathname === item.href ? "text-primary" : "text-foreground/80"
         )}
         onClick={() => setIsMobileMenuOpen(false)}
@@ -98,13 +98,13 @@ export function Header() {
         <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
           <SheetTrigger asChild>
             <Button variant="ghost" size="icon" className="md:hidden mr-4">
-              <Icons.AnimatedMenuIcon className="h-16 w-16" /> {/* Updated size */}
+              <Icons.AnimatedMenuIcon className="h-16 w-16" />
               <span className="sr-only">Toggle Menu</span>
             </Button>
           </SheetTrigger>
           <SheetContent side="left" className="w-full max-w-xs sm:max-w-sm bg-background p-0">
              <SheetHeader className="p-6 pb-0 border-b">
-                <SheetTitle className="sr-only">Main Menu</SheetTitle> {/* For accessibility */}
+                <SheetTitle className="sr-only">Main Menu</SheetTitle> 
                  <Link href="/" className="mb-4 flex items-center gap-2 self-start" onClick={() => setIsMobileMenuOpen(false)}>
                     <Icons.Logo className="h-7 w-7 text-primary" />
                     <span className="font-bold text-lg text-foreground">Peak Pulse</span>
@@ -120,7 +120,7 @@ export function Header() {
                       <Link
                         key={item.href}
                         href={item.href}
-                        className="flex items-center py-2 text-sm font-medium text-foreground/80 hover:text-primary"
+                        className="flex items-center py-2 text-sm font-medium text-foreground/80 hover:text-primary header-link-pulse" // Added header-link-pulse
                         onClick={() => setIsMobileMenuOpen(false)}
                       >
                         {item.icon && <item.icon className="mr-2 h-4 w-4" />}
@@ -130,7 +130,7 @@ export function Header() {
                     {user?.roles?.includes('affiliate') && (
                       <Link
                         href="/affiliate-portal"
-                        className="flex items-center py-2 text-sm font-medium text-foreground/80 hover:text-primary"
+                        className="flex items-center py-2 text-sm font-medium text-foreground/80 hover:text-primary header-link-pulse" // Added header-link-pulse
                         onClick={() => setIsMobileMenuOpen(false)}
                       >
                          <Briefcase className="mr-2 h-4 w-4" />
