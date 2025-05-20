@@ -24,10 +24,8 @@ export async function PUT(
     return NextResponse.json({ message: 'Order ID is required' }, { status: 400 });
   }
 
-  if (process.env.NODE_ENV === 'production' && process.env.VERCEL) {
-    console.warn(`[API /api/admin/orders/${orderId}] Order modification is disabled in Vercel production environment for this demo.`);
-    return NextResponse.json({ message: 'Order modification is disabled in this environment for demo purposes.' }, { status: 403 });
-  }
+  // In a real app, this endpoint MUST be secured for admin access only.
+  // For demo, we skip auth, but in production, verify admin role here.
 
   try {
     const payload = (await request.json()) as UpdateOrderPayload;
@@ -47,8 +45,8 @@ export async function PUT(
       return NextResponse.json({ message: 'Invalid payment status provided.' }, { status: 400 });
     }
 
-    const updatesToMake: Partial<Order> = {
-        updatedAt: new Date().toISOString(),
+    const updatesToMake: Partial<Order> & { updatedAt: string } = {
+        updatedAt: new Date().toISOString(), // Supabase trigger might handle this, but explicit is fine
     };
     if (status) updatesToMake.status = status;
     if (paymentStatus) updatesToMake.paymentStatus = paymentStatus;
@@ -76,7 +74,7 @@ export async function PUT(
     }
 
     let updateMessage = `Order ${orderId} updated successfully.`;
-     console.log(`[API /api/admin/orders/${orderId}] ${updateMessage} New data:`, updatedOrder);
+    console.log(`[API /api/admin/orders/${orderId}] ${updateMessage} New data:`, updatedOrder);
     return NextResponse.json({ message: updateMessage, order: updatedOrder });
 
   } catch (error) {

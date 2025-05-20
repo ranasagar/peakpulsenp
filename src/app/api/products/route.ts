@@ -16,6 +16,7 @@ export async function GET() {
 
     if (error) {
       console.error('[API /api/products] Supabase query error:', error);
+      // Ensure a JSON response even on error
       return NextResponse.json(
         { message: 'Error fetching products from Supabase', error: error.message, details: error.details, hint: error.hint, code: error.code },
         { status: 500 }
@@ -31,4 +32,3 @@ export async function GET() {
     );
   }
 }
-

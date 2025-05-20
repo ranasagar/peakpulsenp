@@ -43,7 +43,7 @@ interface ShippingDetails {
 }
 
 interface CreateOrderPayload {
-  userId?: string; // Make userId optional for now, but log if missing
+  userId?: string; 
   cartItems: CartItem[];
   shippingDetails: ShippingDetails;
   orderSubtotal: number;
@@ -55,13 +55,12 @@ export async function POST(request: NextRequest) {
   console.log("[API /api/orders/create] POST request received.");
   try {
     const payload = (await request.json()) as CreateOrderPayload;
-    console.log('[API /api/orders/create] Received order payload for Supabase:', JSON.stringify(payload, null, 2));
+    console.log('[API /api/orders/create] Received order payload:', JSON.stringify(payload, null, 2));
 
     const { userId, cartItems, shippingDetails, orderSubtotal, shippingCost, orderTotal } = payload;
     const { paymentMethod, country, cardNumber, expiryDate, cvc, cardholderName, streetAddress, city, postalCode, fullName, phone, apartmentSuite } = shippingDetails;
 
     if (!userId) {
-      // In a real app, userId would be derived from a server-verified session/token
       console.warn("[API /api/orders/create] User ID is missing. This is required for saving orders.");
       return NextResponse.json({ title: "Order Error", message: 'User ID is missing. Unable to process order.' }, { status: 400 });
     }
@@ -106,11 +105,11 @@ export async function POST(request: NextRequest) {
 
     const orderToInsert = {
       userId: userId,
-      items: cartItems as any, // Supabase client handles JSONB stringification
+      items: cartItems as any, 
       totalAmount: orderTotal,
       currency: 'NPR',
       status: orderStatus,
-      shippingAddress: { // Ensure this matches OrderAddress type structure
+      shippingAddress: { 
         street: streetAddress,
         city: city,
         postalCode: postalCode,
@@ -118,7 +117,7 @@ export async function POST(request: NextRequest) {
         fullName: fullName,
         phone: phone || null,
         apartmentSuite: apartmentSuite || null,
-      } as any, // Supabase client handles JSONB stringification
+      } as any, 
       paymentMethod: paymentMethod,
       paymentStatus: paymentStatus,
       // createdAt and updatedAt will be set by Supabase default or trigger
@@ -128,9 +127,9 @@ export async function POST(request: NextRequest) {
 
     const { data: newOrder, error: insertError } = await supabase
       .from('orders')
-      .insert([orderToInsert]) // Pass as an array for insert
+      .insert([orderToInsert]) 
       .select()
-      .single(); // Expecting a single row back after insert
+      .single(); 
 
     if (insertError) {
       console.error('[API /api/orders/create] Supabase order insert error:', insertError);

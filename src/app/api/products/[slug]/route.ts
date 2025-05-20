@@ -23,10 +23,10 @@ export async function GET(
       .from('products')
       .select('*')
       .eq('slug', slug)
-      .single(); // Use single() as slug should be unique
+      .single(); 
 
     if (error) {
-      if (error.code === 'PGRST116') { // Code for "JSON object requested, but array found" (no rows)
+      if (error.code === 'PGRST116') { 
         console.warn(`[API /api/products/[slug]] Product not found in Supabase for slug ${slug}. Supabase error:`, error);
         return NextResponse.json({ message: `Product with slug '${slug}' not found.` }, { status: 404 });
       }
