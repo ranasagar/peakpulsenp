@@ -13,76 +13,78 @@ import type { HomepageContent, Product, HeroSlide, UserPost } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent } from '@/components/ui/card';
 import { AspectRatio } from "@/components/ui/aspect-ratio";
+import { InteractiveExternalLink } from '@/components/interactive-external-link'; // Import the new component
 
-// Hardcoded fallback content in case API fetch fails or content is malformed
 const fallbackContent: HomepageContent = {
   heroSlides: [
     {
       id: 'fallback-hero-1',
-      title: "Peak Pulse (Network Error)",
-      description: "Experience the fusion of ancient Nepali artistry and modern streetwear. (Content failed to load, displaying fallback)",
-      imageUrl: "https://images.unsplash.com/photo-1506748686214-e9df14d4d9d0?q=80&w=1920&h=1080&fit=crop&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
-      altText: "Fallback hero image: majestic mountain landscape",
-      dataAiHint: "mountain landscape nepal",
+      title: "Peak Pulse (Content API Fallback)",
+      description: "Experience the fusion of ancient Nepali artistry and modern streetwear.",
+      imageUrl: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?q=80&w=1920&h=1080&fit=crop&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+      altText: "Fallback hero image: abstract fashion",
+      dataAiHint: "fashion abstract modern",
       ctaText: "Explore Collections",
       ctaLink: "/products",
+      videoId: undefined,
     }
   ],
   artisanalRoots: {
-    title: "Our Artisanal Roots (Fallback)",
-    description: "Details about our craftsmanship are currently unavailable. We partner with local artisans in Nepal, preserving centuries-old techniques while innovating for today's global citizen."
+    title: "Our Artisanal Roots (API Fallback)",
+    description: "Details about our craftsmanship are currently loading."
   },
   socialCommerceItems: [
-    { id: 'social-fallback-1', imageUrl: 'https://placehold.co/400x400.png?text=Social+Feed+Error', linkUrl: 'https://instagram.com/peakpulsenp', altText: 'Social Post 1 Fallback', dataAiHint: 'social fashion fallback' },
+    { id: 'social-fallback-1', imageUrl: 'https://placehold.co/400x400.png?text=Social+Feed+Error+1', linkUrl: 'https://instagram.com/peakpulsenp', altText: 'Social Post 1 Fallback', dataAiHint: 'social fashion fallback' },
+    { id: 'social-fallback-2', imageUrl: 'https://placehold.co/400x400.png?text=Social+Feed+Error+2', linkUrl: 'https://instagram.com/peakpulsenp', altText: 'Social Post 2 Fallback', dataAiHint: 'social fashion fallback' },
+    { id: 'social-fallback-3', imageUrl: 'https://placehold.co/400x400.png?text=Social+Feed+Error+3', linkUrl: 'https://instagram.com/peakpulsenp', altText: 'Social Post 3 Fallback', dataAiHint: 'social fashion fallback' },
+    { id: 'social-fallback-4', imageUrl: 'https://placehold.co/400x400.png?text=Social+Feed+Error+4', linkUrl: 'https://instagram.com/peakpulsenp', altText: 'Social Post 4 Fallback', dataAiHint: 'social fashion fallback' },
   ],
 };
 
 async function getHomepageContent(): Promise<HomepageContent> {
-  console.log("[Client Fetch] getHomepageContent called");
-  try {
-    const fetchUrl = `/api/content/homepage`; // Always use relative path for client-side fetch
-    console.log(`[Client Fetch] Attempting to fetch from: ${fetchUrl}`);
-    const res = await fetch(fetchUrl, { cache: 'no-store' });
+  const fetchUrl = `/api/content/homepage`; // Always use relative path for client-side fetch
+  console.log(`[Client Fetch] Attempting to fetch from: ${fetchUrl}`);
+  const res = await fetch(fetchUrl, { cache: 'no-store' });
 
-    if (!res.ok) {
-      let errorBody = "Could not read error response body.";
-      try {
-        errorBody = await res.text();
-      } catch (e) {/* ignore */}
-      console.error(`[Client Fetch] Failed to fetch content. Status: ${res.status} ${res.statusText}. Body:`, errorBody);
-      throw new Error(`API Error fetching homepage content: ${res.status} ${res.statusText}. Details: ${errorBody.substring(0, 200)}`);
-    }
-
-    const data = await res.json() as Partial<HomepageContent>;
-    console.log("[Client Fetch] Successfully fetched content:", data);
-
-    // Ensure all parts of the content are valid or use fallbacks
-    const processedHeroSlides = (Array.isArray(data.heroSlides) && data.heroSlides.length > 0)
-      ? data.heroSlides.map(slide => ({
-          ...fallbackContent.heroSlides![0], // Provide defaults
-          ...slide,
-          id: slide.id || `slide-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
-          imageUrl: slide.imageUrl || undefined,
-          videoId: slide.videoId || undefined,
-        })).filter(slide => slide.imageUrl || slide.videoId) // Only keep slides with actual media
-      : fallbackContent.heroSlides!;
-
-    return {
-      heroSlides: processedHeroSlides.length > 0 ? processedHeroSlides : fallbackContent.heroSlides!,
-      artisanalRoots: data.artisanalRoots && data.artisanalRoots.title && data.artisanalRoots.description
-        ? data.artisanalRoots
-        : fallbackContent.artisanalRoots!,
-      socialCommerceItems: (Array.isArray(data.socialCommerceItems) && data.socialCommerceItems.length > 0)
-        ? data.socialCommerceItems.map(item => ({ ...fallbackContent.socialCommerceItems![0], ...item }))
-        : fallbackContent.socialCommerceItems!,
-    };
-
-  } catch (error) {
-    console.error("[Client Fetch] CRITICAL ERROR in getHomepageContent:", error);
-    return fallbackContent;
+  if (!res.ok) {
+    let errorBody = "Could not read error response body.";
+    let errorJson = null;
+    try {
+      errorJson = await res.json(); // Try to parse as JSON first
+      if (errorJson && errorJson.error) {
+        errorBody = errorJson.error; // Use specific error from API if available
+      } else {
+        errorBody = await res.text(); // Fallback to raw text if not JSON or no 'error' field
+      }
+    } catch (e) { /* ignore if response is not json, errorBody remains default */ }
+    console.error(`[Client Fetch] Failed to fetch content. Status: ${res.status} ${res.statusText}. Body:`, errorBody);
+    throw new Error(`API Error fetching homepage content: ${res.status} ${res.statusText}. Details: ${errorBody.substring(0, 200)}`);
   }
-}
 
+  const data = await res.json() as Partial<HomepageContent>;
+  console.log("[Client Fetch] Successfully fetched content:", data);
+
+  // Ensure all parts of the content are valid or use fallbacks
+  const processedHeroSlides = (Array.isArray(data.heroSlides) && data.heroSlides.length > 0)
+    ? data.heroSlides.map(slide => ({
+        ...fallbackContent.heroSlides![0],
+        ...slide,
+        id: slide.id || `slide-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+        imageUrl: slide.imageUrl || undefined,
+        videoId: slide.videoId || undefined,
+      })).filter(slide => slide.imageUrl || slide.videoId)
+    : fallbackContent.heroSlides!;
+
+  return {
+    heroSlides: processedHeroSlides.length > 0 ? processedHeroSlides : fallbackContent.heroSlides!,
+    artisanalRoots: data.artisanalRoots && data.artisanalRoots.title && data.artisanalRoots.description
+      ? data.artisanalRoots
+      : fallbackContent.artisanalRoots!,
+    socialCommerceItems: (Array.isArray(data.socialCommerceItems) && data.socialCommerceItems.length > 0)
+      ? data.socialCommerceItems.map(item => ({ ...fallbackContent.socialCommerceItems![0], ...item }))
+      : fallbackContent.socialCommerceItems!,
+  };
+}
 
 const mockFeaturedProducts: Product[] = [
   { id: 'prod-1', name: 'Himalayan Breeze Jacket', slug: 'himalayan-breeze-jacket', price: 12000, images: [{ id: 'img-1', url: 'https://catalog-resize-images.thedoublef.com/606bc76216f1f9cb1ad8281eb9b7e84e/900/900/NF0A4QYXNY_P_NORTH-ZU31.a.jpg', altText: 'Himalayan Breeze Jacket', dataAiHint: 'jacket fashion' }], categories: [{ id: 'cat-1', name: 'Outerwear', slug: 'outerwear' }], shortDescription: 'Lightweight and versatile.', createdAt: "2023-01-15T10:00:00Z", updatedAt: "2023-01-15T10:00:00Z", description: "Full description here." },
@@ -95,7 +97,7 @@ export default function HomePage() {
   const [isLoadingContent, setIsLoadingContent] = useState(true);
   const [content, setContent] = useState<HomepageContent>(fallbackContent);
   const [currentSlide, setCurrentSlide] = useState(0);
-  const [isPlaying, setIsPlaying] = useState(true); // New state for play/pause
+  const [isPlaying, setIsPlaying] = useState(true);
   const { toast } = useToast();
   const [userPosts, setUserPosts] = useState<UserPost[]>([]);
   const [isLoadingUserPosts, setIsLoadingUserPosts] = useState(true);
@@ -117,7 +119,7 @@ export default function HomePage() {
         description: (error as Error).message || "Could not load homepage content. Displaying defaults.",
         variant: "destructive"
       });
-      setContent(fallbackContent); // Ensure content is set to fallback on error
+      setContent(fallbackContent);
     } finally {
       setIsLoadingContent(false);
       console.log("[Client LoadContent] Homepage content load finished.");
@@ -148,7 +150,7 @@ export default function HomePage() {
       setUserPosts(postsData.slice(0, 4)); 
     } catch (error) {
       console.error("Error fetching user posts:", error);
-      toast({ title: "Error Loading Community Posts", description: (error as Error).message + " Check server logs for more details from Supabase.", variant: "destructive" });
+      toast({ title: "Error Loading Community Posts", description: (error as Error).message, variant: "destructive" });
     } finally {
       setIsLoadingUserPosts(false);
     }
@@ -184,7 +186,7 @@ export default function HomePage() {
   useEffect(() => {
     let slideInterval: NodeJS.Timeout | undefined;
     if (isPlaying && activeHeroSlides.length > 1) {
-      slideInterval = setInterval(nextSlide, 7000);
+      slideInterval = setInterval(nextSlide, 7000); // Autoplay interval
     }
     return () => {
       if (slideInterval) {
@@ -205,8 +207,6 @@ export default function HomePage() {
     );
   }
   
-  const currentHeroSlideData = activeHeroSlides[currentSlide % activeHeroSlides.length];
-
   return (
     <>
       {/* Hero Section with Carousel */}
@@ -229,7 +229,7 @@ export default function HomePage() {
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                     allowFullScreen={false}
                   />
-                  <div className="absolute inset-0 bg-black/30 z-[1]" /> 
+                  <div className="absolute inset-0 bg-black/60 z-[1]" /> {/* Dark overlay for video */}
                 </>
               ) : slide.imageUrl ? (
                 <>
@@ -242,16 +242,16 @@ export default function HomePage() {
                     priority={index === 0} 
                     data-ai-hint={slide.dataAiHint || "fashion background"}
                   />
-                  <div className="absolute inset-0 bg-black/30 z-[1]" /> 
+                  <div className="absolute inset-0 bg-black/60 z-[1]" /> {/* Dark overlay for image */}
                 </>
               ) : null}
             </div>
             {index === currentSlide && (
                 <div className="relative z-20 flex flex-col items-center justify-center h-full pt-[calc(theme(spacing.20)_+_theme(spacing.6))] pb-12 px-6 md:px-8 text-center text-white max-w-3xl mx-auto">
-                <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-6">
+                <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-6 text-shadow-lg">
                     {slide.title}
                 </h1>
-                <p className="text-lg md:text-xl lg:text-2xl text-neutral-200 mb-10 max-w-2xl mx-auto">
+                <p className="text-lg md:text-xl lg:text-2xl text-neutral-200 mb-10 max-w-2xl mx-auto text-shadow-md">
                     {slide.description}
                 </p>
                 {slide.ctaText && slide.ctaLink && (
@@ -344,12 +344,11 @@ export default function HomePage() {
         {content.socialCommerceItems && content.socialCommerceItems.length > 0 ? (
            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {content.socialCommerceItems.map((item) => (
-              <Link
+               <InteractiveExternalLink
                 key={item.id}
                 href={item.linkUrl}
-                target="_blank"
-                rel="noopener noreferrer"
                 className="block bg-muted rounded-lg overflow-hidden group relative shadow-md hover:shadow-xl transition-shadow"
+                showDialog={true} // Enable dialog for these links
               >
                 <AspectRatio ratio={1/1} className="bg-background">
                   <Image
@@ -365,22 +364,21 @@ export default function HomePage() {
                   <Instagram className="h-8 w-8 mb-1" />
                   <span className="text-xs font-medium text-center">View on Instagram</span>
                 </div>
-              </Link>
+              </InteractiveExternalLink>
             ))}
           </div>
         ) : (
             <p className="text-center text-muted-foreground">Follow us on Instagram to see our latest styles! Posts managed by admin will appear here.</p>
         )}
           <div className="text-center mt-12">
-            <Button 
-                variant="outline" 
-                asChild
-                className="transition-all duration-300 ease-in-out hover:scale-105 hover:shadow-lg hover:bg-pink-100 dark:hover:bg-pink-500/20 hover:text-pink-600 dark:hover:text-pink-400 border-pink-300 dark:border-pink-500/50 text-pink-600 dark:text-pink-400"
-            >
-              <Link href="https://instagram.com/peakpulsenp" target="_blank" rel="noopener noreferrer">
+            <InteractiveExternalLink href="https://instagram.com/peakpulsenp" showDialog={true}>
+                <Button 
+                    variant="outline" 
+                    className="transition-all duration-300 ease-in-out hover:scale-105 hover:shadow-lg hover:bg-pink-100 dark:hover:bg-pink-500/20 hover:text-pink-600 dark:hover:text-pink-400 border-pink-300 dark:border-pink-500/50 text-pink-600 dark:text-pink-400"
+                >
                 Follow us on Instagram <Instagram className="ml-2 h-4 w-4" />
-              </Link>
-            </Button>
+                </Button>
+            </InteractiveExternalLink>
           </div>
         </section>
 

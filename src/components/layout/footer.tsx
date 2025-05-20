@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Facebook, Instagram, Twitter, Youtube, Send, Shield } from 'lucide-react';
 import { NewsletterSignupForm } from '@/components/forms/newsletter-signup-form';
 import { useAuth } from '@/hooks/use-auth';
+import { InteractiveExternalLink } from '@/components/interactive-external-link';
 
 
 const footerNavs = [
@@ -40,14 +41,14 @@ const footerNavs = [
 
 const socialLinks = [
   { href: 'https://facebook.com/peakpulse', label: 'Facebook', icon: Facebook },
-  { href: 'https://instagram.com/peakpulse', label: 'Instagram', icon: Instagram },
+  { href: 'https://instagram.com/peakpulsenp', label: 'Instagram', icon: Instagram },
   { href: 'https://twitter.com/peakpulse', label: 'Twitter', icon: Twitter },
   { href: 'https://youtube.com/peakpulse', label: 'YouTube', icon: Youtube },
 ];
 
 export function Footer() {
   const currentYear = new Date().getFullYear();
-  const { user } = useAuth(); // Check if user is admin
+  const { user } = useAuth(); 
 
   return (
     <footer className="bg-card text-card-foreground border-t border-border/60">
@@ -92,26 +93,23 @@ export function Footer() {
         <div className="mt-16 pt-8 border-t border-border/60 flex flex-col md:flex-row justify-between items-center gap-6">
           <div className="text-xs text-muted-foreground text-center md:text-left">
             <p>&copy; {currentYear} Peak Pulse. All rights reserved. Based in Kathmandu, Nepal.</p>
-            {/* Simple Admin Link (for demo purposes, ideally check user role) */}
-            {/* In a real app, this link should only be visible to admin users and link to a secure admin portal */}
-            {user && user.roles && user.roles.includes('admin') && ( // Basic check, real role management needed
+            {user && user.roles && user.roles.includes('admin') && ( 
                <Link href="/admin" className="mt-1 text-primary hover:underline flex items-center justify-center md:justify-start">
-                <Shield className="mr-1 h-3 w-3" /> Admin Panel (Demo)
+                <Shield className="mr-1 h-3 w-3" /> Admin Panel
               </Link>
             )}
           </div>
           <div className="flex space-x-4">
             {socialLinks.map((social) => (
-              <Link
+              <InteractiveExternalLink
                 key={social.label}
                 href={social.href}
-                target="_blank"
-                rel="noopener noreferrer"
                 className="text-muted-foreground hover:text-primary transition-colors"
                 aria-label={social.label}
+                showDialog={true} // Enable dialog for social links
               >
                 <social.icon className="h-5 w-5" />
-              </Link>
+              </InteractiveExternalLink>
             ))}
           </div>
         </div>

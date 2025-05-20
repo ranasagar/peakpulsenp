@@ -1,4 +1,7 @@
 
+"use client"; // This page fetches client-side
+
+import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { Card, CardContent } from '@/components/ui/card';
 import { Mountain, Users, Handshake, Sparkles, Facebook, Instagram, Twitter } from 'lucide-react';
@@ -6,44 +9,94 @@ import { Separator } from '@/components/ui/separator';
 import { AspectRatio } from '@/components/ui/aspect-ratio';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
+import { useToast } from '@/hooks/use-toast';
+import type { OurStoryContentData } from '@/types';
+import { InteractiveExternalLink } from '@/components/interactive-external-link'; // Import the new component
+import { Skeleton } from '@/components/ui/skeleton'; // For loading state
 
-interface OurStoryContent {
-  hero: { title: string; description: string; };
-  mission: { title: string; paragraph1: string; paragraph2: string; };
-  craftsmanship: { title: string; paragraph1: string; paragraph2: string; };
-  valuesSection: { title: string; };
-  joinJourneySection: { title: string; description: string; };
-}
+const fallbackContent: OurStoryContentData = {
+  hero: { title: "Our Story (Loading...)", description: "Weaving together heritage and vision." },
+  mission: { title: "Our Mission", paragraph1: "Elevating craftsmanship.", paragraph2: "Connecting cultures." },
+  craftsmanship: { title: "The Art of Creation", paragraph1: "Honoring traditions.", paragraph2: "Sourcing quality." },
+  valuesSection: { title: "Our Values: Beyond the Seams" },
+  joinJourneySection: { title: "Join Our Journey", description: "Follow us for updates." }
+};
 
-async function getOurStoryContent(): Promise<OurStoryContent> {
-  try {
-    // Always use a relative path for client-side API calls to the same origin
-    const fetchUrl = `/api/content/our-story`;
-    console.log(`[OurStory Page] Attempting to fetch from: ${fetchUrl}`);
-    const res = await fetch(fetchUrl, { cache: 'no-store' });
+async function getOurStoryContent(): Promise<OurStoryContentData> {
+  const fetchUrl = `/api/content/our-story`; // Always use relative path for client-side fetch
+  console.log(`[OurStory Page Client Fetch] Attempting to fetch from: ${fetchUrl}`);
+  const res = await fetch(fetchUrl, { cache: 'no-store' });
 
-    if (!res.ok) {
-      const errorBody = await res.text();
-      console.error(`Failed to fetch Our Story content: ${res.status} ${res.statusText}`, errorBody);
-      throw new Error(`Failed to fetch Our Story content: ${res.status} ${res.statusText}`);
-    }
-    return res.json();
-  } catch (error) {
-    console.error("Error fetching Our Story content in page.tsx:", error);
-    // Fallback content
-    return {
-      hero: { title: "The Heart of Peak Pulse (Fallback)", description: "Content failed to load. Weaving together heritage and vision." },
-      mission: { title: "Our Mission (Fallback)", paragraph1: "Content failed to load. Elevating craftsmanship.", paragraph2: "Content failed to load. Connecting cultures." },
-      craftsmanship: { title: "The Art of Creation (Fallback)", paragraph1: "Content failed to load. Honoring traditions.", paragraph2: "Content failed to load. Sourcing quality." },
-      valuesSection: { title: "Our Values: Beyond the Seams (Fallback)" },
-      joinJourneySection: { title: "Join Our Journey (Fallback)", description: "Content failed to load. Follow us for updates." }
-    };
+  if (!res.ok) {
+    let errorBody = "Could not read error response body.";
+    let errorJson = null;
+    try {
+      errorJson = await res.json();
+      if (errorJson && errorJson.error) {
+        errorBody = errorJson.error;
+      } else {
+         errorBody = await res.text(); // Fallback if not JSON or no 'error' field
+      }
+    } catch (e) { /* ignore if response is not json */ }
+    console.error(`[OurStory Page Client Fetch] Failed to fetch content. Status: ${res.status} ${res.statusText}. Body:`, errorBody);
+    throw new Error(`API Error fetching Our Story content: ${res.status} ${res.statusText}. Details: ${errorBody.substring(0, 200)}`);
   }
+  return res.json();
 }
 
+export default function OurStoryPage() {
+  const [content, setContent] = useState<OurStoryContentData>(fallbackContent);
+  const [isLoading, setIsLoading] = useState(true);
+  const { toast } = useToast();
 
-export default async function OurStoryPage() {
-  const content = await getOurStoryContent();
+  useEffect(() => {
+    const loadContent = async () => {
+      setIsLoading(true);
+      try {
+        const fetchedContent = await getOurStoryContent();
+        setContent(fetchedContent);
+      } catch (error) {
+        toast({
+          title: "Error Loading Content",
+          description: (error as Error).message || "Could not load Our Story content. Displaying defaults.",
+          variant: "destructive"
+        });
+        setContent(fallbackContent); // Ensure content is set to fallback on error
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    loadContent();
+  }, [toast]);
+
+  if (isLoading) {
+    return (
+      <div className="container-wide section-padding space-y-12">
+        <Skeleton className="h-20 w-1/2 mx-auto mb-6" />
+        <Skeleton className="h-8 w-3/4 mx-auto mb-16" />
+        <div className="grid md:grid-cols-2 gap-12 items-center mb-16">
+          <div>
+            <Skeleton className="h-10 w-1/3 mb-6" />
+            <Skeleton className="h-6 w-full mb-4" />
+            <Skeleton className="h-6 w-5/6 mb-4" />
+            <Skeleton className="h-6 w-full" />
+          </div>
+          <AspectRatio ratio={4/3}><Skeleton className="w-full h-full rounded-xl" /></AspectRatio>
+        </div>
+         <Separator className="my-16 md:my-24" />
+         <div className="grid md:grid-cols-2 gap-12 items-center mb-16">
+          <AspectRatio ratio={4/3} className="md:order-1"><Skeleton className="w-full h-full rounded-xl" /></AspectRatio>
+          <div className="md:order-2">
+            <Skeleton className="h-10 w-1/3 mb-6" />
+            <Skeleton className="h-6 w-full mb-4" />
+            <Skeleton className="h-6 w-5/6 mb-4" />
+            <Skeleton className="h-6 w-full" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
 
   return (
     <>
@@ -52,25 +105,24 @@ export default async function OurStoryPage() {
         <div className="container-wide text-center">
           <Mountain className="h-16 w-16 text-primary mx-auto mb-6" />
           <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-foreground mb-6">
-            {content.hero.title}
+            {content.hero?.title || "The Heart of Peak Pulse"}
           </h1>
           <p className="text-lg md:text-xl text-muted-foreground max-w-3xl mx-auto">
-            {content.hero.description}
+            {content.hero?.description || "Weaving together heritage and vision."}
           </p>
         </div>
       </section>
 
-      <div className="container-wide section-padding pt-12 md:pt-16"> {/* Reduced top padding for this container */}
-        {/* Mission Section */}
+      <div className="container-wide section-padding pt-12 md:pt-16">
         <section className="mb-16 md:mb-24">
             <div className="grid md:grid-cols-2 gap-12 items-center">
                 <div>
-                    <h2 className="text-3xl font-semibold text-foreground mb-6">{content.mission.title}</h2>
+                    <h2 className="text-3xl font-semibold text-foreground mb-6">{content.mission?.title || "Our Mission"}</h2>
                     <p className="text-lg text-muted-foreground mb-4 leading-relaxed">
-                    {content.mission.paragraph1}
+                    {content.mission?.paragraph1 || "Elevating craftsmanship."}
                     </p>
                     <p className="text-lg text-muted-foreground leading-relaxed">
-                    {content.mission.paragraph2}
+                    {content.mission?.paragraph2 || "Connecting cultures."}
                     </p>
                 </div>
                  <div className="rounded-xl overflow-hidden shadow-2xl">
@@ -78,9 +130,9 @@ export default async function OurStoryPage() {
                     <Image 
                         src="https://placehold.co/800x600.png"
                         alt="Nepali artisans crafting traditional textiles" 
-                        layout="fill"
-                        objectFit="cover"
-                        className="transition-transform duration-500 hover:scale-105"
+                        fill
+                        sizes="(max-width: 768px) 100vw, 50vw"
+                        className="object-cover transition-transform duration-500 hover:scale-105"
                         data-ai-hint="artisans nepal craft"
                     />
                     </AspectRatio>
@@ -90,16 +142,15 @@ export default async function OurStoryPage() {
         
         <Separator className="my-16 md:my-24" />
 
-        {/* Craftsmanship Section */}
         <section className="mb-16 md:mb-24">
             <div className="grid md:grid-cols-2 gap-12 items-center">
                 <div className="md:order-2">
-                    <h2 className="text-3xl font-semibold text-foreground mb-6">{content.craftsmanship.title}</h2>
+                    <h2 className="text-3xl font-semibold text-foreground mb-6">{content.craftsmanship?.title || "The Art of Creation"}</h2>
                     <p className="text-lg text-muted-foreground mb-4 leading-relaxed">
-                    {content.craftsmanship.paragraph1}
+                    {content.craftsmanship?.paragraph1 || "Honoring traditions."}
                     </p>
                     <p className="text-lg text-muted-foreground leading-relaxed">
-                    {content.craftsmanship.paragraph2}
+                    {content.craftsmanship?.paragraph2 || "Sourcing quality."}
                     </p>
                 </div>
                 <div className="rounded-xl overflow-hidden shadow-2xl md:order-1">
@@ -107,9 +158,9 @@ export default async function OurStoryPage() {
                     <Image 
                         src="https://placehold.co/800x600.png"
                         alt="Detailed view of hand-woven fabric or intricate embroidery" 
-                        layout="fill"
-                        objectFit="cover"
-                        className="transition-transform duration-500 hover:scale-105"
+                        fill
+                        sizes="(max-width: 768px) 100vw, 50vw"
+                        className="object-cover transition-transform duration-500 hover:scale-105"
                         data-ai-hint="textile fabric detail"
                     />
                     </AspectRatio>
@@ -119,9 +170,8 @@ export default async function OurStoryPage() {
 
         <Separator className="my-16 md:my-24" />
         
-        {/* Community & Values Section */}
         <section className="text-center mb-16 md:mb-24">
-            <h2 className="text-3xl font-semibold text-foreground mb-12">{content.valuesSection.title}</h2>
+            <h2 className="text-3xl font-semibold text-foreground mb-12">{content.valuesSection?.title || "Our Values: Beyond the Seams"}</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
                 <Card className="p-8 bg-card hover:shadow-xl transition-shadow">
                     <Handshake className="h-12 w-12 text-primary mx-auto mb-5" />
@@ -141,29 +191,22 @@ export default async function OurStoryPage() {
             </div>
         </section>
         
-        {/* Call to Action or Behind the Scenes */}
          <section className="bg-primary/5 rounded-xl p-10 md:p-16">
             <div className="text-center">
-                <h2 className="text-3xl font-semibold text-foreground mb-6">{content.joinJourneySection.title}</h2>
+                <h2 className="text-3xl font-semibold text-foreground mb-6">{content.joinJourneySection?.title || "Join Our Journey"}</h2>
                 <p className="text-lg text-muted-foreground mb-8 max-w-2xl mx-auto">
-                {content.joinJourneySection.description}
+                {content.joinJourneySection?.description || "Follow us for updates."}
                 </p>
                 <div className="flex justify-center space-x-4">
-                    <Button variant="outline" asChild>
-                       <Link href="https://instagram.com/peakpulse" target="_blank" rel="noopener noreferrer">
-                            <Instagram className="mr-2 h-5 w-5" /> Instagram
-                       </Link>
-                    </Button>
-                     <Button variant="outline" asChild>
-                       <Link href="https://facebook.com/peakpulse" target="_blank" rel="noopener noreferrer">
-                            <Facebook className="mr-2 h-5 w-5" /> Facebook
-                       </Link>
-                    </Button>
-                     <Button variant="outline" asChild>
-                       <Link href="https://twitter.com/peakpulse" target="_blank" rel="noopener noreferrer">
-                            <Twitter className="mr-2 h-5 w-5" /> Twitter
-                       </Link>
-                    </Button>
+                    <InteractiveExternalLink href="https://instagram.com/peakpulsenp" showDialog={true}>
+                        <Button variant="outline"><Instagram className="mr-2 h-5 w-5" /> Instagram</Button>
+                    </InteractiveExternalLink>
+                     <InteractiveExternalLink href="https://facebook.com/peakpulse" showDialog={true}>
+                        <Button variant="outline"><Facebook className="mr-2 h-5 w-5" /> Facebook</Button>
+                    </InteractiveExternalLink>
+                     <InteractiveExternalLink href="https://twitter.com/peakpulse" showDialog={true}>
+                       <Button variant="outline"><Twitter className="mr-2 h-5 w-5" /> Twitter</Button>
+                    </InteractiveExternalLink>
                 </div>
             </div>
         </section>

@@ -11,8 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Mail, Phone, MapPin, Send } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-// Image component is no longer needed here for the map
-// import Image from 'next/image';
+import { InteractiveExternalLink } from '@/components/interactive-external-link';
 
 const contactSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
@@ -39,6 +38,10 @@ export default function ContactPage() {
     });
     form.reset();
   };
+
+  const mapEmbedUrl = "https://www.openstreetmap.org/export/embed.html?bbox=85.30909061431886%2C27.71304485171967%2C85.31865119934083%2C27.71809090070017&amp;layer=mapnik&amp;marker=27.71556790139344%2C85.31387090682983";
+  const mapDisplayUrl = "https://www.openstreetmap.org/?mlat=27.71557&mlon=85.31387#map=17/27.71557/85.31387";
+
 
   return (
     <div className="container-wide section-padding">
@@ -134,9 +137,11 @@ export default function ContactPage() {
                 <MapPin className="h-6 w-6 mr-4 mt-1 text-primary shrink-0" />
                 <div>
                   <h4 className="font-semibold text-foreground">Our Studio & Store</h4>
-                  <p>Peak Pulse Designs</p>
-                  <p>123 Artisan Lane, Thamel</p>
-                  <p>Kathmandu, Nepal</p>
+                   <InteractiveExternalLink href={mapDisplayUrl} className="hover:text-primary" showDialog={true}>
+                      <p>Peak Pulse Designs</p>
+                      <p>123 Artisan Lane, Thamel</p>
+                      <p>Kathmandu, Nepal</p>
+                   </InteractiveExternalLink>
                 </div>
               </div>
               <div className="flex items-center">
@@ -150,7 +155,6 @@ export default function ContactPage() {
             </CardContent>
           </Card>
 
-          {/* Interactive Map */}
           <Card className="shadow-lg overflow-hidden">
              <CardHeader>
                  <CardTitle className="text-xl">Find Us Here</CardTitle>
@@ -164,7 +168,7 @@ export default function ContactPage() {
                     scrolling="no"
                     marginHeight={0}
                     marginWidth={0}
-                    src="https://www.openstreetmap.org/export/embed.html?bbox=85.30909061431886%2C27.71304485171967%2C85.31865119934083%2C27.71809090070017&amp;layer=mapnik&amp;marker=27.71556790139344%2C85.31387090682983"
+                    src={mapEmbedUrl}
                     title="Peak Pulse Location in Thamel, Kathmandu"
                     aria-label="Map showing location of Peak Pulse in Thamel, Kathmandu"
                     className="border-0"
