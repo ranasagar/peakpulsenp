@@ -9,6 +9,16 @@
       "dataAiHint": "fashion background",
       "ctaText": "Have a Peek",
       "ctaLink": "/products"
+    },
+    {
+      "id": "slide-1747766336188-6htw0",
+      "title": "mountain",
+      "description": "everest base camp",
+      "imageUrl": "https://ivhq.imgix.net/images/addons/international-volunteer-hq-tour-travel-add-on-nepal-everest-base-camp-trek.jpg",
+      "altText": "victory",
+      "dataAiHint": "",
+      "ctaText": "Promoted Instagram LInk",
+      "ctaLink": "https://www.instagram.com/sagarrana7"
     }
   ],
   "artisanalRoots": {
@@ -19,28 +29,28 @@
     {
       "id": "social-1747660015749",
       "imageUrl": "https://assets.mediamodifier.com/mockups/6824316d88adee6bda0884da/unisex-sweatshirt-3d-mockup-for-streetwear-and-branding-use_thumb.jpg",
-      "linkUrl": "https://www.instagram.com/sagarrana7/",
+      "linkUrl": "https://www.instagram.com/peakpulsenp/",
       "altText": "Peak Pulse Social",
       "dataAiHint": "ppinsta"
     },
     {
       "id": "social-1747671764178",
       "imageUrl": "https://image.made-in-china.com/155f0j00KEWBotHFlNby/Streetwear-Vintage-Graphic-High-Quality-350GSM-Cotton-Blank-French-Terry-Oversized-Men-Boxy-Heavyweight-Acid-Wash-Custom-Zip-up-Hoodie.jpg",
-      "linkUrl": "https://www.instagram.com/sagarrana7/",
+      "linkUrl": "https://www.instagram.com/peakpulsenp/",
       "altText": "Social post",
       "dataAiHint": "Instapp"
     },
     {
       "id": "social-1747757081208-zftzk",
       "imageUrl": "https://i.ebayimg.com/images/g/gaYAAOSwsTNndxA~/s-l400.jpg",
-      "linkUrl": "https://www.instagram.com/sagarrana7/",
+      "linkUrl": "https://www.instagram.com/peakpulsenp/",
       "altText": "Social post",
       "dataAiHint": "ppinsta"
     },
     {
       "id": "social-1747757214435-9u7db",
       "imageUrl": "https://assets.mediamodifier.com/mockups/67b1aea239c3020698527f5d/cozy-hoodie-mockup-with-side-pockets-for-streetwear-design_thumb.jpg",
-      "linkUrl": "https://www.instagram.com/sagarrana7/",
+      "linkUrl": "https://www.instagram.com/peakpulsenp/",
       "altText": "Social post",
       "dataAiHint": "ppinsta"
     }

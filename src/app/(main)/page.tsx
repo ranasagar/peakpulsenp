@@ -7,26 +7,25 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { ProductCard } from '@/components/product/product-card';
 import { Icons } from '@/components/icons';
-import { ChevronLeft, ChevronRight, ShoppingBag, ArrowRight, Instagram, Send, Users, ImagePlus, Loader2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ShoppingBag, ArrowRight, Instagram, Send, Users, ImagePlus, Loader2, Play, Pause } from 'lucide-react';
 import { NewsletterSignupForm } from '@/components/forms/newsletter-signup-form';
-import type { HomepageContent, Product, HeroSlide, SocialCommerceItem, UserPost } from '@/types';
+import type { HomepageContent, Product, HeroSlide, UserPost } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent } from '@/components/ui/card';
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 
-// Fallback content in case API fetch fails
+// Hardcoded fallback content in case API fetch fails or content is malformed
 const fallbackContent: HomepageContent = {
   heroSlides: [
     {
       id: 'fallback-hero-1',
-      title: "Peak Pulse (Fallback)",
-      description: "Experience the fusion of ancient Nepali artistry and modern streetwear. (Content loading or temporarily unavailable).",
-      imageUrl: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?q=80&w=1920&h=1080&fit=crop&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
-      altText: "Fallback hero image: abstract fashion",
-      dataAiHint: "fashion abstract modern",
+      title: "Peak Pulse (Network Error)",
+      description: "Experience the fusion of ancient Nepali artistry and modern streetwear. (Content failed to load, displaying fallback)",
+      imageUrl: "https://images.unsplash.com/photo-1506748686214-e9df14d4d9d0?q=80&w=1920&h=1080&fit=crop&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+      altText: "Fallback hero image: majestic mountain landscape",
+      dataAiHint: "mountain landscape nepal",
       ctaText: "Explore Collections",
       ctaLink: "/products",
-      videoId: undefined,
     }
   ],
   artisanalRoots: {
@@ -34,10 +33,9 @@ const fallbackContent: HomepageContent = {
     description: "Details about our craftsmanship are currently unavailable. We partner with local artisans in Nepal, preserving centuries-old techniques while innovating for today's global citizen."
   },
   socialCommerceItems: [
-    { id: 'social-fallback-1', imageUrl: 'https://placehold.co/400x400.png?text=Social+Fallback+1', linkUrl: 'https://instagram.com/peakpulsenp', altText: 'Social Post 1 Fallback', dataAiHint: 'social fashion fallback' },
+    { id: 'social-fallback-1', imageUrl: 'https://placehold.co/400x400.png?text=Social+Feed+Error', linkUrl: 'https://instagram.com/peakpulsenp', altText: 'Social Post 1 Fallback', dataAiHint: 'social fashion fallback' },
   ],
 };
-
 
 async function getHomepageContent(): Promise<HomepageContent> {
   console.log("[Client Fetch] getHomepageContent called");
@@ -55,31 +53,33 @@ async function getHomepageContent(): Promise<HomepageContent> {
       throw new Error(`API Error fetching homepage content: ${res.status} ${res.statusText}. Details: ${errorBody.substring(0, 200)}`);
     }
 
-    const data = await res.json();
-    console.log("[Client Fetch] Successfully fetched homepage content:", data);
+    const data = await res.json() as Partial<HomepageContent>;
+    console.log("[Client Fetch] Successfully fetched content:", data);
 
-    // Ensure heroSlides is always an array and each slide has required fields
-    const processedHeroSlides = (Array.isArray(data.heroSlides) ? data.heroSlides : []).map((slide: Partial<HeroSlide>) => ({
-        ...fallbackContent.heroSlides![0], // Provide defaults for all fields from the first fallback slide
-        ...slide, // Override with fetched data
-        id: slide.id || `slide-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`, // Ensure ID
-        imageUrl: slide.imageUrl || undefined,
-        videoId: slide.videoId || undefined,
-    })).filter(slide => slide.imageUrl || slide.videoId); // Only keep slides with media
+    // Ensure all parts of the content are valid or use fallbacks
+    const processedHeroSlides = (Array.isArray(data.heroSlides) && data.heroSlides.length > 0)
+      ? data.heroSlides.map(slide => ({
+          ...fallbackContent.heroSlides![0], // Provide defaults
+          ...slide,
+          id: slide.id || `slide-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+          imageUrl: slide.imageUrl || undefined,
+          videoId: slide.videoId || undefined,
+        })).filter(slide => slide.imageUrl || slide.videoId) // Only keep slides with actual media
+      : fallbackContent.heroSlides!;
 
     return {
-      ...fallbackContent, // Start with fallback to ensure all sections always have some default structure
-      ...data, // Override with fetched content where available
-      heroSlides: processedHeroSlides.length > 0 ? processedHeroSlides : fallbackContent.heroSlides, // Ensure at least one valid slide
+      heroSlides: processedHeroSlides.length > 0 ? processedHeroSlides : fallbackContent.heroSlides!,
+      artisanalRoots: data.artisanalRoots && data.artisanalRoots.title && data.artisanalRoots.description
+        ? data.artisanalRoots
+        : fallbackContent.artisanalRoots!,
+      socialCommerceItems: (Array.isArray(data.socialCommerceItems) && data.socialCommerceItems.length > 0)
+        ? data.socialCommerceItems.map(item => ({ ...fallbackContent.socialCommerceItems![0], ...item }))
+        : fallbackContent.socialCommerceItems!,
     };
 
   } catch (error) {
     console.error("[Client Fetch] CRITICAL ERROR in getHomepageContent:", error);
-    // Return a structured fallback that won't break rendering
-    return { 
-        ...fallbackContent,
-        heroSlides: fallbackContent.heroSlides?.map(slide => ({...slide, imageUrl: slide.imageUrl || "https://placehold.co/1920x1080.png?text=Content+Load+Error"})) || [],
-    };
+    return fallbackContent;
   }
 }
 
@@ -95,14 +95,12 @@ export default function HomePage() {
   const [isLoadingContent, setIsLoadingContent] = useState(true);
   const [content, setContent] = useState<HomepageContent>(fallbackContent);
   const [currentSlide, setCurrentSlide] = useState(0);
+  const [isPlaying, setIsPlaying] = useState(true); // New state for play/pause
   const { toast } = useToast();
   const [userPosts, setUserPosts] = useState<UserPost[]>([]);
   const [isLoadingUserPosts, setIsLoadingUserPosts] = useState(true);
 
   const activeHeroSlides = content.heroSlides || fallbackContent.heroSlides || [];
-  const currentHeroSlideData = activeHeroSlides.length > 0 
-    ? activeHeroSlides[currentSlide % activeHeroSlides.length] 
-    : fallbackContent.heroSlides![0];
 
 
   const loadContent = useCallback(async () => {
@@ -119,7 +117,7 @@ export default function HomePage() {
         description: (error as Error).message || "Could not load homepage content. Displaying defaults.",
         variant: "destructive"
       });
-      setContent(fallbackContent);
+      setContent(fallbackContent); // Ensure content is set to fallback on error
     } finally {
       setIsLoadingContent(false);
       console.log("[Client LoadContent] Homepage content load finished.");
@@ -142,7 +140,7 @@ export default function HomePage() {
                 errorDetail = `${response.status}: ${response.statusText || errorDetail}`;
             }
         } catch (e) {
-            errorDetail = `${response.status}: ${response.statusText || errorDetail}`;
+             errorDetail = `${response.status}: ${response.statusText || errorDetail}`;
         }
         throw new Error(errorDetail);
       }
@@ -179,12 +177,22 @@ export default function HomePage() {
     }
   };
 
+  const togglePlayPause = () => {
+    setIsPlaying(prev => !prev);
+  };
+
   useEffect(() => {
-    if (activeHeroSlides.length > 1) {
-      const slideInterval = setInterval(nextSlide, 7000); 
-      return () => clearInterval(slideInterval);
+    let slideInterval: NodeJS.Timeout | undefined;
+    if (isPlaying && activeHeroSlides.length > 1) {
+      slideInterval = setInterval(nextSlide, 7000);
     }
-  }, [activeHeroSlides.length, nextSlide]);
+    return () => {
+      if (slideInterval) {
+        clearInterval(slideInterval);
+      }
+    };
+  }, [isPlaying, nextSlide, activeHeroSlides.length]);
+
 
   if (isLoadingContent) {
     return (
@@ -196,6 +204,8 @@ export default function HomePage() {
       </div>
     );
   }
+  
+  const currentHeroSlideData = activeHeroSlides[currentSlide % activeHeroSlides.length];
 
   return (
     <>
@@ -276,7 +286,16 @@ export default function HomePage() {
             >
               <ChevronRight className="h-6 w-6 md:h-7 md:w-7" />
             </Button>
-            <div className="absolute bottom-6 md:bottom-8 left-1/2 -translate-x-1/2 z-30 flex space-x-3 items-center bg-black/20 p-1.5 rounded-full backdrop-blur-sm">
+            <div className="absolute bottom-6 md:bottom-8 left-1/2 -translate-x-1/2 z-30 flex items-center space-x-3 bg-black/20 p-1.5 rounded-full backdrop-blur-sm">
+               <Button
+                variant="ghost"
+                size="icon"
+                onClick={togglePlayPause}
+                className="h-7 w-7 text-white/70 hover:text-white p-1"
+                aria-label={isPlaying ? "Pause slides" : "Play slides"}
+              >
+                {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+              </Button>
               {activeHeroSlides.map((_, index) => (
                 <button
                   key={`dot-${index}`}
