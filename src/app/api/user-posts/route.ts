@@ -2,7 +2,7 @@
 // /src/app/api/user-posts/route.ts
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { supabase } from '../../../lib/supabaseClient'; // Adjusted path
+import { supabase } from '../../../lib/supabaseClient.ts'; // Using relative path
 import type { UserPost } from '@/types';
 
 export const dynamic = 'force-dynamic';
@@ -14,7 +14,14 @@ export async function GET(request: NextRequest) {
     const { data, error } = await supabase
       .from('user_posts')
       .select(`
-        *,
+        id,
+        user_id,
+        image_url,
+        caption,
+        product_tags,
+        status,
+        created_at,
+        updated_at,
         users (
           name,
           avatarUrl
@@ -25,10 +32,9 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       console.error('[API /api/user-posts] Supabase error fetching approved posts:', error);
-      throw error;
+      return NextResponse.json({ message: 'Failed to fetch user posts from database.', error: error.message, details: error.details, hint: error.hint }, { status: 500 });
     }
     
-    // Map Supabase data to UserPost type, especially handling joined user data
     const posts: UserPost[] = data?.map(post => ({
         id: post.id,
         user_id: post.user_id,
@@ -48,7 +54,7 @@ export async function GET(request: NextRequest) {
     console.log(`[API /api/user-posts] Successfully fetched ${posts.length} approved posts.`);
     return NextResponse.json(posts);
   } catch (error) {
-    console.error('[API /api/user-posts] Error fetching approved posts:', error);
+    console.error('[API /api/user-posts] Unhandled error fetching approved posts:', error);
     return NextResponse.json({ message: 'Error fetching approved posts', error: (error as Error).message }, { status: 500 });
   }
 }
@@ -85,13 +91,13 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       console.error('[API /api/user-posts] Supabase error creating post:', error);
-      throw error;
+      return NextResponse.json({ message: 'Failed to create post in database.', error: error.message, details: error.details, hint: error.hint }, { status: 500 });
     }
 
     console.log('[API /api/user-posts] User post created successfully:', data);
     return NextResponse.json(data, { status: 201 });
   } catch (error) {
-    console.error('[API /api/user-posts] Error creating user post:', error);
+    console.error('[API /api/user-posts] Unhandled error creating user post:', error);
     return NextResponse.json({ message: 'Error creating user post', error: (error as Error).message }, { status: 500 });
   }
 }
