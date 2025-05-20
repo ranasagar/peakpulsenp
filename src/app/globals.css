@@ -82,7 +82,7 @@ body {
   }
 
   /* Sustainable Theme (Primarily Light) */
-  .theme-sustainable {
+  html.theme-sustainable { /* Targeting html tag with the class */
     --background: 45 30% 96%; /* Light Parchment: hsl(45, 30%, 96%) -> #F9F7F2 */
     --foreground: 100 25% 20%; /* Dark Moss Green: hsl(100, 25%, 20%) -> #264026 */
 
@@ -116,10 +116,12 @@ body {
     --chart-3: 100 20% 50%; /* Muted Olive */
     --chart-4: 25 30% 60%; /* Light Brown */
     --chart-5: 180 25% 55%; /* Soft Teal */
+    
+    --radius: 0.75rem;
   }
 
-  /* Dark variant of the Sustainable Theme (when .dark and .theme-sustainable are both on html) */
-  .dark.theme-sustainable {
+  /* Dark variant of the Sustainable Theme */
+  html.dark.theme-sustainable { /* Targeting html tag with both classes */
     --background: 100 15% 12%; /* Very Dark Moss Green: hsl(100, 15%, 12%) -> #1A211A */
     --foreground: 45 25% 88%; /* Off-White/Light Parchment: hsl(45, 25%, 88%) -> #E8E4D8 */
 
@@ -153,6 +155,8 @@ body {
     --chart-3: 100 15% 60%;
     --chart-4: 25 25% 70%;
     --chart-5: 180 20% 65%;
+    
+    --radius: 0.75rem;
   }
 }
 

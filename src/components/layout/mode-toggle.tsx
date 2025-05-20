@@ -33,7 +33,7 @@ export function ModeToggle() {
           Dark
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => setTheme("sustainable")}>
-          <Leaf className="mr-2 h-4 w-4" /> {/* Added icon */}
+          <Leaf className="mr-2 h-4 w-4" /> {/* Added icon here */}
           Sustainable
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => setTheme("system")}>
