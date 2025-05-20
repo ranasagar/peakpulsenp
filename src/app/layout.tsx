@@ -38,6 +38,7 @@ export default function RootLayout({
           defaultTheme="system"
           enableSystem
           disableTransitionOnChange
+          themes={['light', 'dark', 'system', 'sustainable']} // Added 'sustainable'
         >
           <AuthProvider>
             <CartProvider> {/* Wrap with CartProvider */}
