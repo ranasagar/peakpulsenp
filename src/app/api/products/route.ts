@@ -16,14 +16,20 @@ export async function GET() {
     let products: Product[] = JSON.parse(jsonData);
 
     // Sort products by createdAt date, newest first
-    products.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    products.sort((a, b) => {
+      // Ensure createdAt exists and is a valid date string for comparison
+      const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return dateB - dateA;
+    });
     
     console.log(`[API /api/products] Successfully read and sorted ${products.length} products from JSON.`);
     return NextResponse.json(products);
   } catch (error) {
     console.error('[API /api/products] Error reading or parsing products.json:', error);
+    // In case of error (e.g., file not found, invalid JSON), return an empty array or an error response
     return NextResponse.json(
-      { message: 'Error fetching products', error: (error as Error).message },
+      { message: 'Error fetching products', error: (error as Error).message, details: "Could not load products from products.json" },
       { status: 500 }
     );
   }
