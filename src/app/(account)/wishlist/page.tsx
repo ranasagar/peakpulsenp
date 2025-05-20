@@ -12,42 +12,36 @@ import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
 
 export default function WishlistPage() {
-  const { user, isLoading: authLoading } = useAuth();
+  const { user, isLoading: authLoading, refreshUserProfile } = useAuth();
   const { toast } = useToast();
   const [wishlistItems, setWishlistItems] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchWishlistProducts = useCallback(async () => {
     if (!user || !user.id) {
-        setIsLoading(false);
-        if(!authLoading) setWishlistItems([]); // Clear if not loading and no user
-        return;
+      setIsLoading(false);
+      if (!authLoading) setWishlistItems([]);
+      return;
     }
     setIsLoading(true);
     try {
-      const wishlistResponse = await fetch(`/api/account/wishlist?userId=${user.id}`);
-      if (!wishlistResponse.ok) {
-        const errorData = await wishlistResponse.json();
-        throw new Error(errorData.message || 'Failed to fetch wishlist IDs');
-      }
-      const { wishlist: wishlistProductIds } = await wishlistResponse.json();
+      // user.wishlist should be populated by useAuth fetching the Supabase profile
+      const wishlistProductIds = user.wishlist || [];
 
       if (wishlistProductIds && wishlistProductIds.length > 0) {
-        // Fetch details for each product ID. This could be optimized with a bulk fetch endpoint.
-        // For now, fetching one by one if slug is needed, or we can adapt ProductCard to take simpler data if we only have IDs.
-        // Assuming /api/products/[idOrSlug] exists and can take an ID.
-        // Or, if your product IDs are the same as slugs, this might work.
-        // For a robust solution, you'd fetch product details via an API that accepts multiple IDs.
         const productDetailsPromises = wishlistProductIds.map((productId: string) =>
-          fetch(`/api/products/${productId}`) // Assuming API can fetch by ID too, or slug if ID is slug
+          fetch(`/api/products/${productId}`) // Assuming API fetches by slug, and product ID is slug for now
             .then(res => {
               if (res.ok) return res.json();
-              // If a specific product fetch fails, log it but don't break all wishlist items
-              console.warn(`Failed to fetch product details for ID: ${productId}`);
+              if (res.status === 404) {
+                 console.warn(`Wishlisted product ID/slug '${productId}' not found in products API.`);
+                 return null;
+              }
+              console.warn(`Failed to fetch product details for ID/slug: ${productId}, Status: ${res.status}`);
               return null; 
             })
             .catch(err => {
-              console.warn(`Error fetching product details for ID: ${productId}`, err);
+              console.warn(`Error fetching product details for ID/slug: ${productId}`, err);
               return null;
             })
         );
@@ -66,10 +60,13 @@ export default function WishlistPage() {
   }, [user, authLoading, toast]);
 
   useEffect(() => {
-    if(!authLoading){ // Only fetch if auth state is resolved
-        fetchWishlistProducts();
+    if (!authLoading && user) {
+      fetchWishlistProducts();
+    } else if (!authLoading && !user) {
+      setIsLoading(false);
+      setWishlistItems([]);
     }
-  }, [authLoading, fetchWishlistProducts]);
+  }, [authLoading, user, fetchWishlistProducts]);
 
 
   const handleRemoveFromWishlist = async (productId: string) => {
@@ -85,10 +82,11 @@ export default function WishlistPage() {
       });
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to remove item from wishlist');
+        throw new Error(errorData.message || errorData.rawError || 'Failed to remove item from wishlist');
       }
       toast({ title: "Item Removed", description: "The item has been removed from your wishlist." });
-      fetchWishlistProducts(); // Refresh wishlist
+      await refreshUserProfile(); // Refresh user context to update user.wishlist
+      // fetchWishlistProducts will be re-triggered by the useEffect watching 'user'
     } catch (error) {
       console.error("Error removing from wishlist:", error);
       toast({ title: "Error", description: (error as Error).message, variant: "destructive" });
@@ -159,5 +157,3 @@ export default function WishlistPage() {
     </div>
   );
 }
-
-  

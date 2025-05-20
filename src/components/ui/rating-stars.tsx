@@ -10,43 +10,77 @@ interface RatingStarsProps {
   size?: number;
   className?: string;
   starClassName?: string;
+  onRatingChange?: (rating: number) => void; // For interactive rating
+  isInteractive?: boolean;
 }
 
 export function RatingStars({
   rating,
   maxRating = 5,
-  size = 20, // Default size in pixels
+  size = 20,
   className,
   starClassName,
+  onRatingChange,
+  isInteractive = false,
 }: RatingStarsProps) {
-  const fullStars = Math.floor(rating);
-  const halfStar = rating % 1 >= 0.5; // Not used for fill, but for logic if needed
-  const emptyStars = maxRating - fullStars - (halfStar ? 1 : 0); // Not directly used if only filling
+  const [hoverRating, setHoverRating] = useState(0);
+  const currentRating = isInteractive && hoverRating > 0 ? hoverRating : rating;
+
+  const handleStarClick = (starValue: number) => {
+    if (isInteractive && onRatingChange) {
+      onRatingChange(starValue);
+    }
+  };
+
+  const handleStarHover = (starValue: number) => {
+    if (isInteractive) {
+      setHoverRating(starValue);
+    }
+  };
 
   return (
-    <div className={cn("flex items-center", className)} aria-label={`Rating: ${rating} out of ${maxRating} stars`}>
+    <div 
+      className={cn("flex items-center", className)} 
+      aria-label={`Rating: ${rating} out of ${maxRating} stars`}
+      onMouseLeave={isInteractive ? () => setHoverRating(0) : undefined}
+    >
       {[...Array(maxRating)].map((_, index) => {
-        const starNumber = index + 1;
+        const starValue = index + 1;
         let fillClass = "text-muted-foreground/30"; // Default empty
-        if (starNumber <= rating) {
-          fillClass = "text-yellow-400 fill-yellow-400"; // Full star
-        } else if (starNumber - 0.5 <= rating) {
-          fillClass = "text-yellow-400 fill-yellow-400/50"; // Half-filled appearance (using opacity or a half icon if available)
-                                                           // For simplicity, we'll make it partially filled (like full but could be different for true half star)
-                                                           // A common approach is to use a gradient or a half-icon SVG.
-                                                           // Here, we'll color it like a full star if rating is >= starNumber - 0.5
-        }
 
+        if (starValue <= currentRating) {
+          fillClass = "text-yellow-400 fill-yellow-400"; 
+        }
+        // For half-star or more complex logic, you might need different icons or more sophisticated fill calculation.
+        // For now, full fill if currentRating >= starValue.
+        
         return (
-          <Star
+          <button
             key={index}
-            className={cn("shrink-0", fillClass, starClassName)}
-            style={{ width: size, height: size }}
-          />
+            type="button"
+            disabled={!isInteractive}
+            onClick={() => handleStarClick(starValue)}
+            onMouseEnter={() => handleStarHover(starValue)}
+            className={cn(
+              "p-0 bg-transparent border-none shrink-0", 
+              isInteractive ? "cursor-pointer" : "cursor-default",
+              starClassName
+            )}
+            aria-label={isInteractive ? `Rate ${starValue} stars` : undefined}
+          >
+            <Star
+              className={cn("shrink-0", fillClass)}
+              style={{ width: size, height: size }}
+            />
+          </button>
         );
       })}
     </div>
   );
 }
 
-  
+// Need to import useState for hoverRating if it's used for interactive stars.
+// For now, I'll assume it's not used for the display-only scenario.
+// If it were, we'd add: import { useState } from 'react';
+// Corrected: For the interactive part (write review), we DO need useState.
+import { useState } from 'react';

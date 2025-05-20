@@ -10,7 +10,7 @@ import { Star, Plus, Minus, ShoppingCart, ShieldCheck, Package, Zap, Loader2, Pa
 import { Separator } from '@/components/ui/separator';
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
-import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card'; // Added CardDescription
+import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import type { Product, ProductImage, BreadcrumbItem, ProductVariant, CartItemCustomization, PrintDesign, Review } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { Breadcrumbs } from '@/components/navigation/breadcrumbs';
@@ -22,8 +22,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RatingStars } from '@/components/ui/rating-stars';
 import { cn } from '@/lib/utils';
-import { Input } from '@/components/ui/input'; // Added Input
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'; // Added Avatar components
+import Link from 'next/link'; // Added Link import
+import { Form, FormControl, FormField, FormItem, FormMessage } from "@/components/ui/form"; // Added form components
+import { Input } from '@/components/ui/input';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 
 export default function ProductDetailPage({ params: paramsPromise }: { params: Promise<{ slug: string }> | { slug:string } }) {
@@ -31,7 +33,7 @@ export default function ProductDetailPage({ params: paramsPromise }: { params: P
   
   const { toast } = useToast();
   const { addToCart: addToCartContext } = useCart();
-  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
+  const { user, isAuthenticated, isLoading: authIsLoading, refreshUserProfile } = useAuth();
   
   const [product, setProduct] = useState<Product | null>(null);
   const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
@@ -55,7 +57,6 @@ export default function ProductDetailPage({ params: paramsPromise }: { params: P
   const [reviewComment, setReviewComment] = useState('');
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
 
-
   const fetchProductData = useCallback(async () => {
     if (!resolvedParams?.slug) {
       setError("Product slug not available.");
@@ -71,7 +72,7 @@ export default function ProductDetailPage({ params: paramsPromise }: { params: P
         let errorMsg = `Failed to fetch product. Status: ${response.status}`;
         try {
           const errorData = await response.json();
-          errorMsg = errorData.message || errorMsg;
+          errorMsg = errorData.message || errorData.rawError || errorMsg;
         } catch (e) { /* ignore if response is not json */ }
         
         if (response.status === 404) {
@@ -79,7 +80,7 @@ export default function ProductDetailPage({ params: paramsPromise }: { params: P
         } else {
            setError(errorMsg);
         }
-        throw new Error(errorMsg); // Throw to stop further processing
+        throw new Error(errorMsg);
       }
       const currentProduct: Product = await response.json();
 
@@ -99,39 +100,47 @@ export default function ProductDetailPage({ params: paramsPromise }: { params: P
             setCustomizationType('custom');
           }
         }
-
-        // Fetch related products (simplified)
-        // This could be optimized to fetch based on category directly from API
-        const allProductsResponse = await fetch('/api/products');
-        if (allProductsResponse.ok) {
-          const allProducts: Product[] = await allProductsResponse.json();
-          const related = allProducts.filter(
-            p => p.id !== currentProduct.id && 
-                 currentProduct.categories.some(ccat => p.categories.map(pcat => pcat.slug).includes(ccat.slug))
-          ).slice(0, 4); 
-          setRelatedProducts(related);
-        } else {
-          console.warn("[ProductDetail] Failed to fetch all products for related items.");
-        }
-
       } else {
         setError(`Product with slug '${resolvedParams.slug}' not found or data is invalid.`);
       }
     } catch (err) {
       console.error("[ProductDetail] Error fetching product data:", err);
-      // setError is already set if it's a fetch error or 404
-      if (!error) { // only set general error if not already set by specific conditions
+      if (!error) { 
         setError((err as Error).message || "Could not load product data.");
       }
-      // toast({ title: "Error", description: (err as Error).message || "Could not load product data.", variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
-  }, [resolvedParams?.slug, toast, error]); // Added 'error' to dependency array
+  }, [resolvedParams?.slug, error]); 
 
   useEffect(() => {
     fetchProductData();
-  }, [fetchProductData]); // fetchProductData is memoized, so this runs once or when slug changes
+  }, [fetchProductData]);
+
+  const fetchRelatedProducts = useCallback(async () => {
+      if (!product || !product.categories || product.categories.length === 0) return;
+      try {
+          const allProductsResponse = await fetch('/api/products'); // Fetch all products
+          if (allProductsResponse.ok) {
+              const allProducts: Product[] = await allProductsResponse.json();
+              const related = allProducts.filter(
+                  p => p.id !== product.id &&
+                  product.categories.some(ccat => p.categories.map(pcat => pcat.slug).includes(ccat.slug))
+              ).slice(0, 4);
+              setRelatedProducts(related);
+          } else {
+              console.warn("[ProductDetail] Failed to fetch all products for related items.");
+          }
+      } catch (err) {
+          console.error("[ProductDetail] Error fetching related products:", err);
+      }
+  }, [product]);
+
+  useEffect(() => {
+    if (product) {
+        fetchRelatedProducts();
+    }
+  }, [product, fetchRelatedProducts]);
 
   useEffect(() => {
     if (isAuthenticated && user?.wishlist && product) {
@@ -145,12 +154,12 @@ export default function ProductDetailPage({ params: paramsPromise }: { params: P
   const selectedVariant = product?.variants?.find(v => v.id === selectedVariantId);
   const displayPrice = selectedVariant?.price ?? product?.price ?? 0;
   const displayCompareAtPrice = selectedVariant?.costPrice !== undefined 
-    ? undefined // If variant has costPrice, assume compareAtPrice is not applicable at variant level for this logic
+    ? undefined 
     : product?.compareAtPrice;
 
   const isOutOfStock = useMemo(() => {
     if (selectedVariant) return selectedVariant.stock <= 0;
-    if (product?.variants && product.variants.length > 0 && !selectedVariant) return true; // No variant selected but variants exist
+    if (product?.variants && product.variants.length > 0 && !selectedVariant) return true;
     return (product?.stock !== undefined && product.stock <= 0 && (!product?.variants || product.variants.length === 0));
   }, [product, selectedVariant]);
 
@@ -207,16 +216,11 @@ export default function ProductDetailPage({ params: paramsPromise }: { params: P
       });
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || `Failed to update wishlist`);
+        throw new Error(errorData.message || errorData.rawError || `Failed to update wishlist`);
       }
-      const { wishlist: updatedWishlistFromServer } = await response.json();
-      setIsWishlisted(!isWishlisted);
-      // Update user in AuthContext (simplified - full update would involve calling a method from useAuth)
-      if (user.wishlist) { // Ensure user.wishlist exists before trying to assign to it
-         user.wishlist = updatedWishlistFromServer;
-      }
+      await refreshUserProfile(); // Refreshes user context including wishlist
       toast({
-        title: isWishlisted ? "Removed from Wishlist" : "Added to Wishlist",
+        title: !isWishlisted ? "Added to Wishlist" : "Removed from Wishlist",
       });
     } catch (error) {
       toast({ title: "Error", description: (error as Error).message, variant: "destructive" });
@@ -241,31 +245,22 @@ export default function ProductDetailPage({ params: paramsPromise }: { params: P
     }
 
     setIsSubmittingReview(true);
-    const reviewData = {
-      productId: product.id,
-      userId: user.id,
-      userName: user.name,
-      userAvatarUrl: user.avatarUrl,
-      rating: reviewRating,
-      title: reviewTitle,
-      comment: reviewComment,
-      // images: [] // Add image upload logic here later
-    };
-
-    console.log("Submitting review (mock):", reviewData);
-    // TODO: Replace with actual API call to save review
-    await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
+    // TODO: Implement API call to save review to Supabase
+    // For now, just mock it.
+    console.log("Submitting review (mock):", { productId: product.id, userId: user.id, rating: reviewRating, title: reviewTitle, comment: reviewComment });
+    await new Promise(resolve => setTimeout(resolve, 1000)); 
 
     toast({ title: "Review Submitted!", description: "Thank you for your feedback." });
     setReviewRating(0);
     setReviewTitle('');
     setReviewComment('');
-    // Optionally, re-fetch product data to show the new review if API updates it immediately
     setIsSubmittingReview(false);
+    // Optionally, re-fetch product data to show the new review
+    // fetchProductData(); 
   };
 
 
-  if (isLoading || authLoading) {
+  if (isLoading || authIsLoading) { // Changed from authLoading to authIsLoading
     return (
       <div className="container-wide section-padding flex justify-center items-center min-h-[70vh]">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -306,7 +301,7 @@ export default function ProductDetailPage({ params: paramsPromise }: { params: P
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-start">
-        <div className="lg:sticky lg:top-24 p-1 rounded-lg shadow-sm bg-background z-10">
+        <div className="lg:sticky lg:top-24 p-1 rounded-lg bg-background z-10">
           <div className="mb-4">
              <AspectRatio ratio={4/5} className="bg-muted rounded-lg overflow-hidden shadow-lg">
                {selectedImage && (
@@ -348,7 +343,6 @@ export default function ProductDetailPage({ params: paramsPromise }: { params: P
           <Button variant="link" className="px-0 h-auto text-sm text-primary mb-5" onClick={() => document.getElementById('reviews-section')?.scrollIntoView({behavior: 'smooth'})}>
             Write a review
           </Button>
-
 
           <p className="text-3xl font-semibold text-primary mb-3">
             रू{displayPrice.toLocaleString()}
@@ -421,7 +415,7 @@ export default function ProductDetailPage({ params: paramsPromise }: { params: P
                   {product.customizationConfig.allowPredefinedDesigns && product.availablePrintDesigns && product.availablePrintDesigns.length > 0 && (
                     <TabsContent value="predefined">
                         <Label className="text-md font-semibold text-foreground mb-2 block">
-                            Choose a Signature Design
+                            {product.customizationConfig.predefinedDesignsLabel || 'Choose a Signature Design'}
                         </Label>
                         <RadioGroup 
                             value={selectedPredefinedDesign?.id} 
@@ -450,7 +444,7 @@ export default function ProductDetailPage({ params: paramsPromise }: { params: P
                      <TabsContent value="custom">
                         <FormFieldItem>
                             <Label className="text-md font-semibold text-foreground mb-2 block">
-                                Describe Your Design Idea
+                                {product.customizationConfig.customDescriptionLabel || 'Describe Your Design Idea'}
                             </Label>
                             <Textarea 
                                 placeholder="e.g., 'A silhouette of a mountain range with a rising sun', or 'The text Peak Pulse in Nepali script'" 
@@ -501,10 +495,10 @@ export default function ProductDetailPage({ params: paramsPromise }: { params: P
                 size="icon" 
                 className="h-12 w-12" 
                 onClick={handleToggleWishlist} 
-                disabled={isWishlistLoading || authLoading}
+                disabled={isWishlistLoading || authIsLoading}
                 aria-label={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
             >
-                {isWishlistLoading ? <Loader2 className="h-5 w-5 animate-spin" /> :
+                {isWishlistLoading || authIsLoading ? <Loader2 className="h-5 w-5 animate-spin" /> :
                 <HeartIcon className={cn("h-5 w-5", isWishlisted ? "fill-pink-500 text-pink-500" : "text-foreground")} />}
             </Button>
           </div>
@@ -550,7 +544,6 @@ export default function ProductDetailPage({ params: paramsPromise }: { params: P
       
        <Separator className="my-16" />
 
-      {/* Reviews Section */}
       <section id="reviews-section" className="space-y-12">
         <h2 className="text-3xl font-bold text-center text-foreground">Customer Reviews</h2>
         {product.reviews && product.reviews.length > 0 ? (
@@ -605,7 +598,6 @@ export default function ProductDetailPage({ params: paramsPromise }: { params: P
           <p className="text-center text-muted-foreground py-8">No reviews yet for this product. Be the first!</p>
         )}
 
-        {/* Submit Review Form */}
         {isAuthenticated && (
           <Card className="shadow-lg">
             <CardHeader>
@@ -647,7 +639,6 @@ export default function ProductDetailPage({ params: paramsPromise }: { params: P
         )}
       </section>
 
-
       {relatedProducts.length > 0 && (
         <>
             <Separator className="my-16" />
@@ -661,11 +652,8 @@ export default function ProductDetailPage({ params: paramsPromise }: { params: P
             </section>
         </>
       )}
-
     </div>
   );
 }
 
 const FormFieldItem = ({ children }: { children: React.ReactNode }) => <div className="space-y-1.5">{children}</div>;
-
-  

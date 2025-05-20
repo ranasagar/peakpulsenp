@@ -2,11 +2,7 @@
 // /src/app/api/account/wishlist/add/route.ts
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-
-// Mock data store (in-memory for demo, not persistent)
-// This needs to be consistent with the one in GET and REMOVE routes if they were separate files.
-// For simplicity in this single-file context, it's fine.
-let userWishlists: { [key: string]: string[] } = {}; // This state will reset on server restart
+import { supabase } from '../../../../../lib/supabaseClient.ts'; // Relative path
 
 interface AddToWishlistPayload {
   userId: string;
@@ -14,29 +10,57 @@ interface AddToWishlistPayload {
 }
 
 export async function POST(request: NextRequest) {
-  console.log("[API /api/account/wishlist/add] (Mock) POST request received.");
+  console.log("[API /api/account/wishlist/add] POST request received.");
+  if (!supabase) {
+    console.error('[API /api/account/wishlist/add] Supabase client is not initialized.');
+    return NextResponse.json({ message: 'Database client not configured.' }, { status: 503 });
+  }
   try {
     const { userId, productId } = (await request.json()) as AddToWishlistPayload;
 
     if (!userId || !productId) {
       return NextResponse.json({ message: 'User ID and Product ID are required' }, { status: 400 });
     }
-    console.log(`[API /api/account/wishlist/add] (Mock) Adding ${productId} for user ${userId}`);
+    console.log(`[API /api/account/wishlist/add] Adding ${productId} for user ${userId}`);
 
-    if (!userWishlists[userId]) {
-      userWishlists[userId] = [];
-    }
+    // Fetch current wishlist
+    const { data: userData, error: fetchError } = await supabase
+      .from('users')
+      .select('wishlist')
+      .eq('id', userId)
+      .single();
 
-    if (!userWishlists[userId].includes(productId)) {
-      userWishlists[userId].push(productId);
-      console.log(`[API /api/account/wishlist/add] (Mock) Product added. Current wishlist for ${userId}:`, userWishlists[userId]);
-    } else {
-      console.log(`[API /api/account/wishlist/add] (Mock) Product already in wishlist for ${userId}.`);
+    if (fetchError && fetchError.code !== 'PGRST116') { // PGRST116: user not found, which is an error here
+      console.error(`[API /api/account/wishlist/add] Error fetching user ${userId} for wishlist update:`, fetchError);
+      return NextResponse.json({ message: 'Failed to retrieve user data.', rawError: fetchError.message }, { status: 500 });
     }
     
-    return NextResponse.json({ message: 'Product added to wishlist successfully (mock)', wishlist: userWishlists[userId] });
+    let currentWishlist = userData?.wishlist || [];
+    if (!Array.isArray(currentWishlist)) { // Ensure it's an array
+        currentWishlist = [];
+    }
+
+    if (!currentWishlist.includes(productId)) {
+      const updatedWishlist = [...currentWishlist, productId];
+      const { data: updateData, error: updateError } = await supabase
+        .from('users')
+        .update({ wishlist: updatedWishlist, updatedAt: new Date().toISOString() })
+        .eq('id', userId)
+        .select('wishlist'); // Select the updated wishlist to return
+
+      if (updateError) {
+        console.error(`[API /api/account/wishlist/add] Supabase error updating wishlist for ${userId}:`, updateError);
+        return NextResponse.json({ message: 'Failed to add product to wishlist in database.', rawError: updateError.message }, { status: 500 });
+      }
+      console.log(`[API /api/account/wishlist/add] Product added. Current wishlist for ${userId}:`, updateData?.[0]?.wishlist);
+      return NextResponse.json({ message: 'Product added to wishlist successfully', wishlist: updateData?.[0]?.wishlist || [] });
+    } else {
+      console.log(`[API /api/account/wishlist/add] Product already in wishlist for ${userId}.`);
+      return NextResponse.json({ message: 'Product already in wishlist', wishlist: currentWishlist });
+    }
+    
   } catch (error) {
-    console.error('[API /api/account/wishlist/add] (Mock) Error:', error);
-    return NextResponse.json({ message: 'Failed to add product to wishlist (mock)', error: (error as Error).message }, { status: 500 });
+    console.error('[API /api/account/wishlist/add] Unhandled error:', error);
+    return NextResponse.json({ message: 'Failed to add product to wishlist', error: (error as Error).message }, { status: 500 });
   }
 }

@@ -10,8 +10,8 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { ShoppingBag, Eye, Loader2 } from 'lucide-react';
 import Image from 'next/image';
-import { useAuth } from '@/hooks/use-auth'; // Import useAuth
-import { useToast } from '@/hooks/use-toast'; // Import useToast
+import { useAuth } from '@/hooks/use-auth';
+import { useToast } from '@/hooks/use-toast';
 
 export default function OrdersPage() {
   const { user, isLoading: authLoading } = useAuth();
@@ -24,8 +24,6 @@ export default function OrdersPage() {
     const fetchOrders = async () => {
       if (!user || !user.id) {
         setIsLoading(false);
-        // Optionally, if not authLoading and no user, redirect or show message,
-        // but AccountLayout should handle primary auth check.
         if (!authLoading) setError("Please log in to view your orders.");
         return;
       }
@@ -36,7 +34,7 @@ export default function OrdersPage() {
         const response = await fetch(`/api/account/orders?userId=${user.id}`);
         if (!response.ok) {
           const errorData = await response.json();
-          throw new Error(errorData.message || `Failed to fetch orders: ${response.statusText}`);
+          throw new Error(errorData.message || errorData.rawError || `Failed to fetch orders: ${response.statusText}`);
         }
         const data = await response.json();
         setOrders(data);
@@ -50,22 +48,36 @@ export default function OrdersPage() {
       }
     };
 
-    if (!authLoading) { // Only fetch if auth state is resolved
+    if (!authLoading && user) { 
       fetchOrders();
+    } else if (!authLoading && !user) {
+      setIsLoading(false);
+      setError("User not authenticated.");
     }
   }, [user, authLoading, toast]);
 
-  const getStatusBadgeVariant = (status: Order['status']): "default" | "secondary" | "destructive" | "outline" => {
+  const getOrderStatusBadgeVariant = (status: Order['status']): "default" | "secondary" | "destructive" | "outline" => {
     switch (status) {
-      case 'Delivered': return 'default';
+      case 'Delivered': return 'default'; // More prominent for success
       case 'Shipped': return 'secondary';
-      case 'Processing': return 'outline';
+      case 'Processing': return 'outline'; // Using 'outline' for pending states
       case 'Pending': return 'outline';
       case 'Cancelled': return 'destructive';
       case 'Refunded': return 'destructive';
       default: return 'secondary';
     }
   };
+  
+  const getPaymentStatusBadgeVariant = (status: Order['paymentStatus']): "default" | "secondary" | "destructive" | "outline" => {
+    switch (status) {
+      case 'Paid': return 'default'; // More prominent for success
+      case 'Pending': return 'outline';
+      case 'Failed': return 'destructive';
+      case 'Refunded': return 'destructive';
+      default: return 'secondary';
+    }
+  };
+
 
   if (isLoading || authLoading) {
     return (
@@ -105,19 +117,22 @@ export default function OrdersPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-[100px]">Order ID</TableHead>
+                    <TableHead className="w-[150px]">Order ID</TableHead>
                     <TableHead>Date</TableHead>
                     <TableHead>Items</TableHead>
                     <TableHead className="text-right">Total</TableHead>
-                    <TableHead className="text-center">Status</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
+                    <TableHead className="text-center">Order Status</TableHead>
+                    <TableHead className="text-center">Payment Status</TableHead>
+                    {/* <TableHead className="text-right">Actions</TableHead> */}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {orders.map((order) => (
-                    <TableRow key={order.id} className="hover:bg-muted/30">
+                    <TableRow key={order.id} className="hover:bg-muted/30" id={order.id}>
                       <TableCell className="font-medium text-primary hover:underline">
-                        <Link href={`/account/orders/#${order.id}`}>{order.id.substring(0,15)}...</Link>
+                        {/* Link functionality can be added later if a dedicated order detail page is built */}
+                        {/* <Link href={`/account/orders/${order.id}`}>{order.id.substring(0,15)}...</Link> */}
+                         {order.id.substring(0,15)}...
                       </TableCell>
                       <TableCell>{new Date(order.createdAt).toLocaleDateString()}</TableCell>
                       <TableCell>
@@ -125,7 +140,7 @@ export default function OrdersPage() {
                           {order.items.slice(0, 1).map(item => (
                              <Image key={item.id} src={item.imageUrl || `https://placehold.co/40x40.png`} alt={item.name} width={40} height={40} className="rounded-md" data-ai-hint={item.dataAiHint || "product fashion"}/>
                           ))}
-                          <span>
+                          <span className="text-sm">
                             {order.items[0].name}
                             {order.items.length > 1 && ` + ${order.items.length - 1} more`}
                           </span>
@@ -133,21 +148,35 @@ export default function OrdersPage() {
                       </TableCell>
                       <TableCell className="text-right font-semibold">रू{order.totalAmount.toLocaleString()}</TableCell>
                       <TableCell className="text-center">
-                        <Badge variant={getStatusBadgeVariant(order.status)}
-                               className={order.status === 'Delivered' ? 'bg-green-500/20 text-green-700 border-green-500/30' :
-                                          order.status === 'Shipped' ? 'bg-blue-500/20 text-blue-700 border-blue-500/30' :
-                                          order.status === 'Processing' || order.status === 'Pending' ? 'bg-yellow-500/20 text-yellow-700 border-yellow-500/30' :
-                                          ''}>
+                        <Badge 
+                            variant={getOrderStatusBadgeVariant(order.status)}
+                            className={order.status === 'Delivered' ? 'bg-green-500/20 text-green-700 border-green-500/30' :
+                                      order.status === 'Shipped' ? 'bg-blue-500/20 text-blue-700 border-blue-500/30' :
+                                      order.status === 'Processing' ? 'bg-yellow-500/20 text-yellow-700 border-yellow-500/30' :
+                                      order.status === 'Pending' ? 'bg-slate-500/20 text-slate-700 border-slate-500/30 dark:bg-slate-700/20 dark:text-slate-300 dark:border-slate-700/30' :
+                                      ''}
+                        >
                           {order.status}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-right">
+                       <TableCell className="text-center">
+                        <Badge 
+                            variant={getPaymentStatusBadgeVariant(order.paymentStatus)}
+                            className={order.paymentStatus === 'Paid' ? 'bg-green-500/20 text-green-700 border-green-500/30' :
+                                      order.paymentStatus === 'Failed' || order.paymentStatus === 'Refunded' ? 'bg-red-500/20 text-red-700 border-red-500/30' :
+                                      order.paymentStatus === 'Pending' ? 'bg-slate-500/20 text-slate-700 border-slate-500/30 dark:bg-slate-700/20 dark:text-slate-300 dark:border-slate-700/30' :
+                                      ''}
+                        >
+                          {order.paymentStatus}
+                        </Badge>
+                      </TableCell>
+                      {/* <TableCell className="text-right">
                         <Button variant="outline" size="sm" asChild>
                           <Link href={`/account/orders/#${order.id}`}>
                             <Eye className="mr-1.5 h-4 w-4" /> View
                           </Link>
                         </Button>
-                      </TableCell>
+                      </TableCell> */}
                     </TableRow>
                   ))}
                 </TableBody>
@@ -168,5 +197,3 @@ export default function OrdersPage() {
     </div>
   );
 }
-
-  
