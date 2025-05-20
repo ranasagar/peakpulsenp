@@ -91,7 +91,15 @@ export default function ProductsPage() {
       try {
         const response = await fetch('/api/products');
         if (!response.ok) {
-          throw new Error('Failed to fetch products');
+          let errorDetail = 'Failed to fetch products';
+          try {
+            const errorData = await response.json();
+            errorDetail = errorData.message || errorData.error || errorDetail;
+          } catch (e) {
+            // Failed to parse JSON, use status text or default
+            errorDetail = `${response.status}: ${response.statusText || errorDetail}`;
+          }
+          throw new Error(errorDetail);
         }
         const data: Product[] = await response.json();
         setAllProducts(data);
@@ -99,8 +107,8 @@ export default function ProductsPage() {
       } catch (error) {
         console.error("Error fetching products:", error);
         toast({
-          title: "Error",
-          description: (error as Error).message || "Could not load products.",
+          title: "Error Loading Products",
+          description: (error as Error).message,
           variant: "destructive",
         });
       } finally {
