@@ -64,6 +64,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       } else {
         // User exists in Firebase Auth but not in Firestore users collection yet
         // Create a basic profile in Firestore
+        console.log(`User ${firebaseUser.uid} not found in Firestore. Creating new document.`);
         const newAppUser: AuthUserType = {
           id: firebaseUser.uid,
           email: firebaseUser.email || '',
@@ -71,17 +72,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           avatarUrl: firebaseUser.photoURL || undefined,
           roles: ['customer'],
           wishlist: [],
-          // createdAt will be set by Firestore or serverTimestamp in profile save
         };
         await setDoc(userDocRef, {
+          // id: newAppUser.id, // Not needed, doc ID is the UID
           email: newAppUser.email,
           name: newAppUser.name,
           avatarUrl: newAppUser.avatarUrl || null, // Ensure null if undefined for Firestore
           roles: newAppUser.roles,
           wishlist: newAppUser.wishlist,
-          createdAt: new Date().toISOString(), // Or use serverTimestamp if called from backend/secure context
+          createdAt: new Date().toISOString(), 
           updatedAt: new Date().toISOString(),
         });
+        console.log(`New user document created in Firestore for ${firebaseUser.uid}`);
         return newAppUser;
       }
     } catch (error) {
@@ -95,12 +97,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
+        setIsLoading(true); // Set loading true while fetching app user
+        console.log("Firebase auth state changed, user:", firebaseUser.uid);
         const appUser = await fetchAppUser(firebaseUser);
         setUser(appUser);
+        console.log("App user set in context:", appUser);
+        setIsLoading(false);
       } else {
+        console.log("Firebase auth state changed, no user.");
         setUser(null);
+        setIsLoading(false);
       }
-      setIsLoading(false);
     });
     return () => unsubscribe();
   }, [fetchAppUser]);
@@ -109,20 +116,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setIsLoading(true);
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, pass);
-      if (userCredential.user) {
-        const appUser = await fetchAppUser(userCredential.user); // Fetch/ensure Firestore user doc
-        setUser(appUser); // Update context user
-      }
+      // Auth state change will be handled by onAuthStateChanged, which calls fetchAppUser
       const redirectPath = searchParams.get('redirect') || '/account/dashboard';
       router.push(redirectPath);
-      router.refresh(); // Force a refresh to ensure layout re-evaluates auth state
+      router.refresh(); 
       return { success: true };
     } catch (error: any) {
       console.error("Firebase login error:", error);
       setIsLoading(false);
       return { success: false, error: error.message || "Login failed. Please check your credentials." };
     }
-  }, [router, searchParams, fetchAppUser]);
+  }, [router, searchParams]); // fetchAppUser is not directly called here, but onAuthStateChanged handles it
 
   const register = useCallback(async (name: string, email: string, pass: string): Promise<{ success: boolean; error?: string }> => {
     setIsLoading(true);
@@ -130,14 +134,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
       if (userCredential.user) {
         await updateProfile(userCredential.user, { displayName: name });
-        // fetchAppUser will handle creating the Firestore document if it doesn't exist
-        const appUser = await fetchAppUser(userCredential.user);
-        setUser(appUser); // Set user in context immediately after registration and profile creation
+        // Fetch/create user in Firestore. onAuthStateChanged will also trigger this, but doing it here ensures
+        // the user document might be ready sooner or displayName is reflected if Firestore doc is created here.
+        await fetchAppUser(userCredential.user); // This will create the Firestore doc if it doesn't exist
       }
+      // onAuthStateChanged will handle setting the user state and final isLoading=false
       router.push('/account/dashboard');
       router.refresh();
       return { success: true };
-    } catch (error: any)
+    } catch (error: any) { // Corrected: Added opening curly brace
         setIsLoading(false);
         return { success: false, error: error.message || "Registration failed. Please try again." };
       }
@@ -147,17 +152,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setIsLoading(true);
       try {
         await firebaseSignOut(auth);
-        setUser(null); // Clear user state immediately
+        // setUser(null) will be handled by onAuthStateChanged
         router.push('/login');
         router.refresh();
       } catch (error) {
         console.error("Firebase logout error:", error);
-        setUser(null); // Still clear local state
-        setIsLoading(false);
+        // setUser(null); // Ensure user is cleared even if signout fails for some reason
+        setIsLoading(false); // Explicitly set loading to false on error here
       }
     }, [router]);
 
-    const isAuthenticated = !!user && !isLoading; // Ensure not loading
+    const isAuthenticated = !!user && !isLoading; 
 
     return (
       <AuthContext.Provider value={{ isAuthenticated, user, isLoading, login, register, logout, fetchAppUser }}>
@@ -173,5 +178,5 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
     return context;
   };
-  
-  
+
+    
