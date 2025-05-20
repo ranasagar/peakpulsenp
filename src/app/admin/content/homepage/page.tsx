@@ -100,8 +100,8 @@ export default function AdminHomepageContentPage() {
           artisanalRootsTitle: data.artisanalRoots?.title || '',
           artisanalRootsDescription: data.artisanalRoots?.description || '',
           socialCommerceItems: data.socialCommerceItems ? data.socialCommerceItems.map(item => ({ ...defaultSocialCommerceItem, ...item })) : [],
-          heroVideoId: data.heroVideoId || '',
-          heroImageUrl: data.heroImageUrl || '',
+          heroVideoId: data.heroVideoId || '', // Handle case where videoId might be undefined in JSON
+          heroImageUrl: data.heroImageUrl || '', // Handle case where imageUrl might be undefined
         });
       } catch (error) {
         console.error("Error fetching content:", error);
@@ -135,8 +135,8 @@ export default function AdminHomepageContentPage() {
           ...item,
           id: item.id || `social-${Date.now()}-${Math.random().toString(36).substr(2,5)}`,
         })),
-        heroVideoId: data.heroVideoId || undefined, // Ensure undefined if empty
-        heroImageUrl: data.heroImageUrl || undefined, // Ensure undefined if empty
+        heroVideoId: data.heroVideoId || undefined,
+        heroImageUrl: data.heroImageUrl || undefined,
       };
 
       const response = await fetch('/api/admin/content/homepage', {
@@ -236,7 +236,7 @@ export default function AdminHomepageContentPage() {
                       <FormItem>
                         <FormLabel className="flex items-center"><ImageIcon className="mr-2 h-5 w-5 text-blue-500"/> Background Image URL</FormLabel>
                         <FormControl><Input {...field} placeholder="e.g. https://example.com/hero-image.jpg" /></FormControl>
-                        <FormDescription>Tip: Upload your image to a free hosting service (e.g., Imgur, Cloudinary free tier, Firebase Storage) then paste the direct image URL (ending in .jpg, .png, .gif, etc.) here.</FormDescription>
+                        <FormDescription>Tip: For quick uploads, try free sites like ImgBB.com or Postimages.org. Upload your image, then copy and paste the "Direct link" (ending in .jpg, .png, .gif, etc.) here.</FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -302,7 +302,7 @@ export default function AdminHomepageContentPage() {
                       <FormItem>
                         <FormLabel className="flex items-center"><ImageIcon className="mr-2 h-5 w-5 text-blue-500"/> Standalone Hero Background Image URL</FormLabel>
                         <FormControl><Input {...field} placeholder="e.g. https://example.com/main-hero-image.jpg" /></FormControl>
-                        <FormDescription>Used if no carousel slides are active or if you prefer a single static image. Tip: Upload your image to a free hosting service (e.g., Imgur, Cloudinary free tier, Firebase Storage) then paste the direct image URL here.</FormDescription>
+                        <FormDescription>Used if no carousel slides are active or if you prefer a single static image. Tip: For quick uploads, try free sites like ImgBB.com or Postimages.org. Upload your image, then copy and paste the "Direct link" here.</FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -374,7 +374,7 @@ export default function AdminHomepageContentPage() {
                       <FormItem>
                         <FormLabel>Image URL</FormLabel>
                         <FormControl><Input {...field} placeholder="https://example.com/insta-image.jpg" /></FormControl>
-                         <FormDescription>Tip: Upload your image to a free hosting service (e.g., Imgur, Cloudinary free tier, Firebase Storage) then paste the direct image URL here.</FormDescription>
+                         <FormDescription>Tip: For quick uploads, try free sites like ImgBB.com or Postimages.org. Upload your image, then copy and paste the "Direct link" here.</FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}

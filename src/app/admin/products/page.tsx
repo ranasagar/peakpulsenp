@@ -45,7 +45,7 @@ const variantSchema = z.object({
   value: z.string().min(1, "Variant value is required (e.g., M, Red)."),
   sku: z.string().optional(),
   price: z.coerce.number().min(0, "Price must be non-negative."),
-  costPrice: z.coerce.number().min(0, "Cost price must be non-negative.").optional(),
+  costPrice: z.coerce.number().min(0, "Cost price must be non-negative.").optional().nullable(),
   stock: z.coerce.number().int().min(0, "Stock must be a non-negative integer."),
   imageId: z.string().optional(),
 });
@@ -323,7 +323,7 @@ export default function AdminProductsPage() {
                         <FormItem>
                             <FormLabel>Image URL {index + 1}</FormLabel>
                             <FormControl><Input {...field} placeholder="https://example.com/image.jpg" /></FormControl>
-                            <FormDescription>Tip: Upload your image to a free hosting service (e.g., Imgur, Cloudinary free tier, Firebase Storage) then paste the direct image URL (ending in .jpg, .png, .gif, etc.) here.</FormDescription>
+                            <FormDescription>Tip: For quick uploads, try free sites like ImgBB.com or Postimages.org. Upload your image, then copy and paste the "Direct link" (ending in .jpg, .png, .gif, etc.) here.</FormDescription>
                             <FormMessage />
                         </FormItem>
                       )} />
@@ -496,7 +496,7 @@ export default function AdminProductsPage() {
                                 <FormItem>
                                   <FormLabel>Design Image URL</FormLabel>
                                   <FormControl><Input {...field} placeholder="https://example.com/design.png" /></FormControl>
-                                  <FormDescription>Tip: Upload your image to a free hosting service (e.g., Imgur, Cloudinary free tier, Firebase Storage) then paste the direct image URL (ending in .jpg, .png, .gif, etc.) here.</FormDescription>
+                                  <FormDescription>Tip: For quick uploads, try free sites like ImgBB.com or Postimages.org. Upload your image, then copy and paste the "Direct link" here.</FormDescription>
                                   <FormMessage />
                                 </FormItem>
                             )} />

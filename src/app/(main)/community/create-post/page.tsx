@@ -128,7 +128,7 @@ export default function CreateUserPostPage() {
                     <FormControl>
                       <Input placeholder="https://example.com/your-image.jpg" {...field} />
                     </FormControl>
-                    <FormDescription>Tip: Upload your image to a free hosting service (e.g., Imgur, Cloudinary free tier, Firebase Storage) then paste the direct image URL (ending in .jpg, .png, .gif, etc.) here.</FormDescription>
+                    <FormDescription>Tip: For quick uploads, try free sites like ImgBB.com or Postimages.org. Upload your image, then copy and paste the "Direct link" (ending in .jpg, .png, .gif, etc.) here.</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
