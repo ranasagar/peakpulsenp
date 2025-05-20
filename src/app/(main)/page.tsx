@@ -15,15 +15,16 @@ import { Card, CardContent } from '@/components/ui/card';
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 
 
+// Fallback content in case API fetch fails
 const fallbackContent: HomepageContent = {
   heroSlides: [
     {
       id: 'fallback-hero-1',
       title: "Peak Pulse (Content Error)",
-      description: "Experience the fusion of ancient Nepali artistry and modern streetwear. (Homepage content is temporarily unavailable).",
-      imageUrl: "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?q=80&w=1920&h=1080&fit=crop&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
-      altText: "Fallback hero image: fashion model",
-      dataAiHint: "fashion model clothing",
+      description: "Experience the fusion of ancient Nepali artistry and modern streetwear. (Content failed to load, displaying fallback).",
+      imageUrl: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?q=80&w=1920&h=1080&fit=crop&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D", 
+      altText: "Fallback hero image: abstract fashion",
+      dataAiHint: "fashion abstract modern",
       ctaText: "Explore Collections",
       ctaLink: "/products",
       videoId: undefined,
@@ -38,10 +39,11 @@ const fallbackContent: HomepageContent = {
   ],
 };
 
+
 async function getHomepageContent(): Promise<HomepageContent> {
   console.log("[Client Fetch] getHomepageContent called");
   try {
-    const fetchUrl = '/api/content/homepage'; // Always use relative path for client-side fetch to same origin
+    const fetchUrl = `/api/content/homepage`; 
     console.log(`[Client Fetch] Attempting to fetch from: ${fetchUrl}`);
     const res = await fetch(fetchUrl, { cache: 'no-store' });
 
@@ -52,7 +54,7 @@ async function getHomepageContent(): Promise<HomepageContent> {
       } catch (e) {/* ignore */}
       console.error(`[Client Fetch] Failed to fetch content. Status: ${res.status} ${res.statusText}. Body:`, errorBody);
       if (res.status === 0 || res.statusText === "Failed to fetch") {
-        throw new Error("Network error or API route not found during homepage content fetch.");
+         throw new Error("Network error or API route not found during homepage content fetch. Ensure your API route '/api/content/homepage' is working.");
       }
       throw new Error(`API Error fetching homepage content: ${res.status} ${res.statusText}. Details: ${errorBody}`);
     }
@@ -73,9 +75,18 @@ async function getHomepageContent(): Promise<HomepageContent> {
             ctaLink: slide.ctaLink || fallbackContent.heroSlides![0].ctaLink,
           }))
         : fallbackContent.heroSlides;
+        
+    // Ensure at least one valid slide is present for rendering
+    const finalHeroSlides = processedHeroSlides && processedHeroSlides.length > 0 && processedHeroSlides.some(s => s.imageUrl || s.videoId)
+        ? processedHeroSlides.filter(s => s.imageUrl || s.videoId) // Filter out slides with no image or video
+        : fallbackContent.heroSlides;
+     if (finalHeroSlides.length === 0 && fallbackContent.heroSlides && fallbackContent.heroSlides.length > 0) {
+        finalHeroSlides.push(fallbackContent.heroSlides[0]); // Add fallback if filtering removed all
+    }
+
 
     return {
-      heroSlides: processedHeroSlides && processedHeroSlides.length > 0 ? processedHeroSlides : fallbackContent.heroSlides,
+      heroSlides: finalHeroSlides,
       artisanalRoots: (data.artisanalRoots && data.artisanalRoots.title && data.artisanalRoots.description)
         ? data.artisanalRoots
         : fallbackContent.artisanalRoots,
@@ -114,7 +125,15 @@ export default function HomePage() {
   const [userPosts, setUserPosts] = useState<UserPost[]>([]);
   const [isLoadingUserPosts, setIsLoadingUserPosts] = useState(true);
 
-  const activeHeroSlides = content.heroSlides?.filter(slide => slide.title && (slide.imageUrl || slide.videoId)) || fallbackContent.heroSlides || [];
+  // Ensure heroSlides is always an array, defaulting to fallback if necessary
+  const activeHeroSlides = (content.heroSlides && content.heroSlides.length > 0)
+    ? content.heroSlides.filter(s => s.videoId || s.imageUrl) // Ensure slides have media
+    : fallbackContent.heroSlides || [];
+  
+  const currentHeroSlideData = activeHeroSlides.length > 0 
+    ? activeHeroSlides[currentSlide % activeHeroSlides.length] 
+    : fallbackContent.heroSlides![0];
+
 
   const loadContent = useCallback(async () => {
     console.log("[Client LoadContent] Initiating homepage content load.");
@@ -122,6 +141,7 @@ export default function HomePage() {
     try {
       const fetchedContent = await getHomepageContent();
       setContent(fetchedContent);
+      console.log("[Client LoadContent] Set homepage content:", fetchedContent);
     } catch (error) {
       console.error("[Client LoadContent] Error setting homepage content:", error);
       toast({
@@ -144,9 +164,13 @@ export default function HomePage() {
         let errorDetail = 'Failed to fetch user posts';
         try {
             const errorData = await response.json();
-            errorDetail = errorData.message || errorData.error || errorDetail;
-            if(errorData.details) errorDetail += ` Details: ${errorData.details}`;
-            if(errorData.hint) errorDetail += ` Hint: ${errorData.hint}`;
+            if (errorData.rawSupabaseError) {
+                errorDetail = `Database error: ${errorData.rawSupabaseError.message || 'Unknown Supabase error.'}${errorData.rawSupabaseError.hint ? ` Hint: ${errorData.rawSupabaseError.hint}` : ''}`;
+            } else if (errorData.message) {
+                errorDetail = errorData.message;
+            } else {
+                errorDetail = `${response.status}: ${response.statusText || errorDetail}`;
+            }
         } catch (e) {
             errorDetail = `${response.status}: ${response.statusText || errorDetail}`;
         }
@@ -180,7 +204,9 @@ export default function HomePage() {
   };
 
   const goToSlide = (index: number) => {
-    setCurrentSlide(index);
+    if (activeHeroSlides.length > 0) {
+        setCurrentSlide(index % activeHeroSlides.length);
+    }
   };
 
   useEffect(() => {
@@ -200,9 +226,6 @@ export default function HomePage() {
       </div>
     );
   }
-  
-  const currentHeroSlideData = activeHeroSlides[currentSlide] || fallbackContent.heroSlides![0];
-
 
   return (
     <>
@@ -233,7 +256,8 @@ export default function HomePage() {
                   <Image
                     src={slide.imageUrl}
                     alt={slide.altText || "Peak Pulse Hero Background"}
-                    layout="fill"
+                    fill
+                    sizes="100vw"
                     objectFit="cover"
                     priority={index === 0} 
                     className="absolute inset-0 w-full h-full object-cover"
@@ -331,26 +355,26 @@ export default function HomePage() {
             #PeakPulseStyle <Instagram className="inline-block ml-2 h-7 w-7 text-pink-500" />
           </h2>
         {content.socialCommerceItems && content.socialCommerceItems.length > 0 ? (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {content.socialCommerceItems.map((item) => (
               <Link
                 key={item.id}
                 href={item.linkUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="block bg-muted rounded-lg overflow-hidden group relative"
+                className="block bg-muted rounded-lg overflow-hidden group relative shadow-md hover:shadow-xl transition-shadow"
               >
                 <AspectRatio ratio={1/1} className="bg-background">
-                    <Image
+                  <Image
                     src={item.imageUrl || `https://placehold.co/400x400.png?text=Post`}
                     alt={item.altText || `User generated content showcasing Peak Pulse style`}
-                    layout="fill"
-                    objectFit="cover"
-                    className="group-hover:scale-105 transition-transform duration-300"
+                    fill
+                    sizes="(max-width: 768px) 50vw, 25vw"
+                    className="object-cover group-hover:scale-105 transition-transform duration-300"
                     data-ai-hint={item.dataAiHint || "instagram fashion user"}
-                    />
+                  />
                 </AspectRatio>
-                <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col items-center justify-center text-white p-2">
+                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col items-center justify-center text-white p-2">
                   <Instagram className="h-8 w-8 mb-1" />
                   <span className="text-xs font-medium text-center">View on Instagram</span>
                 </div>
@@ -360,8 +384,12 @@ export default function HomePage() {
         ) : (
             <p className="text-center text-muted-foreground">Follow us on Instagram to see our latest styles! Posts managed by admin will appear here.</p>
         )}
-          <div className="text-center mt-8">
-            <Button variant="secondary" asChild>
+          <div className="text-center mt-12">
+            <Button 
+                variant="outline" 
+                asChild
+                className="transition-all duration-300 ease-in-out hover:scale-105 hover:shadow-lg hover:bg-pink-100 dark:hover:bg-pink-500/20 hover:text-pink-600 dark:hover:text-pink-400 border-pink-300 dark:border-pink-500/50 text-pink-600 dark:text-pink-400"
+            >
               <Link href="https://instagram.com/peakpulsenp" target="_blank" rel="noopener noreferrer">
                 Follow us on Instagram <Instagram className="ml-2 h-4 w-4" />
               </Link>
@@ -386,9 +414,9 @@ export default function HomePage() {
                   <Image 
                     src={post.image_url} 
                     alt={post.caption || `Peak Pulse style by ${post.user_name}`} 
-                    layout="fill" 
-                    objectFit="cover"
-                    className="group-hover:scale-105 transition-transform"
+                    fill 
+                    sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                    className="object-cover group-hover:scale-105 transition-transform"
                     data-ai-hint="community fashion style"
                   />
                 </AspectRatio>
@@ -434,3 +462,4 @@ export default function HomePage() {
     </>
   );
 }
+
