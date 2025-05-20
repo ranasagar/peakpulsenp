@@ -7,9 +7,9 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { ProductCard } from '@/components/product/product-card';
 import { Icons } from '@/components/icons';
-import { ChevronLeft, ChevronRight, ShoppingBag, ArrowRight, Instagram, Send, Users, ImagePlus } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ShoppingBag, ArrowRight, Instagram, Send, Users, ImagePlus, Loader2 } from 'lucide-react';
 import { NewsletterSignupForm } from '@/components/forms/newsletter-signup-form';
-import type { HomepageContent, Product, HeroSlide, SocialCommerceItem, UserPost } from '@/types'; // Added UserPost
+import type { HomepageContent, Product, HeroSlide, SocialCommerceItem, UserPost } from '@/types'; 
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent } from '@/components/ui/card';
 import { AspectRatio } from '@/components/ui/aspect-ratio';
@@ -20,8 +20,8 @@ const fallbackContent: HomepageContent = {
   heroSlides: [
     {
       id: 'fallback-hero-default',
-      title: "Peak Pulse (Loading...)",
-      description: "Experience the fusion of ancient Nepali artistry and modern streetwear. Content may be loading or temporarily unavailable.",
+      title: "Peak Pulse (Fallback Content)",
+      description: "Experience the fusion of ancient Nepali artistry and modern streetwear. (Content failed to load, displaying fallback)",
       imageUrl: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?q=80&w=1920&h=1080&fit=crop&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
       altText: "Fallback hero image: abstract fashion",
       dataAiHint: "fashion abstract modern",
@@ -31,15 +31,20 @@ const fallbackContent: HomepageContent = {
     }
   ],
   artisanalRoots: {
-    title: "Our Artisanal Roots (Loading...)",
+    title: "Our Artisanal Roots (Fallback)",
     description: "Details about our craftsmanship are currently loading. We partner with local artisans in Nepal, preserving centuries-old techniques while innovating for today's global citizen."
   },
-  socialCommerceItems: [],
+  socialCommerceItems: [
+    { id: 'social-fallback-1', imageUrl: 'https://placehold.co/400x400.png?text=Insta+Fallback+1', linkUrl: 'https://instagram.com/peakpulsenp', altText: 'Social Post 1 Fallback', dataAiHint: 'social fashion fallback' },
+    { id: 'social-fallback-2', imageUrl: 'https://placehold.co/400x400.png?text=Insta+Fallback+2', linkUrl: 'https://instagram.com/peakpulsenp', altText: 'Social Post 2 Fallback', dataAiHint: 'social fashion model' },
+    { id: 'social-fallback-3', imageUrl: 'https://placehold.co/400x400.png?text=Insta+Fallback+3', linkUrl: 'https://instagram.com/peakpulsenp', altText: 'Social Post 3 Fallback', dataAiHint: 'social clothing brand' },
+    { id: 'social-fallback-4', imageUrl: 'https://placehold.co/400x400.png?text=Insta+Fallback+4', linkUrl: 'https://instagram.com/peakpulsenp', altText: 'Social Post 4 Fallback', dataAiHint: 'social lifestyle photo' },
+  ],
 };
 
 
 async function getHomepageContent(): Promise<HomepageContent> {
-  const fetchUrl = `/api/content/homepage`; 
+  const fetchUrl = `/api/content/homepage`;
   console.log(`[Client Fetch] Attempting to fetch from: ${fetchUrl}`);
   try {
     const res = await fetch(fetchUrl, { cache: 'no-store' });
@@ -50,14 +55,18 @@ async function getHomepageContent(): Promise<HomepageContent> {
         errorBody = await res.text();
       } catch (e) { /* ignore */ }
       console.error(`[Client Fetch] Failed to fetch content. Status: ${res.status} ${res.statusText}. Body:`, errorBody);
-      throw new Error(`API Error: ${res.status} ${res.statusText}`);
+      // For "Failed to fetch", directly use fallback without trying to parse body as JSON
+      if (res.status === 0 || res.statusText === "Failed to fetch") { // Generic network error
+        throw new Error("Network error or API route not found.");
+      }
+      throw new Error(`API Error: ${res.status} ${res.statusText}. Details: ${errorBody}`);
     }
 
     const data = await res.json();
     console.log("[Client Fetch] Successfully fetched content:", data);
     
-    const processedData: HomepageContent = {
-      heroSlides: (Array.isArray(data.heroSlides) && data.heroSlides.length > 0)
+    // Robust processing of fetched data
+    const processedHeroSlides = (Array.isArray(data.heroSlides) && data.heroSlides.length > 0)
         ? data.heroSlides.map((slide: Partial<HeroSlide>) => ({
             id: slide.id || `slide-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
             title: slide.title || fallbackContent.heroSlides![0].title,
@@ -69,7 +78,10 @@ async function getHomepageContent(): Promise<HomepageContent> {
             ctaText: slide.ctaText || fallbackContent.heroSlides![0].ctaText,
             ctaLink: slide.ctaLink || fallbackContent.heroSlides![0].ctaLink,
           }))
-        : fallbackContent.heroSlides,
+        : fallbackContent.heroSlides;
+
+    const processedData: HomepageContent = {
+      heroSlides: processedHeroSlides && processedHeroSlides.length > 0 ? processedHeroSlides : fallbackContent.heroSlides,
       artisanalRoots: (data.artisanalRoots && data.artisanalRoots.title && data.artisanalRoots.description)
         ? data.artisanalRoots
         : fallbackContent.artisanalRoots,
@@ -87,8 +99,9 @@ async function getHomepageContent(): Promise<HomepageContent> {
     return processedData;
   } catch (error) {
     console.error("[Client Fetch] CRITICAL ERROR in getHomepageContent:", error);
-    return { // Ensure a valid HomepageContent structure is always returned
-        heroSlides: fallbackContent.heroSlides?.map(slide => ({...slide, videoId: undefined, imageUrl: slide.imageUrl || "https://placehold.co/1920x1080.png?text=Content+Error"})) || [],
+    // Ensure a valid HomepageContent structure is always returned on any error
+    return { 
+        heroSlides: fallbackContent.heroSlides?.map(slide => ({...slide, imageUrl: slide.imageUrl || "https://placehold.co/1920x1080.png?text=Content+Load+Error"})) || [],
         artisanalRoots: fallbackContent.artisanalRoots,
         socialCommerceItems: fallbackContent.socialCommerceItems || []
     };
@@ -96,7 +109,6 @@ async function getHomepageContent(): Promise<HomepageContent> {
 }
 
 
-// Mock products for "Featured Collection" - replace with actual data fetching later
 const mockFeaturedProducts: Product[] = [
   { id: 'prod-1', name: 'Himalayan Breeze Jacket', slug: 'himalayan-breeze-jacket', price: 12000, images: [{ id: 'img-1', url: 'https://catalog-resize-images.thedoublef.com/606bc76216f1f9cb1ad8281eb9b7e84e/900/900/NF0A4QYXNY_P_NORTH-ZU31.a.jpg', altText: 'Himalayan Breeze Jacket', dataAiHint: 'jacket fashion' }], categories: [{ id: 'cat-1', name: 'Outerwear', slug: 'outerwear' }], shortDescription: 'Lightweight and versatile.', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), description: "Full description here." },
   { id: 'prod-2', name: 'Kathmandu Comfort Tee', slug: 'kathmandu-comfort-tee', price: 3500, images: [{ id: 'img-2', url: 'https://placehold.co/600x800.png', altText: 'Kathmandu Comfort Tee', dataAiHint: 'tee shirt' }], categories: [{ id: 'cat-2', name: 'Tops', slug: 'tops' }], shortDescription: 'Premium cotton for daily wear.', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), description: "Full description here." },
@@ -135,19 +147,19 @@ export default function HomePage() {
   const loadUserPosts = useCallback(async () => {
     setIsLoadingUserPosts(true);
     try {
-      const response = await fetch('/api/user-posts'); // Fetches approved posts
+      const response = await fetch('/api/user-posts'); 
       if (!response.ok) {
         throw new Error('Failed to fetch user posts');
       }
       const postsData: UserPost[] = await response.json();
-      setUserPosts(postsData.slice(0, 4)); // Show up to 4 approved posts
+      setUserPosts(postsData.slice(0, 4)); 
     } catch (error) {
       console.error("Error fetching user posts:", error);
-      // Optionally toast error
+      toast({ title: "Error", description: "Could not load community posts.", variant: "destructive" });
     } finally {
       setIsLoadingUserPosts(false);
     }
-  }, []);
+  }, [toast]);
 
   useEffect(() => {
     loadContent();
@@ -155,11 +167,15 @@ export default function HomePage() {
   }, [loadContent, loadUserPosts]);
 
   const nextSlide = useCallback(() => {
-    setCurrentSlide((prev) => (prev === activeHeroSlides.length - 1 ? 0 : prev + 1));
+    if (activeHeroSlides.length > 0) {
+      setCurrentSlide((prev) => (prev === activeHeroSlides.length - 1 ? 0 : prev + 1));
+    }
   }, [activeHeroSlides.length]);
 
   const prevSlide = () => {
-    setCurrentSlide((prev) => (prev === 0 ? activeHeroSlides.length - 1 : prev - 1));
+     if (activeHeroSlides.length > 0) {
+      setCurrentSlide((prev) => (prev === 0 ? activeHeroSlides.length - 1 : prev - 1));
+    }
   };
 
   const goToSlide = (index: number) => {
@@ -188,15 +204,14 @@ export default function HomePage() {
     <>
       {/* Hero Section with Carousel */}
       <section style={{ backgroundColor: 'black' }} className="relative h-screen w-full overflow-hidden">
-        {/* Background Media Container (Video or Image) */}
-        <div className="absolute inset-0 z-0 pointer-events-none">
-          {activeHeroSlides.map((slide, index) => (
-            <div
-              key={slide.id || index}
-              className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${
-                index === currentSlide ? 'opacity-100' : 'opacity-0'
-              }`}
-            >
+        {activeHeroSlides.map((slide, index) => (
+          <div
+            key={slide.id || index}
+            className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${
+              index === currentSlide ? 'opacity-100' : 'opacity-0'
+            }`}
+          >
+            <div className="absolute inset-0 z-0 pointer-events-none"> 
               {slide.videoId ? (
                 <>
                   <iframe
@@ -216,7 +231,7 @@ export default function HomePage() {
                     alt={slide.altText || "Peak Pulse Hero Background"}
                     layout="fill"
                     objectFit="cover"
-                    priority={index === 0}
+                    priority={index === 0} // Only prioritize the first image
                     className="absolute inset-0 w-full h-full object-cover"
                     data-ai-hint={slide.dataAiHint || "fashion background"}
                   />
@@ -224,26 +239,27 @@ export default function HomePage() {
                 </>
               ) : null}
             </div>
-          ))}
-        </div>
-
-        {/* Text Content Overlay */}
-        <div className="relative z-20 flex flex-col items-center justify-center h-full pt-[calc(theme(spacing.20)_+_theme(spacing.6))] pb-12 px-6 md:px-8 text-center text-white max-w-3xl mx-auto">
-          <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-6 text-shadow-lg">
-            {currentHeroSlide.title}
-          </h1>
-          <p className="text-lg md:text-xl lg:text-2xl text-neutral-200 mb-10 max-w-2xl mx-auto text-shadow-md">
-            {currentHeroSlide.description}
-          </p>
-          {currentHeroSlide.ctaText && currentHeroSlide.ctaLink && (
-            <Button size="lg" asChild className="text-base md:text-lg py-3 px-8">
-              <Link href={currentHeroSlide.ctaLink}>
-                {currentHeroSlide.ctaText} <ShoppingBag className="ml-2 h-5 w-5" />
-              </Link>
-            </Button>
-          )}
-        </div>
-
+            {/* Text Content Overlay - specific to each slide if different, or common */}
+            {index === currentSlide && (
+                <div className="relative z-20 flex flex-col items-center justify-center h-full pt-[calc(theme(spacing.20)_+_theme(spacing.6))] pb-12 px-6 md:px-8 text-center text-white max-w-3xl mx-auto">
+                <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-6 text-shadow-lg">
+                    {slide.title}
+                </h1>
+                <p className="text-lg md:text-xl lg:text-2xl text-neutral-200 mb-10 max-w-2xl mx-auto text-shadow-md">
+                    {slide.description}
+                </p>
+                {slide.ctaText && slide.ctaLink && (
+                    <Button size="lg" asChild className="text-base md:text-lg py-3 px-8">
+                    <Link href={slide.ctaLink}>
+                        {slide.ctaText} <ShoppingBag className="ml-2 h-5 w-5" />
+                    </Link>
+                    </Button>
+                )}
+                </div>
+            )}
+          </div>
+        ))}
+        
         {/* Carousel Navigation */}
         {activeHeroSlides.length > 1 && (
           <>
@@ -308,11 +324,11 @@ export default function HomePage() {
       </section>
 
       {/* Social Commerce Section (#PeakPulseStyle) - Curated by Admin */}
-      {content.socialCommerceItems && content.socialCommerceItems.length > 0 && (
-        <section className="section-padding container-wide relative z-[1] bg-background">
+      <section className="section-padding container-wide relative z-[1] bg-background">
           <h2 className="text-3xl font-bold text-center mb-12 text-foreground">
             #PeakPulseStyle <Instagram className="inline-block ml-2 h-7 w-7 text-pink-500" />
           </h2>
+        {content.socialCommerceItems && content.socialCommerceItems.length > 0 ? (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {content.socialCommerceItems.map((item) => (
               <Link
@@ -320,16 +336,18 @@ export default function HomePage() {
                 href={item.linkUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="block bg-muted rounded-lg overflow-hidden group relative aspect-square"
+                className="block bg-muted rounded-lg overflow-hidden group relative"
               >
-                <Image
-                  src={item.imageUrl || `https://placehold.co/400x400.png?text=Post`}
-                  alt={item.altText || `User generated content showcasing Peak Pulse style`}
-                  layout="fill"
-                  objectFit="cover"
-                  className="group-hover:scale-105 transition-transform duration-300"
-                  data-ai-hint={item.dataAiHint || "instagram fashion user"}
-                />
+                <AspectRatio ratio={1/1} className="bg-background">
+                    <Image
+                    src={item.imageUrl || `https://placehold.co/400x400.png?text=Post`}
+                    alt={item.altText || `User generated content showcasing Peak Pulse style`}
+                    layout="fill"
+                    objectFit="cover"
+                    className="group-hover:scale-105 transition-transform duration-300"
+                    data-ai-hint={item.dataAiHint || "instagram fashion user"}
+                    />
+                </AspectRatio>
                 <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col items-center justify-center text-white p-2">
                   <Instagram className="h-8 w-8 mb-1" />
                   <span className="text-xs font-medium text-center">View on Instagram</span>
@@ -337,6 +355,9 @@ export default function HomePage() {
               </Link>
             ))}
           </div>
+        ) : (
+            <p className="text-center text-muted-foreground">Follow us on Instagram to see our latest styles! Posts managed by admin will appear here.</p>
+        )}
           <div className="text-center mt-8">
             <Button variant="secondary" asChild>
               <Link href="https://instagram.com/peakpulsenp" target="_blank" rel="noopener noreferrer">
@@ -345,7 +366,6 @@ export default function HomePage() {
             </Button>
           </div>
         </section>
-      )}
 
       {/* New User Posts Section */}
       <section className="section-padding container-wide relative z-[1] bg-muted/30">
