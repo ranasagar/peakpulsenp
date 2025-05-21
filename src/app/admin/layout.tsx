@@ -1,6 +1,8 @@
 
+"use client"; // Add "use client" if not already present, as Accordion needs it.
+
 import Link from 'next/link';
-import { Shield, LayoutDashboard, Settings, ArrowLeft, BookOpenText, ShoppingBag, BarChart3, ListOrdered, Landmark, Tags, Users } from 'lucide-react'; // Added Users
+import { Shield, LayoutDashboard, Settings, ArrowLeft, BookOpenText, ShoppingBag, BarChart3, ListOrdered, Landmark, Tags, Users } from 'lucide-react';
 import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
 import { Button } from '@/components/ui/button';
@@ -108,7 +110,7 @@ export default function AdminLayout({
                   </Link>
                 </Button>
                 <Button variant="ghost" className="w-full justify-start" asChild>
-                  <Link href="/admin/settings">
+                  <Link href="/admin/settings"> {/* Ensured this link is correct */}
                     <Settings className="mr-2 h-4 w-4" /> General Settings
                   </Link>
                 </Button>
