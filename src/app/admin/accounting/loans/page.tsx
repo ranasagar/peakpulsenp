@@ -17,7 +17,7 @@ import { Loader2, Save, PlusCircle, Trash2, Edit, Landmark, Sparkles, AlertTrian
 import type { Loan } from '@/types';
 import { format, parseISO, isValid } from 'date-fns';
 import { getAiLoanAnalysis } from './actions';
-import type { LoanFinancialForecastingOutput } from '../../../../ai/flows/loan-financial-forecasting-flow';
+import type { LoanFinancialForecastingOutput } from '@/ai/flows/loan-financial-forecasting-flow';
 
 import {
   Dialog,
@@ -67,6 +67,7 @@ export default function AdminLoansPage() {
   const [editingLoan, setEditingLoan] = useState<Loan | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [loanToDelete, setLoanToDelete] = useState<Loan | null>(null);
+  const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false); // New state for delete dialog
 
   const [selectedLoanForAnalysis, setSelectedLoanForAnalysis] = useState<Loan | null>(null);
   const [isAiAnalysisDialogOpen, setIsAiAnalysisDialogOpen] = useState(false);
@@ -188,6 +189,7 @@ export default function AdminLoansPage() {
     } finally {
       setIsSaving(false);
       setLoanToDelete(null);
+      setIsDeleteAlertOpen(false); // Close dialog after action
     }
   };
 
@@ -199,11 +201,9 @@ export default function AdminLoansPage() {
     setIsAiAnalysisDialogOpen(true);
 
     try {
-      // Example: Use a fixed recent sales figure for demo. In real app, this would be dynamic.
       const mockRecentSales = 50000; 
       const result = await getAiLoanAnalysis({ loan, recent_sales_revenue_last_30_days: mockRecentSales });
       
-      // Check if the result is an error object from the Server Action
       if ('error' in result && typeof result.error === 'string') {
          let errorMessage = result.error;
          if (result.details) errorMessage += ` Details: ${result.details}`;
@@ -211,7 +211,7 @@ export default function AdminLoansPage() {
          throw new Error(errorMessage);
       }
       
-      setAiAnalysisResult(result as LoanFinancialForecastingOutput); // Type assertion
+      setAiAnalysisResult(result as LoanFinancialForecastingOutput);
     } catch (error) {
       const errorMessage = (error as Error).message || "Failed to get AI analysis.";
       setAiAnalysisError(errorMessage);
@@ -281,9 +281,7 @@ export default function AdminLoansPage() {
                       <TableCell className="text-center space-x-1">
                         <Button variant="outline" size="sm" onClick={() => handleEdit(loan)} className="h-8 px-2 text-xs"><Edit className="mr-1 h-3 w-3"/> Edit</Button>
                         <Button variant="outline" size="sm" onClick={() => handleOpenAiAnalysisDialog(loan)} className="h-8 px-2 text-xs"><Sparkles className="mr-1 h-3 w-3"/> AI Analysis</Button>
-                        <AlertDialogTrigger asChild>
-                          <Button variant="destructive" size="sm" onClick={() => setLoanToDelete(loan)} className="h-8 px-2 text-xs"><Trash2 className="mr-1 h-3 w-3"/>Del</Button>
-                        </AlertDialogTrigger>
+                        <Button variant="destructive" size="sm" onClick={() => { setLoanToDelete(loan); setIsDeleteAlertOpen(true); }} className="h-8 px-2 text-xs"><Trash2 className="mr-1 h-3 w-3"/>Del</Button>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -354,7 +352,7 @@ export default function AdminLoansPage() {
         </DialogContent>
       </Dialog>
 
-      <AlertDialog open={!!loanToDelete} onOpenChange={(open) => !open && setLoanToDelete(null)}>
+      <AlertDialog open={isDeleteAlertOpen} onOpenChange={(open) => { if (!open) setLoanToDelete(null); setIsDeleteAlertOpen(open); }}>
         <AlertDialogDeleteContent>
           <AlertDialogDeleteHeader>
             <AlertDialogDeleteTitle>Are you sure you want to delete this loan?</AlertDialogDeleteTitle>
@@ -363,7 +361,7 @@ export default function AdminLoansPage() {
             </AlertDialogDeleteDescription>
           </AlertDialogDeleteHeader>
           <AlertDialogDeleteFooter>
-            <AlertDialogCancel onClick={() => setLoanToDelete(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel onClick={() => { setLoanToDelete(null); setIsDeleteAlertOpen(false); }}>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleDelete} disabled={isSaving} className="bg-destructive hover:bg-destructive/90">
               {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
               Delete
@@ -436,3 +434,4 @@ export default function AdminLoansPage() {
     </>
   );
 }
+
