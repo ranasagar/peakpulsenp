@@ -43,32 +43,35 @@ AccordionTrigger.displayName = AccordionPrimitive.Trigger.displayName
 
 const AccordionContent = React.forwardRef<
   React.ElementRef<typeof AccordionPrimitive.Content>,
-  // Explicitly type the props our component accepts
   React.ComponentPropsWithoutRef<typeof AccordionPrimitive.Content>
->(({ className, children, dangerouslySetInnerHTML, ...otherProps }, ref) => {
+>(({ className, children, dangerouslySetInnerHTML, ...props }, ref) => {
   const basePrimitiveClassName = "overflow-hidden text-sm transition-all data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down";
 
   if (dangerouslySetInnerHTML) {
-    // If dangerouslySetInnerHTML is provided, pass it and otherProps (which excludes children).
-    // Apply padding directly to the primitive in this case.
+    // Explicitly remove 'children' from the props that will be spread
+    // to ensure AccordionPrimitive.Content doesn't see it when DSIHTML is used.
+    const { children: _removedChildren, ...restWithoutChildren } = props;
+    
     return (
       <AccordionPrimitive.Content
         ref={ref}
-        className={cn(basePrimitiveClassName, "pb-4 pt-0", className)} // Apply padding here
+        className={cn(basePrimitiveClassName, "pb-4 pt-0", className)} // Apply padding here for DSIHTML content
         dangerouslySetInnerHTML={dangerouslySetInnerHTML}
-        {...otherProps} // Spread only the remaining props, ensuring `children` is not included
+        {...restWithoutChildren} // Spread props that definitively do not include 'children'
       />
     );
   }
 
-  // Default behavior: pass children to the inner div, and otherProps to the primitive.
+  // Default behavior: render children inside a div, and spread all original props
+  // (which will include 'children' but not 'dangerouslySetInnerHTML' in this path)
   return (
     <AccordionPrimitive.Content
       ref={ref}
-      className={basePrimitiveClassName}
-      {...otherProps} // Spread only the remaining props, ensuring `dangerouslySetInnerHTML` is not included
+      className={cn(basePrimitiveClassName, className)} // Apply className to the primitive itself
+      {...props} // Spread original props
     >
-      <div className={cn("pb-4 pt-0", className)}>{children}</div>
+      {/* This div handles padding for children and ensures children are nested */}
+      <div className="pb-4 pt-0">{children}</div>
     </AccordionPrimitive.Content>
   );
 });
