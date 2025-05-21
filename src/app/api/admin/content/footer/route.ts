@@ -2,11 +2,10 @@
 // /src/app/api/admin/content/footer/route.ts
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import fs from 'fs/promises';
-import path from 'path';
-import type { FooterContentData, FooterNavSection, FooterNavItem } from '@/types';
+import { supabase } from '../../../../../lib/supabaseClient.ts'; // Relative path for Supabase client
+import type { FooterContentData } from '@/types';
 
-const filePath = path.join(process.cwd(), 'src', 'data', 'footer-content.json');
+const FOOTER_CONFIG_KEY = 'footerContent';
 
 const defaultFooterContent: FooterContentData = {
   copyrightText: "© {currentYear} Peak Pulse. All rights reserved.",
@@ -17,69 +16,83 @@ const defaultFooterContent: FooterContentData = {
   ]
 };
 
-// Helper to read existing content or return a default structure
-async function getCurrentContent(): Promise<FooterContentData> {
-  try {
-    const fileContent = await fs.readFile(filePath, 'utf-8');
-    const parsedData = JSON.parse(fileContent) as Partial<FooterContentData>;
-    return {
-      copyrightText: parsedData.copyrightText || defaultFooterContent.copyrightText,
-      navigationSections: (Array.isArray(parsedData.navigationSections) && parsedData.navigationSections.length > 0) 
-                            ? parsedData.navigationSections 
-                            : defaultFooterContent.navigationSections,
-    };
-  } catch (error) {
-    console.warn("[Admin API Footer POST] Error reading existing footer content file. Starting with a default structure. Error:", (error as Error).message);
-    return JSON.parse(JSON.stringify(defaultFooterContent)); // Deep copy of default
-  }
-}
-
+// GET current footer content for admin
 export async function GET() {
-  console.log("[Admin API Footer GET] Request to fetch footer content.");
+  console.log("[Admin API Footer GET] Request to fetch footer content from Supabase.");
+  if (!supabase) {
+    console.error('[Admin API Footer GET] Supabase client is not initialized.');
+    return NextResponse.json({ message: 'Database client not configured.' }, { status: 503 });
+  }
+
   try {
-    const content = await getCurrentContent();
-    return NextResponse.json(content);
-  } catch (error) {
-    console.error('[Admin API Footer GET] Error fetching footer content:', error);
-    return NextResponse.json({ message: 'Error fetching footer content.', error: (error as Error).message }, { status: 500 });
+    const { data, error } = await supabase
+      .from('site_configurations')
+      .select('value')
+      .eq('config_key', FOOTER_CONFIG_KEY)
+      .maybeSingle(); // Use maybeSingle as the row might not exist yet
+
+    if (error) {
+      console.error('[Admin API Footer GET] Supabase error fetching footer content:', error);
+      return NextResponse.json({ message: 'Failed to fetch footer content from database.', rawSupabaseError: error }, { status: 500 });
+    }
+
+    if (data && data.value) {
+      console.log("[Admin API Footer GET] Successfully fetched footer content from Supabase.");
+      return NextResponse.json(data.value as FooterContentData);
+    } else {
+      console.log("[Admin API Footer GET] No footer content found in Supabase, returning default structure.");
+      // If no content found, return a default structure so admin page can initialize
+      return NextResponse.json(defaultFooterContent);
+    }
+  } catch (e) {
+    console.error('[Admin API Footer GET] Unhandled error fetching footer content:', e);
+    return NextResponse.json({ message: 'Error fetching footer content.', error: (e as Error).message }, { status: 500 });
   }
 }
 
-
+// POST to update footer content
 export async function POST(request: NextRequest) {
-  if (process.env.NODE_ENV === 'production' && process.env.VERCEL) {
-    console.warn("File system write attempts are disabled in Vercel production environment for this demo API.");
-    return NextResponse.json({ message: 'Content modification is disabled in this environment for demo purposes.' }, { status: 403 });
+  console.log("[Admin API Footer POST] Request to update footer content in Supabase.");
+  if (!supabase) {
+    console.error('[Admin API Footer POST] Supabase client is not initialized.');
+    return NextResponse.json({ message: 'Database client not configured.' }, { status: 503 });
   }
 
+  // Note: In a real production app, ensure this endpoint is secured and only callable by admins.
+  // For Vercel, writing to local file system is not possible for production. Supabase is the right way.
+
   try {
-    const newContentFromAdmin = (await request.json()) as Partial<FooterContentData>;
+    const newContentFromAdmin = (await request.json()) as FooterContentData;
     console.log("[Admin API Footer POST] Received new data:", JSON.stringify(newContentFromAdmin, null, 2));
 
-    // Ensure IDs for sections and items if missing (useful for React keys)
-    const processedSections = (newContentFromAdmin.navigationSections || []).map((section: Partial<FooterNavSection>, sectionIndex: number) => ({
+    // Ensure IDs for sections and items if missing (useful for React keys, though less critical for JSONB)
+    const processedSections = (newContentFromAdmin.navigationSections || []).map((section, sectionIndex) => ({
       ...section,
       id: section.id || `section-${Date.now()}-${sectionIndex}`,
-      label: section.label || "Unnamed Section",
-      items: (section.items || []).map((item: Partial<FooterNavItem>, itemIndex: number) => ({
+      items: (section.items || []).map((item, itemIndex) => ({
         ...item,
         id: item.id || `item-${Date.now()}-${sectionIndex}-${itemIndex}`,
-        name: item.name || "Unnamed Link",
-        href: item.href || "#",
       })),
     }));
 
-    const finalDataToWrite: FooterContentData = {
+    const finalDataToUpsert: FooterContentData = {
       copyrightText: newContentFromAdmin.copyrightText || defaultFooterContent.copyrightText,
       navigationSections: processedSections,
     };
     
-    console.log("[Admin API Footer POST] Writing final data to footer-content.json:", JSON.stringify(finalDataToWrite, null, 2));
-    await fs.writeFile(filePath, JSON.stringify(finalDataToWrite, null, 2), 'utf-8');
+    const { error } = await supabase
+      .from('site_configurations')
+      .upsert({ config_key: FOOTER_CONFIG_KEY, value: finalDataToUpsert }, { onConflict: 'config_key' });
 
+    if (error) {
+      console.error('[Admin API Footer POST] Supabase error updating footer content:', error);
+      return NextResponse.json({ message: 'Failed to update footer content in database.', rawSupabaseError: error }, { status: 500 });
+    }
+    
+    console.log("[Admin API Footer POST] Footer content updated successfully in Supabase.");
     return NextResponse.json({ message: 'Footer content updated successfully.' });
-  } catch (error) {
-    console.error('Error updating footer content:', error);
-    return NextResponse.json({ message: 'Error updating footer content.', error: (error as Error).message }, { status: 500 });
+  } catch (e) {
+    console.error('[Admin API Footer POST] Unhandled error updating footer content:', e);
+    return NextResponse.json({ message: 'Error updating footer content.', error: (e as Error).message }, { status: 500 });
   }
 }

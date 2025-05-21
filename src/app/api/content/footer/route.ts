@@ -1,41 +1,56 @@
 
 // /src/app/api/content/footer/route.ts
 import { NextResponse } from 'next/server';
-import fs from 'fs/promises';
-import path from 'path';
+import { supabase } from '../../../../lib/supabaseClient.ts'; // Relative path for Supabase client
 import type { FooterContentData } from '@/types';
 
 export const dynamic = 'force-dynamic';
 
-const filePath = path.join(process.cwd(), 'src', 'data', 'footer-content.json');
+const FOOTER_CONFIG_KEY = 'footerContent';
 
 const defaultFooterContent: FooterContentData = {
   copyrightText: "© {currentYear} Peak Pulse. All rights reserved.",
   navigationSections: [
-    { id: "company-default", label: "Company", items: [{ id: "os", name: "Our Story", href: "/our-story" }] },
-    { id: "support-default", label: "Support", items: [{ id: "cu", name: "Contact Us", href: "/contact" }] },
-    { id: "legal-default", label: "Legal", items: [{ id: "pp", name: "Privacy Policy", href: "/privacy-policy" }] },
+    { id: "company-fallback", label: "Company", items: [{ id: "os-fb", name: "Our Story", href: "/our-story" }] },
+    { id: "support-fallback", label: "Support", items: [{ id: "cu-fb", name: "Contact Us", href: "/contact" }] },
+    { id: "legal-fallback", label: "Legal", items: [{ id: "pp-fb", name: "Privacy Policy", href: "/privacy-policy" }] },
   ]
 };
 
 export async function GET() {
-  console.log("[API /api/content/footer] GET request received.");
+  console.log("[API /api/content/footer] GET request received. Fetching from Supabase.");
+  if (!supabase) {
+    console.error('[API /api/content/footer] Supabase client is not initialized. Returning default content.');
+    return NextResponse.json(defaultFooterContent); // Return default on client init failure
+  }
+
   try {
-    const fileContent = await fs.readFile(filePath, 'utf-8');
-    const jsonData = JSON.parse(fileContent) as Partial<FooterContentData>;
-    console.log("[API /api/content/footer] Successfully read and parsed footer-content.json");
+    const { data, error } = await supabase
+      .from('site_configurations')
+      .select('value')
+      .eq('config_key', FOOTER_CONFIG_KEY)
+      .maybeSingle();
 
-    // Merge with defaults to ensure all parts are present
-    const responseData: FooterContentData = {
-      copyrightText: jsonData.copyrightText || defaultFooterContent.copyrightText,
-      navigationSections: (Array.isArray(jsonData.navigationSections) && jsonData.navigationSections.length > 0)
-        ? jsonData.navigationSections
-        : defaultFooterContent.navigationSections,
-    };
-    return NextResponse.json(responseData);
+    if (error) {
+      console.error('[API /api/content/footer] Supabase error fetching footer content:', error);
+      return NextResponse.json({ 
+        ...defaultFooterContent, 
+        error: `Failed to load footer content from database. ${error.message}` 
+      }, { status: 500 });
+    }
 
-  } catch (error) {
-    console.error('[API /api/content/footer] Error reading or parsing footer-content.json, returning default. Error:', (error as Error).message);
-    return NextResponse.json(defaultFooterContent, { status: 500 });
+    if (data && data.value) {
+      console.log("[API /api/content/footer] Successfully fetched footer content from Supabase.");
+      return NextResponse.json(data.value as FooterContentData);
+    } else {
+      console.warn('[API /api/content/footer] No footer content found in Supabase for key "footerContent". Returning default.');
+      return NextResponse.json(defaultFooterContent);
+    }
+  } catch (e) {
+    console.error('[API /api/content/footer] Unhandled error fetching footer content, returning default. Error:', (e as Error).message);
+    return NextResponse.json({
+         ...defaultFooterContent, 
+         error: `Server error fetching footer content. ${(e as Error).message}` 
+    }, { status: 500 });
   }
 }
