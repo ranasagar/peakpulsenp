@@ -20,56 +20,40 @@
 .DS_Store
 *.pem
 
-# Node
+# Logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
-# Editor directories and files
-.idea
-.vscode/*
-!.vscode/settings.json
-!.vscode/tasks.json
-!.vscode/launch.json
-!.vscode/extensions.json
-*.sublime-workspace
-
-# Environment variables
+# Local Environment Variables
 .env
 .env*.local
-.env*.development*.local
-.env*.test*.local
-.env*.production*.local
+.env*.development
+.env*.test
+.env*.production
+!.env.example
+!.env.sample
 
-# Drizzle
-# Used by Drizzle for Drizzle schema generation
-# drizzle/*
-# Used by Drizzle for storing metadata about the database for migrations
-# .drizzle/
+# IDEs and editors
+/.idea
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
 
-# Supabase
-# supabase/
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
 
-# Log files
-*.log
-logs
-*.log.*
-
-# Local data files (if any, ensure sensitive ones are not committed)
-# src/data/orders.json # Example if you decide it's too sensitive for Git history
-# src/data/users.json # Example
+# Dumps
+*.sql
+*.sql.gz
 
 # Firebase
+.firebase/
 firebase-debug.log
 firebase-debug.*.log
-# If you use Firebase emulators, you might want to ignore emulator data
-# .firebase/emulators/
-# firebase.json should usually be committed if it defines rules/indexes/hosting
-# firebase-service-account-key.json # NEVER COMMIT SERVICE ACCOUNT KEYS
-
-#vercel
-.vercel
-
-# turbo
-.turbo
+*.firebase.*.log
