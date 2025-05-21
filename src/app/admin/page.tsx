@@ -1,45 +1,15 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { BookOpenText, ShoppingBag, BarChart3, ListOrdered, Landmark, Tags, Users, AlertTriangle, FileText } from 'lucide-react';
 import Link from 'next/link';
-import { supabase } from '@/lib/supabaseClient';
-import type { Order, CartItem } from '@/types';
+// import { supabase } from '@/lib/supabaseClient'; // Temporarily remove direct Supabase usage for debugging
 import fs from 'fs/promises';
 import path from 'path';
 
-async function getSupabaseCount(tableName: string): Promise<number | string> {
-  if (!supabase) {
-    console.error(`[AdminDashboard] Supabase client not available for counting ${tableName}. Check .env and server restart.`);
-    return 'N/A (DB Client Error)';
-  }
-  try {
-    const { count, error } = await supabase
-      .from(tableName)
-      .select('id', { count: 'exact', head: true });
-
-    if (error) {
-      console.error(`[AdminDashboard] Error counting ${tableName} from Supabase:`, error);
-      if (error.message.includes("permission denied") || error.message.includes("policy") || error.code === '42501') {
-        return `RLS? (${error.code || 'DB'})`;
-      }
-      if (error.code === '42P01') { // undefined_table
-        return `No Table (${error.code})`;
-      }
-      return `Error (${error.code || 'DB'})`;
-    }
-    return count ?? 0;
-  } catch (e) {
-    console.error(`[AdminDashboard] Exception counting ${tableName} from Supabase:`, (e as Error).message);
-    return 'N/A (Exception)';
-  }
-}
-
-async function getContentFileStatus(contentKey: string): Promise<'Managed by DB' | 'JSON (Okay)' | 'JSON (Not Found)' | 'JSON (Error)'> {
+// Helper function to check file status without Supabase interaction
+async function getContentFileStatus(contentKey: string): Promise<'JSON (Okay)' | 'JSON (Not Found)' | 'JSON (Error)'> {
   const filePath = path.join(process.cwd(), 'src', 'data', `${contentKey}-content.json`);
   try {
-    await fs.access(filePath); // Check if file exists and is accessible
-    // Optionally, try to read and parse it for a more thorough check
-    // const fileContent = await fs.readFile(filePath, 'utf-8');
-    // JSON.parse(fileContent); 
+    await fs.access(filePath);
     return 'JSON (Okay)';
   } catch (error: any) {
     if (error.code === 'ENOENT') {
@@ -50,121 +20,50 @@ async function getContentFileStatus(contentKey: string): Promise<'Managed by DB'
   }
 }
 
-async function getSalesMetrics(): Promise<{
-  totalRevenue: number;
-  totalCOGS: number;
-  grossProfit: number;
-  grossProfitMargin: number;
-  averageOrderValue: number;
-  orderCountForMetrics: number;
-}> {
-  const defaultMetrics = { totalRevenue: 0, totalCOGS: 0, grossProfit: 0, grossProfitMargin: 0, averageOrderValue: 0, orderCountForMetrics: 0 };
-  if (!supabase) {
-    console.error("[AdminDashboard] Supabase client not available for sales metrics.");
-    return defaultMetrics;
-  }
-
-  try {
-    const { data: orders, error } = await supabase
-      .from('orders')
-      .select('totalAmount, items, status')
-      .in('status', ['Shipped', 'Delivered']);
-
-    if (error) {
-      console.error("[AdminDashboard] Error fetching orders for sales metrics:", error.message);
-      return defaultMetrics;
-    }
-
-    if (!orders || orders.length === 0) {
-      return defaultMetrics;
-    }
-
-    let totalRevenue = 0;
-    let totalCOGS = 0;
-
-    orders.forEach(order => {
-      totalRevenue += Number(order.totalAmount || 0);
-      const items = order.items as CartItem[] | null; 
-      if (items) {
-        items.forEach(item => {
-          totalCOGS += (item.costPrice || 0) * item.quantity;
-        });
-      }
-    });
-    
-    const orderCountForMetrics = orders.length;
-    const grossProfit = totalRevenue - totalCOGS;
-    const grossProfitMargin = totalRevenue > 0 ? (grossProfit / totalRevenue) * 100 : 0;
-    const averageOrderValue = orderCountForMetrics > 0 ? totalRevenue / orderCountForMetrics : 0;
-
-    return {
-      totalRevenue,
-      totalCOGS,
-      grossProfit,
-      grossProfitMargin,
-      averageOrderValue,
-      orderCountForMetrics,
-    };
-  } catch (e) {
-    console.error("[AdminDashboard] Exception calculating sales metrics:", (e as Error).message);
-    return defaultMetrics;
-  }
-}
-
 export default async function AdminDashboardPage() {
-  if (!supabase) {
-    return (
-      <div className="space-y-8">
-        <Card className="shadow-lg bg-destructive/10 border-destructive">
-          <CardHeader>
-            <CardTitle className="text-2xl text-destructive-foreground flex items-center">
-              <AlertTriangle className="mr-3 h-6 w-6"/> Configuration Error
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="text-destructive-foreground">
-            <p className="font-semibold">Supabase client is not initialized.</p>
-            <p>Please ensure your Supabase URL and Anon Key are correctly set in the <code>.env</code> file and that the Next.js server has been restarted.</p>
-            <p className="mt-2 text-sm">Without a valid database connection, most admin features will not work.</p>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  const productCount = await getSupabaseCount('products');
-  const orderCount = await getSupabaseCount('orders');
-  const userCount = await getSupabaseCount('users');
-  const categoryCount = await getSupabaseCount('categories');
-  const loanCount = await getSupabaseCount('loans');
+  // Temporarily replace Supabase counts with placeholders or static values
+  const productCount = 'N/A (DB Temp. Disabled)';
+  const orderCount = 'N/A (DB Temp. Disabled)';
+  const userCount = 'N/A (DB Temp. Disabled)';
+  const categoryCount = 'N/A (DB Temp. Disabled)';
+  const loanCount = 'N/A (DB Temp. Disabled)';
 
   const homepageContentStatus = await getContentFileStatus('homepage');
   const ourStoryContentStatus = await getContentFileStatus('our-story');
-  const salesMetrics = await getSalesMetrics();
+
+  const salesMetrics = {
+    totalRevenue: 0,
+    totalCOGS: 0,
+    grossProfit: 0,
+    grossProfitMargin: 0,
+    averageOrderValue: 0,
+    orderCountForMetrics: 0,
+  }; // Placeholder for sales metrics
 
   return (
     <div className="space-y-8">
       <Card className="shadow-lg">
         <CardHeader>
           <CardTitle className="text-2xl">Welcome to the Admin Dashboard</CardTitle>
-          <CardDescription>Manage your Peak Pulse application. Key data is primarily from Supabase.</CardDescription>
+          <CardDescription>Manage your Peak Pulse application. Key data is primarily from Supabase (currently showing placeholders for DB counts).</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <Card className="bg-muted/30">
               <CardHeader className="pb-2"><CardTitle className="text-lg flex items-center"><ShoppingBag className="mr-2 h-5 w-5 text-primary"/>Products</CardTitle></CardHeader>
-              <CardContent><p className="text-3xl font-bold">{productCount}</p><p className="text-xs text-muted-foreground">Total products (Supabase)</p><Link href="/admin/products" className="text-primary hover:underline text-xs mt-1 block">Manage Products &rarr;</Link></CardContent>
+              <CardContent><p className="text-3xl font-bold">{productCount}</p><p className="text-xs text-muted-foreground">Total products</p><Link href="/admin/products" className="text-primary hover:underline text-xs mt-1 block">Manage Products &rarr;</Link></CardContent>
             </Card>
              <Card className="bg-muted/30">
               <CardHeader className="pb-2"><CardTitle className="text-lg flex items-center"><Tags className="mr-2 h-5 w-5 text-primary"/>Categories</CardTitle></CardHeader>
-              <CardContent><p className="text-3xl font-bold">{categoryCount}</p><p className="text-xs text-muted-foreground">Total categories (Supabase)</p><Link href="/admin/categories" className="text-primary hover:underline text-xs mt-1 block">Manage Categories &rarr;</Link></CardContent>
+              <CardContent><p className="text-3xl font-bold">{categoryCount}</p><p className="text-xs text-muted-foreground">Total categories</p><Link href="/admin/categories" className="text-primary hover:underline text-xs mt-1 block">Manage Categories &rarr;</Link></CardContent>
             </Card>
             <Card className="bg-muted/30">
               <CardHeader className="pb-2"><CardTitle className="text-lg flex items-center"><ListOrdered className="mr-2 h-5 w-5 text-primary"/>Orders</CardTitle></CardHeader>
-              <CardContent><p className="text-3xl font-bold">{orderCount}</p><p className="text-xs text-muted-foreground">Total orders (Supabase)</p><Link href="/admin/orders" className="text-primary hover:underline text-xs mt-1 block">View Orders &rarr;</Link></CardContent>
+              <CardContent><p className="text-3xl font-bold">{orderCount}</p><p className="text-xs text-muted-foreground">Total orders</p><Link href="/admin/orders" className="text-primary hover:underline text-xs mt-1 block">View Orders &rarr;</Link></CardContent>
             </Card>
             <Card className="bg-muted/30">
               <CardHeader className="pb-2"><CardTitle className="text-lg flex items-center"><Users className="mr-2 h-5 w-5 text-primary"/>Users</CardTitle></CardHeader>
-              <CardContent><p className="text-3xl font-bold">{userCount}</p><p className="text-xs text-muted-foreground">User profiles (Supabase)</p><p className="text-xs text-accent mt-1">User management features (e.g., roles) require further development.</p></CardContent>
+              <CardContent><p className="text-3xl font-bold">{userCount}</p><p className="text-xs text-muted-foreground">User profiles</p><p className="text-xs text-accent mt-1">User management features require further development.</p></CardContent>
             </Card>
             <Card className="bg-muted/30">
               <CardHeader className="pb-2"><CardTitle className="text-lg flex items-center"><FileText className="mr-2 h-5 w-5 text-primary"/>Homepage Content</CardTitle></CardHeader>
@@ -180,8 +79,8 @@ export default async function AdminDashboardPage() {
 
       <Card className="shadow-lg">
         <CardHeader>
-            <CardTitle className="text-xl flex items-center"><Landmark className="mr-2 h-6 w-6 text-green-500"/>Accounting Overview (Supabase Orders)</CardTitle>
-            <CardDescription>Sales and profitability summary based on 'Shipped' or 'Delivered' orders. COGS calculated from item costPrice at time of sale.</CardDescription>
+            <CardTitle className="text-xl flex items-center"><Landmark className="mr-2 h-6 w-6 text-green-500"/>Accounting Overview (Placeholders)</CardTitle>
+            <CardDescription>Sales and profitability summary. COGS calculated from item costPrice at time of sale.</CardDescription>
         </CardHeader>
         <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <Card className="p-4 bg-green-100 dark:bg-green-500/10 border-green-300 dark:border-green-500/30">
@@ -241,12 +140,13 @@ export default async function AdminDashboardPage() {
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground mb-2">
-            This admin panel uses <strong>Supabase</strong> for core data (Products, Categories, Orders, Users, Loans). Some page content (Homepage, Our Story) still uses JSON files for demonstration.
+            This admin panel is currently using a mix of Supabase (for Products, Categories, Orders, Users, Loans - IF CONFIGURED AND DB CLIENT IS WORKING) and local JSON files for some page content.
           </p>
           <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
-            <li>**Security:** This admin section currently lacks robust role-based authentication & authorization. Access must be strictly controlled in a production environment. Supabase Row Level Security (RLS) should be thoroughly configured for all tables.</li>
+            <li>**Supabase Connection:** If Supabase environment variables (URL/Key) are not correctly set in <code>.env</code> or the Supabase client fails to initialize (e.g., missing <code>@supabase/supabase-js</code> package), database interactions will fail. Database counts on this dashboard are temporarily disabled for debugging.</li>
+            <li>**Security:** This admin section currently lacks robust role-based authentication & authorization. Access must be strictly controlled in a production environment.</li>
             <li>**JSON Content Management:** Managing content via JSON files (as done for Homepage/Our Story) is not scalable and **will not work in most serverless production environments like Vercel** due to read-only filesystems. Migrate this content to Supabase or a headless CMS for production.</li>
-            <li>**Accounting Features:** The sales summary and tax data export are for informational purposes. Full accounting requires specialized systems. COGS accuracy depends on `costPrice` being diligently maintained for products/variants and recorded accurately in orders.</li>
+            <li>**Accounting Features:** The sales summary and tax data export are for informational purposes. Full accounting requires specialized systems.</li>
           </ul>
         </CardContent>
       </Card>
