@@ -8,7 +8,8 @@ import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem as RHFFormItem, FormLabel as RHFFormLabel, FormMessage } from '@/components/ui/form'; // Renamed to avoid conflict
+import { Label } from '@/components/ui/label'; // Import basic Label
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Save, FileText } from 'lucide-react';
@@ -26,8 +27,6 @@ const manageablePages = [
   { key: 'shippingReturnsPageContent', name: 'Shipping & Returns Policy' },
   { key: 'accessibilityPageContent', name: 'Accessibility Statement' },
   // Add other pages here as they become manageable
-  // e.g. { key: 'sustainabilityPageContent', name: 'Sustainability Page' }, // Already a separate page
-  //      { key: 'careersPageContent', name: 'Careers Page' }, // Already a separate page
 ];
 
 export default function AdminSitePagesContentPage() {
@@ -46,10 +45,18 @@ export default function AdminSitePagesContentPage() {
       if (!selectedPageKey) return;
       setIsLoading(true);
       try {
-        const response = await fetch(`/api/admin/content/page/${selectedPageKey}`);
+        const response = await fetch(`/api/content/page/${selectedPageKey}`);
         if (!response.ok) {
-          const errorData = await response.json().catch(() => ({ message: `Failed to fetch content for ${selectedPageKey}. Status: ${response.status}` }));
-          throw new Error(errorData.message || `Failed to fetch content for ${selectedPageKey}`);
+          let errorDetail = `Failed to fetch content for ${selectedPageKey}. Status: ${response.status}`;
+          try {
+            const errorData = await response.json();
+            if (errorData.error) { // Check if our API returned a structured error
+              errorDetail = errorData.error;
+            } else if (errorData.message) {
+              errorDetail = errorData.message;
+            }
+          } catch (e) { /* ignore if response is not json */ }
+          throw new Error(errorDetail);
         }
         const data: PageContent = await response.json();
         form.reset({ content: data.content || `<!-- Default content for ${selectedPageKey}. Please edit. -->` });
@@ -96,9 +103,9 @@ export default function AdminSitePagesContentPage() {
         <CardDescription>Select a page and modify its text content. You can use HTML for formatting.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        <FormItem>
-          <FormLabel>Select Page to Edit</FormLabel>
-          <Select value={selectedPageKey} onValueChange={setSelectedPageKey}>
+        <div className="space-y-2"> {/* Replaced FormItem with div */}
+          <Label htmlFor="page-select">Select Page to Edit</Label> {/* Replaced FormLabel with Label */}
+          <Select value={selectedPageKey} onValueChange={setSelectedPageKey} name="page-select" >
             <SelectTrigger className="w-full md:w-[300px]">
               <SelectValue placeholder="Select a page" />
             </SelectTrigger>
@@ -108,7 +115,7 @@ export default function AdminSitePagesContentPage() {
               ))}
             </SelectContent>
           </Select>
-        </FormItem>
+        </div>
 
         {isLoading ? (
           <div className="flex justify-center items-center py-10">
@@ -122,8 +129,8 @@ export default function AdminSitePagesContentPage() {
                 control={form.control}
                 name="content"
                 render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Content for {selectedPageName}</FormLabel>
+                  <RHFFormItem> {/* Using RHFFormItem here, which is fine as it's inside <Form> */}
+                    <RHFFormLabel>Content for {selectedPageName}</RHFFormLabel>
                     <FormControl>
                       <Textarea
                         {...field}
@@ -133,7 +140,7 @@ export default function AdminSitePagesContentPage() {
                       />
                     </FormControl>
                     <FormMessage />
-                  </FormItem>
+                  </RHFFormItem>
                 )}
               />
               <Button type="submit" disabled={isSaving || isLoading} size="lg">
