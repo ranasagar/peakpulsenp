@@ -7,14 +7,14 @@ import type { Product, FilterOption } from '@/types';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { SlidersHorizontal, ChevronDown, ListFilter, Loader2 } from 'lucide-react';
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'; // Added SheetHeader, SheetTitle
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
-import MainLayout from '@/components/layout/main-layout'; // Import MainLayout
+import MainLayout from '@/components/layout/main-layout';
 
 const PRODUCTS_PER_PAGE = 6;
 
@@ -92,11 +92,17 @@ export default function ProductsPage() {
         const response = await fetch('/api/products');
         if (!response.ok) {
           let errorDetail = 'Failed to fetch products';
-          try {
+           try {
             const errorData = await response.json();
-            errorDetail = errorData.message || errorData.error || errorDetail;
+            if (errorData.rawSupabaseError && errorData.rawSupabaseError.message) {
+                 errorDetail = `Database error: ${errorData.rawSupabaseError.message}${errorData.rawSupabaseError.hint ? ` Hint: ${errorData.rawSupabaseError.hint}` : ''}`;
+            } else if (errorData.message) {
+                errorDetail = errorData.message;
+            } else {
+                 errorDetail = `${response.status}: ${response.statusText || errorDetail}`;
+            }
           } catch (e) {
-            // Failed to parse JSON, use status text or default
+            // If response is not JSON or error parsing, use statusText
             errorDetail = `${response.status}: ${response.statusText || errorDetail}`;
           }
           throw new Error(errorDetail);
@@ -166,6 +172,9 @@ export default function ProductsPage() {
                 </Button>
               </SheetTrigger>
               <SheetContent side="left" className="w-full max-w-xs p-0">
+                <SheetHeader className="p-4 border-b"> {/* Added SheetHeader */}
+                  <SheetTitle className="sr-only">Product Filters</SheetTitle> {/* Added sr-only SheetTitle */}
+                </SheetHeader>
                 <FilterSidebarContent filters={mockFilters} />
               </SheetContent>
             </Sheet>
