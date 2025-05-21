@@ -45,19 +45,18 @@ const AccordionContent = React.forwardRef<
   React.ElementRef<typeof AccordionPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof AccordionPrimitive.Content>
 >(({ className, children, dangerouslySetInnerHTML, ...props }, ref) => {
-  // Base classes for the AccordionPrimitive.Content component
   const basePrimitiveClassName = "overflow-hidden text-sm transition-all data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down";
 
-  if (dangerouslySetInnerHTML !== undefined) {
-    // If dangerouslySetInnerHTML is provided, use it.
-    // Children prop should not be passed to AccordionPrimitive.Content in this case.
-    // Apply padding and any custom classNames directly to the Content primitive.
+  if (dangerouslySetInnerHTML) {
+    // If dangerouslySetInnerHTML is provided, pass only it, ref, and necessary structural classes.
+    // Do not spread ...props here to avoid passing an implicit children prop.
     return (
       <AccordionPrimitive.Content
         ref={ref}
-        className={cn(basePrimitiveClassName, "pb-4 pt-0", className)}
+        className={cn(basePrimitiveClassName, "pb-4 pt-0", className)} // Apply padding here
         dangerouslySetInnerHTML={dangerouslySetInnerHTML}
-        {...props} // Spread other props, ensuring 'children' is not among them
+        // Only include other essential props from AccordionPrimitive.Content if needed,
+        // but avoid anything that could conflict with dangerouslySetInnerHTML.
       />
     );
   }
@@ -67,8 +66,8 @@ const AccordionContent = React.forwardRef<
   return (
     <AccordionPrimitive.Content
       ref={ref}
-      className={basePrimitiveClassName} // Only base structural/animation classes here
-      {...props} // Spread other props
+      className={basePrimitiveClassName}
+      {...props} // Spread other props, which will include children if passed.
     >
       <div className={cn("pb-4 pt-0", className)}>{children}</div>
     </AccordionPrimitive.Content>
