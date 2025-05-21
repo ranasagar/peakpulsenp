@@ -4,7 +4,7 @@
  * @fileOverview AI flow for loan financial forecasting and advisory for Peak Pulse.
  */
 
-import { ai } from '@/ai/genkit'; // Ensure alias is used here
+import { ai } from '@/ai/genkit'; 
 import { z } from 'genkit';
 import { format, addMonths, differenceInMonths, parseISO, isValid } from 'date-fns';
 
@@ -30,7 +30,7 @@ const LoanForecastingPromptInputSchema = LoanAnalysisMainInputSchema.extend({
 type LoanForecastingPromptInput = z.infer<typeof LoanForecastingPromptInputSchema>;
 
 
-const LoanFinancialForecastingOutputSchema = z.object({ // Not exported
+const LoanFinancialForecastingOutputSchema = z.object({ 
   estimated_next_payment_date: z.string().optional().describe('Estimated next payment date if the loan is active.'),
   estimated_monthly_payment_npr: z.number().optional().describe('Roughly estimated monthly payment in NPR.'),
   financial_outlook_summary: z.string().describe('A brief summary of the financial outlook regarding this loan.'),
@@ -65,8 +65,6 @@ function getNextPaymentDate(startDateStr: string, termMonths: number, status: st
     return "Term likely ended"; 
   }
   
-  // If all payments seem to be in the past but term hasn't strictly ended according to months diff,
-  // suggest next month from today as a practical next payment.
   if (nextPaymentDateCandidate < today && differenceInMonths(today, startDate) < termMonths) {
       return format(addMonths(today,1), 'yyyy-MM-dd');
   }
@@ -78,7 +76,7 @@ function getNextPaymentDate(startDateStr: string, termMonths: number, status: st
 const loanForecastingPrompt = ai.definePrompt({
   name: 'loanFinancialForecastingPrompt',
   input: { schema: LoanForecastingPromptInputSchema },
-  output: { schema: LoanFinancialForecastingOutputSchema }, // Uses the schema internally
+  output: { schema: LoanFinancialForecastingOutputSchema }, 
   prompt: `You are an expert financial advisor for "Peak Pulse", a Nepali clothing brand.
 Analyze the following loan details and provide insights. Today's date is {{{current_date_for_context}}}.
 
@@ -111,14 +109,13 @@ Output ONLY the JSON object as specified by the output schema. Ensure amounts ar
 });
 
 
-const loanFinancialForecastingFlow = ai.defineFlow( // Not exported
+const loanFinancialForecastingFlow = ai.defineFlow( 
   {
     name: 'loanFinancialForecastingFlow',
-    inputSchema: LoanAnalysisMainInputSchema, // User provides this
+    inputSchema: LoanAnalysisMainInputSchema, 
     outputSchema: LoanFinancialForecastingOutputSchema,
   },
   async (input) => {
-    // Pre-calculate values
     const calculatedNextPaymentDate = getNextPaymentDate(input.start_date, input.loan_term_months, input.status);
     let calculatedMonthlyPaymentNPR: number | undefined = undefined;
     if (input.status.toLowerCase() === 'active') {
@@ -141,11 +138,10 @@ const loanFinancialForecastingFlow = ai.defineFlow( // Not exported
         throw new Error('AI failed to provide loan financial analysis.');
     }
     
-    // Ensure numeric fields are numbers if AI returns them as strings in JSON
     if (output.estimated_monthly_payment_npr && typeof output.estimated_monthly_payment_npr === 'string') {
         output.estimated_monthly_payment_npr = parseFloat(output.estimated_monthly_payment_npr);
         if (isNaN(output.estimated_monthly_payment_npr)) {
-            output.estimated_monthly_payment_npr = undefined; // Or handle error
+            output.estimated_monthly_payment_npr = undefined; 
         }
     }
 
@@ -153,7 +149,6 @@ const loanFinancialForecastingFlow = ai.defineFlow( // Not exported
   }
 );
 
-// Exported function to be called by Server Actions or other server-side code
 export async function loanFinancialForecasting(
   input: LoanFinancialForecastingInput
 ): Promise<LoanFinancialForecastingOutput> {
