@@ -44,37 +44,34 @@ AccordionTrigger.displayName = AccordionPrimitive.Trigger.displayName
 const AccordionContent = React.forwardRef<
   React.ElementRef<typeof AccordionPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof AccordionPrimitive.Content>
->(({ className, children, dangerouslySetInnerHTML, ...props }, ref) => {
+>(({ className, children, dangerouslySetInnerHTML, ...otherProps }, ref) => {
   const basePrimitiveClassName = "overflow-hidden text-sm transition-all data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down";
 
   if (dangerouslySetInnerHTML) {
-    // Explicitly remove 'children' from the props that will be spread
-    // to ensure AccordionPrimitive.Content doesn't see it when DSIHTML is used.
-    const { children: _removedChildren, ...restWithoutChildren } = props;
-    
+    // When dangerouslySetInnerHTML is used, do NOT pass the children prop.
+    // otherProps will contain all props except className, children, and dangerouslySetInnerHTML.
     return (
       <AccordionPrimitive.Content
         ref={ref}
-        className={cn(basePrimitiveClassName, "pb-4 pt-0", className)} // Apply padding here for DSIHTML content
+        className={cn(basePrimitiveClassName, "pb-4 pt-0", className)} // Apply padding directly for DSIHTML
         dangerouslySetInnerHTML={dangerouslySetInnerHTML}
-        {...restWithoutChildren} // Spread props that definitively do not include 'children'
+        {...otherProps} // Spread only the remaining otherProps
       />
     );
   }
 
-  // Default behavior: render children inside a div, and spread all original props
-  // (which will include 'children' but not 'dangerouslySetInnerHTML' in this path)
+  // When children are used (and no dangerouslySetInnerHTML)
   return (
     <AccordionPrimitive.Content
       ref={ref}
-      className={cn(basePrimitiveClassName, className)} // Apply className to the primitive itself
-      {...props} // Spread original props
+      className={cn(basePrimitiveClassName, className)} // className is applied to the primitive
+      {...otherProps} // Spread otherProps (which includes children in this path)
     >
-      {/* This div handles padding for children and ensures children are nested */}
+      {/* Inner div for padding when using children */}
       <div className="pb-4 pt-0">{children}</div>
     </AccordionPrimitive.Content>
   );
 });
-AccordionContent.displayName = AccordionPrimitive.Content.displayName
+AccordionContent.displayName = AccordionPrimitive.Content.displayName;
 
 export { Accordion, AccordionItem, AccordionTrigger, AccordionContent }
