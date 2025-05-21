@@ -1,8 +1,40 @@
 
+"use client";
+
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { PersonStanding, Eye, Ear, MousePointerClick } from 'lucide-react'; // Using PersonStanding as a generic accessibility icon
+import { PersonStanding, Eye, Ear, MousePointerClick, Loader2 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import type { PageContent } from '@/types';
+
+const PAGE_KEY = 'accessibilityPageContent';
 
 export default function AccessibilityPage() {
+  const [pageContent, setPageContent] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    const fetchContent = async () => {
+      setIsLoading(true);
+      try {
+        const response = await fetch(`/api/content/page/${PAGE_KEY}`);
+        if (!response.ok) {
+           const errorData: PageContent = await response.json().catch(() => ({ content: `Failed to load content. Status: ${response.status}`}));
+          throw new Error(errorData.error || errorData.content || `Failed to fetch content for ${PAGE_KEY}`);
+        }
+        const data: PageContent = await response.json();
+        setPageContent(data.content);
+      } catch (error) {
+        toast({ title: "Error Loading Content", description: (error as Error).message, variant: "destructive" });
+        setPageContent("<p>Error: Could not load the Accessibility Statement at this time. Please try again later or contact support.</p>");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchContent();
+  }, [toast]);
+
   return (
     <div className="container-slim section-padding">
       <div className="text-center mb-16">
@@ -18,42 +50,17 @@ export default function AccessibilityPage() {
       <Card className="shadow-xl">
         <CardHeader>
           <CardTitle className="text-2xl">Our Commitment</CardTitle>
-          <CardDescription>We strive to make our website accessible and usable for all our customers.</CardDescription>
         </CardHeader>
         <CardContent className="prose dark:prose-invert max-w-none text-foreground space-y-4">
-          <p>Peak Pulse believes in providing an inclusive online experience. We aim to adhere to the Web Content Accessibility Guidelines (WCAG) 2.1 level AA as our standard. These guidelines explain how to make web content more accessible for people with a wide array of disabilities.</p>
-
-          <h3>Measures Taken</h3>
-          <p>We have taken the following measures to ensure accessibility of Peak Pulse&apos;s website:</p>
-          <ul>
-            <li><strong>Semantic HTML:</strong> We use semantically correct HTML to ensure that content is structured logically and can be easily interpreted by assistive technologies.</li>
-            <li><strong>Keyboard Navigation:</strong> Our website is designed to be navigable using a keyboard, ensuring users who cannot use a mouse can still access all content and functionality.</li>
-            <li><strong>Alternative Text for Images:</strong> We provide descriptive alternative text for all meaningful images to ensure that users who are visually impaired can understand the content conveyed by images.</li>
-            <li><strong>Readable Text:</strong> We strive to use clear, legible fonts and maintain sufficient color contrast between text and its background.</li>
-            <li><strong>Accessible Forms:</strong> Our forms are designed with clear labels and instructions, and support assistive technologies for completion.</li>
-            <li><strong>Responsive Design:</strong> Our website is responsive and adapts to different screen sizes, improving usability on various devices.</li>
-          </ul>
-
-          <h3>Ongoing Efforts</h3>
-          <p>Accessibility is an ongoing effort at Peak Pulse. We regularly review our website and make improvements to enhance accessibility. This includes:</p>
-          <ul>
-            <li>Conducting accessibility audits and testing.</li>
-            <li>Training our team on accessibility best practices.</li>
-            <li>Staying updated with the latest accessibility standards and guidelines.</li>
-          </ul>
-          
-          <h3>Feedback</h3>
-          <p>We welcome your feedback on the accessibility of Peak Pulse. If you encounter any accessibility barriers or have suggestions on how we can improve, please let us know:</p>
-          <ul>
-            <li><strong>Email:</strong> <a href="mailto:accessibility@peakpulse.com" className="text-primary hover:underline">accessibility@peakpulse.com</a></li>
-            <li><strong>Contact Form:</strong> Via our <a href="/contact" className="text-primary hover:underline">Contact Page</a></li>
-          </ul>
-          <p>We aim to respond to accessibility feedback within 5 business days.</p>
-
-          <h3>Compatibility with Browsers and Assistive Technology</h3>
-          <p>Peak Pulse is designed to be compatible with modern browsers and assistive technologies. We recommend using the latest versions of your browser and assistive technology for the best experience.</p>
-
-          <p>This statement was last updated on {new Date().toLocaleDateString()}.</p>
+          {isLoading ? (
+            <div className="flex justify-center items-center py-20">
+              <Loader2 className="h-12 w-12 animate-spin text-primary" />
+            </div>
+          ) : pageContent ? (
+            <div dangerouslySetInnerHTML={{ __html: pageContent }} />
+          ) : (
+             <p>Accessibility Statement content is not yet available. Please configure this in the admin panel.</p>
+          )}
         </CardContent>
       </Card>
 
@@ -77,5 +84,3 @@ export default function AccessibilityPage() {
     </div>
   );
 }
-
-    

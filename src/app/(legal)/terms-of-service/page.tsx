@@ -1,8 +1,40 @@
 
+"use client";
+
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { FileText } from 'lucide-react';
+import { FileText, Loader2 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import type { PageContent } from '@/types';
+
+const PAGE_KEY = 'termsOfServicePageContent'; // Key used in Supabase site_configurations
 
 export default function TermsOfServicePage() {
+  const [pageContent, setPageContent] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    const fetchContent = async () => {
+      setIsLoading(true);
+      try {
+        const response = await fetch(`/api/content/page/${PAGE_KEY}`);
+        if (!response.ok) {
+          const errorData: PageContent = await response.json().catch(() => ({ content: `Failed to load content. Status: ${response.status}`}));
+          throw new Error(errorData.error || errorData.content || `Failed to fetch content for ${PAGE_KEY}`);
+        }
+        const data: PageContent = await response.json();
+        setPageContent(data.content);
+      } catch (error) {
+        toast({ title: "Error Loading Content", description: (error as Error).message, variant: "destructive" });
+        setPageContent("<p>Error: Could not load the Terms of Service at this time. Please try again later or contact support if the issue persists.</p>");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchContent();
+  }, [toast]);
+
   return (
     <Card className="shadow-xl">
       <CardHeader>
@@ -12,45 +44,15 @@ export default function TermsOfServicePage() {
         </div>
       </CardHeader>
       <CardContent className="prose prose-lg dark:prose-invert max-w-none text-foreground">
-        <p className="text-muted-foreground">Last updated: {new Date().toLocaleDateString()}</p>
-
-        <h2>1. Agreement to Terms</h2>
-        <p>By using our website and services, you agree to be bound by these Terms of Service. If you do not agree to these terms, please do not use our services.</p>
-
-        <h2>2. Use of Our Services</h2>
-        <p>You may use our services only as permitted by law. We may suspend or stop providing our services to you if you do not comply with our terms or policies or if we are investigating suspected misconduct.</p>
-        <p>You must be at least 18 years old to create an account and use our services. You are responsible for safeguarding your account and for any activities or actions under your account.</p>
-
-        <h2>3. Products and Orders</h2>
-        <p>All purchases through our site or other transactions for the sale of goods formed through the website are governed by our terms of sale, which are hereby incorporated into these Terms of Service.</p>
-        <p>We reserve the right to refuse or cancel any order for any reason, including limitations on quantities available for purchase, inaccuracies, or errors in product or pricing information, or problems identified by our credit and fraud avoidance department.</p>
-
-        <h2>4. Intellectual Property</h2>
-        <p>The service and its original content (excluding content provided by users), features, and functionality are and will remain the exclusive property of Peak Pulse and its licensors. Our trademarks and trade dress may not be used in connection with any product or service without the prior written consent of Peak Pulse.</p>
-
-        <h2>5. User Content</h2>
-        <p>You may be able to submit content, including reviews, comments, and photos. You retain ownership of any intellectual property rights that you hold in that content. When you upload, submit, store, send or receive content to or through our services, you give Peak Pulse a worldwide license to use, host, store, reproduce, modify, create derivative works, communicate, publish, publicly perform, publicly display and distribute such content.</p>
-        
-        <h2>6. Prohibited Uses</h2>
-        <p>You may use the website only for lawful purposes and in accordance with these Terms. You agree not to use the website:</p>
-        <ul>
-            <li>In any way that violates any applicable national or international law or regulation.</li>
-            <li>For the purpose of exploiting, harming, or attempting to exploit or harm minors in any way.</li>
-            <li>To transmit, or procure the sending of, any advertising or promotional material, including any "junk mail," "chain letter," "spam," or any other similar solicitation.</li>
-            <li>To impersonate or attempt to impersonate Peak Pulse, a Peak Pulse employee, another user, or any other person or entity.</li>
-        </ul>
-
-        <h2>7. Limitation of Liability</h2>
-        <p>In no event shall Peak Pulse, nor its directors, employees, partners, agents, suppliers, or affiliates, be liable for any indirect, incidental, special, consequential or punitive damages, including without limitation, loss of profits, data, use, goodwill, or other intangible losses, resulting from your access to or use of or inability to access or use the service.</p>
-
-        <h2>8. Governing Law</h2>
-        <p>These Terms shall be governed and construed in accordance with the laws of Nepal, without regard to its conflict of law provisions.</p>
-
-        <h2>9. Changes to Terms</h2>
-        <p>We reserve the right, at our sole discretion, to modify or replace these Terms at any time. If a revision is material we will provide at least 30 days' notice prior to any new terms taking effect.</p>
-
-        <h2>10. Contact Us</h2>
-        <p>If you have any questions about these Terms, please contact us at [contact@peakpulse.com].</p>
+        {isLoading ? (
+          <div className="flex justify-center items-center py-20">
+            <Loader2 className="h-12 w-12 animate-spin text-primary" />
+          </div>
+        ) : pageContent ? (
+          <div dangerouslySetInnerHTML={{ __html: pageContent }} />
+        ) : (
+          <p>No terms of service content available. Please configure this in the admin panel.</p>
+        )}
       </CardContent>
     </Card>
   );

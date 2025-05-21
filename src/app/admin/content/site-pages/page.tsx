@@ -26,8 +26,8 @@ const manageablePages = [
   { key: 'shippingReturnsPageContent', name: 'Shipping & Returns Policy' },
   { key: 'accessibilityPageContent', name: 'Accessibility Statement' },
   // Add other pages here as they become manageable
-  // e.g. { key: 'sustainabilityPageContent', name: 'Sustainability Page' },
-  //      { key: 'careersPageContent', name: 'Careers Page' },
+  // e.g. { key: 'sustainabilityPageContent', name: 'Sustainability Page' }, // Already a separate page
+  //      { key: 'careersPageContent', name: 'Careers Page' }, // Already a separate page
 ];
 
 export default function AdminSitePagesContentPage() {
@@ -48,14 +48,14 @@ export default function AdminSitePagesContentPage() {
       try {
         const response = await fetch(`/api/admin/content/page/${selectedPageKey}`);
         if (!response.ok) {
-          const errorData = await response.json().catch(() => ({ message: "Failed to fetch page content and parse error" }));
+          const errorData = await response.json().catch(() => ({ message: `Failed to fetch content for ${selectedPageKey}. Status: ${response.status}` }));
           throw new Error(errorData.message || `Failed to fetch content for ${selectedPageKey}`);
         }
         const data: PageContent = await response.json();
-        form.reset({ content: data.content || '' });
+        form.reset({ content: data.content || `<!-- Default content for ${selectedPageKey}. Please edit. -->` });
       } catch (error) {
         toast({ title: "Error Loading Content", description: (error as Error).message, variant: "destructive" });
-        form.reset({ content: `Error loading content for ${selectedPageKey}.` });
+        form.reset({ content: `Error loading content for ${selectedPageKey}. Please try again or set initial content.` });
       } finally {
         setIsLoading(false);
       }
@@ -76,7 +76,7 @@ export default function AdminSitePagesContentPage() {
         body: JSON.stringify({ content: data.content }),
       });
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: "Failed to save page content and parse error" }));
+        const errorData = await response.json().catch(() => ({ message: `Failed to save content for ${selectedPageKey}. Status: ${response.status}` }));
         throw new Error(errorData.message || `Failed to save content for ${selectedPageKey}`);
       }
       toast({ title: "Content Saved!", description: `${manageablePages.find(p=>p.key === selectedPageKey)?.name || selectedPageKey} content has been updated.` });
@@ -127,9 +127,9 @@ export default function AdminSitePagesContentPage() {
                     <FormControl>
                       <Textarea
                         {...field}
-                        rows={20}
+                        rows={25}
                         placeholder={`Enter content for ${selectedPageName} here. You can use HTML for formatting.`}
-                        className="font-mono text-sm"
+                        className="font-mono text-sm leading-relaxed"
                       />
                     </FormControl>
                     <FormMessage />
