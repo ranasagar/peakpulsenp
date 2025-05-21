@@ -19,13 +19,14 @@ import { Icons } from '@/components/icons';
 import { useAuth } from '@/hooks/use-auth';
 import { cn } from '@/lib/utils';
 import type { NavItem } from '@/types';
-import { ShoppingCart, Search, LogOut, UserCircle, LayoutDashboard, Settings, Star, ShoppingBag, Briefcase } from 'lucide-react';
+import { ShoppingCart, Search, LogOut, UserCircle, LayoutDashboard, Settings, Star, ShoppingBag, Briefcase, LayoutGrid } from 'lucide-react';
 import { ModeToggle } from './mode-toggle';
 import { useCart } from '@/context/cart-context';
 
 const mainNavItems: NavItem[] = [
   { title: 'Home', href: '/' },
   { title: 'Shop', href: '/products' },
+  { title: 'Categories', href: '/categories', icon: LayoutGrid },
   { title: 'Our Story', href: '/our-story' },
   { title: 'Contact', href: '/contact' },
 ];
@@ -49,17 +50,18 @@ export function Header() {
 
   const navLinks = mainNavItems.map((item) => {
     const isVipLink = item.href === '/vip-collection';
-    if (isVipLink && !isAuthenticated) return null;
+    if (isVipLink && !isAuthenticated) return null; // This logic remains, though vip-collection isn't in mainNavItems
     return (
       <Link
         key={item.href}
         href={item.href}
         className={cn(
-          "text-sm font-medium transition-colors hover:text-primary header-link-pulse", // Added header-link-pulse
+          "flex items-center text-sm font-medium transition-colors hover:text-primary header-link-pulse",
           pathname === item.href ? "text-primary" : "text-foreground/80"
         )}
         onClick={() => setIsMobileMenuOpen(false)}
       >
+        {item.icon && <item.icon className="mr-2 h-4 w-4 md:hidden lg:inline-block" />}
         {item.title}
       </Link>
     );
@@ -97,7 +99,7 @@ export function Header() {
         {/* Mobile Menu Trigger */}
         <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
           <SheetTrigger asChild>
-            <Button variant="ghost" size="icon" className="md:hidden mr-4">
+            <Button variant="ghost" size="icon" className="md:hidden mr-2">
               <Icons.AnimatedMenuIcon className="h-16 w-16" />
               <span className="sr-only">Toggle Menu</span>
             </Button>
@@ -120,7 +122,7 @@ export function Header() {
                       <Link
                         key={item.href}
                         href={item.href}
-                        className="flex items-center py-2 text-sm font-medium text-foreground/80 hover:text-primary header-link-pulse" // Added header-link-pulse
+                        className="flex items-center py-2 text-sm font-medium text-foreground/80 hover:text-primary header-link-pulse"
                         onClick={() => setIsMobileMenuOpen(false)}
                       >
                         {item.icon && <item.icon className="mr-2 h-4 w-4" />}
@@ -130,7 +132,7 @@ export function Header() {
                     {user?.roles?.includes('affiliate') && (
                       <Link
                         href="/affiliate-portal"
-                        className="flex items-center py-2 text-sm font-medium text-foreground/80 hover:text-primary header-link-pulse" // Added header-link-pulse
+                        className="flex items-center py-2 text-sm font-medium text-foreground/80 hover:text-primary header-link-pulse"
                         onClick={() => setIsMobileMenuOpen(false)}
                       >
                          <Briefcase className="mr-2 h-4 w-4" />
@@ -153,7 +155,7 @@ export function Header() {
         </Sheet>
 
         {/* Desktop Logo */}
-        <Link href="/" className="mr-8 flex items-center space-x-2">
+        <Link href="/" className="mr-6 lg:mr-8 flex items-center space-x-2">
           <Icons.Logo className="h-8 w-8 text-primary" />
           <span className="hidden lg:inline-block font-semibold text-xl text-foreground">
             Peak Pulse
@@ -161,11 +163,11 @@ export function Header() {
         </Link>
 
         {/* Desktop Navigation */}
-        <nav className="hidden md:flex items-center space-x-6 text-sm font-medium">
+        <nav className="hidden md:flex items-center space-x-4 lg:space-x-6 text-sm font-medium">
           {navLinks}
         </nav>
 
-        <div className="flex flex-1 items-center justify-end space-x-3">
+        <div className="flex flex-1 items-center justify-end space-x-2 md:space-x-3">
           <Button variant="ghost" size="icon" className="hidden md:inline-flex">
             <Search className="h-5 w-5" />
             <span className="sr-only">Search</span>
