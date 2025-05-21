@@ -44,31 +44,33 @@ AccordionTrigger.displayName = AccordionPrimitive.Trigger.displayName
 const AccordionContent = React.forwardRef<
   React.ElementRef<typeof AccordionPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof AccordionPrimitive.Content>
->(({ className, children, ...props }, ref) => {
-  const hasDangerousHtml = props.dangerouslySetInnerHTML !== undefined;
+>(({ className, children, ...otherProps }, ref) => { // Changed 'props' to 'otherProps'
+  // Explicitly pull out dangerouslySetInnerHTML to avoid spreading it if children are also present
+  const { dangerouslySetInnerHTML, ...restProps } = otherProps;
 
-  if (hasDangerousHtml) {
-    // If dangerouslySetInnerHTML is used, apply padding and user classes directly to AccordionPrimitive.Content
-    // and do not render the inner div or children prop.
+  if (dangerouslySetInnerHTML !== undefined) {
+    // If dangerouslySetInnerHTML is used, pass it and restProps.
+    // Do NOT pass the 'children' prop that was destructured from AccordionContent's signature.
     return (
       <AccordionPrimitive.Content
         ref={ref}
         className={cn(
           "overflow-hidden text-sm transition-all data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down",
           "pb-4 pt-0", // Default padding for content area
-          className     // User-provided classNames
+          className
         )}
-        {...props} // This will pass dangerouslySetInnerHTML
+        dangerouslySetInnerHTML={dangerouslySetInnerHTML}
+        {...restProps} // Spread remaining props (excluding dangerouslySetInnerHTML and children)
       />
     );
   }
 
-  // Default behavior: wrap children in a div with padding and user classes.
+  // Default behavior: pass children and restProps
   return (
     <AccordionPrimitive.Content
       ref={ref}
       className="overflow-hidden text-sm transition-all data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down"
-      {...props} // Props here won't include dangerouslySetInnerHTML
+      {...restProps} // Spread remaining props (which won't include dangerouslySetInnerHTML here)
     >
       <div className={cn("pb-4 pt-0", className)}>{children}</div>
     </AccordionPrimitive.Content>
