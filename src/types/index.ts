@@ -191,8 +191,8 @@ export interface HeroSlide {
   id: string;
   title: string;
   description: string;
-  imageUrl?: string;
-  videoId?: string;
+  imageUrl?: string; // Optional: use if no videoId
+  videoId?: string;   // Optional: YouTube video ID
   altText?: string;
   dataAiHint?: string;
   ctaText?: string;
@@ -209,13 +209,14 @@ export interface SocialCommerceItem {
 
 export interface HomepageContent {
   heroSlides?: HeroSlide[];
-  heroVideoId?: string; 
-  heroImageUrl?: string; 
+  heroVideoId?: string; // Fallback if no slides, or default video for slides without one
+  heroImageUrl?: string; // Fallback if no videoId on slides or standalone hero
   artisanalRoots?: {
     title: string;
     description: string;
   };
   socialCommerceItems?: SocialCommerceItem[];
+  error?: string; // For API error handling on client
 }
 
 export interface OurStoryContentData {
@@ -268,7 +269,7 @@ export interface SiteSettings {
   storeEmail: string;
   storePhone?: string;
   storeAddress?: string;
-  socialLinks?: SocialLink[];
+  socialLinks?: SocialLink[]; // Managed via FooterContent now
 }
 
 export interface BreadcrumbItem {
@@ -326,8 +327,26 @@ export interface FooterContentData {
   navigationSections?: FooterNavSection[];
 }
 
-// Generic Page Content Type
+// Generic Page Content Type (for Privacy, Terms, etc.)
 export interface PageContent {
-  content: string; // Can store HTML or Markdown
-  error?: string; // For API error handling
+  content: string; 
+  error?: string; 
+}
+
+// Filter types for products page
+export interface FilterOptionValue {
+  value: string;
+  label: string;
+  color?: string; // For color swatches
+}
+
+export interface FilterOption {
+  id: string;
+  label: string;
+  type: 'checkbox' | 'radio' | 'range' | 'color';
+  options?: FilterOptionValue[];
+  // For range type
+  min?: number;
+  max?: number;
+  step?: number;
 }
