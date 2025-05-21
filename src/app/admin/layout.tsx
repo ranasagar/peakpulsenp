@@ -7,7 +7,7 @@ import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
 import { Button } from '@/components/ui/button';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { ScrollArea } from '@/components/ui/scroll-area'; // Added for scrollable sidebar
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 export default function AdminLayout({
   children,
@@ -29,9 +29,9 @@ export default function AdminLayout({
             </Button>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 items-start"> {/* Added items-start */}
-            <aside className="md:col-span-1 sticky top-28"> {/* Increased top spacing for sticky header */}
-              <ScrollArea className="h-[calc(100vh_-_8rem_-_2rem)] bg-card p-4 rounded-lg shadow-sm"> {/* Adjusted height, added padding and scroll */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 items-start">
+            <aside className="md:col-span-1 sticky top-28">
+              <ScrollArea className="md:h-[calc(100vh_-_8rem_-_2rem)] bg-card p-4 rounded-lg shadow-sm">
                 <nav className="space-y-1">
                   <Button variant="ghost" className="w-full justify-start" asChild>
                     <Link href="/admin">
@@ -46,7 +46,7 @@ export default function AdminLayout({
                           <ShoppingBag className="mr-2 h-4 w-4" /> Store Management
                         </div>
                       </AccordionTrigger>
-                      <AccordionContent className="pt-1 pl-4 space-y-0.5"> {/* Added space-y-0.5 */}
+                      <AccordionContent className="pt-1 pl-4 space-y-0.5">
                         <Button variant="ghost" className="w-full justify-start text-sm font-normal h-9" asChild>
                             <Link href="/admin/products">Manage Products</Link>
                           </Button>
@@ -111,7 +111,7 @@ export default function AdminLayout({
                 </nav>
               </ScrollArea>
             </aside>
-            <div className="md:col-span-3">
+            <div className="md:col-start-2 md:col-span-3">
               {children}
             </div>
           </div>
