@@ -69,11 +69,11 @@ export async function GET(request: NextRequest) {
 
     console.log(`[API /api/user-posts GET] Successfully fetched ${posts.length} approved posts.`);
     return NextResponse.json(posts);
-  } catch (error) {
-    console.error('[API /api/user-posts GET] Unhandled error fetching approved posts:', error);
+  } catch (e) {
+    console.error('[API /api/user-posts GET] Unhandled error in GET handler:', e);
     return NextResponse.json({
-      message: 'Error fetching approved posts',
-      rawSupabaseError: { message: (error as Error).message || 'An unexpected server error occurred.' }
+      message: 'Server error while fetching user posts.',
+      error: (e as Error).message
     }, { status: 500 });
   }
 }
@@ -104,7 +104,7 @@ export async function POST(request: NextRequest) {
     }
 
     const newPostData = {
-      user_id: userId, // This should be a string (Firebase UID) and user_id column in Supabase should be TEXT
+      user_id: userId, 
       image_url: imageUrl,
       caption: caption || null,
       product_tags: productTags && productTags.length > 0 ? productTags : null,
@@ -134,11 +134,12 @@ export async function POST(request: NextRequest) {
 
     console.log('[API /api/user-posts POST] User post created successfully:', data);
     return NextResponse.json(data, { status: 201 });
-  } catch (error) {
-    console.error('[API /api/user-posts POST] Unhandled error creating user post:', error);
+  } catch (e) {
+    console.error('[API /api/user-posts POST] Unhandled error creating user post:', e);
     return NextResponse.json({
-      message: 'Error creating user post',
-      rawSupabaseError: { message: (error as Error).message || 'An unexpected server error occurred.' }
+      message: 'Server error while creating user post.',
+      error: (e as Error).message
     }, { status: 500 });
   }
 }
+
