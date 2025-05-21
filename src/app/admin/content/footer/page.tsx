@@ -7,7 +7,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-// import { Textarea } from '@/components/ui/textarea'; // Not used for copyright
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
@@ -39,7 +38,13 @@ const defaultNavSection: FooterNavSection = { id: `section-new-${Date.now()}`, l
 
 const defaultFooterData: FooterContentData = {
   copyrightText: `© ${new Date().getFullYear()} Peak Pulse. All rights reserved.`,
-  navigationSections: [{...defaultNavSection}]
+  navigationSections: [
+    { 
+      id: "company-default", 
+      label: "Company", 
+      items: [{ id: "os-fb", name: "Our Story", href: "/our-story" }] 
+    },
+  ]
 };
 
 export default function AdminFooterContentPage() {
@@ -49,19 +54,49 @@ export default function AdminFooterContentPage() {
 
   const form = useForm<FooterContentFormValues>({
     resolver: zodResolver(footerContentSchema),
-    defaultValues: defaultFooterData,
+    defaultValues: async () => {
+      setIsLoading(true);
+      try {
+        const response = await fetch('/api/admin/content/footer');
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          console.warn("Failed to fetch current footer settings, using defaults.", errorData.message || response.statusText);
+          return defaultFooterData;
+        }
+        const data = await response.json();
+        
+        const mappedData = {
+          copyrightText: data.copyrightText || defaultFooterData.copyrightText,
+          navigationSections: (data.navigationSections && data.navigationSections.length > 0 
+            ? data.navigationSections.map((section: any, sIdx: number) => ({ 
+                ...section, 
+                id: section.id || `section-${sIdx}-${Date.now()}`,
+                items: (section.items || []).map((item: any, iIdx: number) => ({...item, id: item.id || `item-${sIdx}-${iIdx}-${Date.now()}`}))
+              })) 
+            : defaultFooterData.navigationSections),
+        };
+        return mappedData;
+      } catch (error) {
+        console.error("Error fetching settings, using defaults:", error);
+        return defaultFooterData;
+      } finally {
+        setIsLoading(false);
+      }
+    }
   });
-
+  
   const { fields: navSectionsFields, append: appendNavSection, remove: removeNavSection } = useFieldArray({
     control: form.control,
     name: "navigationSections",
   });
 
+  // Effect to reset form once defaultValues promise resolves, which is handled by react-hook-form's defaultValues async support.
+  // This specific useEffect might not be necessary if the initial data load is solely handled by defaultValues.
   useEffect(() => {
     const fetchContent = async () => {
       setIsLoading(true);
       try {
-        const response = await fetch('/api/admin/content/footer'); // Use admin API
+        const response = await fetch('/api/admin/content/footer'); 
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}));
           throw new Error(errorData.message || 'Failed to fetch footer content');
@@ -70,36 +105,38 @@ export default function AdminFooterContentPage() {
         form.reset({
           copyrightText: data.copyrightText || defaultFooterData.copyrightText,
           navigationSections: (data.navigationSections && data.navigationSections.length > 0 
-            ? data.navigationSections.map(section => ({
-                ...section,
-                id: section.id || `section-${Date.now()}-${Math.random()}`,
-                items: (section.items || []).map(item => ({ ...item, id: item.id || `item-${Date.now()}-${Math.random()}`})) 
-              }))
+            ? data.navigationSections.map((section, sIdx) => ({ 
+                ...section, 
+                id: section.id || `section-loaded-${sIdx}-${Date.now()}`,
+                items: (section.items || []).map((item, iIdx) => ({...item, id: item.id || `item-loaded-${sIdx}-${iIdx}-${Date.now()}`})) 
+              })) 
             : defaultFooterData.navigationSections),
         });
       } catch (error) {
         toast({ title: "Error Loading Content", description: (error as Error).message, variant: "destructive" });
-        form.reset(defaultFooterData); // Reset to hardcoded defaults on error
+        form.reset(defaultFooterData); 
       } finally {
         setIsLoading(false);
       }
     };
-    fetchContent();
+    // Call fetchContent if react-hook-form's async defaultValues doesn't cover initial state or if you want to refresh.
+    // For now, relying on async defaultValues might be cleaner. If issues persist, uncomment fetchContent().
+    // fetchContent(); 
   }, [form, toast]);
+
 
   const onSubmit = async (data: FooterContentFormValues) => {
     setIsSaving(true);
     try {
       const payload = {
         ...data,
-        // Ensure IDs are strings for items and sections if they were just generated client-side
         navigationSections: data.navigationSections?.map(section => ({
           ...section,
           id: String(section.id || `section-submit-${Date.now()}`),
           items: section.items?.map(item => ({ ...item, id: String(item.id || `item-submit-${Date.now()}`) })) || [],
         })) || []
       };
-      const response = await fetch('/api/admin/content/footer', { // Use admin API
+      const response = await fetch('/api/admin/content/footer', { 
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -116,7 +153,7 @@ export default function AdminFooterContentPage() {
     }
   };
 
-  if (isLoading) {
+  if (isLoading && !form.formState.isDirty && !form.formState.isSubmitted) { // Adjusted loading condition
     return (
       <Card className="shadow-lg">
         <CardHeader><CardTitle className="text-2xl flex items-center"><ListChecks className="mr-3 h-6 w-6 text-primary"/>Edit Footer Content</CardTitle></CardHeader>
@@ -156,7 +193,8 @@ export default function AdminFooterContentPage() {
                     control={form.control}
                     sectionIndex={sectionIndex}
                     removeNavSection={() => removeNavSection(sectionIndex)}
-                    canRemove={navSectionsFields.length > 0} // Allow removing if at least one section exists
+                    canRemoveSection={navSectionsFields.length > 0} 
+                    totalNavSections={navSectionsFields.length}
                   />
                 ))}
                 </div>
@@ -186,10 +224,11 @@ interface NavSectionControlProps {
   control: any; 
   sectionIndex: number;
   removeNavSection: () => void;
-  canRemove: boolean;
+  canRemoveSection: boolean;
+  totalNavSections: number;
 }
 
-function NavSectionControl({ control, sectionIndex, removeNavSection, canRemove }: NavSectionControlProps) {
+function NavSectionControl({ control, sectionIndex, removeNavSection, canRemoveSection, totalNavSections }: NavSectionControlProps) {
   const { fields, append, remove } = useFieldArray({
     control,
     name: `navigationSections.${sectionIndex}.items`,
@@ -209,7 +248,7 @@ function NavSectionControl({ control, sectionIndex, removeNavSection, canRemove 
             </FormItem>
           )}
         />
-        {canRemove && (
+        {canRemoveSection && (
             <Button type="button" variant="ghost" size="icon" onClick={removeNavSection} className="text-destructive hover:bg-destructive/10 mt-6">
                 <Trash2 className="h-4 w-4" />
             </Button>
@@ -243,7 +282,13 @@ function NavSectionControl({ control, sectionIndex, removeNavSection, canRemove 
                 )}
                 />
             </div>
-            <Button type="button" variant="destructive" size="xs" onClick={() => remove(itemIndex)} disabled={fields.length <= 1 && sectionIndex === 0 && navSectionsFields.length <=1}> {/* Prevent removing the very last item of the very last section */}
+            <Button 
+              type="button" 
+              variant="destructive" 
+              size="xs" 
+              onClick={() => remove(itemIndex)} 
+              disabled={fields.length <= 1 && sectionIndex === 0 && totalNavSections <= 1}
+            >
                 <Trash2 className="mr-1 h-3 w-3" /> Remove Link
             </Button>
           </Card>
@@ -255,7 +300,3 @@ function NavSectionControl({ control, sectionIndex, removeNavSection, canRemove 
     </Card>
   );
 }
-
-// Helper access to navSectionsFields from parent form - not directly needed here
-// This declaration is usually to satisfy TypeScript if used, but not needed for this component's logic directly
-declare const navSectionsFields: any[];
