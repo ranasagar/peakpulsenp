@@ -1,22 +1,17 @@
+
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
 # Dependencies
 /node_modules
 /.pnp
 .pnp.js
-yarn.lock
-package-lock.json
-pnpm-lock.yaml
 
 # Testing
 /coverage
 
-# Next.js build output
+# Next.js
 /.next/
 /out/
-
-# Minified files
-# /dist/
 
 # Production
 /build
@@ -24,55 +19,57 @@ pnpm-lock.yaml
 # Misc
 .DS_Store
 *.pem
-*.log
+
+# Node
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
-# Environment Variables - VERY IMPORTANT: Ensure these are NOT committed
+# Editor directories and files
+.idea
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.sublime-workspace
+
+# Environment variables
 .env
 .env*.local
-.env.development.local
-.env.test.local
-.env.production.local
-!.env.example
-!.env.example.local
+.env*.development*.local
+.env*.test*.local
+.env*.production*.local
 
-# IDE / Editor specific
-.vscode/
-.idea/
-*.sublime-project
-*.sublime-workspace
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.cache
-*.bak
-*.tmp
+# Drizzle
+# Used by Drizzle for Drizzle schema generation
+# drizzle/*
+# Used by Drizzle for storing metadata about the database for migrations
+# .drizzle/
 
-# Turbopack
-.turbo/
+# Supabase
+# supabase/
+
+# Log files
+*.log
+logs
+*.log.*
+
+# Local data files (if any, ensure sensitive ones are not committed)
+# src/data/orders.json # Example if you decide it's too sensitive for Git history
+# src/data/users.json # Example
 
 # Firebase
-.firebase/
 firebase-debug.log
 firebase-debug.*.log
-# If you use Firebase emulators, you might want to ignore their data
-# /firestore.rules
-# /database.rules.json
-# /storage.rules
+# If you use Firebase emulators, you might want to ignore emulator data
+# .firebase/emulators/
+# firebase.json should usually be committed if it defines rules/indexes/hosting
+# firebase-service-account-key.json # NEVER COMMIT SERVICE ACCOUNT KEYS
 
-# TypeScript cache
-*.tsbuildinfo
+#vercel
+.vercel
 
-# Operating System Files
-Thumbs.db
-ehthumbs.db
-Desktop.ini
-
-# Optional: Large media files if not using Git LFS
-# *.mp4
-# *.mov
-# *.psd
+# turbo
+.turbo
