@@ -30,7 +30,7 @@ const LoanForecastingPromptInputSchema = LoanAnalysisMainInputSchema.extend({
 type LoanForecastingPromptInput = z.infer<typeof LoanForecastingPromptInputSchema>;
 
 
-export const LoanFinancialForecastingOutputSchema = z.object({
+const LoanFinancialForecastingOutputSchema = z.object({ // Not exported
   estimated_next_payment_date: z.string().optional().describe('Estimated next payment date if the loan is active.'),
   estimated_monthly_payment_npr: z.number().optional().describe('Roughly estimated monthly payment in NPR.'),
   financial_outlook_summary: z.string().describe('A brief summary of the financial outlook regarding this loan.'),
@@ -78,7 +78,7 @@ function getNextPaymentDate(startDateStr: string, termMonths: number, status: st
 const loanForecastingPrompt = ai.definePrompt({
   name: 'loanFinancialForecastingPrompt',
   input: { schema: LoanForecastingPromptInputSchema },
-  output: { schema: LoanFinancialForecastingOutputSchema },
+  output: { schema: LoanFinancialForecastingOutputSchema }, // Uses the schema internally
   prompt: `You are an expert financial advisor for "Peak Pulse", a Nepali clothing brand.
 Analyze the following loan details and provide insights. Today's date is {{{current_date_for_context}}}.
 
@@ -111,7 +111,7 @@ Output ONLY the JSON object as specified by the output schema. Ensure amounts ar
 });
 
 
-export const loanFinancialForecastingFlow = ai.defineFlow(
+const loanFinancialForecastingFlow = ai.defineFlow( // Not exported
   {
     name: 'loanFinancialForecastingFlow',
     inputSchema: LoanAnalysisMainInputSchema, // User provides this
