@@ -10,14 +10,13 @@ export interface User {
   wishlist?: string[]; // Array of product IDs
 }
 
-// Updated Category interface
-export interface AdminCategory { // Renamed to AdminCategory to avoid conflict if a simpler Category type is used elsewhere
+export interface AdminCategory {
   id: string; // uuid from Supabase
   name: string;
   slug: string;
   description?: string;
-  imageUrl?: string; // URL of the image (admin will paste this)
-  aiImagePrompt?: string; // Prompt for AI image generation
+  imageUrl?: string;
+  aiImagePrompt?: string;
   createdAt?: string; // ISO string
   updatedAt?: string; // ISO string
 }
@@ -73,19 +72,19 @@ export interface Product {
   description: string;
   shortDescription?: string;
   price: number;
-  compareAtPrice?: number; // For sales
-  costPrice?: number; // Cost of goods for the product (if no variants, or a general cost)
+  compareAtPrice?: number | null;
+  costPrice?: number | null;
   images: ProductImage[];
-  variants?: ProductVariant[]; // If product has variants like size/color
-  categories: Pick<AdminCategory, 'id' | 'name' | 'slug'>[]; // Product can be in multiple categories
+  variants?: ProductVariant[];
+  categories: Pick<AdminCategory, 'id' | 'name' | 'slug'>[];
   collections?: Pick<Collection, 'id' | 'name' | 'slug'>[];
   tags?: string[];
   fabricDetails?: string;
   careInstructions?: string;
   sustainabilityMetrics?: string;
   fitGuide?: string;
-  sku?: string; // Base SKU if no variants
-  stock?: number; // Base stock if no variants, or sum of variant stocks
+  sku?: string;
+  stock?: number | null;
   averageRating?: number;
   reviewCount?: number;
   isFeatured?: boolean;
@@ -108,12 +107,12 @@ export interface CartItemCustomization {
 }
 
 export interface CartItem {
-  id: string; // Unique ID for this cart line item (e.g., productId-variantId-timestampIfCustomized)
+  id: string;
   productId: string;
   variantId?: string;
   name: string;
-  price: number; // Price at the time of adding to cart
-  costPrice?: number; // Cost price at the time of adding to cart
+  price: number;
+  costPrice?: number;
   quantity: number;
   imageUrl?: string;
   dataAiHint?: string;
@@ -123,7 +122,7 @@ export interface CartItem {
 export interface OrderAddress {
   street: string;
   city: string;
-  state?: string; // For countries that use states
+  state?: string;
   postalCode: string;
   country: string;
   fullName: string;
@@ -139,30 +138,30 @@ export type PaymentStatus = typeof ALL_PAYMENT_STATUSES[number];
 
 
 export interface Order {
-  id: string; // UUID from Supabase
-  userId: string; // Firebase UID
-  items: CartItem[]; // Stored as JSONB in Supabase
+  id: string;
+  userId: string;
+  items: CartItem[];
   totalAmount: number;
-  currency: string; // e.g., "NPR"
+  currency: string;
   status: OrderStatus;
-  shippingAddress: OrderAddress; // Stored as JSONB
+  shippingAddress: OrderAddress;
   paymentMethod?: string;
   paymentStatus: PaymentStatus;
   shippingMethod?: string;
   trackingNumber?: string;
-  createdAt: string; // ISO string
-  updatedAt: string; // ISO string
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface Loan {
-  id: string; // uuid from Supabase
+  id: string;
   loan_name: string;
   lender_name: string;
   principal_amount: number;
-  interest_rate: number; // Percentage e.g. 5 for 5%
+  interest_rate: number;
   loan_term_months: number;
   start_date: string; // YYYY-MM-DD
-  status: string; // 'Active', 'Paid Off', 'Defaulted'
+  status: string;
   notes?: string;
   created_at?: string;
   updated_at?: string;
@@ -188,27 +187,87 @@ export interface ChatMessage {
   timestamp: number;
 }
 
-export interface StoryContentBlock {
-  type: 'text' | 'image' | 'video' | 'quote';
-  content: string;
-  caption?: string;
-}
-
-export interface StoryPage {
-  title: string;
-  slug: string;
-  heroImage?: string;
-  blocks: StoryContentBlock[];
-}
-
-export interface FilterOption {
+export interface HeroSlide {
   id: string;
-  label: string;
-  type: 'checkbox' | 'radio' | 'range' | 'color';
-  options?: { value: string; label: string; color?: string }[];
-  min?: number;
-  max?: number;
-  step?: number;
+  title: string;
+  description: string;
+  imageUrl?: string;
+  videoId?: string;
+  altText?: string;
+  dataAiHint?: string;
+  ctaText?: string;
+  ctaLink?: string;
+}
+
+export interface SocialCommerceItem {
+  id: string;
+  imageUrl: string;
+  linkUrl: string;
+  altText?: string;
+  dataAiHint?: string;
+}
+
+export interface HomepageContent {
+  heroSlides?: HeroSlide[];
+  heroVideoId?: string; // For standalone hero video
+  heroImageUrl?: string; // For standalone hero image or fallback
+  artisanalRoots?: {
+    title: string;
+    description: string;
+  };
+  socialCommerceItems?: SocialCommerceItem[];
+}
+
+export interface OurStoryContentData {
+  hero: {
+    title: string;
+    description: string;
+  };
+  mission: {
+    title: string;
+    paragraph1: string;
+    paragraph2: string;
+  };
+  craftsmanship: {
+    title: string;
+    paragraph1: string;
+    paragraph2: string;
+  };
+  valuesSection: {
+    title: string;
+  };
+  joinJourneySection: {
+    title: string;
+    description: string;
+  };
+}
+
+export interface UserPost {
+  id: string;
+  user_id: string;
+  user_name?: string;
+  user_avatar_url?: string;
+  image_url: string;
+  caption?: string;
+  product_tags?: string[];
+  status: 'pending' | 'approved' | 'rejected';
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SocialLink {
+  id?: string; // Optional for client-side keying
+  platform: string;
+  url: string;
+}
+
+export interface SiteSettings {
+  siteTitle: string;
+  siteDescription: string;
+  storeEmail: string;
+  storePhone?: string;
+  storeAddress?: string;
+  socialLinks?: SocialLink[];
 }
 
 export interface BreadcrumbItem {
@@ -244,73 +303,24 @@ export interface Review {
   comment: string;
   images?: ReviewImage[];
   verifiedPurchase?: boolean;
-  createdAt: string; // ISO string
-  updatedAt?: string; // ISO string
+  createdAt: string;
+  updatedAt?: string;
 }
 
-export interface HeroSlide {
-  id: string;
-  title: string;
-  description: string;
-  imageUrl?: string;
-  videoId?: string; // YouTube video ID
-  altText?: string;
-  dataAiHint?: string;
-  ctaText?: string;
-  ctaLink?: string;
+// Footer Content Types
+export interface FooterNavItem {
+  id: string; // For react key
+  name: string;
+  href: string;
 }
 
-export interface SocialCommerceItem {
-  id: string;
-  imageUrl: string;
-  linkUrl: string;
-  altText?: string;
-  dataAiHint?: string;
+export interface FooterNavSection {
+  id: string; // For react key
+  label: string;
+  items: FooterNavItem[];
 }
 
-export interface HomepageContentData {
-  heroSlides?: HeroSlide[];
-  artisanalRoots?: {
-    title: string;
-    description: string;
-  };
-  socialCommerceItems?: SocialCommerceItem[];
-}
-
-export interface OurStoryContentData {
-  hero: {
-    title: string;
-    description: string;
-  };
-  mission: {
-    title: string;
-    paragraph1: string;
-    paragraph2: string;
-  };
-  craftsmanship: {
-    title: string;
-    paragraph1: string;
-    paragraph2: string;
-  };
-  valuesSection: {
-    title: string;
-  };
-  joinJourneySection: {
-    title: string;
-    description: string;
-  };
-}
-
-// For user posts
-export interface UserPost {
-  id: string; // uuid from Supabase
-  user_id: string; // Firebase UID, links to User.id
-  user_name?: string; // Denormalized for easier display
-  user_avatar_url?: string; // Denormalized
-  image_url: string;
-  caption?: string;
-  product_tags?: string[]; // Array of product names/slugs
-  status: 'pending' | 'approved' | 'rejected';
-  created_at: string; // ISO string
-  updated_at: string; // ISO string
+export interface FooterContentData {
+  copyrightText?: string;
+  navigationSections?: FooterNavSection[];
 }

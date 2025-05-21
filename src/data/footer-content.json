@@ -1,0 +1,32 @@
+
+{
+  "copyrightText": "© {currentYear} Peak Pulse. All rights reserved. Handcrafted in Nepal.",
+  "navigationSections": [
+    {
+      "id": "company",
+      "label": "Company",
+      "items": [
+        { "id": "our-story", "name": "Our Story", "href": "/our-story" },
+        { "id": "sustainability", "name": "Sustainability", "href": "/sustainability" },
+        { "id": "careers", "name": "Careers", "href": "/careers" }
+      ]
+    },
+    {
+      "id": "support",
+      "label": "Support",
+      "items": [
+        { "id": "contact-us", "name": "Contact Us", "href": "/contact" },
+        { "id": "shipping-returns", "name": "Shipping & Returns", "href": "/shipping-returns" }
+      ]
+    },
+    {
+      "id": "legal",
+      "label": "Legal",
+      "items": [
+        { "id": "privacy-policy", "name": "Privacy Policy", "href": "/privacy-policy" },
+        { "id": "terms-of-service", "name": "Terms of Service", "href": "/terms-of-service" },
+        { "id": "accessibility", "name": "Accessibility", "href": "/accessibility" }
+      ]
+    }
+  ]
+}

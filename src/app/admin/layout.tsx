@@ -1,8 +1,8 @@
 
-"use client"; // Add "use client" if not already present, as Accordion needs it.
+"use client"; 
 
 import Link from 'next/link';
-import { Shield, LayoutDashboard, Settings, ArrowLeft, BookOpenText, ShoppingBag, BarChart3, ListOrdered, Landmark, Tags, Users } from 'lucide-react';
+import { Shield, LayoutDashboard, Settings, ArrowLeft, BookOpenText, ShoppingBag, BarChart3, ListOrdered, Landmark, Tags, Users, ListChecks } from 'lucide-react';
 import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
 import { Button } from '@/components/ui/button';
@@ -80,6 +80,11 @@ export default function AdminLayout({
                            Our Story Content
                         </Link>
                       </Button>
+                       <Button variant="ghost" className="w-full justify-start text-sm font-normal h-9" asChild>
+                        <Link href="/admin/content/footer">
+                           <ListChecks className="mr-2 h-4 w-4" /> Footer Content
+                        </Link>
+                      </Button>
                     </AccordionContent>
                   </AccordionItem>
 
@@ -110,7 +115,7 @@ export default function AdminLayout({
                   </Link>
                 </Button>
                 <Button variant="ghost" className="w-full justify-start" asChild>
-                  <Link href="/admin/settings"> {/* Ensured this link is correct */}
+                  <Link href="/admin/settings">
                     <Settings className="mr-2 h-4 w-4" /> General Settings
                   </Link>
                 </Button>
