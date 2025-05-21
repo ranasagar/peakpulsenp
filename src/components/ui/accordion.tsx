@@ -44,39 +44,36 @@ AccordionTrigger.displayName = AccordionPrimitive.Trigger.displayName
 const AccordionContent = React.forwardRef<
   React.ElementRef<typeof AccordionPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof AccordionPrimitive.Content>
->(({ className, children, ...otherProps }, ref) => { // Changed 'props' to 'otherProps'
-  // Explicitly pull out dangerouslySetInnerHTML to avoid spreading it if children are also present
-  const { dangerouslySetInnerHTML, ...restProps } = otherProps;
+>(({ className, children, dangerouslySetInnerHTML, ...props }, ref) => {
+  // Base classes for the AccordionPrimitive.Content component
+  const basePrimitiveClassName = "overflow-hidden text-sm transition-all data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down";
 
   if (dangerouslySetInnerHTML !== undefined) {
-    // If dangerouslySetInnerHTML is used, pass it and restProps.
-    // Do NOT pass the 'children' prop that was destructured from AccordionContent's signature.
+    // If dangerouslySetInnerHTML is provided, use it.
+    // Children prop should not be passed to AccordionPrimitive.Content in this case.
+    // Apply padding and any custom classNames directly to the Content primitive.
     return (
       <AccordionPrimitive.Content
         ref={ref}
-        className={cn(
-          "overflow-hidden text-sm transition-all data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down",
-          "pb-4 pt-0", // Default padding for content area
-          className
-        )}
+        className={cn(basePrimitiveClassName, "pb-4 pt-0", className)}
         dangerouslySetInnerHTML={dangerouslySetInnerHTML}
-        {...restProps} // Spread remaining props (excluding dangerouslySetInnerHTML and children)
+        {...props} // Spread other props, ensuring 'children' is not among them
       />
     );
   }
 
-  // Default behavior: pass children and restProps
+  // If dangerouslySetInnerHTML is not provided, use children.
+  // Wrap children in a div for standard padding and styling.
   return (
     <AccordionPrimitive.Content
       ref={ref}
-      className="overflow-hidden text-sm transition-all data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down"
-      {...restProps} // Spread remaining props (which won't include dangerouslySetInnerHTML here)
+      className={basePrimitiveClassName} // Only base structural/animation classes here
+      {...props} // Spread other props
     >
       <div className={cn("pb-4 pt-0", className)}>{children}</div>
     </AccordionPrimitive.Content>
   );
 })
-
 AccordionContent.displayName = AccordionPrimitive.Content.displayName
 
 export { Accordion, AccordionItem, AccordionTrigger, AccordionContent }
