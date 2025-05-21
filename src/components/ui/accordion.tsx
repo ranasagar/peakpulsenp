@@ -43,35 +43,35 @@ AccordionTrigger.displayName = AccordionPrimitive.Trigger.displayName
 
 const AccordionContent = React.forwardRef<
   React.ElementRef<typeof AccordionPrimitive.Content>,
+  // Explicitly type the props our component accepts
   React.ComponentPropsWithoutRef<typeof AccordionPrimitive.Content>
->(({ className, children, dangerouslySetInnerHTML, ...props }, ref) => {
+>(({ className, children, dangerouslySetInnerHTML, ...otherProps }, ref) => {
   const basePrimitiveClassName = "overflow-hidden text-sm transition-all data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down";
 
   if (dangerouslySetInnerHTML) {
-    // Explicitly pass only relevant props when dangerouslySetInnerHTML is used
-    // Exclude 'children' from being passed through ...props
-    const { children: _children, ...restProps } = props;
+    // If dangerouslySetInnerHTML is provided, pass it and otherProps (which excludes children).
+    // Apply padding directly to the primitive in this case.
     return (
       <AccordionPrimitive.Content
         ref={ref}
-        className={cn(basePrimitiveClassName, "pb-4 pt-0", className)}
+        className={cn(basePrimitiveClassName, "pb-4 pt-0", className)} // Apply padding here
         dangerouslySetInnerHTML={dangerouslySetInnerHTML}
-        {...restProps} // Spread only the rest, ensuring 'children' is not included
+        {...otherProps} // Spread only the remaining props, ensuring `children` is not included
       />
     );
   }
 
-  // Default behavior: wrap children in a div
+  // Default behavior: pass children to the inner div, and otherProps to the primitive.
   return (
     <AccordionPrimitive.Content
       ref={ref}
       className={basePrimitiveClassName}
-      {...props} // Pass all props, including children
+      {...otherProps} // Spread only the remaining props, ensuring `dangerouslySetInnerHTML` is not included
     >
       <div className={cn("pb-4 pt-0", className)}>{children}</div>
     </AccordionPrimitive.Content>
   );
-})
+});
 AccordionContent.displayName = AccordionPrimitive.Content.displayName
 
 export { Accordion, AccordionItem, AccordionTrigger, AccordionContent }
