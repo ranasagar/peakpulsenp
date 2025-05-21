@@ -9,7 +9,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Star, Plus, Minus, ShoppingCart, ShieldCheck, Package, Zap, Loader2, Paintbrush, Edit2, Info, Heart as HeartIcon } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Label } from "@/components/ui/label";
+import { Label } from "@/components/ui/label"; // Corrected from FormLabel
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import type { Product, ProductImage, BreadcrumbItem, ProductVariant, CartItemCustomization, PrintDesign, Review } from '@/types';
 import { useToast } from '@/hooks/use-toast';
@@ -23,7 +23,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RatingStars } from '@/components/ui/rating-stars';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
-import { Form, FormControl, FormField, FormItem as RHFFormItem, FormMessage } from "@/components/ui/form";
+import { Form, FormControl, FormField, FormItem as RHFFormItem, FormMessage } from "@/components/ui/form"; // Renamed FormItem to RHFFormItem
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
@@ -81,11 +81,11 @@ export default function ProductDetailPage({ params: paramsPromise }: { params: P
             errorMsg = `Error ${response.status}: ${response.statusText}. Failed to parse error response.`;
           }
         }
-        console.error("[ProductDetail] Error from API:", errorMsg);
+        // console.error("[ProductDetail] Error from API:", errorMsg); // Removed this line
         setError(errorMsg);
         setProduct(null);
         setIsLoading(false); // Stop loading
-        return; // Exit early, error state will handle UI
+        return; // Exit early, the UI will re-render based on the 'error' state
       }
       const currentProduct: Product = await response.json();
 
@@ -106,11 +106,10 @@ export default function ProductDetailPage({ params: paramsPromise }: { params: P
           }
         }
       } else {
-        // This case might be redundant if API always returns 404 or product
         setError(`Product with slug '${resolvedParams.slug}' not found or data is invalid.`);
         setProduct(null);
       }
-    } catch (err) { // This catch block handles network errors or if response.json() fails
+    } catch (err) { 
       console.error("[ProductDetail] Network or JSON parsing error fetching product data:", err);
       setError((err as Error).message || "Could not load product data due to a network or parsing issue.");
       setProduct(null);
@@ -126,14 +125,13 @@ export default function ProductDetailPage({ params: paramsPromise }: { params: P
   const fetchRelatedProducts = useCallback(async () => {
       if (!product || !product.categories || product.categories.length === 0) return;
       try {
-          // For now, fetch all products and filter. Could be optimized with a dedicated API.
           const allProductsResponse = await fetch('/api/products'); 
           if (allProductsResponse.ok) {
               const allProducts: Product[] = await allProductsResponse.json();
               const related = allProducts.filter(
                   p => p.id !== product.id &&
                   product.categories.some(ccat => p.categories.map(pcat => pcat.slug).includes(ccat.slug))
-              ).slice(0, 4); // Show up to 4 related products
+              ).slice(0, 4); 
               setRelatedProducts(related);
           } else {
               console.warn("[ProductDetail] Failed to fetch all products for related items.");
@@ -161,12 +159,12 @@ export default function ProductDetailPage({ params: paramsPromise }: { params: P
   const selectedVariant = product?.variants?.find(v => v.id === selectedVariantId);
   const displayPrice = selectedVariant?.price ?? product?.price ?? 0;
   const displayCompareAtPrice = selectedVariant?.costPrice !== undefined 
-    ? undefined  // If variant has costPrice, assume it's specific and don't show base compareAtPrice
+    ? undefined 
     : product?.compareAtPrice;
 
   const isOutOfStock = useMemo(() => {
     if (selectedVariant) return selectedVariant.stock <= 0;
-    if (product?.variants && product.variants.length > 0 && !selectedVariant) return true; // Must select a variant if variants exist
+    if (product?.variants && product.variants.length > 0 && !selectedVariant) return true; 
     return (product?.stock !== undefined && product.stock <= 0 && (!product?.variants || product.variants.length === 0));
   }, [product, selectedVariant]);
 
@@ -619,19 +617,19 @@ export default function ProductDetailPage({ params: paramsPromise }: { params: P
                     ))}
                   </div>
                 </div>
-                <FormFieldItem>
+                <RHFFormItem>
                   <Label htmlFor="reviewTitle">Review Title (Optional)</Label>
                   <Input id="reviewTitle" value={reviewTitle} onChange={e => setReviewTitle(e.target.value)} placeholder="e.g., Amazing Quality!"/>
-                </FormFieldItem>
-                <FormFieldItem>
+                </RHFFormItem>
+                <RHFFormItem>
                   <Label htmlFor="reviewComment">Your Comment*</Label>
                   <Textarea id="reviewComment" value={reviewComment} onChange={e => setReviewComment(e.target.value)} placeholder="Tell us more about your experience..." rows={4} required minLength={10}/>
-                </FormFieldItem>
-                <FormFieldItem>
+                </RHFFormItem>
+                <RHFFormItem>
                     <Label htmlFor="reviewImages">Add Photos (Optional - UI Only)</Label>
                     <Input id="reviewImages" type="file" multiple disabled className="cursor-not-allowed opacity-70"/>
                     <p className="text-xs text-muted-foreground mt-1">Image upload functionality is not yet implemented.</p>
-                </FormFieldItem>
+                </RHFFormItem>
                 <Button type="submit" disabled={isSubmittingReview}>
                   {isSubmittingReview && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
                   Submit Review
@@ -661,3 +659,4 @@ export default function ProductDetailPage({ params: paramsPromise }: { params: P
 
 // FormFieldItem is a simple wrapper, ensure it doesn't cause context issues
 const FormFieldItem = ({ children }: { children: React.ReactNode }) => <div className="space-y-1.5">{children}</div>;
+
