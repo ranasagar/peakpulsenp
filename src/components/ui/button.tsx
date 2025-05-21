@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from "react"
@@ -11,15 +12,15 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground hover:bg-primary/90 hover:shadow-md hover:scale-[1.02]",
+        default: "bg-primary text-primary-foreground hover:bg-primary/90 hover:shadow-md hover:scale-[1.03] active:scale-[0.98] active:brightness-90",
         destructive:
-          "bg-destructive text-destructive-foreground hover:bg-destructive/90 hover:shadow-md hover:scale-[1.02]",
+          "bg-destructive text-destructive-foreground hover:bg-destructive/90 hover:shadow-md hover:scale-[1.03] active:scale-[0.98] active:brightness-90",
         outline:
-          "border border-input bg-background hover:bg-accent hover:text-accent-foreground hover:shadow-sm hover:scale-[1.02]",
+          "border border-input bg-background hover:bg-accent hover:text-accent-foreground hover:shadow-sm hover:scale-[1.03] active:scale-[0.98] active:bg-accent/80",
         secondary:
-          "bg-secondary text-secondary-foreground hover:bg-secondary/80 hover:shadow-sm hover:scale-[1.02]",
-        ghost: "hover:bg-accent hover:text-accent-foreground hover:scale-[1.02]",
-        link: "text-primary underline-offset-4 hover:underline",
+          "bg-secondary text-secondary-foreground hover:bg-secondary/80 hover:shadow-sm hover:scale-[1.03] active:scale-[0.98] active:bg-secondary/60",
+        ghost: "hover:bg-accent hover:text-accent-foreground hover:scale-[1.03] active:scale-[0.98] active:bg-accent/80",
+        link: "text-primary underline-offset-4 hover:underline hover:text-primary/80 active:text-primary/70",
       },
       size: {
         default: "h-10 px-4 py-2",
