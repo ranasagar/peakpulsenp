@@ -11,47 +11,33 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Save } from 'lucide-react';
-
-interface OurStoryContentData {
-  hero: {
-    title: string;
-    description: string;
-  };
-  mission: {
-    title: string;
-    paragraph1: string;
-    paragraph2: string;
-  };
-  craftsmanship: {
-    title: string;
-    paragraph1: string;
-    paragraph2: string;
-  };
-  valuesSection: {
-    title: string;
-  };
-  joinJourneySection: {
-    title: string;
-    description: string;
-  };
-}
+import { Loader2, Save, BookOpenText } from 'lucide-react'; // Changed icon
+import type { OurStoryContentData } from '@/types';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 const ourStoryContentSchema = z.object({
-  heroTitle: z.string().min(5, "Hero title must be at least 5 characters."),
-  heroDescription: z.string().min(10, "Hero description must be at least 10 characters."),
-  missionTitle: z.string().min(5, "Mission title must be at least 5 characters."),
-  missionParagraph1: z.string().min(10, "Mission paragraph 1 must be at least 10 characters."),
-  missionParagraph2: z.string().min(10, "Mission paragraph 2 must be at least 10 characters."),
-  craftsmanshipTitle: z.string().min(5, "Craftsmanship title must be at least 5 characters."),
-  craftsmanshipParagraph1: z.string().min(10, "Craftsmanship paragraph 1 must be at least 10 characters."),
-  craftsmanshipParagraph2: z.string().min(10, "Craftsmanship paragraph 2 must be at least 10 characters."),
-  valuesSectionTitle: z.string().min(5, "Values section title must be at least 5 characters."),
-  joinJourneySectionTitle: z.string().min(5, "Join Journey section title must be at least 5 characters."),
-  joinJourneySectionDescription: z.string().min(10, "Join Journey section description must be at least 10 characters."),
+  heroTitle: z.string().min(5, "Hero title must be at least 5 characters.").optional().or(z.literal('')),
+  heroDescription: z.string().min(10, "Hero description must be at least 10 characters.").optional().or(z.literal('')),
+  missionTitle: z.string().min(5, "Mission title must be at least 5 characters.").optional().or(z.literal('')),
+  missionParagraph1: z.string().min(10, "Mission paragraph 1 must be at least 10 characters.").optional().or(z.literal('')),
+  missionParagraph2: z.string().min(10, "Mission paragraph 2 must be at least 10 characters.").optional().or(z.literal('')),
+  craftsmanshipTitle: z.string().min(5, "Craftsmanship title must be at least 5 characters.").optional().or(z.literal('')),
+  craftsmanshipParagraph1: z.string().min(10, "Craftsmanship paragraph 1 must be at least 10 characters.").optional().or(z.literal('')),
+  craftsmanshipParagraph2: z.string().min(10, "Craftsmanship paragraph 2 must be at least 10 characters.").optional().or(z.literal('')),
+  valuesSectionTitle: z.string().min(5, "Values section title must be at least 5 characters.").optional().or(z.literal('')),
+  joinJourneySectionTitle: z.string().min(5, "Join Journey section title must be at least 5 characters.").optional().or(z.literal('')),
+  joinJourneySectionDescription: z.string().min(10, "Join Journey section description must be at least 10 characters.").optional().or(z.literal('')),
 });
 
 type OurStoryContentFormValues = z.infer<typeof ourStoryContentSchema>;
+
+const defaultOurStoryFormValues: OurStoryContentFormValues = {
+  heroTitle: 'Our Story', heroDescription: 'Weaving together heritage and vision.',
+  missionTitle: 'Our Mission', missionParagraph1: 'Elevating craftsmanship.', missionParagraph2: 'Connecting cultures.',
+  craftsmanshipTitle: 'The Art of Creation', craftsmanshipParagraph1: 'Honoring traditions.', craftsmanshipParagraph2: 'Sourcing quality.',
+  valuesSectionTitle: 'Our Values: Beyond the Seams',
+  joinJourneySectionTitle: 'Join Our Journey', joinJourneySectionDescription: 'Follow us for updates.',
+};
 
 export default function AdminOurStoryContentPage() {
   const { toast } = useToast();
@@ -60,38 +46,36 @@ export default function AdminOurStoryContentPage() {
 
   const form = useForm<OurStoryContentFormValues>({
     resolver: zodResolver(ourStoryContentSchema),
-    defaultValues: {
-      heroTitle: '', heroDescription: '',
-      missionTitle: '', missionParagraph1: '', missionParagraph2: '',
-      craftsmanshipTitle: '', craftsmanshipParagraph1: '', craftsmanshipParagraph2: '',
-      valuesSectionTitle: '',
-      joinJourneySectionTitle: '', joinJourneySectionDescription: '',
-    },
+    defaultValues: defaultOurStoryFormValues,
   });
 
   useEffect(() => {
     const fetchContent = async () => {
       setIsLoading(true);
       try {
-        const response = await fetch('/api/content/our-story');
-        if (!response.ok) throw new Error('Failed to fetch Our Story content');
+        const response = await fetch('/api/admin/content/our-story'); // Fetches from Supabase
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.message || errorData.rawSupabaseError?.message || 'Failed to fetch Our Story content');
+        }
         const data: OurStoryContentData = await response.json();
         form.reset({
-          heroTitle: data.hero.title,
-          heroDescription: data.hero.description,
-          missionTitle: data.mission.title,
-          missionParagraph1: data.mission.paragraph1,
-          missionParagraph2: data.mission.paragraph2,
-          craftsmanshipTitle: data.craftsmanship.title,
-          craftsmanshipParagraph1: data.craftsmanship.paragraph1,
-          craftsmanshipParagraph2: data.craftsmanship.paragraph2,
-          valuesSectionTitle: data.valuesSection.title,
-          joinJourneySectionTitle: data.joinJourneySection.title,
-          joinJourneySectionDescription: data.joinJourneySection.description,
+          heroTitle: data.hero?.title || '',
+          heroDescription: data.hero?.description || '',
+          missionTitle: data.mission?.title || '',
+          missionParagraph1: data.mission?.paragraph1 || '',
+          missionParagraph2: data.mission?.paragraph2 || '',
+          craftsmanshipTitle: data.craftsmanship?.title || '',
+          craftsmanshipParagraph1: data.craftsmanship?.paragraph1 || '',
+          craftsmanshipParagraph2: data.craftsmanship?.paragraph2 || '',
+          valuesSectionTitle: data.valuesSection?.title || '',
+          joinJourneySectionTitle: data.joinJourneySection?.title || '',
+          joinJourneySectionDescription: data.joinJourneySection?.description || '',
         });
       } catch (error) {
-        console.error("Error fetching content:", error);
-        toast({ title: "Error", description: (error as Error).message || "Could not load content.", variant: "destructive" });
+        console.error("Error fetching Our Story content:", error);
+        toast({ title: "Error Loading Content", description: (error as Error).message + ". Displaying defaults.", variant: "destructive" });
+        form.reset(defaultOurStoryFormValues);
       } finally {
         setIsLoading(false);
       }
@@ -103,24 +87,24 @@ export default function AdminOurStoryContentPage() {
     setIsSaving(true);
     try {
       const payload: OurStoryContentData = {
-        hero: { title: data.heroTitle, description: data.heroDescription },
-        mission: { title: data.missionTitle, paragraph1: data.missionParagraph1, paragraph2: data.missionParagraph2 },
-        craftsmanship: { title: data.craftsmanshipTitle, paragraph1: data.craftsmanshipParagraph1, paragraph2: data.craftsmanshipParagraph2 },
-        valuesSection: { title: data.valuesSectionTitle },
-        joinJourneySection: { title: data.joinJourneySectionTitle, description: data.joinJourneySectionDescription },
+        hero: { title: data.heroTitle || '', description: data.heroDescription || '' },
+        mission: { title: data.missionTitle || '', paragraph1: data.missionParagraph1 || '', paragraph2: data.missionParagraph2 || '' },
+        craftsmanship: { title: data.craftsmanshipTitle || '', paragraph1: data.craftsmanshipParagraph1 || '', paragraph2: data.craftsmanshipParagraph2 || '' },
+        valuesSection: { title: data.valuesSectionTitle || '' },
+        joinJourneySection: { title: data.joinJourneySectionTitle || '', description: data.joinJourneySectionDescription || '' },
       };
-      const response = await fetch('/api/admin/content/our-story', {
+      const response = await fetch('/api/admin/content/our-story', { // POSTs to Supabase
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to save content');
+        throw new Error(errorData.message || errorData.rawSupabaseError?.message || 'Failed to save Our Story content');
       }
       toast({ title: "Content Saved!", description: "Our Story page content has been updated." });
     } catch (error) {
-      console.error("Error saving content:", error);
+      console.error("Error saving Our Story content:", error);
       toast({ title: "Save Failed", description: (error as Error).message, variant: "destructive" });
     } finally {
       setIsSaving(false);
@@ -130,7 +114,10 @@ export default function AdminOurStoryContentPage() {
   if (isLoading) {
     return (
       <Card className="shadow-lg">
-        <CardHeader><CardTitle>Loading Our Story Content...</CardTitle></CardHeader>
+        <CardHeader>
+          <CardTitle className="text-2xl flex items-center"><BookOpenText className="mr-3 h-6 w-6 text-primary"/>Edit Our Story Page Content</CardTitle>
+          <CardDescription>Loading content...</CardDescription>
+        </CardHeader>
         <CardContent className="flex justify-center items-center py-10"><Loader2 className="h-8 w-8 animate-spin text-primary" /></CardContent>
       </Card>
     );
@@ -139,48 +126,49 @@ export default function AdminOurStoryContentPage() {
   return (
     <Card className="shadow-lg">
       <CardHeader>
-        <CardTitle className="text-2xl">Edit Our Story Page Content</CardTitle>
-        <CardDescription>Modify the text content for various sections of the Our Story page.</CardDescription>
+        <CardTitle className="text-2xl flex items-center"><BookOpenText className="mr-3 h-6 w-6 text-primary"/>Edit Our Story Page Content</CardTitle>
+        <CardDescription>Modify text content for various sections. Data is saved to Supabase.</CardDescription>
       </CardHeader>
       <CardContent>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-            
-            <fieldset className="space-y-4 p-4 border rounded-md">
-              <legend className="text-lg font-semibold px-1">Hero Section</legend>
-              <FormField control={form.control} name="heroTitle" render={({ field }) => (
-                <FormItem><FormLabel>Title</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-              )} />
-              <FormField control={form.control} name="heroDescription" render={({ field }) => (
-                <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea {...field} rows={3} /></FormControl><FormMessage /></FormItem>
-              )} />
-            </fieldset>
+        <ScrollArea className="max-h-[75vh] pr-6">
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+              
+              <fieldset className="space-y-4 p-4 border rounded-md">
+                <legend className="text-lg font-semibold px-1">Hero Section</legend>
+                <FormField control={form.control} name="heroTitle" render={({ field }) => (
+                  <FormItem><FormLabel>Title</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="heroDescription" render={({ field }) => (
+                  <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea {...field} rows={3} /></FormControl><FormMessage /></FormItem>
+                )} />
+              </fieldset>
 
-            <fieldset className="space-y-4 p-4 border rounded-md">
-              <legend className="text-lg font-semibold px-1">Mission Section</legend>
-              <FormField control={form.control} name="missionTitle" render={({ field }) => (
-                <FormItem><FormLabel>Title</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-              )} />
-              <FormField control={form.control} name="missionParagraph1" render={({ field }) => (
-                <FormItem><FormLabel>Paragraph 1</FormLabel><FormControl><Textarea {...field} rows={4} /></FormControl><FormMessage /></FormItem>
-              )} />
-              <FormField control={form.control} name="missionParagraph2" render={({ field }) => (
-                <FormItem><FormLabel>Paragraph 2</FormLabel><FormControl><Textarea {...field} rows={4} /></FormControl><FormMessage /></FormItem>
-              )} />
-            </fieldset>
+              <fieldset className="space-y-4 p-4 border rounded-md">
+                <legend className="text-lg font-semibold px-1">Mission Section</legend>
+                <FormField control={form.control} name="missionTitle" render={({ field }) => (
+                  <FormItem><FormLabel>Title</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="missionParagraph1" render={({ field }) => (
+                  <FormItem><FormLabel>Paragraph 1</FormLabel><FormControl><Textarea {...field} rows={4} /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="missionParagraph2" render={({ field }) => (
+                  <FormItem><FormLabel>Paragraph 2</FormLabel><FormControl><Textarea {...field} rows={4} /></FormControl><FormMessage /></FormItem>
+                )} />
+              </fieldset>
 
-            <fieldset className="space-y-4 p-4 border rounded-md">
-              <legend className="text-lg font-semibold px-1">Craftsmanship Section</legend>
-              <FormField control={form.control} name="craftsmanshipTitle" render={({ field }) => (
-                <FormItem><FormLabel>Title</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-              )} />
-              <FormField control={form.control} name="craftsmanshipParagraph1" render={({ field }) => (
-                <FormItem><FormLabel>Paragraph 1</FormLabel><FormControl><Textarea {...field} rows={4} /></FormControl><FormMessage /></FormItem>
-              )} />
-              <FormField control={form.control} name="craftsmanshipParagraph2" render={({ field }) => (
-                <FormItem><FormLabel>Paragraph 2</FormLabel><FormControl><Textarea {...field} rows={4} /></FormControl><FormMessage /></FormItem>
-              )} />
-            </fieldset>
+              <fieldset className="space-y-4 p-4 border rounded-md">
+                <legend className="text-lg font-semibold px-1">Craftsmanship Section</legend>
+                <FormField control={form.control} name="craftsmanshipTitle" render={({ field }) => (
+                  <FormItem><FormLabel>Title</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="craftsmanshipParagraph1" render={({ field }) => (
+                  <FormItem><FormLabel>Paragraph 1</FormLabel><FormControl><Textarea {...field} rows={4} /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="craftsmanshipParagraph2" render={({ field }) => (
+                  <FormItem><FormLabel>Paragraph 2</FormLabel><FormControl><Textarea {...field} rows={4} /></FormControl><FormMessage /></FormItem>
+                )} />
+              </fieldset>
 
              <fieldset className="space-y-4 p-4 border rounded-md">
               <legend className="text-lg font-semibold px-1">Values Section</legend>
@@ -205,6 +193,7 @@ export default function AdminOurStoryContentPage() {
             </Button>
           </form>
         </Form>
+        </ScrollArea>
       </CardContent>
     </Card>
   );

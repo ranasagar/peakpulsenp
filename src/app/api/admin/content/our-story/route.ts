@@ -2,67 +2,86 @@
 // /src/app/api/admin/content/our-story/route.ts
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import fs from 'fs/promises';
-import path from 'path';
+import { supabase } from '../../../../../lib/supabaseClient.ts';
+import type { OurStoryContentData } from '@/types';
 
-interface OurStoryContentData {
-  hero: {
-    title: string;
-    description: string;
-  };
-  mission: {
-    title: string;
-    paragraph1: string;
-    paragraph2: string;
-  };
-  craftsmanship: {
-    title: string;
-    paragraph1: string;
-    paragraph2: string;
-  };
-  valuesSection: {
-    title: string;
-  };
-  joinJourneySection: {
-    title: string;
-    description: string;
-  };
-}
+const OUR_STORY_CONFIG_KEY = 'ourStoryContent';
 
-const filePath = path.join(process.cwd(), 'src', 'data', 'our-story-content.json');
+const defaultOurStoryContent: OurStoryContentData = {
+  hero: { title: "Our Story", description: "Weaving together heritage and vision." },
+  mission: { title: "Our Mission", paragraph1: "Elevating craftsmanship.", paragraph2: "Connecting cultures." },
+  craftsmanship: { title: "The Art of Creation", paragraph1: "Honoring traditions.", paragraph2: "Sourcing quality." },
+  valuesSection: { title: "Our Values: Beyond the Seams" },
+  joinJourneySection: { title: "Join Our Journey", description: "Follow us for updates." }
+};
 
-export async function POST(request: NextRequest) {
-  // IMPORTANT: In a real application, this endpoint MUST be protected
-  // to ensure only authenticated admins can modify content.
-  // This file writing approach will NOT work in typical serverless environments like Vercel.
-  if (process.env.NODE_ENV === 'production' && process.env.VERCEL) {
-      console.warn("File system write attempts are disabled in Vercel production environment for this demo API.");
-      return NextResponse.json({ message: 'Content modification is disabled in this environment for demo purposes.' }, { status: 403 });
+// GET current Our Story content for admin
+export async function GET() {
+  console.log(`[Admin API OurStory GET] Request to fetch content from Supabase for key: ${OUR_STORY_CONFIG_KEY}`);
+  if (!supabase) {
+    console.error('[Admin API OurStory GET] Supabase client is not initialized.');
+    return NextResponse.json({ message: 'Database client not configured.' }, { status: 503 });
   }
 
   try {
-    const newData = (await request.json()) as OurStoryContentData;
+    const { data, error } = await supabase
+      .from('site_configurations')
+      .select('value')
+      .eq('config_key', OUR_STORY_CONFIG_KEY)
+      .maybeSingle();
 
-    // Basic validation
-    if (!newData || !newData.hero || !newData.mission || !newData.craftsmanship || !newData.valuesSection || !newData.joinJourneySection ) {
-      return NextResponse.json({ message: 'Invalid data format for Our Story content.' }, { status: 400 });
+    if (error) {
+      console.error(`[Admin API OurStory GET] Supabase error fetching content for ${OUR_STORY_CONFIG_KEY}:`, error);
+      return NextResponse.json({ message: 'Failed to fetch Our Story content.', rawSupabaseError: error }, { status: 500 });
     }
 
-    let currentData = {};
-    try {
-      const fileContent = await fs.readFile(filePath, 'utf-8');
-      currentData = JSON.parse(fileContent);
-    } catch (readError) {
-      console.warn("Could not read existing our-story content file, will overwrite:", readError);
+    if (data && data.value) {
+      console.log(`[Admin API OurStory GET] Successfully fetched content for ${OUR_STORY_CONFIG_KEY}.`);
+      // Merge with defaults to ensure all fields are present if DB data is partial
+      const dbContent = data.value as Partial<OurStoryContentData>;
+      const mergedContent: OurStoryContentData = {
+        hero: { ...defaultOurStoryContent.hero, ...dbContent.hero },
+        mission: { ...defaultOurStoryContent.mission, ...dbContent.mission },
+        craftsmanship: { ...defaultOurStoryContent.craftsmanship, ...dbContent.craftsmanship },
+        valuesSection: { ...defaultOurStoryContent.valuesSection, ...dbContent.valuesSection },
+        joinJourneySection: { ...defaultOurStoryContent.joinJourneySection, ...dbContent.joinJourneySection },
+      };
+      return NextResponse.json(mergedContent);
+    } else {
+      console.log(`[Admin API OurStory GET] No content found for ${OUR_STORY_CONFIG_KEY}, returning default structure.`);
+      return NextResponse.json(defaultOurStoryContent);
     }
+  } catch (e) {
+    console.error(`[Admin API OurStory GET] Unhandled error fetching content for ${OUR_STORY_CONFIG_KEY}:`, e);
+    return NextResponse.json({ message: 'Error fetching Our Story content.', error: (e as Error).message }, { status: 500 });
+  }
+}
 
-    const updatedData = { ...currentData, ...newData };
+// POST to update Our Story content
+export async function POST(request: NextRequest) {
+  console.log(`[Admin API OurStory POST] Request to update content in Supabase for key: ${OUR_STORY_CONFIG_KEY}`);
+  if (!supabase) {
+    console.error('[Admin API OurStory POST] Supabase client is not initialized.');
+    return NextResponse.json({ message: 'Database client not configured.' }, { status: 503 });
+  }
 
-    await fs.writeFile(filePath, JSON.stringify(updatedData, null, 2), 'utf-8');
+  try {
+    const newContent = await request.json() as OurStoryContentData;
+    console.log(`[Admin API OurStory POST] Received new data for ${OUR_STORY_CONFIG_KEY}:`, newContent);
+    
+    const { error } = await supabase
+      .from('site_configurations')
+      .upsert({ config_key: OUR_STORY_CONFIG_KEY, value: newContent }, { onConflict: 'config_key' });
 
+    if (error) {
+      console.error(`[Admin API OurStory POST] Supabase error updating content for ${OUR_STORY_CONFIG_KEY}:`, error);
+      return NextResponse.json({ message: 'Failed to update Our Story content.', rawSupabaseError: error }, { status: 500 });
+    }
+    
+    console.log(`[Admin API OurStory POST] Our Story content for ${OUR_STORY_CONFIG_KEY} updated successfully.`);
     return NextResponse.json({ message: 'Our Story content updated successfully.' });
-  } catch (error) {
-    console.error('Error updating Our Story content:', error);
-    return NextResponse.json({ message: 'Error updating Our Story content.', error: (error as Error).message }, { status: 500 });
+  } catch (e) {
+    console.error(`[Admin API OurStory POST] Unhandled error updating content for ${OUR_STORY_CONFIG_KEY}:`, e);
+    return NextResponse.json({ message: 'Error updating Our Story content.', error: (e as Error).message }, { status: 500 });
   }
 }

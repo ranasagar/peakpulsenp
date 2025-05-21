@@ -7,6 +7,7 @@ import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
 import { Button } from '@/components/ui/button';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { ScrollArea } from '@/components/ui/scroll-area'; // Added for scrollable sidebar
 
 export default function AdminLayout({
   children,
@@ -28,103 +29,87 @@ export default function AdminLayout({
             </Button>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-            <aside className="md:col-span-1">
-              <nav className="bg-card p-4 rounded-lg shadow-sm space-y-1 sticky top-28">
-                <Button variant="ghost" className="w-full justify-start" asChild>
-                  <Link href="/admin">
-                    <LayoutDashboard className="mr-2 h-4 w-4" /> Dashboard
-                  </Link>
-                </Button>
-                
-                <Accordion type="single" collapsible className="w-full" defaultValue="store-management">
-                  <AccordionItem value="store-management" className="border-b-0">
-                    <AccordionTrigger className="py-2 px-3 hover:bg-accent hover:text-accent-foreground rounded-md text-sm font-medium hover:no-underline [&[data-state=open]>svg]:text-primary">
-                       <div className="flex items-center">
-                         <ShoppingBag className="mr-2 h-4 w-4" /> Store Management
-                       </div>
-                    </AccordionTrigger>
-                    <AccordionContent className="pt-1 pl-4">
-                       <Button variant="ghost" className="w-full justify-start text-sm font-normal h-9" asChild>
-                          <Link href="/admin/products">
-                             Manage Products
-                          </Link>
-                        </Button>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 items-start"> {/* Added items-start */}
+            <aside className="md:col-span-1 sticky top-28"> {/* Increased top spacing for sticky header */}
+              <ScrollArea className="h-[calc(100vh_-_8rem_-_2rem)] bg-card p-4 rounded-lg shadow-sm"> {/* Adjusted height, added padding and scroll */}
+                <nav className="space-y-1">
+                  <Button variant="ghost" className="w-full justify-start" asChild>
+                    <Link href="/admin">
+                      <LayoutDashboard className="mr-2 h-4 w-4" /> Dashboard
+                    </Link>
+                  </Button>
+                  
+                  <Accordion type="multiple" defaultValue={['store-management', 'content-management', 'accounting']} className="w-full">
+                    <AccordionItem value="store-management" className="border-b-0">
+                      <AccordionTrigger className="py-2 px-3 hover:bg-accent hover:text-accent-foreground rounded-md text-sm font-medium hover:no-underline [&[data-state=open]>svg]:text-primary">
+                        <div className="flex items-center">
+                          <ShoppingBag className="mr-2 h-4 w-4" /> Store Management
+                        </div>
+                      </AccordionTrigger>
+                      <AccordionContent className="pt-1 pl-4 space-y-0.5"> {/* Added space-y-0.5 */}
                         <Button variant="ghost" className="w-full justify-start text-sm font-normal h-9" asChild>
-                          <Link href="/admin/categories">
-                            <Tags className="mr-2 h-4 w-4" /> Manage Categories
-                          </Link>
-                        </Button>
-                        <Button variant="ghost" className="w-full justify-start text-sm font-normal h-9" asChild>
-                          <Link href="/admin/orders">
-                            <ListOrdered className="mr-2 h-4 w-4" /> View Orders
-                          </Link>
-                        </Button>
-                    </AccordionContent>
-                  </AccordionItem>
+                            <Link href="/admin/products">Manage Products</Link>
+                          </Button>
+                          <Button variant="ghost" className="w-full justify-start text-sm font-normal h-9" asChild>
+                            <Link href="/admin/categories"><Tags className="mr-2 h-4 w-4" /> Manage Categories</Link>
+                          </Button>
+                          <Button variant="ghost" className="w-full justify-start text-sm font-normal h-9" asChild>
+                            <Link href="/admin/orders"><ListOrdered className="mr-2 h-4 w-4" /> View Orders</Link>
+                          </Button>
+                      </AccordionContent>
+                    </AccordionItem>
 
-                  <AccordionItem value="content-management" className="border-b-0">
-                    <AccordionTrigger className="py-2 px-3 hover:bg-accent hover:text-accent-foreground rounded-md text-sm font-medium hover:no-underline [&[data-state=open]>svg]:text-primary">
-                       <div className="flex items-center">
-                         <BookOpenText className="mr-2 h-4 w-4" /> Content Management
-                       </div>
-                    </AccordionTrigger>
-                    <AccordionContent className="pt-1 pl-4">
-                      <Button variant="ghost" className="w-full justify-start text-sm font-normal h-9" asChild>
-                        <Link href="/admin/content/homepage">
-                           Homepage Content
-                        </Link>
-                      </Button>
-                      <Button variant="ghost" className="w-full justify-start text-sm font-normal h-9" asChild>
-                        <Link href="/admin/content/our-story">
-                           Our Story Content
-                        </Link>
-                      </Button>
-                       <Button variant="ghost" className="w-full justify-start text-sm font-normal h-9" asChild>
-                        <Link href="/admin/content/footer">
-                           <ListChecks className="mr-2 h-4 w-4" /> Footer Content
-                        </Link>
-                      </Button>
-                      <Button variant="ghost" className="w-full justify-start text-sm font-normal h-9" asChild>
-                        <Link href="/admin/content/site-pages">
-                           <PageIcon className="mr-2 h-4 w-4" /> Site Pages Content
-                        </Link>
-                      </Button>
-                    </AccordionContent>
-                  </AccordionItem>
-
-                  <AccordionItem value="accounting" className="border-b-0">
-                    <AccordionTrigger className="py-2 px-3 hover:bg-accent hover:text-accent-foreground rounded-md text-sm font-medium hover:no-underline [&[data-state=open]>svg]:text-primary">
-                       <div className="flex items-center">
-                         <Landmark className="mr-2 h-4 w-4" /> Accounting
-                       </div>
-                    </AccordionTrigger>
-                    <AccordionContent className="pt-1 pl-4">
+                    <AccordionItem value="content-management" className="border-b-0">
+                      <AccordionTrigger className="py-2 px-3 hover:bg-accent hover:text-accent-foreground rounded-md text-sm font-medium hover:no-underline [&[data-state=open]>svg]:text-primary">
+                        <div className="flex items-center">
+                          <BookOpenText className="mr-2 h-4 w-4" /> Content Management
+                        </div>
+                      </AccordionTrigger>
+                      <AccordionContent className="pt-1 pl-4 space-y-0.5">
                         <Button variant="ghost" className="w-full justify-start text-sm font-normal h-9" asChild>
-                          <Link href="/admin/accounting/loans">
-                             Manage Loans
-                          </Link>
+                          <Link href="/admin/content/homepage">Homepage Content</Link>
                         </Button>
                         <Button variant="ghost" className="w-full justify-start text-sm font-normal h-9" asChild>
-                          <Link href="/admin/accounting/tax-report">
-                             Tax Data Export
-                          </Link>
+                          <Link href="/admin/content/our-story">Our Story Content</Link>
                         </Button>
-                    </AccordionContent>
-                  </AccordionItem>
-                </Accordion>
+                        <Button variant="ghost" className="w-full justify-start text-sm font-normal h-9" asChild>
+                          <Link href="/admin/content/footer"><ListChecks className="mr-2 h-4 w-4" /> Footer Content</Link>
+                        </Button>
+                        <Button variant="ghost" className="w-full justify-start text-sm font-normal h-9" asChild>
+                          <Link href="/admin/content/site-pages"><PageIcon className="mr-2 h-4 w-4" /> Site Pages Content</Link>
+                        </Button>
+                      </AccordionContent>
+                    </AccordionItem>
 
-                <Button variant="ghost" className="w-full justify-start" asChild>
-                  <Link href="/admin/analytics">
-                    <BarChart3 className="mr-2 h-4 w-4" /> Site Analytics (AI)
-                  </Link>
-                </Button>
-                <Button variant="ghost" className="w-full justify-start" asChild>
-                  <Link href="/admin/settings">
-                    <Settings className="mr-2 h-4 w-4" /> General Settings
-                  </Link>
-                </Button>
-              </nav>
+                    <AccordionItem value="accounting" className="border-b-0">
+                      <AccordionTrigger className="py-2 px-3 hover:bg-accent hover:text-accent-foreground rounded-md text-sm font-medium hover:no-underline [&[data-state=open]>svg]:text-primary">
+                        <div className="flex items-center">
+                          <Landmark className="mr-2 h-4 w-4" /> Accounting
+                        </div>
+                      </AccordionTrigger>
+                      <AccordionContent className="pt-1 pl-4 space-y-0.5">
+                          <Button variant="ghost" className="w-full justify-start text-sm font-normal h-9" asChild>
+                            <Link href="/admin/accounting/loans">Manage Loans</Link>
+                          </Button>
+                          <Button variant="ghost" className="w-full justify-start text-sm font-normal h-9" asChild>
+                            <Link href="/admin/accounting/tax-report">Tax Data Export</Link>
+                          </Button>
+                      </AccordionContent>
+                    </AccordionItem>
+                  </Accordion>
+
+                  <Button variant="ghost" className="w-full justify-start" asChild>
+                    <Link href="/admin/analytics">
+                      <BarChart3 className="mr-2 h-4 w-4" /> Site Analytics (AI)
+                    </Link>
+                  </Button>
+                  <Button variant="ghost" className="w-full justify-start" asChild>
+                    <Link href="/admin/settings">
+                      <Settings className="mr-2 h-4 w-4" /> General Settings
+                    </Link>
+                  </Button>
+                </nav>
+              </ScrollArea>
             </aside>
             <div className="md:col-span-3">
               {children}

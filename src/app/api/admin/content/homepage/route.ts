@@ -1,85 +1,103 @@
+
 // /src/app/api/admin/content/homepage/route.ts
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import fs from 'fs/promises';
-import path from 'path';
+import { supabase } from '../../../../../lib/supabaseClient.ts';
 import type { HomepageContent, HeroSlide, SocialCommerceItem } from '@/types';
 
-const filePath = path.join(process.cwd(), 'src', 'data', 'homepage-content.json');
+const HOMEPAGE_CONFIG_KEY = 'homepageContent';
 
-// Helper function to read existing content or return a default structure
-async function getCurrentContent(): Promise<HomepageContent> {
-    try {
-        const fileContent = await fs.readFile(filePath, 'utf-8');
-        const parsedData = JSON.parse(fileContent);
-        // Ensure the basic structure exists
-        return {
-            heroSlides: Array.isArray(parsedData.heroSlides) ? parsedData.heroSlides : [],
-            artisanalRoots: parsedData.artisanalRoots || { title: "", description: "" },
-            socialCommerceItems: Array.isArray(parsedData.socialCommerceItems) ? parsedData.socialCommerceItems : [],
-        };
-    } catch (error) {
-        // If file doesn't exist or is invalid, return a default structure
-        console.warn("[Admin API POST] Error reading existing homepage content file or file is empty/corrupt. Starting with a default structure. Error:", (error as Error).message);
-        return {
-            heroSlides: [],
-            artisanalRoots: { title: "", description: "" },
-            socialCommerceItems: [],
-        };
-    }
-}
+const defaultHomepageContent: HomepageContent = {
+  heroSlides: [{ id: 'default-slide', title: "Welcome to Peak Pulse", description: "Explore our collections.", ctaText: "Shop Now", ctaLink: "/products", imageUrl: "https://placehold.co/1920x1080.png", altText: "Default hero", dataAiHint: "fashion mountain" }],
+  artisanalRoots: { title: "Our Artisanal Roots", description: "Discover the heritage behind our designs." },
+  socialCommerceItems: [],
+  heroVideoId: undefined,
+  heroImageUrl: undefined,
+};
 
-
-export async function POST(request: NextRequest) {
-  if (process.env.NODE_ENV === 'production' && process.env.VERCEL) {
-      console.warn("File system write attempts are disabled in Vercel production environment for this demo API.");
-      return NextResponse.json({ message: 'Content modification is disabled in this environment for demo purposes.' }, { status: 403 });
+// GET current homepage content for admin
+export async function GET() {
+  console.log(`[Admin API Homepage GET] Request to fetch content from Supabase for key: ${HOMEPAGE_CONFIG_KEY}`);
+  if (!supabase) {
+    console.error('[Admin API Homepage GET] Supabase client is not initialized.');
+    return NextResponse.json({ message: 'Database client not configured.' }, { status: 503 });
   }
 
   try {
-    const newContentFromAdmin = (await request.json()) as Partial<HomepageContent>; // Data from admin form, might be partial
-    console.log("[Admin API POST] Received newDataFromRequest:", JSON.stringify(newContentFromAdmin, null, 2));
+    const { data, error } = await supabase
+      .from('site_configurations')
+      .select('value')
+      .eq('config_key', HOMEPAGE_CONFIG_KEY)
+      .maybeSingle();
 
-    // The admin form should ideally send the full intended structure for HomepageContent.
-    // We will treat the incoming data as the new desired state for these sections.
-    // If a section is missing from newContentFromAdmin, it implies no changes were made to it, or it was cleared.
-
-    const finalDataToWrite: HomepageContent = {
-        heroSlides: (newContentFromAdmin.heroSlides || []).map((slide: Partial<HeroSlide>) => ({
-            id: slide.id || `slide-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
-            title: slide.title || "",
-            description: slide.description || "",
-            imageUrl: slide.imageUrl || undefined, // Ensure undefined if empty string
-            videoId: slide.videoId || undefined,   // Ensure undefined if empty string
-            altText: slide.altText || "",
-            dataAiHint: slide.dataAiHint || "",
-            ctaText: slide.ctaText || "",
-            ctaLink: slide.ctaLink || "",
-        })),
-        artisanalRoots: newContentFromAdmin.artisanalRoots || { title: "", description: "" }, // Default if not provided
-        socialCommerceItems: (newContentFromAdmin.socialCommerceItems || []).map((item: Partial<SocialCommerceItem>) => ({
-            id: item.id || `social-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
-            imageUrl: item.imageUrl || "", // Should have URL
-            linkUrl: item.linkUrl || "",   // Should have URL
-            altText: item.altText || "",
-            dataAiHint: item.dataAiHint || "",
-        })),
-    };
-    
-    console.log("[Admin API POST] Writing finalDataToWrite to homepage-content.json:", JSON.stringify(finalDataToWrite, null, 2));
-    await fs.writeFile(filePath, JSON.stringify(finalDataToWrite, null, 2), 'utf-8');
-    console.log("[Admin API POST] Attempted to write finalDataToWrite to homepage-content.json");
-
-    try {
-      const writtenContent = await fs.readFile(filePath, 'utf-8');
-      console.log("[Admin API POST] Content read back from file immediately after write:", writtenContent);
-    } catch (e) {
-      console.error("[Admin API POST] Error reading file back immediately after write:", e);
+    if (error) {
+      console.error(`[Admin API Homepage GET] Supabase error fetching content for ${HOMEPAGE_CONFIG_KEY}:`, error);
+      return NextResponse.json({ message: 'Failed to fetch homepage content.', rawSupabaseError: error }, { status: 500 });
     }
 
+    if (data && data.value) {
+      console.log(`[Admin API Homepage GET] Successfully fetched content for ${HOMEPAGE_CONFIG_KEY}.`);
+      // Ensure the structure matches HomepageContent, filling defaults if parts are missing
+      const dbContent = data.value as Partial<HomepageContent>;
+      const mergedContent: HomepageContent = {
+        heroSlides: dbContent.heroSlides && dbContent.heroSlides.length > 0 ? dbContent.heroSlides : defaultHomepageContent.heroSlides,
+        artisanalRoots: dbContent.artisanalRoots || defaultHomepageContent.artisanalRoots,
+        socialCommerceItems: dbContent.socialCommerceItems || defaultHomepageContent.socialCommerceItems,
+        heroVideoId: dbContent.heroVideoId || defaultHomepageContent.heroVideoId,
+        heroImageUrl: dbContent.heroImageUrl || defaultHomepageContent.heroImageUrl,
+      };
+      return NextResponse.json(mergedContent);
+    } else {
+      console.log(`[Admin API Homepage GET] No content found for ${HOMEPAGE_CONFIG_KEY}, returning default structure.`);
+      return NextResponse.json(defaultHomepageContent);
+    }
+  } catch (e) {
+    console.error(`[Admin API Homepage GET] Unhandled error fetching content for ${HOMEPAGE_CONFIG_KEY}:`, e);
+    return NextResponse.json({ message: 'Error fetching homepage content.', error: (e as Error).message }, { status: 500 });
+  }
+}
+
+// POST to update homepage content
+export async function POST(request: NextRequest) {
+  console.log(`[Admin API Homepage POST] Request to update content in Supabase for key: ${HOMEPAGE_CONFIG_KEY}`);
+  if (!supabase) {
+    console.error('[Admin API Homepage POST] Supabase client is not initialized.');
+    return NextResponse.json({ message: 'Database client not configured.' }, { status: 503 });
+  }
+
+  try {
+    const newContent = await request.json() as HomepageContent;
+    console.log(`[Admin API Homepage POST] Received new data for ${HOMEPAGE_CONFIG_KEY}:`, newContent);
+
+    const dataToUpsert: HomepageContent = {
+      heroSlides: (newContent.heroSlides || []).map((slide, index) => ({
+        id: slide.id || `slide-${Date.now()}-${index}`,
+        ...slide,
+        imageUrl: slide.imageUrl || undefined,
+        videoId: slide.videoId || undefined,
+      })),
+      artisanalRoots: newContent.artisanalRoots || defaultHomepageContent.artisanalRoots,
+      socialCommerceItems: (newContent.socialCommerceItems || []).map((item, index) => ({
+        id: item.id || `social-${Date.now()}-${index}`,
+        ...item,
+      })),
+      heroVideoId: newContent.heroVideoId || undefined,
+      heroImageUrl: newContent.heroImageUrl || undefined,
+    };
+    
+    const { error } = await supabase
+      .from('site_configurations')
+      .upsert({ config_key: HOMEPAGE_CONFIG_KEY, value: dataToUpsert }, { onConflict: 'config_key' });
+
+    if (error) {
+      console.error(`[Admin API Homepage POST] Supabase error updating content for ${HOMEPAGE_CONFIG_KEY}:`, error);
+      return NextResponse.json({ message: 'Failed to update homepage content.', rawSupabaseError: error }, { status: 500 });
+    }
+    
+    console.log(`[Admin API Homepage POST] Homepage content for ${HOMEPAGE_CONFIG_KEY} updated successfully.`);
     return NextResponse.json({ message: 'Homepage content updated successfully.' });
-  } catch (error) {
-    console.error('Error updating homepage content:', error);
-    return NextResponse.json({ message: 'Error updating homepage content.', error: (error as Error).message }, { status: 500 });
+  } catch (e) {
+    console.error(`[Admin API Homepage POST] Unhandled error updating content for ${HOMEPAGE_CONFIG_KEY}:`, e);
+    return NextResponse.json({ message: 'Error updating homepage content.', error: (e as Error).message }, { status: 500 });
   }
 }

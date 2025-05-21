@@ -1,0 +1,5 @@
+
+This file is no longer used for general site settings.
+Site settings (title, description, contact info) are now managed in the Supabase 'site_configurations' table with config_key 'siteGeneralSettings'.
+Please refer to your Supabase dashboard or the admin panel at /admin/settings to manage this content.
+Initial default data can be set via the admin panel save action.
