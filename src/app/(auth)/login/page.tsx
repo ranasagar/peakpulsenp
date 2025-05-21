@@ -1,7 +1,7 @@
 
-"use client";
+"use client"; // This top-level "use client" can remain if LoginPage itself needs client features, but LoginClientContent will also have it.
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -23,17 +23,19 @@ const loginSchema = z.object({
 
 type LoginFormValues = z.infer<typeof loginSchema>;
 
-export default function LoginPage() {
+function LoginClientContent() {
+  "use client"; // Ensure this child component is also marked as client
+
   const { login, isAuthenticated, isLoading: authIsLoading } = useAuth();
   const [error, setError] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false); // Local submitting state for the form
   const router = useRouter();
-  const searchParams = useSearchParams();
+  const searchParams = useSearchParams(); // This is safe here
 
   useEffect(() => {
     if (!authIsLoading && isAuthenticated) {
       const redirectPath = searchParams.get('redirect') || '/account/dashboard';
-      // console.log(`Login Page: User authenticated, redirecting to ${redirectPath}`);
+      console.log(`[Login Page] User authenticated, redirecting to ${redirectPath}`);
       router.push(redirectPath);
     }
   }, [isAuthenticated, authIsLoading, router, searchParams]);
@@ -50,13 +52,12 @@ export default function LoginPage() {
     setError(null);
     setIsSubmitting(true);
     const result = await login(data.email, data.password); 
-    setIsSubmitting(false); // Reset local submitting state after login attempt
+    setIsSubmitting(false);
     if (!result.success) {
       setError(result.error || 'Invalid email or password. Please try again.');
       form.resetField("password");
     }
-    // If login is successful, the useEffect above will handle the redirect
-    // once isAuthenticated and authIsLoading states are updated by useAuth.
+    // If login is successful, the useEffect above will handle the redirect.
   };
 
   if (authIsLoading) {
@@ -68,6 +69,7 @@ export default function LoginPage() {
     );
   }
   
+  // This check might be redundant if the useEffect above handles redirect, but good for immediate UI feedback
   if (isAuthenticated && !authIsLoading) {
      return (
       <div className="flex min-h-screen flex-col items-center justify-center p-4">
@@ -143,5 +145,14 @@ export default function LoginPage() {
         </CardFooter>
       </Card>
     </div>
+  );
+}
+
+// The default export is now simpler, just rendering Suspense and the client content.
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="flex min-h-screen flex-col items-center justify-center p-4"><LocalLoader className="h-12 w-12 animate-spin text-primary" /><p className="mt-4 text-muted-foreground">Loading login page...</p></div>}>
+      <LoginClientContent />
+    </Suspense>
   );
 }

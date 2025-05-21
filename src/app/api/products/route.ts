@@ -1,13 +1,13 @@
-
 // /src/app/api/products/route.ts
 import { NextResponse } from 'next/server';
-import { supabase } from '../../../lib/supabaseClient.ts'; // Using relative path
+import { supabase } from '../../../lib/supabaseClient.ts'; 
 import type { Product } from '@/types';
 
 export const dynamic = 'force-dynamic'; // Ensure fresh data
 
 export async function GET() {
   console.log("[API /api/products] GET request received.");
+
   if (!supabase) {
     console.error('[API /api/products] Supabase client is not initialized. Check environment variables and server restart.');
     return NextResponse.json({ message: 'Database client not configured. Please check server logs and .env file.' }, { status: 503 });

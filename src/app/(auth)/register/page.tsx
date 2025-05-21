@@ -1,7 +1,7 @@
 
-"use client";
+"use client"; // This top-level "use client" can remain if RegisterPage itself needs client features, but RegisterClientContent will also have it.
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -24,17 +24,19 @@ const registerSchema = z.object({
 
 type RegisterFormValues = z.infer<typeof registerSchema>;
 
-export default function RegisterPage() {
+function RegisterClientContent() {
+  "use client"; // Ensure this child component is also marked as client
+
   const { register, isAuthenticated, isLoading: authIsLoading } = useAuth();
   const [error, setError] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false); // Local submitting state
   const router = useRouter();
-  const searchParams = useSearchParams();
+  const searchParams = useSearchParams(); // Safe here
 
   useEffect(() => {
     if (!authIsLoading && isAuthenticated) {
       const redirectPath = searchParams.get('redirect') || '/account/dashboard';
-      // console.log(`Register Page: User authenticated, redirecting to ${redirectPath}`);
+      console.log(`[Register Page] User authenticated, redirecting to ${redirectPath}`);
       router.push(redirectPath);
     }
   }, [isAuthenticated, authIsLoading, router, searchParams]);
@@ -52,12 +54,11 @@ export default function RegisterPage() {
     setError(null);
     setIsSubmitting(true);
     const result = await register(data.name, data.email, data.password);
-    setIsSubmitting(false); // Reset local submitting state after attempt
+    setIsSubmitting(false);
     if (!result.success) {
       setError(result.error || 'An unknown error occurred during registration.');
     }
-    // If registration is successful, the useEffect above will handle redirect
-    // once isAuthenticated becomes true.
+    // If registration is successful, the useEffect above will handle redirect.
   };
   
   if (authIsLoading) {
@@ -69,6 +70,7 @@ export default function RegisterPage() {
     );
   }
   
+  // This check might be redundant if the useEffect above handles redirect, but good for immediate UI feedback
   if (isAuthenticated && !authIsLoading) {
      return (
       <div className="flex min-h-screen flex-col items-center justify-center p-4">
@@ -157,5 +159,14 @@ export default function RegisterPage() {
         </CardFooter>
       </Card>
     </div>
+  );
+}
+
+// The default export is now simpler, just rendering Suspense and the client content.
+export default function RegisterPage() {
+  return (
+    <Suspense fallback={<div className="flex min-h-screen flex-col items-center justify-center p-4"><LocalLoader className="h-12 w-12 animate-spin text-primary" /><p className="mt-4 text-muted-foreground">Loading registration page...</p></div>}>
+      <RegisterClientContent />
+    </Suspense>
   );
 }

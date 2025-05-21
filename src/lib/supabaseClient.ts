@@ -8,11 +8,11 @@ let supabaseInstance: SupabaseClient | null = null;
 
 if (!supabaseUrl) {
   console.error(
-    'Supabase URL is missing. Please set NEXT_PUBLIC_SUPABASE_URL in your .env file.'
+    '[SupabaseClient] Supabase URL is missing. Please set NEXT_PUBLIC_SUPABASE_URL in your .env file and restart the server.'
   );
 } else if (!supabaseAnonKey) {
   console.error(
-    'Supabase Anon Key is missing. Please set NEXT_PUBLIC_SUPABASE_ANON_KEY in your .env file.'
+    '[SupabaseClient] Supabase Anon Key is missing. Please set NEXT_PUBLIC_SUPABASE_ANON_KEY in your .env file and restart the server.'
   );
 } else {
   try {
@@ -20,9 +20,8 @@ if (!supabaseUrl) {
     console.log('[SupabaseClient] Supabase client initialized successfully.');
   } catch (error) {
     console.error('[SupabaseClient] Error initializing Supabase client:', error);
+    // supabaseInstance will remain null
   }
 }
 
-// Export the instance. It might be null if config is missing or initialization failed.
-// Consuming modules should handle this, though typically we'd want to ensure config is always present.
 export const supabase = supabaseInstance;

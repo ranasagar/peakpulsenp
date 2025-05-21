@@ -1,9 +1,10 @@
-
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { BookOpenText, ShoppingBag, BarChart3, ListOrdered, Landmark, Tags, Users, AlertTriangle, FileText } from 'lucide-react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
 import type { Order, CartItem } from '@/types';
+import fs from 'fs/promises';
+import path from 'path';
 
 async function getSupabaseCount(tableName: string): Promise<number | string> {
   if (!supabase) {
@@ -17,8 +18,11 @@ async function getSupabaseCount(tableName: string): Promise<number | string> {
 
     if (error) {
       console.error(`[AdminDashboard] Error counting ${tableName} from Supabase:`, error);
-      if (error.message.includes("permission denied") || error.message.includes("policy")) {
+      if (error.message.includes("permission denied") || error.message.includes("policy") || error.code === '42501') {
         return `RLS? (${error.code || 'DB'})`;
+      }
+      if (error.code === '42P01') { // undefined_table
+        return `No Table (${error.code})`;
       }
       return `Error (${error.code || 'DB'})`;
     }
@@ -30,19 +34,18 @@ async function getSupabaseCount(tableName: string): Promise<number | string> {
 }
 
 async function getContentFileStatus(contentKey: string): Promise<'Managed by DB' | 'JSON (Okay)' | 'JSON (Not Found)' | 'JSON (Error)'> {
-  // For this iteration, content sections like homepage and our-story still use JSON files.
-  const filePath = `./src/data/${contentKey}-content.json`; // Simplified path for example
+  const filePath = path.join(process.cwd(), 'src', 'data', `${contentKey}-content.json`);
   try {
-    // In a real app, you'd use fs.access or fs.stat from 'fs/promises' here.
-    // For this Next.js server component context, direct fs access might be restricted or behave differently.
-    // We'll simulate a check.
-    if (contentKey === 'homepage' || contentKey === 'our-story') {
-      // This would ideally check if the corresponding JSON file exists and is readable
-      // For now, we assume it's okay if it's one of these keys.
-      return 'JSON (Okay)'; 
+    await fs.access(filePath); // Check if file exists and is accessible
+    // Optionally, try to read and parse it for a more thorough check
+    // const fileContent = await fs.readFile(filePath, 'utf-8');
+    // JSON.parse(fileContent); 
+    return 'JSON (Okay)';
+  } catch (error: any) {
+    if (error.code === 'ENOENT') {
+      return 'JSON (Not Found)';
     }
-    return 'JSON (Not Found)';
-  } catch (error) {
+    console.error(`[AdminDashboard] Error accessing/parsing ${contentKey}.json:`, error.message);
     return 'JSON (Error)';
   }
 }
@@ -55,9 +58,10 @@ async function getSalesMetrics(): Promise<{
   averageOrderValue: number;
   orderCountForMetrics: number;
 }> {
+  const defaultMetrics = { totalRevenue: 0, totalCOGS: 0, grossProfit: 0, grossProfitMargin: 0, averageOrderValue: 0, orderCountForMetrics: 0 };
   if (!supabase) {
-    console.error("[AdminDashboard] Supabase client not available for sales metrics. Check .env and server restart.");
-    return { totalRevenue: 0, totalCOGS: 0, grossProfit: 0, grossProfitMargin: 0, averageOrderValue: 0, orderCountForMetrics: 0 };
+    console.error("[AdminDashboard] Supabase client not available for sales metrics.");
+    return defaultMetrics;
   }
 
   try {
@@ -68,11 +72,11 @@ async function getSalesMetrics(): Promise<{
 
     if (error) {
       console.error("[AdminDashboard] Error fetching orders for sales metrics:", error.message);
-      return { totalRevenue: 0, totalCOGS: 0, grossProfit: 0, grossProfitMargin: 0, averageOrderValue: 0, orderCountForMetrics: 0 };
+      return defaultMetrics;
     }
 
     if (!orders || orders.length === 0) {
-      return { totalRevenue: 0, totalCOGS: 0, grossProfit: 0, grossProfitMargin: 0, averageOrderValue: 0, orderCountForMetrics: 0 };
+      return defaultMetrics;
     }
 
     let totalRevenue = 0;
@@ -80,7 +84,7 @@ async function getSalesMetrics(): Promise<{
 
     orders.forEach(order => {
       totalRevenue += Number(order.totalAmount || 0);
-      const items = order.items as CartItem[] | null; // Ensure items is treated as CartItem[]
+      const items = order.items as CartItem[] | null; 
       if (items) {
         items.forEach(item => {
           totalCOGS += (item.costPrice || 0) * item.quantity;
@@ -103,7 +107,7 @@ async function getSalesMetrics(): Promise<{
     };
   } catch (e) {
     console.error("[AdminDashboard] Exception calculating sales metrics:", (e as Error).message);
-    return { totalRevenue: 0, totalCOGS: 0, grossProfit: 0, grossProfitMargin: 0, averageOrderValue: 0, orderCountForMetrics: 0 };
+    return defaultMetrics;
   }
 }
 
@@ -133,8 +137,8 @@ export default async function AdminDashboardPage() {
   const categoryCount = await getSupabaseCount('categories');
   const loanCount = await getSupabaseCount('loans');
 
-  const homepageContentStatus = await getContentFileStatus('homepage'); // Still JSON based
-  const ourStoryContentStatus = await getContentFileStatus('our-story'); // Still JSON based
+  const homepageContentStatus = await getContentFileStatus('homepage');
+  const ourStoryContentStatus = await getContentFileStatus('our-story');
   const salesMetrics = await getSalesMetrics();
 
   return (
@@ -142,7 +146,7 @@ export default async function AdminDashboardPage() {
       <Card className="shadow-lg">
         <CardHeader>
           <CardTitle className="text-2xl">Welcome to the Admin Dashboard</CardTitle>
-          <CardDescription>Manage your Peak Pulse application. Key data from Supabase.</CardDescription>
+          <CardDescription>Manage your Peak Pulse application. Key data is primarily from Supabase.</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -160,15 +164,15 @@ export default async function AdminDashboardPage() {
             </Card>
             <Card className="bg-muted/30">
               <CardHeader className="pb-2"><CardTitle className="text-lg flex items-center"><Users className="mr-2 h-5 w-5 text-primary"/>Users</CardTitle></CardHeader>
-              <CardContent><p className="text-3xl font-bold">{userCount}</p><p className="text-xs text-muted-foreground">User profiles (Supabase)</p><p className="text-xs text-accent mt-1">User management UI coming soon.</p></CardContent>
+              <CardContent><p className="text-3xl font-bold">{userCount}</p><p className="text-xs text-muted-foreground">User profiles (Supabase)</p><p className="text-xs text-accent mt-1">User management features (e.g., roles) require further development.</p></CardContent>
             </Card>
             <Card className="bg-muted/30">
               <CardHeader className="pb-2"><CardTitle className="text-lg flex items-center"><FileText className="mr-2 h-5 w-5 text-primary"/>Homepage Content</CardTitle></CardHeader>
-              <CardContent><p className={`text-xl font-semibold ${homepageContentStatus.includes('Okay') ? 'text-green-600' : 'text-amber-600'}`}>{homepageContentStatus}</p><Link href="/admin/content/homepage" className="text-primary hover:underline text-xs mt-1 block">Edit Homepage &rarr;</Link></CardContent>
+              <CardContent><p className={`text-xl font-semibold ${homepageContentStatus.includes('Okay') ? 'text-green-600' : 'text-amber-600'}`}>{homepageContentStatus}</p><p className="text-xs text-muted-foreground">(JSON file based)</p><Link href="/admin/content/homepage" className="text-primary hover:underline text-xs mt-1 block">Edit Homepage &rarr;</Link></CardContent>
             </Card>
              <Card className="bg-muted/30">
               <CardHeader className="pb-2"><CardTitle className="text-lg flex items-center"><BookOpenText className="mr-2 h-5 w-5 text-primary"/>Our Story Content</CardTitle></CardHeader>
-              <CardContent><p className={`text-xl font-semibold ${ourStoryContentStatus.includes('Okay') ? 'text-green-600' : 'text-amber-600'}`}>{ourStoryContentStatus}</p><Link href="/admin/content/our-story" className="text-primary hover:underline text-xs mt-1 block">Edit Our Story &rarr;</Link></CardContent>
+              <CardContent><p className={`text-xl font-semibold ${ourStoryContentStatus.includes('Okay') ? 'text-green-600' : 'text-amber-600'}`}>{ourStoryContentStatus}</p><p className="text-xs text-muted-foreground">(JSON file based)</p><Link href="/admin/content/our-story" className="text-primary hover:underline text-xs mt-1 block">Edit Our Story &rarr;</Link></CardContent>
             </Card>
           </div>
         </CardContent>
@@ -237,10 +241,10 @@ export default async function AdminDashboardPage() {
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground mb-2">
-            This admin panel is a demonstration. Key data (Products, Orders, Users, Categories, Loans) is managed via <strong>Supabase</strong>. Some page content (Homepage, Our Story) still uses JSON files.
+            This admin panel uses <strong>Supabase</strong> for core data (Products, Categories, Orders, Users, Loans). Some page content (Homepage, Our Story) still uses JSON files for demonstration.
           </p>
           <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
-            <li>**Security:** This section currently lacks robust role-based authentication & authorization. Access must be strictly controlled in a production environment. Supabase Row Level Security (RLS) should be thoroughly configured.</li>
+            <li>**Security:** This admin section currently lacks robust role-based authentication & authorization. Access must be strictly controlled in a production environment. Supabase Row Level Security (RLS) should be thoroughly configured for all tables.</li>
             <li>**JSON Content Management:** Managing content via JSON files (as done for Homepage/Our Story) is not scalable and **will not work in most serverless production environments like Vercel** due to read-only filesystems. Migrate this content to Supabase or a headless CMS for production.</li>
             <li>**Accounting Features:** The sales summary and tax data export are for informational purposes. Full accounting requires specialized systems. COGS accuracy depends on `costPrice` being diligently maintained for products/variants and recorded accurately in orders.</li>
           </ul>
