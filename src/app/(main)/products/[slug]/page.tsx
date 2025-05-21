@@ -22,8 +22,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RatingStars } from '@/components/ui/rating-stars';
 import { cn } from '@/lib/utils';
-import Link from 'next/link'; // Added Link import
-import { Form, FormControl, FormField, FormItem, FormMessage } from "@/components/ui/form"; // Added form components
+import Link from 'next/link';
+import { Form, FormControl, FormField, FormItem as RHFFormItem, FormMessage } from "@/components/ui/form";
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
@@ -61,26 +61,31 @@ export default function ProductDetailPage({ params: paramsPromise }: { params: P
     if (!resolvedParams?.slug) {
       setError("Product slug not available.");
       setIsLoading(false);
+      setProduct(null);
       return;
     }
     setIsLoading(true);
     setError(null);
+    setProduct(null); 
+
     console.log(`[ProductDetail] Fetching product with slug: ${resolvedParams.slug}`);
     try {
       const response = await fetch(`/api/products/${resolvedParams.slug}`);
       if (!response.ok) {
-        let errorMsg = `Failed to fetch product. Status: ${response.status}`;
-        try {
-          const errorData = await response.json();
-          errorMsg = errorData.message || errorData.rawError || errorMsg;
-        } catch (e) { /* ignore if response is not json */ }
-        
-        if (response.status === 404) {
-           setError(`Product with slug '${resolvedParams.slug}' not found.`);
-        } else {
-           setError(errorMsg);
+        let errorMsg = `Product with slug '${resolvedParams.slug}' not found.`;
+        if (response.status !== 404) {
+          try {
+            const errorData = await response.json();
+            errorMsg = errorData.message || errorData.rawSupabaseError?.message || `Error ${response.status}: ${response.statusText}`;
+          } catch (e) {
+            errorMsg = `Error ${response.status}: ${response.statusText}. Failed to parse error response.`;
+          }
         }
-        throw new Error(errorMsg);
+        console.error("[ProductDetail] Error from API:", errorMsg);
+        setError(errorMsg);
+        setProduct(null);
+        setIsLoading(false); // Stop loading
+        return; // Exit early, error state will handle UI
       }
       const currentProduct: Product = await response.json();
 
@@ -101,17 +106,18 @@ export default function ProductDetailPage({ params: paramsPromise }: { params: P
           }
         }
       } else {
+        // This case might be redundant if API always returns 404 or product
         setError(`Product with slug '${resolvedParams.slug}' not found or data is invalid.`);
+        setProduct(null);
       }
-    } catch (err) {
-      console.error("[ProductDetail] Error fetching product data:", err);
-      if (!error) { 
-        setError((err as Error).message || "Could not load product data.");
-      }
+    } catch (err) { // This catch block handles network errors or if response.json() fails
+      console.error("[ProductDetail] Network or JSON parsing error fetching product data:", err);
+      setError((err as Error).message || "Could not load product data due to a network or parsing issue.");
+      setProduct(null);
     } finally {
       setIsLoading(false);
     }
-  }, [resolvedParams?.slug, error]); 
+  }, [resolvedParams?.slug]); 
 
   useEffect(() => {
     fetchProductData();
@@ -120,13 +126,14 @@ export default function ProductDetailPage({ params: paramsPromise }: { params: P
   const fetchRelatedProducts = useCallback(async () => {
       if (!product || !product.categories || product.categories.length === 0) return;
       try {
-          const allProductsResponse = await fetch('/api/products'); // Fetch all products
+          // For now, fetch all products and filter. Could be optimized with a dedicated API.
+          const allProductsResponse = await fetch('/api/products'); 
           if (allProductsResponse.ok) {
               const allProducts: Product[] = await allProductsResponse.json();
               const related = allProducts.filter(
                   p => p.id !== product.id &&
                   product.categories.some(ccat => p.categories.map(pcat => pcat.slug).includes(ccat.slug))
-              ).slice(0, 4);
+              ).slice(0, 4); // Show up to 4 related products
               setRelatedProducts(related);
           } else {
               console.warn("[ProductDetail] Failed to fetch all products for related items.");
@@ -154,12 +161,12 @@ export default function ProductDetailPage({ params: paramsPromise }: { params: P
   const selectedVariant = product?.variants?.find(v => v.id === selectedVariantId);
   const displayPrice = selectedVariant?.price ?? product?.price ?? 0;
   const displayCompareAtPrice = selectedVariant?.costPrice !== undefined 
-    ? undefined 
+    ? undefined  // If variant has costPrice, assume it's specific and don't show base compareAtPrice
     : product?.compareAtPrice;
 
   const isOutOfStock = useMemo(() => {
     if (selectedVariant) return selectedVariant.stock <= 0;
-    if (product?.variants && product.variants.length > 0 && !selectedVariant) return true;
+    if (product?.variants && product.variants.length > 0 && !selectedVariant) return true; // Must select a variant if variants exist
     return (product?.stock !== undefined && product.stock <= 0 && (!product?.variants || product.variants.length === 0));
   }, [product, selectedVariant]);
 
@@ -218,7 +225,7 @@ export default function ProductDetailPage({ params: paramsPromise }: { params: P
         const errorData = await response.json();
         throw new Error(errorData.message || errorData.rawError || `Failed to update wishlist`);
       }
-      await refreshUserProfile(); // Refreshes user context including wishlist
+      await refreshUserProfile(); 
       toast({
         title: !isWishlisted ? "Added to Wishlist" : "Removed from Wishlist",
       });
@@ -245,8 +252,6 @@ export default function ProductDetailPage({ params: paramsPromise }: { params: P
     }
 
     setIsSubmittingReview(true);
-    // TODO: Implement API call to save review to Supabase
-    // For now, just mock it.
     console.log("Submitting review (mock):", { productId: product.id, userId: user.id, rating: reviewRating, title: reviewTitle, comment: reviewComment });
     await new Promise(resolve => setTimeout(resolve, 1000)); 
 
@@ -255,12 +260,10 @@ export default function ProductDetailPage({ params: paramsPromise }: { params: P
     setReviewTitle('');
     setReviewComment('');
     setIsSubmittingReview(false);
-    // Optionally, re-fetch product data to show the new review
-    // fetchProductData(); 
   };
 
 
-  if (isLoading || authIsLoading) { // Changed from authLoading to authIsLoading
+  if (isLoading || authIsLoading) {
     return (
       <div className="container-wide section-padding flex justify-center items-center min-h-[70vh]">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -278,10 +281,10 @@ export default function ProductDetailPage({ params: paramsPromise }: { params: P
     );
   }
   
-  if (!product) {
+  if (!product) { 
      return ( 
       <div className="container-wide section-padding text-center">
-        <h1 className="text-2xl font-bold text-destructive">Product data could not be loaded.</h1>
+        <h1 className="text-2xl font-bold text-destructive">Product data could not be loaded or was not found.</h1>
         <Button asChild variant="link" className="mt-4"><Link href="/products">Back to Shop</Link></Button>
       </div>
     );
@@ -290,7 +293,7 @@ export default function ProductDetailPage({ params: paramsPromise }: { params: P
   const breadcrumbs: BreadcrumbItem[] = [
     { name: 'Home', href: '/' },
     { name: 'Shop', href: '/products' },
-    { name: product.categories[0]?.name || 'Category', href: `/products?category=${product.categories[0]?.slug || ''}` }, 
+    ...(product.categories[0] ? [{ name: product.categories[0].name, href: `/products?category=${product.categories[0].slug}` }] : []),
     { name: product.name || resolvedParams.slug },
   ];
 
@@ -656,4 +659,5 @@ export default function ProductDetailPage({ params: paramsPromise }: { params: P
   );
 }
 
+// FormFieldItem is a simple wrapper, ensure it doesn't cause context issues
 const FormFieldItem = ({ children }: { children: React.ReactNode }) => <div className="space-y-1.5">{children}</div>;
