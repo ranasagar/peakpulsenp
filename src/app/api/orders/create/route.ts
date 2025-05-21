@@ -2,7 +2,7 @@
 // /src/app/api/orders/create/route.ts
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { supabase } from '../../../lib/supabaseClient.ts';
+import { supabase } from '../../../../lib/supabaseClient.ts';
 import type { CartItem, OrderAddress, OrderStatus, PaymentStatus } from '@/types';
 
 interface ShippingDetails {
@@ -26,7 +26,7 @@ interface ShippingDetails {
 
 interface CreateOrderPayload {
   userId?: string; 
-  cartItems: CartItem[]; // CartItem should now include costPrice
+  cartItems: CartItem[]; 
   shippingDetails: ShippingDetails;
   orderSubtotal: number;
   shippingCost: number;
@@ -127,7 +127,7 @@ export async function POST(request: NextRequest) {
       variantId: item.variantId,
       name: item.name,
       price: item.price,
-      costPrice: item.costPrice, // Ensure costPrice is included
+      costPrice: item.costPrice, 
       quantity: item.quantity,
       imageUrl: item.imageUrl,
       dataAiHint: item.dataAiHint,
@@ -136,7 +136,7 @@ export async function POST(request: NextRequest) {
 
     const orderToInsert = {
       userId: userId,
-      items: sanitizedCartItems, // Use sanitized items
+      items: sanitizedCartItems, 
       totalAmount: orderTotal,
       currency: 'NPR',
       status: orderStatus,
@@ -147,18 +147,18 @@ export async function POST(request: NextRequest) {
         country: country,
         fullName: fullName,
         phone: phone || undefined,
-        state: shippingDetails.isInternational ? undefined : country, // Assuming 'country' doubles as state for Nepal
+        state: shippingDetails.isInternational ? undefined : country, 
         apartmentSuite: apartmentSuite || undefined,
       } as OrderAddress,
       paymentMethod: paymentMethod,
       paymentStatus: paymentStatus,
-      // createdAt and updatedAt will be set by Supabase defaults
     };
     
     console.log(`[API /api/orders/create] New order object to be inserted into Supabase:`, JSON.stringify(orderToInsert, null, 2));
 
     const { data: newOrderData, error: insertError } = await supabase
       .from('orders')
+      // @ts-ignore
       .insert(orderToInsert)
       .select()
       .single();

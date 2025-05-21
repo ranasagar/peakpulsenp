@@ -2,7 +2,7 @@
 // /src/app/api/admin/accounting/sales-data/route.ts
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { supabase } from '../../../../../lib/supabaseClient'; // Adjusted path
+import { supabase } from '../../../../../lib/supabaseClient';
 import type { Order } from '@/types';
 
 export const dynamic = 'force-dynamic';
@@ -15,8 +15,8 @@ export async function GET(request: NextRequest) {
   console.log(`[API /api/admin/accounting/sales-data] GET request for sales data. Range: ${startDate} to ${endDate}`);
 
   if (!supabase) {
-    console.error('[API /api/admin/accounting/sales-data] Supabase client is not initialized.');
-    return NextResponse.json({ message: 'Database client not configured.' }, { status: 503 });
+    console.error('[API /api/admin/accounting/sales-data] Supabase client is not initialized. Check environment variables and server restart.');
+    return NextResponse.json({ message: 'Database client not configured. Please check server logs and .env file.' }, { status: 503 });
   }
 
   if (!startDate || !endDate) {
@@ -24,7 +24,6 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Adjust endDate to include the whole day
     const adjustedEndDate = new Date(endDate);
     adjustedEndDate.setUTCHours(23, 59, 59, 999);
 

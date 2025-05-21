@@ -2,20 +2,20 @@
 // /src/app/api/user-posts/route.ts
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { supabase } from '../../../lib/supabaseClient.ts'; // Using relative path
+import { supabase } from '../../../lib/supabaseClient.ts';
 import type { UserPost } from '@/types';
 
 export const dynamic = 'force-dynamic';
 
 // GET approved user posts
 export async function GET(request: NextRequest) {
-  console.log("[API /api/user-posts] GET request received for approved posts.");
+  console.log("[API /api/user-posts GET] request received for approved posts.");
 
   if (!supabase) {
-    console.error('[API /api/user-posts GET] Supabase client is not initialized. Check environment variables.');
+    console.error('[API /api/user-posts GET] Supabase client is not initialized. Check environment variables and server restart.');
     return NextResponse.json({
-      message: 'Database service not available.',
-      rawSupabaseError: { message: 'Supabase client not initialized on server. Check server logs and environment variables.' }
+      message: 'Database service not available. Cannot fetch posts.',
+      rawSupabaseError: { message: 'Supabase client not initialized on server for GET. Check server logs and environment variables.' }
     }, { status: 503 });
   }
 
@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
         status,
         created_at,
         updated_at,
-        users (
+        users ( 
           name,
           "avatarUrl"
         )
@@ -52,10 +52,10 @@ export async function GET(request: NextRequest) {
       }, { status: 500 });
     }
     
-    const posts: UserPost[] = data?.map(post => ({
+    const posts: UserPost[] = (data || []).map(post => ({
         id: post.id,
         user_id: post.user_id,
-        // @ts-ignore supabase types might not be perfect for nested select
+        // @ts-ignore
         user_name: post.users?.name || 'Peak Pulse User', 
         // @ts-ignore
         user_avatar_url: post.users?.["avatarUrl"] || undefined,
@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
         status: post.status as UserPost['status'],
         created_at: post.created_at,
         updated_at: post.updated_at,
-    })) || [];
+    }));
 
     console.log(`[API /api/user-posts GET] Successfully fetched ${posts.length} approved posts.`);
     return NextResponse.json(posts);
@@ -89,7 +89,7 @@ export async function POST(request: NextRequest) {
   console.log("[API /api/user-posts POST] request received to create user post.");
 
   if (!supabase) {
-    console.error('[API /api/user-posts POST] Supabase client is not initialized. Check environment variables.');
+    console.error('[API /api/user-posts POST] Supabase client is not initialized. Check environment variables and server restart.');
     return NextResponse.json({
       message: 'Database service not available. Cannot create post.',
       rawSupabaseError: { message: 'Supabase client not initialized on server for POST. Check server logs and environment variables.' }
@@ -104,11 +104,11 @@ export async function POST(request: NextRequest) {
     }
 
     const newPostData = {
-      user_id: userId,
+      user_id: userId, // This should be a string (Firebase UID) and user_id column in Supabase should be TEXT
       image_url: imageUrl,
       caption: caption || null,
       product_tags: productTags && productTags.length > 0 ? productTags : null,
-      status: 'pending', // New posts default to pending
+      status: 'pending', 
     };
     
     console.log('[API /api/user-posts POST] Attempting to insert new post data:', JSON.stringify(newPostData, null, 2));
@@ -142,4 +142,3 @@ export async function POST(request: NextRequest) {
     }, { status: 500 });
   }
 }
-

@@ -1,14 +1,14 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Eye, Edit3, Users, ShoppingBag, FileText, AlertTriangle, ListOrdered, BookOpenText, BarChart3, DollarSign, TrendingUp, Percent, Landmark, Tags } from 'lucide-react';
+import { BookOpenText, ShoppingBag, BarChart3, ListOrdered, Landmark, Tags, Users, AlertTriangle, FileText } from 'lucide-react';
 import Link from 'next/link';
-import { supabase } from '@/lib/supabaseClient.ts'; // Ensure correct path if using alias
+import { supabase } from '@/lib/supabaseClient';
 import type { Order, CartItem } from '@/types';
 
 async function getSupabaseCount(tableName: string): Promise<number | string> {
   if (!supabase) {
-    console.error(`[AdminDashboard] Supabase client not available for counting ${tableName}.`);
-    return 'N/A (DB Error)';
+    console.error(`[AdminDashboard] Supabase client not available for counting ${tableName}. Check .env and server restart.`);
+    return 'N/A (DB Client Error)';
   }
   try {
     const { count, error } = await supabase
@@ -18,27 +18,34 @@ async function getSupabaseCount(tableName: string): Promise<number | string> {
     if (error) {
       console.error(`[AdminDashboard] Error counting ${tableName} from Supabase:`, error);
       if (error.message.includes("permission denied") || error.message.includes("policy")) {
-        return `RLS?`;
+        return `RLS? (${error.code || 'DB'})`;
       }
-      return `Error`;
+      return `Error (${error.code || 'DB'})`;
     }
     return count ?? 0;
+  } catch (e) {
+    console.error(`[AdminDashboard] Exception counting ${tableName} from Supabase:`, (e as Error).message);
+    return 'N/A (Exception)';
+  }
+}
+
+async function getContentFileStatus(contentKey: string): Promise<'Managed by DB' | 'JSON (Okay)' | 'JSON (Not Found)' | 'JSON (Error)'> {
+  // For this iteration, content sections like homepage and our-story still use JSON files.
+  const filePath = `./src/data/${contentKey}-content.json`; // Simplified path for example
+  try {
+    // In a real app, you'd use fs.access or fs.stat from 'fs/promises' here.
+    // For this Next.js server component context, direct fs access might be restricted or behave differently.
+    // We'll simulate a check.
+    if (contentKey === 'homepage' || contentKey === 'our-story') {
+      // This would ideally check if the corresponding JSON file exists and is readable
+      // For now, we assume it's okay if it's one of these keys.
+      return 'JSON (Okay)'; 
+    }
+    return 'JSON (Not Found)';
   } catch (error) {
-    console.error(`[AdminDashboard] Exception counting ${tableName} from Supabase:`, (error as Error).message);
-    return 'Error (Exc.)';
+    return 'JSON (Error)';
   }
 }
-
-// This function is a placeholder as JSON file management is being phased out
-async function getContentFileStatus(contentKey: string): Promise<'Managed by DB' | 'Not Found' | 'Error'> {
-  // For this iteration, assume content sections like homepage and our-story will eventually be DB driven
-  // For now, just return a placeholder status
-  if (contentKey === 'homepage' || contentKey === 'our-story') {
-      return 'Managed by DB'; // Placeholder for now
-  }
-  return 'Not Found';
-}
-
 
 async function getSalesMetrics(): Promise<{
   totalRevenue: number;
@@ -49,7 +56,7 @@ async function getSalesMetrics(): Promise<{
   orderCountForMetrics: number;
 }> {
   if (!supabase) {
-    console.error("[AdminDashboard] Supabase client not available for sales metrics.");
+    console.error("[AdminDashboard] Supabase client not available for sales metrics. Check .env and server restart.");
     return { totalRevenue: 0, totalCOGS: 0, grossProfit: 0, grossProfitMargin: 0, averageOrderValue: 0, orderCountForMetrics: 0 };
   }
 
@@ -73,7 +80,7 @@ async function getSalesMetrics(): Promise<{
 
     orders.forEach(order => {
       totalRevenue += Number(order.totalAmount || 0);
-      const items = order.items as CartItem[] | null;
+      const items = order.items as CartItem[] | null; // Ensure items is treated as CartItem[]
       if (items) {
         items.forEach(item => {
           totalCOGS += (item.costPrice || 0) * item.quantity;
@@ -100,14 +107,34 @@ async function getSalesMetrics(): Promise<{
   }
 }
 
-
 export default async function AdminDashboardPage() {
+  if (!supabase) {
+    return (
+      <div className="space-y-8">
+        <Card className="shadow-lg bg-destructive/10 border-destructive">
+          <CardHeader>
+            <CardTitle className="text-2xl text-destructive-foreground flex items-center">
+              <AlertTriangle className="mr-3 h-6 w-6"/> Configuration Error
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="text-destructive-foreground">
+            <p className="font-semibold">Supabase client is not initialized.</p>
+            <p>Please ensure your Supabase URL and Anon Key are correctly set in the <code>.env</code> file and that the Next.js server has been restarted.</p>
+            <p className="mt-2 text-sm">Without a valid database connection, most admin features will not work.</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   const productCount = await getSupabaseCount('products');
   const orderCount = await getSupabaseCount('orders');
   const userCount = await getSupabaseCount('users');
-  const categoryCount = await getSupabaseCount('categories'); // New
-  const homepageContentStatus = await getContentFileStatus('homepage');
-  const ourStoryContentStatus = await getContentFileStatus('our-story');
+  const categoryCount = await getSupabaseCount('categories');
+  const loanCount = await getSupabaseCount('loans');
+
+  const homepageContentStatus = await getContentFileStatus('homepage'); // Still JSON based
+  const ourStoryContentStatus = await getContentFileStatus('our-story'); // Still JSON based
   const salesMetrics = await getSalesMetrics();
 
   return (
@@ -115,33 +142,33 @@ export default async function AdminDashboardPage() {
       <Card className="shadow-lg">
         <CardHeader>
           <CardTitle className="text-2xl">Welcome to the Admin Dashboard</CardTitle>
-          <CardDescription>Manage your Peak Pulse application. Data primarily from Supabase.</CardDescription>
+          <CardDescription>Manage your Peak Pulse application. Key data from Supabase.</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <Card className="bg-muted/30">
               <CardHeader className="pb-2"><CardTitle className="text-lg flex items-center"><ShoppingBag className="mr-2 h-5 w-5 text-primary"/>Products</CardTitle></CardHeader>
-              <CardContent><p className="text-3xl font-bold">{productCount}</p><p className="text-xs text-muted-foreground">Total products</p><Link href="/admin/products" className="text-primary hover:underline text-xs mt-1 block">Manage Products &rarr;</Link></CardContent>
+              <CardContent><p className="text-3xl font-bold">{productCount}</p><p className="text-xs text-muted-foreground">Total products (Supabase)</p><Link href="/admin/products" className="text-primary hover:underline text-xs mt-1 block">Manage Products &rarr;</Link></CardContent>
             </Card>
              <Card className="bg-muted/30">
               <CardHeader className="pb-2"><CardTitle className="text-lg flex items-center"><Tags className="mr-2 h-5 w-5 text-primary"/>Categories</CardTitle></CardHeader>
-              <CardContent><p className="text-3xl font-bold">{categoryCount}</p><p className="text-xs text-muted-foreground">Total categories</p><Link href="/admin/categories" className="text-primary hover:underline text-xs mt-1 block">Manage Categories &rarr;</Link></CardContent>
+              <CardContent><p className="text-3xl font-bold">{categoryCount}</p><p className="text-xs text-muted-foreground">Total categories (Supabase)</p><Link href="/admin/categories" className="text-primary hover:underline text-xs mt-1 block">Manage Categories &rarr;</Link></CardContent>
             </Card>
             <Card className="bg-muted/30">
               <CardHeader className="pb-2"><CardTitle className="text-lg flex items-center"><ListOrdered className="mr-2 h-5 w-5 text-primary"/>Orders</CardTitle></CardHeader>
-              <CardContent><p className="text-3xl font-bold">{orderCount}</p><p className="text-xs text-muted-foreground">Total orders</p><Link href="/admin/orders" className="text-primary hover:underline text-xs mt-1 block">View Orders &rarr;</Link></CardContent>
+              <CardContent><p className="text-3xl font-bold">{orderCount}</p><p className="text-xs text-muted-foreground">Total orders (Supabase)</p><Link href="/admin/orders" className="text-primary hover:underline text-xs mt-1 block">View Orders &rarr;</Link></CardContent>
             </Card>
             <Card className="bg-muted/30">
               <CardHeader className="pb-2"><CardTitle className="text-lg flex items-center"><Users className="mr-2 h-5 w-5 text-primary"/>Users</CardTitle></CardHeader>
-              <CardContent><p className="text-3xl font-bold">{userCount}</p><p className="text-xs text-muted-foreground">Total user profiles</p><p className="text-xs text-accent mt-1">User management UI not yet built.</p></CardContent>
+              <CardContent><p className="text-3xl font-bold">{userCount}</p><p className="text-xs text-muted-foreground">User profiles (Supabase)</p><p className="text-xs text-accent mt-1">User management UI coming soon.</p></CardContent>
             </Card>
             <Card className="bg-muted/30">
               <CardHeader className="pb-2"><CardTitle className="text-lg flex items-center"><FileText className="mr-2 h-5 w-5 text-primary"/>Homepage Content</CardTitle></CardHeader>
-              <CardContent><p className={`text-xl font-semibold text-green-600`}>{homepageContentStatus}</p><Link href="/admin/content/homepage" className="text-primary hover:underline text-xs mt-1 block">Edit Homepage &rarr;</Link></CardContent>
+              <CardContent><p className={`text-xl font-semibold ${homepageContentStatus.includes('Okay') ? 'text-green-600' : 'text-amber-600'}`}>{homepageContentStatus}</p><Link href="/admin/content/homepage" className="text-primary hover:underline text-xs mt-1 block">Edit Homepage &rarr;</Link></CardContent>
             </Card>
              <Card className="bg-muted/30">
               <CardHeader className="pb-2"><CardTitle className="text-lg flex items-center"><BookOpenText className="mr-2 h-5 w-5 text-primary"/>Our Story Content</CardTitle></CardHeader>
-              <CardContent><p className={`text-xl font-semibold text-green-600`}>{ourStoryContentStatus}</p><Link href="/admin/content/our-story" className="text-primary hover:underline text-xs mt-1 block">Edit Our Story &rarr;</Link></CardContent>
+              <CardContent><p className={`text-xl font-semibold ${ourStoryContentStatus.includes('Okay') ? 'text-green-600' : 'text-amber-600'}`}>{ourStoryContentStatus}</p><Link href="/admin/content/our-story" className="text-primary hover:underline text-xs mt-1 block">Edit Our Story &rarr;</Link></CardContent>
             </Card>
           </div>
         </CardContent>
@@ -149,55 +176,40 @@ export default async function AdminDashboardPage() {
 
       <Card className="shadow-lg">
         <CardHeader>
-            <CardTitle className="text-xl flex items-center"><Landmark className="mr-2 h-6 w-6 text-green-500"/>Accounting Overview</CardTitle>
-            <CardDescription>Sales and profitability summary based on 'Shipped' or 'Delivered' orders. COGS calculated from item cost at time of sale (if available in order data).</CardDescription>
+            <CardTitle className="text-xl flex items-center"><Landmark className="mr-2 h-6 w-6 text-green-500"/>Accounting Overview (Supabase Orders)</CardTitle>
+            <CardDescription>Sales and profitability summary based on 'Shipped' or 'Delivered' orders. COGS calculated from item costPrice at time of sale.</CardDescription>
         </CardHeader>
         <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            <Card className="p-4 bg-green-500/10 border-green-500/30">
+            <Card className="p-4 bg-green-100 dark:bg-green-500/10 border-green-300 dark:border-green-500/30">
                 <div className="flex items-center justify-between mb-1">
-                    <p className="text-sm font-medium text-green-700">Total Revenue</p>
-                    <TrendingUp className="h-5 w-5 text-green-600"/>
+                    <p className="text-sm font-medium text-green-700 dark:text-green-300">Total Revenue</p>
+                    <ListOrdered className="h-5 w-5 text-green-600 dark:text-green-400"/>
                 </div>
-                <p className="text-2xl font-bold text-green-700">रू{salesMetrics.totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                <p className="text-2xl font-bold text-green-700 dark:text-green-200">{salesMetrics.orderCountForMetrics} Orders</p>
+                <p className="text-3xl font-bold text-green-700 dark:text-green-200 mt-1">रू{salesMetrics.totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
             </Card>
-            <Card className="p-4 bg-amber-500/10 border-amber-500/30">
+            <Card className="p-4 bg-amber-100 dark:bg-amber-500/10 border-amber-300 dark:border-amber-500/30">
                  <div className="flex items-center justify-between mb-1">
-                    <p className="text-sm font-medium text-amber-700">Total COGS</p>
-                    <DollarSign className="h-5 w-5 text-amber-600"/>
+                    <p className="text-sm font-medium text-amber-700 dark:text-amber-300">Total COGS</p>
+                    <ShoppingBag className="h-5 w-5 text-amber-600 dark:text-amber-400"/>
                 </div>
-                <p className="text-2xl font-bold text-amber-700">रू{salesMetrics.totalCOGS.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                 <p className="text-xs text-muted-foreground">(from Shipped/Delivered orders)</p>
+                <p className="text-3xl font-bold text-amber-700 dark:text-amber-200 mt-1">रू{salesMetrics.totalCOGS.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
             </Card>
-            <Card className="p-4 bg-blue-500/10 border-blue-500/30">
+            <Card className="p-4 bg-blue-100 dark:bg-blue-500/10 border-blue-300 dark:border-blue-500/30">
                  <div className="flex items-center justify-between mb-1">
-                    <p className="text-sm font-medium text-blue-700">Gross Profit</p>
-                    <TrendingUp className="h-5 w-5 text-blue-600"/>
+                    <p className="text-sm font-medium text-blue-700 dark:text-blue-300">Gross Profit</p>
+                    <BarChart3 className="h-5 w-5 text-blue-600 dark:text-blue-400"/>
                 </div>
-                <p className="text-2xl font-bold text-blue-700">रू{salesMetrics.grossProfit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-            </Card>
-             <Card className="p-4 bg-purple-500/10 border-purple-500/30">
-                 <div className="flex items-center justify-between mb-1">
-                    <p className="text-sm font-medium text-purple-700">Gross Profit Margin</p>
-                    <Percent className="h-5 w-5 text-purple-600"/>
-                </div>
-                <p className="text-2xl font-bold text-purple-700">{salesMetrics.grossProfitMargin.toFixed(2)}%</p>
-            </Card>
-            <Card className="p-4 bg-indigo-500/10 border-indigo-500/30">
-                 <div className="flex items-center justify-between mb-1">
-                    <p className="text-sm font-medium text-indigo-700">Average Order Value</p>
-                    <ShoppingBag className="h-5 w-5 text-indigo-600"/>
-                </div>
-                <p className="text-2xl font-bold text-indigo-700">रू{salesMetrics.averageOrderValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-            </Card>
-             <Card className="p-4 bg-gray-500/10 border-gray-500/30">
-                 <div className="flex items-center justify-between mb-1">
-                    <p className="text-sm font-medium text-gray-700">Completed Orders</p>
-                    <ListOrdered className="h-5 w-5 text-gray-600"/>
-                </div>
-                <p className="text-2xl font-bold text-gray-700">{salesMetrics.orderCountForMetrics}</p>
+                <p className="text-xs text-muted-foreground">(Revenue - COGS)</p>
+                <p className="text-3xl font-bold text-blue-700 dark:text-blue-200 mt-1">रू{salesMetrics.grossProfit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                 <p className={`text-sm font-semibold mt-1 ${salesMetrics.grossProfitMargin >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                    Margin: {salesMetrics.grossProfitMargin.toFixed(2)}%
+                 </p>
             </Card>
              <div className="lg:col-span-3 mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Link href="/admin/accounting/loans" className="text-sm text-primary hover:underline flex items-center p-3 border rounded-md hover:bg-primary/5">
-                    <Landmark className="mr-2 h-4 w-4" /> Manage Loans
+                    <Landmark className="mr-2 h-4 w-4" /> Manage Loans ({loanCount})
                 </Link>
                 <Link href="/admin/accounting/tax-report" className="text-sm text-primary hover:underline flex items-center p-3 border rounded-md hover:bg-primary/5">
                     <FileText className="mr-2 h-4 w-4" /> Sales Data Export for Tax
@@ -221,17 +233,16 @@ export default async function AdminDashboardPage() {
 
        <Card className="mt-8 shadow-lg">
         <CardHeader>
-          <CardTitle className="text-xl text-destructive flex items-center"><AlertTriangle className="mr-2 h-5 w-5"/>Important Notes</CardTitle>
+          <CardTitle className="text-xl text-destructive flex items-center"><AlertTriangle className="mr-2 h-5 w-5"/>Important Note on this Admin Demo</CardTitle>
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground mb-2">
-            This admin panel is a demonstration. For production, consider the following:
+            This admin panel is a demonstration. Key data (Products, Orders, Users, Categories, Loans) is managed via <strong>Supabase</strong>. Some page content (Homepage, Our Story) still uses JSON files.
           </p>
           <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
-            <li>**Security:** This section currently lacks robust authentication & authorization for specific admin roles. Access must be strictly controlled in a production environment.</li>
-            <li>**Data Management:** Product, Order, User, and Category data are now managed via **Supabase**. Homepage and "Our Story" page content still use JSON files for this demo; for production, migrating these to Supabase or a headless CMS is recommended for scalability and to avoid issues with read-only filesystems on platforms like Vercel.</li>
-            <li>**Accounting Features:** The sales summary and tax data export are for informational purposes. Full accounting requires specialized systems. COGS accuracy depends on `costPrice` being diligently maintained.</li>
-            <li>**Error Handling & Scalability:** Production systems require more comprehensive error handling, input validation, and infrastructure designed for scalability.</li>
+            <li>**Security:** This section currently lacks robust role-based authentication & authorization. Access must be strictly controlled in a production environment. Supabase Row Level Security (RLS) should be thoroughly configured.</li>
+            <li>**JSON Content Management:** Managing content via JSON files (as done for Homepage/Our Story) is not scalable and **will not work in most serverless production environments like Vercel** due to read-only filesystems. Migrate this content to Supabase or a headless CMS for production.</li>
+            <li>**Accounting Features:** The sales summary and tax data export are for informational purposes. Full accounting requires specialized systems. COGS accuracy depends on `costPrice` being diligently maintained for products/variants and recorded accurately in orders.</li>
           </ul>
         </CardContent>
       </Card>

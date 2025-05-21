@@ -16,7 +16,8 @@ export async function PUT(
   console.log(`[API /api/admin/categories/${categoryId}] PUT request received.`);
 
   if (!supabase) {
-    return NextResponse.json({ message: 'Supabase client not initialized' }, { status: 503 });
+    console.error(`[API /api/admin/categories/${categoryId} PUT] Supabase client is not initialized. Check environment variables and server restart.`);
+    return NextResponse.json({ message: 'Database client not configured. Please check server logs and .env file.' }, { status: 503 });
   }
   if (!categoryId) {
     return NextResponse.json({ message: 'Category ID is required' }, { status: 400 });
@@ -31,11 +32,10 @@ export async function PUT(
     else if (body.name) categoryToUpdate.slug = body.name.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, '');
     
     if (body.hasOwnProperty('description')) categoryToUpdate.description = body.description || null;
-    if (body.hasOwnProperty('imageUrl')) categoryToUpdate.image_url = body.imageUrl || null;
-    if (body.hasOwnProperty('aiImagePrompt')) categoryToUpdate.ai_image_prompt = body.aiImagePrompt || null;
+    if (body.hasOwnProperty('imageUrl')) categoryToUpdate.image_url = body.imageUrl || null; // Supabase uses image_url
+    if (body.hasOwnProperty('aiImagePrompt')) categoryToUpdate.ai_image_prompt = body.aiImagePrompt || null; // Supabase uses ai_image_prompt
     
-    // Ensure updatedAt is set by the trigger, but can be explicit if needed
-    // categoryToUpdate.updated_at = new Date().toISOString();
+    categoryToUpdate.updated_at = new Date().toISOString(); // Explicitly set for Supabase if trigger isn't used/reliable
 
     console.log(`[API /api/admin/categories/${categoryId}] Attempting to update category with:`, categoryToUpdate);
 
@@ -48,7 +48,7 @@ export async function PUT(
 
     if (error) {
       console.error(`[API /api/admin/categories/${categoryId}] Supabase error updating category:`, error);
-      return NextResponse.json({ message: error.message, details: error.details, hint: error.hint, code: error.code }, { status: 400 });
+      return NextResponse.json({ message: error.message, details: error.details, hint: error.hint, code: error.code, rawSupabaseError: error }, { status: 400 });
     }
     if (!data) {
         return NextResponse.json({ message: 'Category not found or update failed' }, { status: 404 });
@@ -63,14 +63,15 @@ export async function PUT(
 
 // DELETE a category
 export async function DELETE(
-  request: NextRequest, // Not used, but required by Next.js convention
+  request: NextRequest, 
   { params }: { params: { categoryId: string } }
 ) {
   const { categoryId } = params;
   console.log(`[API /api/admin/categories/${categoryId}] DELETE request received.`);
 
   if (!supabase) {
-    return NextResponse.json({ message: 'Supabase client not initialized' }, { status: 503 });
+    console.error(`[API /api/admin/categories/${categoryId} DELETE] Supabase client is not initialized. Check environment variables and server restart.`);
+    return NextResponse.json({ message: 'Database client not configured. Please check server logs and .env file.' }, { status: 503 });
   }
   if (!categoryId) {
     return NextResponse.json({ message: 'Category ID is required' }, { status: 400 });
@@ -84,10 +85,10 @@ export async function DELETE(
 
     if (error) {
       console.error(`[API /api/admin/categories/${categoryId}] Supabase error deleting category:`, error);
-      return NextResponse.json({ message: error.message, details: error.details, hint: error.hint }, { status: 500 });
+      return NextResponse.json({ message: error.message, details: error.details, hint: error.hint, rawSupabaseError: error }, { status: 500 });
     }
     console.log(`[API /api/admin/categories/${categoryId}] Category deleted successfully.`);
-    return NextResponse.json({ message: 'Category deleted successfully' }, { status: 200 }); // Or 204 No Content
+    return NextResponse.json({ message: 'Category deleted successfully' }, { status: 200 });
   } catch (e) {
     console.error(`[API /api/admin/categories/${categoryId}] Unhandled error deleting category:`, e);
     return NextResponse.json({ message: (e as Error).message }, { status: 500 });

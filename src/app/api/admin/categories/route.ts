@@ -11,7 +11,8 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   console.log("[API /api/admin/categories] GET request received.");
   if (!supabase) {
-    return NextResponse.json({ message: 'Supabase client not initialized' }, { status: 503 });
+    console.error('[API /api/admin/categories GET] Supabase client is not initialized. Check environment variables and server restart.');
+    return NextResponse.json({ message: 'Database client not configured. Please check server logs and .env file.' }, { status: 503 });
   }
   try {
     const { data, error } = await supabase
@@ -21,10 +22,10 @@ export async function GET() {
 
     if (error) {
       console.error('[API /api/admin/categories] Supabase error fetching categories:', error);
-      return NextResponse.json({ message: error.message, details: error.details, hint: error.hint }, { status: 500 });
+      return NextResponse.json({ message: error.message, details: error.details, hint: error.hint, rawSupabaseError: error }, { status: 500 });
     }
     console.log(`[API /api/admin/categories] Successfully fetched ${data?.length || 0} categories.`);
-    return NextResponse.json(data);
+    return NextResponse.json(data || []);
   } catch (e) {
     console.error('[API /api/admin/categories] Unhandled error fetching categories:', e);
     return NextResponse.json({ message: (e as Error).message }, { status: 500 });
@@ -35,7 +36,8 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   console.log("[API /api/admin/categories] POST request received.");
   if (!supabase) {
-    return NextResponse.json({ message: 'Supabase client not initialized' }, { status: 503 });
+    console.error('[API /api/admin/categories POST] Supabase client is not initialized. Check environment variables and server restart.');
+    return NextResponse.json({ message: 'Database client not configured. Please check server logs and .env file.' }, { status: 503 });
   }
   try {
     const body = await request.json() as Omit<AdminCategory, 'id' | 'createdAt' | 'updatedAt'>;
@@ -57,7 +59,7 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       console.error('[API /api/admin/categories] Supabase error creating category:', error);
-      return NextResponse.json({ message: error.message, details: error.details, hint: error.hint, code: error.code }, { status: 400 }); // 400 for bad user input / constraints
+      return NextResponse.json({ message: error.message, details: error.details, hint: error.hint, code: error.code, rawSupabaseError: error }, { status: 400 });
     }
     console.log("[API /api/admin/categories] Category created successfully:", data);
     return NextResponse.json(data, { status: 201 });
