@@ -4,6 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Leaf, Recycle, ShieldCheck, Globe } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { AspectRatio } from '@/components/ui/aspect-ratio';
+import Link from 'next/link';
+import { Button } from '@/components/ui/button'; // Added Button import
 
 export default function SustainabilityPage() {
   return (
@@ -36,19 +38,19 @@ export default function SustainabilityPage() {
                 </div>
                  <div className="rounded-xl overflow-hidden shadow-2xl">
                     <AspectRatio ratio={16/10}>
-                    <Image 
+                    <Image
                         src="https://placehold.co/800x500.png"
-                        alt="Sustainable fabrics and materials" 
-                        layout="fill"
-                        objectFit="cover"
-                        className="transition-transform duration-500 hover:scale-105"
+                        alt="Sustainable fabrics and materials"
+                        fill
+                        sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                        className="object-cover transition-transform duration-500 hover:scale-105"
                         data-ai-hint="fabric textile sustainable"
                     />
                     </AspectRatio>
                  </div>
             </div>
         </section>
-        
+
         <Separator />
 
         {/* Ethical Production Section */}
@@ -67,12 +69,12 @@ export default function SustainabilityPage() {
                 </div>
                 <div className="rounded-xl overflow-hidden shadow-2xl md:order-1">
                     <AspectRatio ratio={16/10}>
-                    <Image 
+                    <Image
                         src="https://placehold.co/800x500.png"
-                        alt="Artisans working in an ethical environment" 
-                        layout="fill"
-                        objectFit="cover"
-                        className="transition-transform duration-500 hover:scale-105"
+                        alt="Artisans working in an ethical environment"
+                        fill
+                        sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                        className="object-cover transition-transform duration-500 hover:scale-105"
                         data-ai-hint="artisans craft ethical"
                     />
                     </AspectRatio>
@@ -81,7 +83,7 @@ export default function SustainabilityPage() {
         </section>
 
         <Separator />
-        
+
         {/* Our Goals Section */}
         <section className="text-center">
             <h2 className="text-3xl font-semibold text-foreground mb-12">Our Green Goals</h2>
@@ -103,7 +105,7 @@ export default function SustainabilityPage() {
                 </Card>
             </div>
         </section>
-        
+
          <section className="bg-primary/5 rounded-xl p-10 md:p-16 text-center">
             <h2 className="text-3xl font-semibold text-foreground mb-6">Join Us in Making a Difference</h2>
             <p className="text-lg text-muted-foreground mb-8 max-w-2xl mx-auto">
@@ -117,5 +119,3 @@ export default function SustainabilityPage() {
     </div>
   );
 }
-
-    
