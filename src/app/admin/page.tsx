@@ -1,9 +1,11 @@
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { BookOpenText, ShoppingBag, BarChart3, ListOrdered, Landmark, Tags, Users, AlertTriangle, FileText } from 'lucide-react';
 import Link from 'next/link';
-// import { supabase } from '@/lib/supabaseClient'; // Temporarily remove direct Supabase usage for debugging
+import { supabase } from '@/lib/supabaseClient'; // Adjusted to correct path alias
 import fs from 'fs/promises';
 import path from 'path';
+import { Button } from '@/components/ui/button'; // Added Button import
 
 // Helper function to check file status without Supabase interaction
 async function getContentFileStatus(contentKey: string): Promise<'JSON (Okay)' | 'JSON (Not Found)' | 'JSON (Error)'> {
@@ -20,32 +22,52 @@ async function getContentFileStatus(contentKey: string): Promise<'JSON (Okay)' |
   }
 }
 
+async function getSupabaseCount(tableName: string): Promise<string | number> {
+  if (!supabase) {
+    console.warn(`[AdminDashboard] Supabase client not available for counting ${tableName}.`);
+    return 'N/A (DB Client Error)';
+  }
+  try {
+    const { count, error } = await supabase.from(tableName).select('*', { count: 'exact', head: true });
+    if (error) {
+      console.error(`[AdminDashboard] Error counting ${tableName}:`, error);
+      return 'N/A (DB Query Error)';
+    }
+    return count ?? 0;
+  } catch (e) {
+    console.error(`[AdminDashboard] Exception counting ${tableName}:`, e);
+    return 'N/A (Exception)';
+  }
+}
+
+
 export default async function AdminDashboardPage() {
-  // Temporarily replace Supabase counts with placeholders or static values
-  const productCount = 'N/A (DB Temp. Disabled)';
-  const orderCount = 'N/A (DB Temp. Disabled)';
-  const userCount = 'N/A (DB Temp. Disabled)';
-  const categoryCount = 'N/A (DB Temp. Disabled)';
-  const loanCount = 'N/A (DB Temp. Disabled)';
+  const productCount = await getSupabaseCount('products');
+  const orderCount = await getSupabaseCount('orders');
+  const userCount = await getSupabaseCount('users');
+  const categoryCount = await getSupabaseCount('categories');
+  const loanCount = await getSupabaseCount('loans');
+
 
   const homepageContentStatus = await getContentFileStatus('homepage');
   const ourStoryContentStatus = await getContentFileStatus('our-story');
 
+  // Placeholder for sales metrics - these would typically be calculated from 'orders' table
   const salesMetrics = {
-    totalRevenue: 0,
-    totalCOGS: 0,
-    grossProfit: 0,
-    grossProfitMargin: 0,
-    averageOrderValue: 0,
-    orderCountForMetrics: 0,
-  }; // Placeholder for sales metrics
+    totalRevenue: 0, // Placeholder, replace with actual calculation
+    totalCOGS: 0,    // Placeholder
+    grossProfit: 0,  // Placeholder
+    grossProfitMargin: 0, // Placeholder
+    averageOrderValue: 0, // Placeholder
+    orderCountForMetrics: 0, // Placeholder
+  };
 
   return (
     <div className="space-y-8">
       <Card className="shadow-lg">
         <CardHeader>
           <CardTitle className="text-2xl">Welcome to the Admin Dashboard</CardTitle>
-          <CardDescription>Manage your Peak Pulse application. Key data is primarily from Supabase (currently showing placeholders for DB counts).</CardDescription>
+          <CardDescription>Manage your Peak Pulse application. Data for Products, Orders, Users, Categories, and Loans is from Supabase.</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -63,7 +85,7 @@ export default async function AdminDashboardPage() {
             </Card>
             <Card className="bg-muted/30">
               <CardHeader className="pb-2"><CardTitle className="text-lg flex items-center"><Users className="mr-2 h-5 w-5 text-primary"/>Users</CardTitle></CardHeader>
-              <CardContent><p className="text-3xl font-bold">{userCount}</p><p className="text-xs text-muted-foreground">User profiles</p><p className="text-xs text-accent mt-1">User management features require further development.</p></CardContent>
+              <CardContent><p className="text-3xl font-bold">{userCount}</p><p className="text-xs text-muted-foreground">User profiles (from Supabase)</p><p className="text-xs text-accent mt-1">Basic user count displayed. Full user management features would require further development (e.g., roles, permissions).</p></CardContent>
             </Card>
             <Card className="bg-muted/30">
               <CardHeader className="pb-2"><CardTitle className="text-lg flex items-center"><FileText className="mr-2 h-5 w-5 text-primary"/>Homepage Content</CardTitle></CardHeader>
@@ -79,7 +101,7 @@ export default async function AdminDashboardPage() {
 
       <Card className="shadow-lg">
         <CardHeader>
-            <CardTitle className="text-xl flex items-center"><Landmark className="mr-2 h-6 w-6 text-green-500"/>Accounting Overview (Placeholders)</CardTitle>
+            <CardTitle className="text-xl flex items-center"><Landmark className="mr-2 h-6 w-6 text-green-500"/>Accounting Overview</CardTitle>
             <CardDescription>Sales and profitability summary. COGS calculated from item costPrice at time of sale.</CardDescription>
         </CardHeader>
         <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -140,12 +162,12 @@ export default async function AdminDashboardPage() {
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground mb-2">
-            This admin panel is currently using a mix of Supabase (for Products, Categories, Orders, Users, Loans - IF CONFIGURED AND DB CLIENT IS WORKING) and local JSON files for some page content.
+            This admin panel uses Supabase for Products, Categories, Orders, Users, and Loans. Some page content (Homepage, Our Story) is still managed via local JSON files for demonstration.
           </p>
           <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
-            <li>**Supabase Connection:** If Supabase environment variables (URL/Key) are not correctly set in <code>.env</code> or the Supabase client fails to initialize (e.g., missing <code>@supabase/supabase-js</code> package), database interactions will fail. Database counts on this dashboard are temporarily disabled for debugging.</li>
+            <li>**Supabase Connection:** Ensure your <code>.env</code> file has the correct Supabase URL and Anon Key, and that your Next.js server has been restarted after any changes.</li>
             <li>**Security:** This admin section currently lacks robust role-based authentication & authorization. Access must be strictly controlled in a production environment.</li>
-            <li>**JSON Content Management:** Managing content via JSON files (as done for Homepage/Our Story) is not scalable and **will not work in most serverless production environments like Vercel** due to read-only filesystems. Migrate this content to Supabase or a headless CMS for production.</li>
+            <li>**JSON Content Management:** Managing some content via JSON files is not scalable and will not work in most serverless production environments like Vercel due to read-only filesystems. Migrating this content to Supabase or a headless CMS is recommended for production.</li>
             <li>**Accounting Features:** The sales summary and tax data export are for informational purposes. Full accounting requires specialized systems.</li>
           </ul>
         </CardContent>
@@ -153,3 +175,4 @@ export default async function AdminDashboardPage() {
     </div>
   );
 }
+
