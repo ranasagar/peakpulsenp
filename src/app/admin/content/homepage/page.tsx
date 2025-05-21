@@ -53,15 +53,15 @@ const homepageContentSchema = z.object({
 type HomepageContentFormValues = z.infer<typeof homepageContentSchema>;
 
 const defaultHeroSlide: HeroSlide = {
-  id: '', title: '', description: '', videoId: '', imageUrl: '', altText: '', dataAiHint: '', ctaText: 'Shop Now', ctaLink: '/products'
+  id: '', title: 'New Slide Title', description: 'Compelling description for the new slide.', videoId: '', imageUrl: '', altText: 'Hero slide image', dataAiHint: 'fashion background', ctaText: 'Shop Now', ctaLink: '/products'
 };
 
 const defaultSocialCommerceItem: SocialCommerceItem = {
-  id: '', imageUrl: '', linkUrl: 'https://instagram.com/peakpulsenp', altText: 'Peak Pulse Style', dataAiHint: 'fashion instagram'
+  id: '', imageUrl: '', linkUrl: 'https://instagram.com/peakpulsenp', altText: 'Peak Pulse Style', dataAiHint: 'fashion instagram user'
 };
 
 const defaultHomepageFormValues: HomepageContentFormValues = {
-  heroSlides: [{ ...defaultHeroSlide, id: `slide-${Date.now()}` }],
+  heroSlides: [{ ...defaultHeroSlide, id: `slide-initial-${Date.now()}` }],
   artisanalRootsTitle: 'Our Artisanal Roots',
   artisanalRootsDescription: 'Discover the heritage and craftsmanship woven into every Peak Pulse piece.',
   socialCommerceItems: [],
@@ -93,7 +93,7 @@ export default function AdminHomepageContentPage() {
     const fetchContent = async () => {
       setIsLoading(true);
       try {
-        const response = await fetch('/api/admin/content/homepage'); // Fetches from Supabase
+        const response = await fetch('/api/admin/content/homepage'); 
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}));
           throw new Error(errorData.message || errorData.rawSupabaseError?.message || 'Failed to fetch homepage content');
@@ -129,7 +129,7 @@ export default function AdminHomepageContentPage() {
         heroSlides: (data.heroSlides || []).map(slide => ({
           ...slide,
           id: slide.id || `slide-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
-          videoId: slide.videoId || undefined, // Ensure empty strings become undefined
+          videoId: slide.videoId || undefined,
           imageUrl: slide.imageUrl || undefined,
         })),
         artisanalRoots: {
@@ -144,7 +144,7 @@ export default function AdminHomepageContentPage() {
         heroImageUrl: data.heroImageUrl || undefined,
       };
 
-      const response = await fetch('/api/admin/content/homepage', { // POSTs to Supabase
+      const response = await fetch('/api/admin/content/homepage', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -155,7 +155,7 @@ export default function AdminHomepageContentPage() {
         throw new Error(errorData.message || errorData.rawSupabaseError?.message || 'Failed to save homepage content');
       }
 
-      toast({ title: "Content Saved!", description: "Homepage content has been updated." });
+      toast({ title: "Content Saved!", description: "Homepage content has been updated successfully." });
     } catch (error) {
       console.error("Error saving homepage content:", error);
       toast({ title: "Save Failed", description: (error as Error).message, variant: "destructive" });
@@ -233,16 +233,19 @@ export default function AdminHomepageContentPage() {
               <Button type="button" variant="outline" size="sm" onClick={() => appendHeroSlide({ ...defaultHeroSlide, id: `slide-${Date.now()}-${Math.random().toString(36).substr(2, 5)}` })}>
                 <PlusCircle className="mr-2 h-4 w-4" /> Add Hero Slide
               </Button>
+               <FormDescription className="pt-2 text-xs">
+                Note: If you provide a YouTube Video ID for a slide, it will be used instead of the Image URL for that slide's background. The Standalone Hero Backgrounds below are used if NO slides are active or if the carousel fails.
+              </FormDescription>
             </fieldset>
 
             <fieldset className="space-y-4 p-4 border rounded-md">
-               <legend className="text-xl font-semibold px-1 mb-2">Standalone Hero Background</legend>
+               <legend className="text-xl font-semibold px-1 mb-2">Standalone Hero Background (Fallback)</legend>
                <FormDescription>Used if no carousel slides are active/defined, or as an ultimate fallback if the carousel fails. Video ID takes precedence over Image URL.</FormDescription>
                  <FormField control={form.control} name="heroImageUrl" render={({ field }) => (
                     <FormItem>
                       <FormLabel className="flex items-center"><ImageIcon className="mr-2 h-5 w-5 text-blue-500"/> Standalone Hero Background Image URL</FormLabel>
                       <FormControl><Input {...field} placeholder="e.g. https://example.com/main-hero-image.jpg" /></FormControl>
-                      <FormDescription>Tip: For quick uploads, try free sites like ImgBB.com or Postimages.org.</FormDescription>
+                      <FormDescription>Tip: For quick uploads, try free sites like ImgBB.com or Postimages.org. Upload your image, then copy and paste the "Direct link" here.</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )} />
@@ -280,7 +283,7 @@ export default function AdminHomepageContentPage() {
                     <FormItem>
                       <FormLabel>Image URL*</FormLabel>
                       <FormControl><Input {...field} placeholder="https://example.com/insta-image.jpg" /></FormControl>
-                      <FormDescription>Tip: For quick uploads, try free sites like ImgBB.com or Postimages.org.</FormDescription>
+                      <FormDescription>Tip: For quick uploads, try free sites like ImgBB.com or Postimages.org. Upload your image, then copy and paste the "Direct link" here.</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )} />
@@ -300,7 +303,7 @@ export default function AdminHomepageContentPage() {
               </Button>
             </fieldset>
             
-            <Button type="submit" disabled={isSaving} className="w-full sm:w-auto">
+            <Button type="submit" disabled={isSaving || isLoading} className="w-full sm:w-auto">
               {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
               Save Homepage Content
             </Button>
@@ -311,3 +314,5 @@ export default function AdminHomepageContentPage() {
     </Card>
   );
 }
+
+    
