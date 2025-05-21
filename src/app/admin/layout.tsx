@@ -2,7 +2,7 @@
 "use client"; 
 
 import Link from 'next/link';
-import { Shield, LayoutDashboard, Settings, ArrowLeft, BookOpenText, ShoppingBag, BarChart3, ListOrdered, Landmark, Tags, Users, ListChecks } from 'lucide-react';
+import { Shield, LayoutDashboard, Settings, ArrowLeft, BookOpenText, ShoppingBag, BarChart3, ListOrdered, Landmark, Tags, Users, ListChecks, FileText as PageIcon } from 'lucide-react';
 import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
 import { Button } from '@/components/ui/button';
@@ -83,6 +83,11 @@ export default function AdminLayout({
                        <Button variant="ghost" className="w-full justify-start text-sm font-normal h-9" asChild>
                         <Link href="/admin/content/footer">
                            <ListChecks className="mr-2 h-4 w-4" /> Footer Content
+                        </Link>
+                      </Button>
+                      <Button variant="ghost" className="w-full justify-start text-sm font-normal h-9" asChild>
+                        <Link href="/admin/content/site-pages">
+                           <PageIcon className="mr-2 h-4 w-4" /> Site Pages Content
                         </Link>
                       </Button>
                     </AccordionContent>

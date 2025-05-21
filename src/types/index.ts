@@ -43,7 +43,7 @@ export interface ProductVariant {
   value: string; // e.g., "M", "Red"
   sku?: string; // Optional SKU
   price: number;
-  costPrice?: number; // Cost of goods for this variant
+  costPrice?: number | null; // Cost of goods for this variant
   stock: number;
   imageId?: string; // Link to a specific image for this variant
 }
@@ -112,7 +112,7 @@ export interface CartItem {
   variantId?: string;
   name: string;
   price: number;
-  costPrice?: number;
+  costPrice?: number | null;
   quantity: number;
   imageUrl?: string;
   dataAiHint?: string;
@@ -209,8 +209,8 @@ export interface SocialCommerceItem {
 
 export interface HomepageContent {
   heroSlides?: HeroSlide[];
-  heroVideoId?: string; // For standalone hero video
-  heroImageUrl?: string; // For standalone hero image or fallback
+  heroVideoId?: string; 
+  heroImageUrl?: string; 
   artisanalRoots?: {
     title: string;
     description: string;
@@ -240,6 +240,7 @@ export interface OurStoryContentData {
     title: string;
     description: string;
   };
+  error?: string; // For API error handling
 }
 
 export interface UserPost {
@@ -256,7 +257,7 @@ export interface UserPost {
 }
 
 export interface SocialLink {
-  id?: string; // Optional for client-side keying
+  id?: string; 
   platform: string;
   url: string;
 }
@@ -309,13 +310,13 @@ export interface Review {
 
 // Footer Content Types
 export interface FooterNavItem {
-  id: string; // For react key
+  id: string; 
   name: string;
   href: string;
 }
 
 export interface FooterNavSection {
-  id: string; // For react key
+  id: string; 
   label: string;
   items: FooterNavItem[];
 }
@@ -323,4 +324,10 @@ export interface FooterNavSection {
 export interface FooterContentData {
   copyrightText?: string;
   navigationSections?: FooterNavSection[];
+}
+
+// Generic Page Content Type
+export interface PageContent {
+  content: string; // Can store HTML or Markdown
+  error?: string; // For API error handling
 }
