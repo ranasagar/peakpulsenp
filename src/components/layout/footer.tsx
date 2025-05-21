@@ -10,6 +10,8 @@ import { Facebook, Instagram, Twitter, Youtube, Send, Shield } from 'lucide-reac
 import { NewsletterSignupForm } from '@/components/forms/newsletter-signup-form';
 import { useAuth } from '@/hooks/use-auth';
 import { InteractiveExternalLink } from '@/components/interactive-external-link';
+import { useState, useEffect } from 'react';
+import type { SiteSettings, SocialLink as SocialLinkType } from '@/types';
 
 
 const footerNavs = [
@@ -25,7 +27,7 @@ const footerNavs = [
     label: 'Support',
     items: [
       { href: '/contact', name: 'Contact Us' },
-      { href: '/faq', name: 'FAQs' },
+      // { href: '/faq', name: 'FAQs' }, // Removed FAQ link
       { href: '/shipping-returns', name: 'Shipping & Returns' },
     ],
   },
@@ -39,16 +41,54 @@ const footerNavs = [
   },
 ];
 
-const socialLinks = [
-  { href: 'https://facebook.com/peakpulse', label: 'Facebook', icon: Facebook },
-  { href: 'https://instagram.com/peakpulsenp', label: 'Instagram', icon: Instagram },
-  { href: 'https://twitter.com/peakpulse', label: 'Twitter', icon: Twitter },
-  { href: 'https://youtube.com/peakpulse', label: 'YouTube', icon: Youtube },
+// Default social links if API fetch fails or data is not available
+const defaultSocialLinks: SocialLinkType[] = [
+  { platform: 'Facebook', url: 'https://facebook.com/peakpulse' },
+  { platform: 'Instagram', url: 'https://instagram.com/peakpulsenp' },
+  { platform: 'Twitter', url: 'https://twitter.com/peakpulse' },
+  { platform: 'YouTube', url: 'https://youtube.com/peakpulse' },
 ];
+
+const socialIcons: { [key: string]: React.ElementType } = {
+  facebook: Facebook,
+  instagram: Instagram,
+  twitter: Twitter,
+  youtube: Youtube,
+  // Add more as needed
+};
+
 
 export function Footer() {
   const currentYear = new Date().getFullYear();
   const { user } = useAuth(); 
+  const [siteSettings, setSiteSettings] = useState<SiteSettings | null>(null);
+  const [isLoadingSettings, setIsLoadingSettings] = useState(true);
+
+  useEffect(() => {
+    const fetchSettings = async () => {
+      setIsLoadingSettings(true);
+      try {
+        const response = await fetch('/api/settings');
+        if (!response.ok) {
+          console.warn("Footer: Failed to fetch site settings, using default social links.");
+          setSiteSettings({ socialLinks: defaultSocialLinks } as SiteSettings); // Use defaults
+          return;
+        }
+        const data: SiteSettings = await response.json();
+        setSiteSettings(data);
+      } catch (error) {
+        console.error("Footer: Error fetching site settings:", error);
+        setSiteSettings({ socialLinks: defaultSocialLinks } as SiteSettings); // Use defaults on error
+      } finally {
+        setIsLoadingSettings(false);
+      }
+    };
+    fetchSettings();
+  }, []);
+  
+  const displayedSocialLinks = siteSettings?.socialLinks && siteSettings.socialLinks.length > 0 
+    ? siteSettings.socialLinks 
+    : defaultSocialLinks;
 
   return (
     <footer className="bg-card text-card-foreground border-t border-border/60">
@@ -100,17 +140,24 @@ export function Footer() {
             )}
           </div>
           <div className="flex space-x-4">
-            {socialLinks.map((social) => (
-              <InteractiveExternalLink
-                key={social.label}
-                href={social.href}
-                className="text-muted-foreground hover:text-primary transition-colors"
-                aria-label={social.label}
-                showDialog={true} // Enable dialog for social links
-              >
-                <social.icon className="h-5 w-5" />
-              </InteractiveExternalLink>
-            ))}
+            {isLoadingSettings ? (
+                <p className="text-xs text-muted-foreground">Loading social links...</p>
+            ) : (
+              displayedSocialLinks.map((social) => {
+                const IconComponent = socialIcons[social.platform.toLowerCase()] || Send; // Default to Send icon
+                return (
+                  <InteractiveExternalLink
+                    key={social.platform}
+                    href={social.url}
+                    className="text-muted-foreground hover:text-primary transition-colors"
+                    aria-label={social.platform}
+                    showDialog={true}
+                  >
+                    <IconComponent className="h-5 w-5" />
+                  </InteractiveExternalLink>
+                );
+              })
+            )}
           </div>
         </div>
       </div>
