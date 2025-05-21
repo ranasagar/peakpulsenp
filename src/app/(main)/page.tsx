@@ -7,20 +7,20 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { ProductCard } from '@/components/product/product-card';
 import { Icons } from '@/components/icons';
-import { ChevronLeft, ChevronRight, ShoppingBag, ArrowRight, Instagram, Send, Users, ImagePlus, Loader2, Play, Pause } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ShoppingBag, ArrowRight, Instagram, Send, Users, ImagePlus, Loader2, Play, Pause, LayoutGrid } from 'lucide-react';
 import { NewsletterSignupForm } from '@/components/forms/newsletter-signup-form';
-import type { HomepageContent, Product, HeroSlide, UserPost } from '@/types';
+import type { HomepageContent, Product, HeroSlide, UserPost, AdminCategory as CategoryType } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent } from '@/components/ui/card';
 import { AspectRatio } from "@/components/ui/aspect-ratio";
-import { InteractiveExternalLink } from '@/components/interactive-external-link'; // Import the new component
+import { InteractiveExternalLink } from '@/components/interactive-external-link';
 
 const fallbackContent: HomepageContent = {
   heroSlides: [
     {
       id: 'fallback-hero-1',
-      title: "Peak Pulse (Content API Fallback)",
-      description: "Experience the fusion of ancient Nepali artistry and modern streetwear.",
+      title: "Peak Pulse (API Fallback)",
+      description: "Experience the fusion of ancient Nepali artistry and modern streetwear. (Content failed to load, displaying fallback).",
       imageUrl: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?q=80&w=1920&h=1080&fit=crop&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
       altText: "Fallback hero image: abstract fashion",
       dataAiHint: "fashion abstract modern",
@@ -31,60 +31,59 @@ const fallbackContent: HomepageContent = {
   ],
   artisanalRoots: {
     title: "Our Artisanal Roots (API Fallback)",
-    description: "Details about our craftsmanship are currently loading."
+    description: "Details about our craftsmanship are currently unavailable. We partner with local artisans in Nepal, preserving centuries-old techniques while innovating for today's global citizen."
   },
   socialCommerceItems: [
-    { id: 'social-fallback-1', imageUrl: 'https://placehold.co/400x400.png?text=Social+Feed+Error+1', linkUrl: 'https://instagram.com/peakpulsenp', altText: 'Social Post 1 Fallback', dataAiHint: 'social fashion fallback' },
-    { id: 'social-fallback-2', imageUrl: 'https://placehold.co/400x400.png?text=Social+Feed+Error+2', linkUrl: 'https://instagram.com/peakpulsenp', altText: 'Social Post 2 Fallback', dataAiHint: 'social fashion fallback' },
-    { id: 'social-fallback-3', imageUrl: 'https://placehold.co/400x400.png?text=Social+Feed+Error+3', linkUrl: 'https://instagram.com/peakpulsenp', altText: 'Social Post 3 Fallback', dataAiHint: 'social fashion fallback' },
-    { id: 'social-fallback-4', imageUrl: 'https://placehold.co/400x400.png?text=Social+Feed+Error+4', linkUrl: 'https://instagram.com/peakpulsenp', altText: 'Social Post 4 Fallback', dataAiHint: 'social fashion fallback' },
+    { id: 'social-fallback-1', imageUrl: 'https://placehold.co/400x400.png?text=Social+Post+Fallback', linkUrl: 'https://instagram.com/peakpulsenp', altText: 'Social Post 1 Fallback', dataAiHint: 'social fashion fallback' },
   ],
 };
 
-async function getHomepageContent(): Promise<HomepageContent> {
-  const fetchUrl = `/api/content/homepage`; // Always use relative path for client-side fetch
-  console.log(`[Client Fetch] Attempting to fetch from: ${fetchUrl}`);
-  const res = await fetch(fetchUrl, { cache: 'no-store' });
+async function getHomepageData(): Promise<{content: HomepageContent, categories: CategoryType[]}> {
+  let content: HomepageContent = fallbackContent;
+  let categories: CategoryType[] = [];
 
-  if (!res.ok) {
-    let errorBody = "Could not read error response body.";
-    let errorJson = null;
-    try {
-      errorJson = await res.json(); // Try to parse as JSON first
-      if (errorJson && errorJson.error) {
-        errorBody = errorJson.error; // Use specific error from API if available
-      } else {
-        errorBody = await res.text(); // Fallback to raw text if not JSON or no 'error' field
-      }
-    } catch (e) { /* ignore if response is not json, errorBody remains default */ }
-    console.error(`[Client Fetch] Failed to fetch content. Status: ${res.status} ${res.statusText}. Body:`, errorBody);
-    throw new Error(`API Error fetching homepage content: ${res.status} ${res.statusText}. Details: ${errorBody.substring(0, 200)}`);
+  // Fetch homepage content
+  try {
+    const contentRes = await fetch(`/api/content/homepage`, { cache: 'no-store' });
+    if (!contentRes.ok) {
+      const errorBody = await contentRes.text().catch(() => "Could not read error body.");
+      console.error(`[Client Fetch] Failed to fetch homepage content. Status: ${contentRes.status} ${contentRes.statusText}. Body:`, errorBody);
+      // Keep using fallbackContent initialized above
+    } else {
+      const jsonData = await contentRes.json() as Partial<HomepageContent>;
+      content = {
+        heroSlides: (Array.isArray(jsonData.heroSlides) && jsonData.heroSlides.length > 0)
+          ? jsonData.heroSlides.map(slide => ({ ...fallbackContent.heroSlides![0], ...slide }))
+          : fallbackContent.heroSlides!,
+        artisanalRoots: jsonData.artisanalRoots && jsonData.artisanalRoots.title && jsonData.artisanalRoots.description
+          ? jsonData.artisanalRoots
+          : fallbackContent.artisanalRoots!,
+        socialCommerceItems: (Array.isArray(jsonData.socialCommerceItems) && jsonData.socialCommerceItems.length > 0)
+          ? jsonData.socialCommerceItems.map(item => ({ ...fallbackContent.socialCommerceItems![0], ...item }))
+          : fallbackContent.socialCommerceItems!,
+      };
+    }
+  } catch (error) {
+    console.error('[Client Fetch] CRITICAL ERROR in getHomepageContent:', error);
+    // content is already fallbackContent
   }
 
-  const data = await res.json() as Partial<HomepageContent>;
-  console.log("[Client Fetch] Successfully fetched content:", data);
-
-  // Ensure all parts of the content are valid or use fallbacks
-  const processedHeroSlides = (Array.isArray(data.heroSlides) && data.heroSlides.length > 0)
-    ? data.heroSlides.map(slide => ({
-        ...fallbackContent.heroSlides![0],
-        ...slide,
-        id: slide.id || `slide-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
-        imageUrl: slide.imageUrl || undefined,
-        videoId: slide.videoId || undefined,
-      })).filter(slide => slide.imageUrl || slide.videoId)
-    : fallbackContent.heroSlides!;
-
-  return {
-    heroSlides: processedHeroSlides.length > 0 ? processedHeroSlides : fallbackContent.heroSlides!,
-    artisanalRoots: data.artisanalRoots && data.artisanalRoots.title && data.artisanalRoots.description
-      ? data.artisanalRoots
-      : fallbackContent.artisanalRoots!,
-    socialCommerceItems: (Array.isArray(data.socialCommerceItems) && data.socialCommerceItems.length > 0)
-      ? data.socialCommerceItems.map(item => ({ ...fallbackContent.socialCommerceItems![0], ...item }))
-      : fallbackContent.socialCommerceItems!,
-  };
+  // Fetch categories
+  try {
+    const categoriesRes = await fetch('/api/categories', { cache: 'no-store' });
+    if (!categoriesRes.ok) {
+      const errorBody = await categoriesRes.text().catch(() => "Could not read error body for categories.");
+      console.error(`[Client Fetch] Failed to fetch categories. Status: ${categoriesRes.status} ${categoriesRes.statusText}. Body:`, errorBody);
+    } else {
+      categories = await categoriesRes.json();
+    }
+  } catch (error) {
+    console.error('[Client Fetch] CRITICAL ERROR fetching categories:', error);
+  }
+  
+  return { content, categories };
 }
+
 
 const mockFeaturedProducts: Product[] = [
   { id: 'prod-1', name: 'Himalayan Breeze Jacket', slug: 'himalayan-breeze-jacket', price: 12000, images: [{ id: 'img-1', url: 'https://catalog-resize-images.thedoublef.com/606bc76216f1f9cb1ad8281eb9b7e84e/900/900/NF0A4QYXNY_P_NORTH-ZU31.a.jpg', altText: 'Himalayan Breeze Jacket', dataAiHint: 'jacket fashion' }], categories: [{ id: 'cat-1', name: 'Outerwear', slug: 'outerwear' }], shortDescription: 'Lightweight and versatile.', createdAt: "2023-01-15T10:00:00Z", updatedAt: "2023-01-15T10:00:00Z", description: "Full description here." },
@@ -94,35 +93,31 @@ const mockFeaturedProducts: Product[] = [
 
 
 export default function HomePage() {
-  const [isLoadingContent, setIsLoadingContent] = useState(true);
-  const [content, setContent] = useState<HomepageContent>(fallbackContent);
+  const [isLoadingData, setIsLoadingData] = useState(true);
+  const [pageData, setPageData] = useState<{content: HomepageContent, categories: CategoryType[]}>({ content: fallbackContent, categories: [] });
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isPlaying, setIsPlaying] = useState(true);
   const { toast } = useToast();
   const [userPosts, setUserPosts] = useState<UserPost[]>([]);
   const [isLoadingUserPosts, setIsLoadingUserPosts] = useState(true);
 
-  const activeHeroSlides = content.heroSlides || fallbackContent.heroSlides || [];
+  const { content: homepageContent, categories } = pageData;
+  const activeHeroSlides = homepageContent.heroSlides || fallbackContent.heroSlides || [];
 
-
-  const loadContent = useCallback(async () => {
-    console.log("[Client LoadContent] Initiating homepage content load.");
-    setIsLoadingContent(true);
+  const loadPageData = useCallback(async () => {
+    setIsLoadingData(true);
     try {
-      const fetchedContent = await getHomepageContent();
-      setContent(fetchedContent);
-      console.log("[Client LoadContent] Set homepage content:", fetchedContent);
+      const fetchedData = await getHomepageData();
+      setPageData(fetchedData);
     } catch (error) {
-      console.error("[Client LoadContent] Error setting homepage content:", error);
       toast({
         title: "Content Load Error",
-        description: (error as Error).message || "Could not load homepage content. Displaying defaults.",
+        description: (error as Error).message || "Could not load homepage data. Displaying defaults.",
         variant: "destructive"
       });
-      setContent(fallbackContent);
+      setPageData({ content: fallbackContent, categories: [] });
     } finally {
-      setIsLoadingContent(false);
-      console.log("[Client LoadContent] Homepage content load finished.");
+      setIsLoadingData(false);
     }
   }, [toast]);
 
@@ -135,7 +130,7 @@ export default function HomePage() {
         try {
             const errorData = await response.json();
             if (errorData.rawSupabaseError) {
-                errorDetail = `Database error: ${errorData.rawSupabaseError.message || 'Unknown Supabase error.'}${errorData.rawSupabaseError.hint ? ` Hint: ${errorData.rawSupabaseError.hint}` : ''}`;
+                 errorDetail = `Database error: ${errorData.rawSupabaseError.message || 'Unknown Supabase error.'}${errorData.rawSupabaseError.hint ? ` Hint: ${errorData.rawSupabaseError.hint}` : ''}`;
             } else if (errorData.message) {
                 errorDetail = errorData.message;
             } else {
@@ -150,16 +145,16 @@ export default function HomePage() {
       setUserPosts(postsData.slice(0, 4)); 
     } catch (error) {
       console.error("Error fetching user posts:", error);
-      toast({ title: "Error Loading Community Posts", description: (error as Error).message, variant: "destructive" });
+      toast({ title: "Error Loading Community Posts", description: (error as Error).message + " Check server logs for more details from Supabase.", variant: "destructive" });
     } finally {
       setIsLoadingUserPosts(false);
     }
   }, [toast]);
 
   useEffect(() => {
-    loadContent();
+    loadPageData();
     loadUserPosts();
-  }, [loadContent, loadUserPosts]);
+  }, [loadPageData, loadUserPosts]);
 
   const nextSlide = useCallback(() => {
     if (activeHeroSlides.length > 0) {
@@ -186,7 +181,7 @@ export default function HomePage() {
   useEffect(() => {
     let slideInterval: NodeJS.Timeout | undefined;
     if (isPlaying && activeHeroSlides.length > 1) {
-      slideInterval = setInterval(nextSlide, 7000); // Autoplay interval
+      slideInterval = setInterval(nextSlide, 7000); 
     }
     return () => {
       if (slideInterval) {
@@ -196,7 +191,7 @@ export default function HomePage() {
   }, [isPlaying, nextSlide, activeHeroSlides.length]);
 
 
-  if (isLoadingContent) {
+  if (isLoadingData) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
          <div className="flex flex-col items-center">
@@ -207,9 +202,11 @@ export default function HomePage() {
     );
   }
   
+  const heroVideoId = homepageContent.heroSlides?.[currentSlide]?.videoId;
+  const heroImageUrl = homepageContent.heroSlides?.[currentSlide]?.imageUrl;
+  
   return (
     <>
-      {/* Hero Section with Carousel */}
       <section style={{ backgroundColor: 'black' }} className="relative h-screen w-full overflow-hidden">
         {activeHeroSlides.map((slide, index) => (
           <div
@@ -229,7 +226,7 @@ export default function HomePage() {
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                     allowFullScreen={false}
                   />
-                  <div className="absolute inset-0 bg-black/60 z-[1]" /> {/* Dark overlay for video */}
+                  <div className="absolute inset-0 bg-black/60 z-[1]" /> 
                 </>
               ) : slide.imageUrl ? (
                 <>
@@ -242,7 +239,7 @@ export default function HomePage() {
                     priority={index === 0} 
                     data-ai-hint={slide.dataAiHint || "fashion background"}
                   />
-                  <div className="absolute inset-0 bg-black/60 z-[1]" /> {/* Dark overlay for image */}
+                  <div className="absolute inset-0 bg-black/60 z-[1]" /> 
                 </>
               ) : null}
             </div>
@@ -328,27 +325,76 @@ export default function HomePage() {
       {/* Brand Story Snippet / Artisanal Roots Section */}
       <section className="bg-card section-padding relative z-[1]">
         <div className="container-slim text-center">
-          <h2 className="text-3xl font-bold mb-6 text-foreground">{content.artisanalRoots?.title || "Our Artisanal Roots"}</h2>
-          <p className="text-lg text-muted-foreground mb-8 max-w-xl mx-auto">{content.artisanalRoots?.description || "Details about our craftsmanship are currently loading."}</p>
+          <h2 className="text-3xl font-bold mb-6 text-foreground">{homepageContent.artisanalRoots?.title || "Our Artisanal Roots"}</h2>
+          <p className="text-lg text-muted-foreground mb-8 max-w-xl mx-auto">{homepageContent.artisanalRoots?.description || "Details loading..."}</p>
           <Button variant="default" size="lg" asChild className="text-base">
             <Link href="/our-story">Discover Our Story <ArrowRight className="ml-2 h-5 w-5" /></Link>
           </Button>
         </div>
       </section>
 
+      {/* Categories Section */}
+      {categories && categories.length > 0 && (
+        <section className="section-padding container-wide relative z-[1] bg-background">
+          <div className="text-center mb-12">
+            <LayoutGrid className="h-10 w-10 text-primary mx-auto mb-3" />
+            <h2 className="text-3xl font-bold text-foreground">Shop by Category</h2>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8">
+            {categories.slice(0, 4).map((category) => (
+              <Link key={category.id} href={`/products?category=${category.slug}`} passHref legacyBehavior>
+                <a className="block group">
+                  <Card className="overflow-hidden rounded-xl shadow-lg hover:shadow-2xl transition-all duration-300 ease-in-out transform hover:-translate-y-1 h-full">
+                    <AspectRatio ratio={1/1} className="relative bg-muted">
+                      {category.imageUrl ? (
+                        <Image
+                          src={category.imageUrl}
+                          alt={category.name || 'Category image'}
+                          fill
+                          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+                          className="object-cover transition-transform duration-500 group-hover:scale-110"
+                          data-ai-hint={category.aiImagePrompt || category.name.toLowerCase()}
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/10 to-secondary/10">
+                          <LayoutGrid className="w-16 h-16 text-primary/30" />
+                        </div>
+                      )}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent p-4 flex flex-col justify-end">
+                        <h3 className="text-xl md:text-2xl font-bold text-white tracking-tight text-shadow-lg group-hover:text-primary transition-colors">
+                          {category.name}
+                        </h3>
+                      </div>
+                    </AspectRatio>
+                  </Card>
+                </a>
+              </Link>
+            ))}
+          </div>
+          {categories.length > 4 && (
+            <div className="text-center mt-12">
+              <Button variant="outline" size="lg" asChild className="text-base">
+                <Link href="/categories">View All Categories <ArrowRight className="ml-2 h-5 w-5" /></Link>
+              </Button>
+            </div>
+          )}
+        </section>
+      )}
+
+
       {/* Social Commerce Section (#PeakPulseStyle) */}
-      <section className="section-padding container-wide relative z-[1] bg-background">
+      <section className="section-padding container-wide relative z-[1] bg-card">
           <h2 className="text-3xl font-bold text-center mb-12 text-foreground">
             #PeakPulseStyle <Instagram className="inline-block ml-2 h-7 w-7 text-pink-500" />
           </h2>
-        {content.socialCommerceItems && content.socialCommerceItems.length > 0 ? (
+        {homepageContent.socialCommerceItems && homepageContent.socialCommerceItems.length > 0 ? (
            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {content.socialCommerceItems.map((item) => (
+            {homepageContent.socialCommerceItems.map((item) => (
                <InteractiveExternalLink
                 key={item.id}
                 href={item.linkUrl}
                 className="block bg-muted rounded-lg overflow-hidden group relative shadow-md hover:shadow-xl transition-shadow"
-                showDialog={true} // Enable dialog for these links
+                showDialog={true}
               >
                 <AspectRatio ratio={1/1} className="bg-background">
                   <Image
