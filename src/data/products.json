@@ -1,13 +1,14 @@
+
 [
   {
     "id": "prod-1",
-    "name": "Himalayan Breeze Jacket (Managed)",
+    "name": "Himalayan Breeze Jacket",
     "slug": "himalayan-breeze-jacket",
     "price": 12500,
     "compareAtPrice": 15000,
     "costPrice": 7500,
-    "shortDescription": "Lightweight, wind-resistant, managed via admin.",
-    "description": "<p>The Himalayan Breeze Jacket is a testament to Peak Pulse's commitment to blending traditional craftsmanship with modern performance. Sourced and updated via the new admin CMS. Constructed from a unique, breathable fabric woven in the Kathmandu valley, this jacket offers exceptional comfort and protection against the elements.</p><p>Its minimalist design is accented with subtle traditional motifs, making it a versatile piece for any wardrobe. Features include secure zip pockets, an adjustable hood, and ethically sourced trims.</p>",
+    "shortDescription": "Lightweight, wind-resistant, and stylishly versatile.",
+    "description": "<p>The Himalayan Breeze Jacket is a testament to Peak Pulse's commitment to blending traditional craftsmanship with modern performance. Constructed from a unique, breathable fabric woven in the Kathmandu valley, this jacket offers exceptional comfort and protection against the elements.</p><p>Its minimalist design is accented with subtle traditional motifs, making it a versatile piece for any wardrobe. Features include secure zip pockets, an adjustable hood, and ethically sourced trims.</p>",
     "images": [
       {
         "id": "img-main-1",
@@ -88,40 +89,40 @@
         "id": "design-everest-silhouette",
         "name": "Everest Silhouette",
         "imageUrl": "https://placehold.co/100x100.png",
-        "dataAiHint": "mountain silhouette"
+        "dataAiHint": "mountain silhouette graphic"
       },
       {
         "id": "design-mandala-art",
         "name": "Mandala Art",
         "imageUrl": "https://placehold.co/100x100.png",
-        "dataAiHint": "mandala design"
+        "dataAiHint": "mandala design intricate"
       },
       {
         "id": "design-nepali-script",
         "name": "Nepali Script (Customizable Text)",
         "imageUrl": "https://placehold.co/100x100.png",
-        "dataAiHint": "nepali script text"
+        "dataAiHint": "nepali script calligraphy"
       }
     ],
     "createdAt": "2023-01-15T10:00:00Z",
-    "updatedAt": "2025-05-18T15:23:08.406Z",
-    "isFeatured": false
+    "updatedAt": "2024-05-20T10:00:00Z",
+    "isFeatured": true
   },
   {
     "id": "prod-2",
-    "name": "Kathmandu Comfort Tee (Managed)",
+    "name": "Kathmandu Comfort Tee",
     "slug": "kathmandu-comfort-tee",
     "price": 3700,
     "costPrice": 1800,
     "stock": 50,
-    "shortDescription": "Premium cotton for everyday luxury, managed via admin.",
+    "shortDescription": "Premium organic cotton for everyday luxury and comfort.",
     "description": "<p>Experience unmatched comfort with our Kathmandu Comfort Tee. Made from the finest locally sourced organic cotton, this t-shirt is designed for a soft feel and a perfect fit. Ideal for daily wear, it features a subtle Peak Pulse logo embroidery.</p>",
     "images": [
       {
         "id": "img-main-2",
-        "url": "https://catalog-resize-images.thedoublef.com/606bc76216f1f9cb1ad8281eb9b7e84e/900/900/NF0A4QYXNY_P_NORTH-ZU31.a.jpg",
+        "url": "https://placehold.co/600x800.png",
         "altText": "Kathmandu Comfort Tee",
-        "dataAiHint": "tee shirt cotton"
+        "dataAiHint": "tee shirt cotton basic"
       }
     ],
     "categories": [
@@ -134,39 +135,34 @@
     "customizationConfig": {
       "enabled": true,
       "allowPredefinedDesigns": false,
-      "predefinedDesignsLabel": "Choose a Signature Design",
       "allowCustomDescription": true,
       "customDescriptionLabel": "Add Custom Text (e.g., Name, Quote)",
       "allowInstructions": true,
       "instructionsLabel": "Placement Instructions for Text"
     },
     "createdAt": "2023-02-01T09:00:00Z",
-    "updatedAt": "2025-05-18T17:03:29.721Z",
-    "fabricDetails": "",
-    "careInstructions": "",
-    "sustainabilityMetrics": "",
-    "fitGuide": "",
-    "variants": [],
-    "availablePrintDesigns": [],
-    "averageRating": 0,
-    "reviewCount": 0,
-    "isFeatured": false
+    "updatedAt": "2024-05-19T12:00:00Z",
+    "isFeatured": true,
+    "fabricDetails": "100% Organic Pima Cotton",
+    "careInstructions": "Machine wash cold with like colors. Tumble dry low.",
+    "averageRating": 4.5,
+    "reviewCount": 78
   },
   {
     "id": "prod-3",
-    "name": "Urban Nomad Pants (Managed)",
+    "name": "Urban Nomad Pants",
     "slug": "urban-nomad-pants",
     "price": 7800,
     "costPrice": 4000,
     "stock": 25,
-    "shortDescription": "Street-ready style with traditional touches, managed via admin.",
+    "shortDescription": "Street-ready style with traditional Nepali textile touches.",
     "description": "<p>The Urban Nomad Pants offer a unique blend of contemporary streetwear design and traditional Nepali textile patterns. Durable, comfortable, and stylish, these pants are perfect for the modern explorer. Features multiple pockets and an adjustable waistband for a custom fit.</p>",
     "images": [
       {
         "id": "img-main-3",
         "url": "https://placehold.co/600x800.png",
         "altText": "Urban Nomad Pants",
-        "dataAiHint": "pants fashion urban"
+        "dataAiHint": "pants fashion urban cargo"
       }
     ],
     "categories": [
@@ -180,69 +176,13 @@
       "enabled": false
     },
     "createdAt": "2023-03-10T14:00:00Z",
-    "updatedAt": "2023-03-15T16:00:00Z"
-  },
-  {
-    "id": "prod-1747584059265",
-    "name": "sagar",
-    "slug": "sgr",
-    "price": 1200,
-    "costPrice": 1200,
-    "stock": 0,
-    "shortDescription": "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, ",
-    "description": "Contrary to popular belief, Lorem Ipsum is not simply random text. It has roots in a piece of classical Latin literature from 45 BC, making it over 2000 years old. Richard McClintock, a Latin professor at Hampden-Sydney College in Virginia, looked up one of the more obscure Latin words, consectetur, from a Lorem Ipsum passage, and going through the cites of the word in classical literature, discovered the undoubtable source. Lorem Ipsum comes from sections 1.10.32 and 1.10.33 of \"de Finibus Bonorum et Malorum\" (The Extremes of Good and Evil) by Cicero, written in 45 BC. This book is a treatise on the theory of ethics, very popular during the Renaissance. The first line of Lorem Ipsum, \"Lorem ipsum dolor sit amet..\", comes from a line in section 1.10.32.\n\nThe standard chunk of Lorem Ipsum used since the 1500s is reproduced below for those interested. Sections 1.10.32 and 1.10.33 from \"de Finibus Bonorum et Malorum\" by Cicero are also reproduced in their exact original form, accompanied by English versions from the 1914 translation by H. Rackham.",
-    "images": [
-      {
-        "id": "img-1747584328634-3gkts",
-        "url": "https://thepipebox.com/cdn/shop/collections/womens-relaxed-t-shirt-heather-blue-lagoon-front-655ff78e6bacd.jpg",
-        "altText": "women relaxed",
-        "dataAiHint": ""
-      }
-    ],
-    "categories": [
-      {
-        "id": "summer",
-        "name": "outerwear",
-        "slug": "outerwear"
-      }
-    ],
-    "fabricDetails": "cotton",
-    "careInstructions": "",
-    "sustainabilityMetrics": "",
-    "fitGuide": "",
-    "variants": [
-      {
-        "id": "var-1747591208872-uobqa",
-        "name": "Size",
-        "value": "M",
-        "sku": "",
-        "price": 0,
-        "costPrice": 0,
-        "stock": 0,
-        "imageId": "img-main-0"
-      }
-    ],
-    "availablePrintDesigns": [
-      {
-        "id": "print-1747584328634-qk1ny",
-        "name": "peak peak",
-        "imageUrl": "https://thepipebox.com/cdn/shop/collections/womens-relaxed-t-shirt-heather-blue-lagoon-front-655ff78e6bacd.jpg?v=1709172803&width=750",
-        "dataAiHint": "soft"
-      }
-    ],
-    "customizationConfig": {
-      "enabled": true,
-      "allowPredefinedDesigns": true,
-      "predefinedDesignsLabel": "Choose a Signature Design",
-      "allowCustomDescription": true,
-      "customDescriptionLabel": "Describe Your Custom Idea",
-      "allowInstructions": true,
-      "instructionsLabel": "Specific Instructions"
-    },
-    "createdAt": "2025-05-18T16:05:26.563Z",
-    "updatedAt": "2025-05-18T18:00:09.326Z",
-    "averageRating": 0,
-    "reviewCount": 0,
-    "isFeatured": false
+    "updatedAt": "2024-05-18T11:00:00Z",
+    "isFeatured": false,
+    "fabricDetails": "98% Cotton, 2% Elastane Twill",
+    "careInstructions": "Machine wash cold. Do not bleach. Tumble dry medium.",
+    "averageRating": 4.2,
+    "reviewCount": 45
   }
 ]
+
+    
