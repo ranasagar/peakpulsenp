@@ -1,14 +1,14 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Eye, Edit3, Users, ShoppingBag, FileText, AlertTriangle, ListOrdered, BookOpenText, BarChart3, DollarSign, TrendingUp, Percent, Landmark } from 'lucide-react';
+import { Eye, Edit3, Users, ShoppingBag, FileText, AlertTriangle, ListOrdered, BookOpenText, BarChart3, DollarSign, TrendingUp, Percent, Landmark, Tags } from 'lucide-react';
 import Link from 'next/link';
-import { supabase } from '@/lib/supabaseClient';
-import type { Order, CartItem } from '@/types'; // Ensure CartItem is imported
+import { supabase } from '@/lib/supabaseClient.ts'; // Ensure correct path if using alias
+import type { Order, CartItem } from '@/types';
 
 async function getSupabaseCount(tableName: string): Promise<number | string> {
   if (!supabase) {
     console.error(`[AdminDashboard] Supabase client not available for counting ${tableName}.`);
-    return 'N/A';
+    return 'N/A (DB Error)';
   }
   try {
     const { count, error } = await supabase
@@ -17,11 +17,10 @@ async function getSupabaseCount(tableName: string): Promise<number | string> {
 
     if (error) {
       console.error(`[AdminDashboard] Error counting ${tableName} from Supabase:`, error);
-      // Try to give a more specific error message for RLS
       if (error.message.includes("permission denied") || error.message.includes("policy")) {
-        return `RLS? (${error.code || 'Check Logs'})`;
+        return `RLS?`;
       }
-      return `Error (${error.code || 'DB'})`;
+      return `Error`;
     }
     return count ?? 0;
   } catch (error) {
@@ -30,24 +29,14 @@ async function getSupabaseCount(tableName: string): Promise<number | string> {
   }
 }
 
-
-// Placeholder for checking JSON file status (as it was before)
-async function getContentFileStatus(fileName: string): Promise<'Managed' | 'Not Found' | 'Error'> {
-  try {
-    // In a real app, this might involve checking a database or a specific API for content status
-    // For this demo, we'll assume content is "Managed" if it's part of the new system
-    // and "Not Found" if it's still meant to be a JSON file that's not there.
-    // Since homepage and our-story are now Supabase-driven for core content, this check is less relevant.
-    // Let's simulate it for demonstration.
-    // const filePath = path.join(process.cwd(), 'src', 'data', fileName);
-    // await fs.access(filePath);
-    if (fileName === 'homepage-content.json' || fileName === 'our-story-content.json') {
-        return 'Managed'; // These are examples; adjust based on actual CMS/DB setup
-    }
-    return 'Not Found';
-  } catch (error) {
-    return 'Error';
+// This function is a placeholder as JSON file management is being phased out
+async function getContentFileStatus(contentKey: string): Promise<'Managed by DB' | 'Not Found' | 'Error'> {
+  // For this iteration, assume content sections like homepage and our-story will eventually be DB driven
+  // For now, just return a placeholder status
+  if (contentKey === 'homepage' || contentKey === 'our-story') {
+      return 'Managed by DB'; // Placeholder for now
   }
+  return 'Not Found';
 }
 
 
@@ -67,8 +56,8 @@ async function getSalesMetrics(): Promise<{
   try {
     const { data: orders, error } = await supabase
       .from('orders')
-      .select('totalAmount, items, status') // items should be JSONB containing CartItem[]
-      .in('status', ['Shipped', 'Delivered']); // Consider only completed orders for revenue and COGS
+      .select('totalAmount, items, status')
+      .in('status', ['Shipped', 'Delivered']);
 
     if (error) {
       console.error("[AdminDashboard] Error fetching orders for sales metrics:", error.message);
@@ -84,7 +73,7 @@ async function getSalesMetrics(): Promise<{
 
     orders.forEach(order => {
       totalRevenue += Number(order.totalAmount || 0);
-      const items = order.items as CartItem[] | null; 
+      const items = order.items as CartItem[] | null;
       if (items) {
         items.forEach(item => {
           totalCOGS += (item.costPrice || 0) * item.quantity;
@@ -115,9 +104,10 @@ async function getSalesMetrics(): Promise<{
 export default async function AdminDashboardPage() {
   const productCount = await getSupabaseCount('products');
   const orderCount = await getSupabaseCount('orders');
-  const userCount = await getSupabaseCount('users'); // Assuming a 'users' table for profiles
-  const homepageContentStatus = await getContentFileStatus('homepage-content.json');
-  const ourStoryContentStatus = await getContentFileStatus('our-story-content.json');
+  const userCount = await getSupabaseCount('users');
+  const categoryCount = await getSupabaseCount('categories'); // New
+  const homepageContentStatus = await getContentFileStatus('homepage');
+  const ourStoryContentStatus = await getContentFileStatus('our-story');
   const salesMetrics = await getSalesMetrics();
 
   return (
@@ -125,14 +115,17 @@ export default async function AdminDashboardPage() {
       <Card className="shadow-lg">
         <CardHeader>
           <CardTitle className="text-2xl">Welcome to the Admin Dashboard</CardTitle>
-          <CardDescription>Manage your Peak Pulse application from here. Data is fetched from Supabase.</CardDescription>
+          <CardDescription>Manage your Peak Pulse application. Data primarily from Supabase.</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {/* Data Overview Cards */}
             <Card className="bg-muted/30">
               <CardHeader className="pb-2"><CardTitle className="text-lg flex items-center"><ShoppingBag className="mr-2 h-5 w-5 text-primary"/>Products</CardTitle></CardHeader>
               <CardContent><p className="text-3xl font-bold">{productCount}</p><p className="text-xs text-muted-foreground">Total products</p><Link href="/admin/products" className="text-primary hover:underline text-xs mt-1 block">Manage Products &rarr;</Link></CardContent>
+            </Card>
+             <Card className="bg-muted/30">
+              <CardHeader className="pb-2"><CardTitle className="text-lg flex items-center"><Tags className="mr-2 h-5 w-5 text-primary"/>Categories</CardTitle></CardHeader>
+              <CardContent><p className="text-3xl font-bold">{categoryCount}</p><p className="text-xs text-muted-foreground">Total categories</p><Link href="/admin/categories" className="text-primary hover:underline text-xs mt-1 block">Manage Categories &rarr;</Link></CardContent>
             </Card>
             <Card className="bg-muted/30">
               <CardHeader className="pb-2"><CardTitle className="text-lg flex items-center"><ListOrdered className="mr-2 h-5 w-5 text-primary"/>Orders</CardTitle></CardHeader>
@@ -142,19 +135,13 @@ export default async function AdminDashboardPage() {
               <CardHeader className="pb-2"><CardTitle className="text-lg flex items-center"><Users className="mr-2 h-5 w-5 text-primary"/>Users</CardTitle></CardHeader>
               <CardContent><p className="text-3xl font-bold">{userCount}</p><p className="text-xs text-muted-foreground">Total user profiles</p><p className="text-xs text-accent mt-1">User management UI not yet built.</p></CardContent>
             </Card>
-            
-            {/* Content Management Placeholder - These might transition to a headless CMS or database later */}
             <Card className="bg-muted/30">
               <CardHeader className="pb-2"><CardTitle className="text-lg flex items-center"><FileText className="mr-2 h-5 w-5 text-primary"/>Homepage Content</CardTitle></CardHeader>
-              <CardContent><p className={`text-xl font-semibold ${homepageContentStatus === 'Managed' ? 'text-green-600' : 'text-amber-600'}`}>{homepageContentStatus}</p><Link href="/admin/content/homepage" className="text-primary hover:underline text-xs mt-1 block">Edit Homepage &rarr;</Link></CardContent>
+              <CardContent><p className={`text-xl font-semibold text-green-600`}>{homepageContentStatus}</p><Link href="/admin/content/homepage" className="text-primary hover:underline text-xs mt-1 block">Edit Homepage &rarr;</Link></CardContent>
             </Card>
              <Card className="bg-muted/30">
               <CardHeader className="pb-2"><CardTitle className="text-lg flex items-center"><BookOpenText className="mr-2 h-5 w-5 text-primary"/>Our Story Content</CardTitle></CardHeader>
-              <CardContent><p className={`text-xl font-semibold ${ourStoryContentStatus === 'Managed' ? 'text-green-600' : 'text-amber-600'}`}>{ourStoryContentStatus}</p><Link href="/admin/content/our-story" className="text-primary hover:underline text-xs mt-1 block">Edit Our Story &rarr;</Link></CardContent>
-            </Card>
-             <Card className="bg-muted/30">
-              <CardHeader className="pb-2"><CardTitle className="text-lg flex items-center"><BarChart3 className="mr-2 h-5 w-5 text-primary"/>Site Analytics (AI)</CardTitle></CardHeader>
-              <CardContent><p className="text-xl font-semibold text-blue-600">Demo Feature</p><Link href="/admin/analytics" className="text-primary hover:underline text-xs mt-1 block">View AI Analytics &rarr;</Link></CardContent>
+              <CardContent><p className={`text-xl font-semibold text-green-600`}>{ourStoryContentStatus}</p><Link href="/admin/content/our-story" className="text-primary hover:underline text-xs mt-1 block">Edit Our Story &rarr;</Link></CardContent>
             </Card>
           </div>
         </CardContent>
@@ -208,31 +195,42 @@ export default async function AdminDashboardPage() {
                 </div>
                 <p className="text-2xl font-bold text-gray-700">{salesMetrics.orderCountForMetrics}</p>
             </Card>
-             <div className="lg:col-span-3 mt-2">
-                <Link href="/admin/accounting/tax-report" className="text-sm text-primary hover:underline flex items-center">
-                    <FileText className="mr-2 h-4 w-4" /> Go to Sales Data Export for Tax Reporting
+             <div className="lg:col-span-3 mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Link href="/admin/accounting/loans" className="text-sm text-primary hover:underline flex items-center p-3 border rounded-md hover:bg-primary/5">
+                    <Landmark className="mr-2 h-4 w-4" /> Manage Loans
+                </Link>
+                <Link href="/admin/accounting/tax-report" className="text-sm text-primary hover:underline flex items-center p-3 border rounded-md hover:bg-primary/5">
+                    <FileText className="mr-2 h-4 w-4" /> Sales Data Export for Tax
                 </Link>
              </div>
         </CardContent>
       </Card>
+       <Card className="mt-8 shadow-lg">
+          <CardHeader>
+            <CardTitle className="text-xl flex items-center"><BarChart3 className="mr-2 h-5 w-5 text-primary"/>Site Analytics (AI Demo)</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground mb-4">
+              Generate AI-powered summaries and recommendations based on mock site performance metrics.
+            </p>
+            <Button asChild>
+              <Link href="/admin/analytics">View AI Analytics &rarr;</Link>
+            </Button>
+          </CardContent>
+        </Card>
 
        <Card className="mt-8 shadow-lg">
         <CardHeader>
-          <CardTitle className="text-xl text-destructive flex items-center"><AlertTriangle className="mr-2 h-5 w-5"/>Important Note on this Admin Demo</CardTitle>
+          <CardTitle className="text-xl text-destructive flex items-center"><AlertTriangle className="mr-2 h-5 w-5"/>Important Notes</CardTitle>
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground mb-2">
-            This admin section is a demonstration. For production, consider the following:
+            This admin panel is a demonstration. For production, consider the following:
           </p>
           <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
-            <li>**Security:** This section currently lacks robust authentication &amp; authorization. Access must be strictly controlled.</li>
-            <li>**Data Management:**
-                <ul>
-                    <li>Product, Order, and User data are now managed via **Supabase**.</li>
-                    <li>Homepage and "Our Story" page content are still managed via **JSON files**. This file-writing approach will **not work in most production/serverless hosting environments** like Vercel due to read-only filesystems. A proper database or Headless CMS (e.g., Strapi, Sanity, Contentful) is recommended for all dynamic page content in production.</li>
-                </ul>
-            </li>
-            <li>**Accounting Features:** The sales summary and tax data export are basic. Full accounting requires specialized systems. COGS accuracy depends on `costPrice` being diligently maintained for products and recorded correctly at the time of sale.</li>
+            <li>**Security:** This section currently lacks robust authentication & authorization for specific admin roles. Access must be strictly controlled in a production environment.</li>
+            <li>**Data Management:** Product, Order, User, and Category data are now managed via **Supabase**. Homepage and "Our Story" page content still use JSON files for this demo; for production, migrating these to Supabase or a headless CMS is recommended for scalability and to avoid issues with read-only filesystems on platforms like Vercel.</li>
+            <li>**Accounting Features:** The sales summary and tax data export are for informational purposes. Full accounting requires specialized systems. COGS accuracy depends on `costPrice` being diligently maintained.</li>
             <li>**Error Handling & Scalability:** Production systems require more comprehensive error handling, input validation, and infrastructure designed for scalability.</li>
           </ul>
         </CardContent>

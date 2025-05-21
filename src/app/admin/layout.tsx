@@ -1,6 +1,6 @@
 
 import Link from 'next/link';
-import { Shield, LayoutDashboard, Settings, ArrowLeft, BookOpenText, ShoppingBag, BarChart3, ListOrdered, Landmark } from 'lucide-react';
+import { Shield, LayoutDashboard, Settings, ArrowLeft, BookOpenText, ShoppingBag, BarChart3, ListOrdered, Landmark, Tags } from 'lucide-react'; // Added Tags
 import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
 import { Button } from '@/components/ui/button';
@@ -15,7 +15,7 @@ export default function AdminLayout({
     <div className="flex min-h-screen flex-col">
       <Header />
       <main className="flex-grow bg-muted/30">
-        <div className="container-wide section-padding pt-8 md:pt-12"> {/* Adjusted top padding */}
+        <div className="container-wide section-padding pt-8 md:pt-12">
           <div className="mb-8 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <Shield className="h-8 w-8 text-primary" />
@@ -34,22 +34,37 @@ export default function AdminLayout({
                     <LayoutDashboard className="mr-2 h-4 w-4" /> Dashboard
                   </Link>
                 </Button>
-                 <Button variant="ghost" className="w-full justify-start" asChild>
-                  <Link href="/admin/products">
-                    <ShoppingBag className="mr-2 h-4 w-4" /> Manage Products
-                  </Link>
-                </Button>
-                <Button variant="ghost" className="w-full justify-start" asChild>
-                  <Link href="/admin/orders">
-                    <ListOrdered className="mr-2 h-4 w-4" /> View Orders
-                  </Link>
-                </Button>
                 
-                <Accordion type="single" collapsible className="w-full">
+                <Accordion type="single" collapsible className="w-full" defaultValue="store-management">
+                  <AccordionItem value="store-management" className="border-b-0">
+                    <AccordionTrigger className="py-2 px-3 hover:bg-accent hover:text-accent-foreground rounded-md text-sm font-medium hover:no-underline [&[data-state=open]>svg]:text-primary">
+                       <div className="flex items-center">
+                         <ShoppingBag className="mr-2 h-4 w-4" /> Store Management
+                       </div>
+                    </AccordionTrigger>
+                    <AccordionContent className="pt-1 pl-4">
+                       <Button variant="ghost" className="w-full justify-start text-sm font-normal h-9" asChild>
+                          <Link href="/admin/products">
+                             Manage Products
+                          </Link>
+                        </Button>
+                        <Button variant="ghost" className="w-full justify-start text-sm font-normal h-9" asChild>
+                          <Link href="/admin/categories">
+                            <Tags className="mr-2 h-4 w-4" /> Manage Categories
+                          </Link>
+                        </Button>
+                        <Button variant="ghost" className="w-full justify-start text-sm font-normal h-9" asChild>
+                          <Link href="/admin/orders">
+                            <ListOrdered className="mr-2 h-4 w-4" /> View Orders
+                          </Link>
+                        </Button>
+                    </AccordionContent>
+                  </AccordionItem>
+
                   <AccordionItem value="content-management" className="border-b-0">
                     <AccordionTrigger className="py-2 px-3 hover:bg-accent hover:text-accent-foreground rounded-md text-sm font-medium hover:no-underline [&[data-state=open]>svg]:text-primary">
                        <div className="flex items-center">
-                         <Settings className="mr-2 h-4 w-4" /> Content Management
+                         <BookOpenText className="mr-2 h-4 w-4" /> Content Management
                        </div>
                     </AccordionTrigger>
                     <AccordionContent className="pt-1 pl-4">
@@ -63,7 +78,6 @@ export default function AdminLayout({
                            Our Story Content
                         </Link>
                       </Button>
-                      {/* Add more content links here */}
                     </AccordionContent>
                   </AccordionItem>
 
@@ -75,11 +89,15 @@ export default function AdminLayout({
                     </AccordionTrigger>
                     <AccordionContent className="pt-1 pl-4">
                         <Button variant="ghost" className="w-full justify-start text-sm font-normal h-9" asChild>
-                        <Link href="/admin/accounting/tax-report">
-                           Tax Data Export
-                        </Link>
+                          <Link href="/admin/accounting/loans">
+                             Manage Loans
+                          </Link>
                         </Button>
-                        {/* Add more accounting links here */}
+                        <Button variant="ghost" className="w-full justify-start text-sm font-normal h-9" asChild>
+                          <Link href="/admin/accounting/tax-report">
+                             Tax Data Export
+                          </Link>
+                        </Button>
                     </AccordionContent>
                   </AccordionItem>
                 </Accordion>
@@ -89,7 +107,11 @@ export default function AdminLayout({
                     <BarChart3 className="mr-2 h-4 w-4" /> Site Analytics (AI)
                   </Link>
                 </Button>
-                {/* Add more admin links here */}
+                <Button variant="ghost" className="w-full justify-start" asChild>
+                  <Link href="/admin/settings"> {/* Placeholder for general settings */}
+                    <Settings className="mr-2 h-4 w-4" /> General Settings
+                  </Link>
+                </Button>
               </nav>
             </aside>
             <div className="md:col-span-3">

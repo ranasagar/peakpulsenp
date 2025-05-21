@@ -8,15 +8,18 @@ export interface User {
   avatarUrl?: string; // Firebase photoURL
   roles: string[]; // e.g., ['customer', 'vip', 'affiliate', 'admin']
   wishlist?: string[]; // Array of product IDs
-  // Orders are fetched separately, not stored directly on user object in context
 }
 
-export interface Category {
-  id: string;
+// Updated Category interface
+export interface AdminCategory { // Renamed to AdminCategory to avoid conflict if a simpler Category type is used elsewhere
+  id: string; // uuid from Supabase
   name: string;
   slug: string;
   description?: string;
-  imageUrl?: string;
+  imageUrl?: string; // URL of the image (admin will paste this)
+  aiImagePrompt?: string; // Prompt for AI image generation
+  createdAt?: string; // ISO string
+  updatedAt?: string; // ISO string
 }
 
 export interface Collection {
@@ -74,7 +77,7 @@ export interface Product {
   costPrice?: number; // Cost of goods for the product (if no variants, or a general cost)
   images: ProductImage[];
   variants?: ProductVariant[]; // If product has variants like size/color
-  categories: Pick<Category, 'id' | 'name' | 'slug'>[];
+  categories: Pick<AdminCategory, 'id' | 'name' | 'slug'>[]; // Product can be in multiple categories
   collections?: Pick<Collection, 'id' | 'name' | 'slug'>[];
   tags?: string[];
   fabricDetails?: string;
@@ -82,7 +85,7 @@ export interface Product {
   sustainabilityMetrics?: string;
   fitGuide?: string;
   sku?: string; // Base SKU if no variants
-  stock?: number; // Base stock if no variants
+  stock?: number; // Base stock if no variants, or sum of variant stocks
   averageRating?: number;
   reviewCount?: number;
   isFeatured?: boolean;
@@ -151,6 +154,19 @@ export interface Order {
   updatedAt: string; // ISO string
 }
 
+export interface Loan {
+  id: string; // uuid from Supabase
+  loan_name: string;
+  lender_name: string;
+  principal_amount: number;
+  interest_rate: number; // Percentage e.g. 5 for 5%
+  loan_term_months: number;
+  start_date: string; // YYYY-MM-DD
+  status: string; // 'Active', 'Paid Off', 'Defaulted'
+  notes?: string;
+  created_at?: string;
+  updated_at?: string;
+}
 
 export interface NavItem {
   title: string;
@@ -220,13 +236,13 @@ export interface ReviewImage {
 export interface Review {
   id: string;
   productId: string;
-  userId: string; 
+  userId: string;
   userName: string;
   userAvatarUrl?: string;
-  rating: number; 
+  rating: number;
   title?: string;
   comment: string;
-  images?: ReviewImage[]; 
+  images?: ReviewImage[];
   verifiedPurchase?: boolean;
   createdAt: string; // ISO string
   updatedAt?: string; // ISO string
@@ -237,7 +253,7 @@ export interface HeroSlide {
   title: string;
   description: string;
   imageUrl?: string;
-  videoId?: string;
+  videoId?: string; // YouTube video ID
   altText?: string;
   dataAiHint?: string;
   ctaText?: string;
@@ -252,16 +268,38 @@ export interface SocialCommerceItem {
   dataAiHint?: string;
 }
 
-export interface HomepageContent {
+export interface HomepageContentData {
   heroSlides?: HeroSlide[];
   artisanalRoots?: {
     title: string;
     description: string;
   };
   socialCommerceItems?: SocialCommerceItem[];
-  // Removed heroVideoId and heroImageUrl as they are now part of heroSlides
 }
 
+export interface OurStoryContentData {
+  hero: {
+    title: string;
+    description: string;
+  };
+  mission: {
+    title: string;
+    paragraph1: string;
+    paragraph2: string;
+  };
+  craftsmanship: {
+    title: string;
+    paragraph1: string;
+    paragraph2: string;
+  };
+  valuesSection: {
+    title: string;
+  };
+  joinJourneySection: {
+    title: string;
+    description: string;
+  };
+}
 
 // For user posts
 export interface UserPost {
