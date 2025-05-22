@@ -1,4 +1,3 @@
-// This file is obsolete and should be deleted.
-// The categories page functionality has been moved to /src/app/categories/page.tsx
-// to resolve parallel page errors.
+// This file is obsolete. Categories page functionality is in /src/app/categories/page.tsx
 // Please remove this file.
+export {};

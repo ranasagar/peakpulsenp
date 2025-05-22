@@ -1,4 +1,3 @@
-// This file is obsolete and should be deleted.
-// The careers page functionality has been moved to /src/app/careers/page.tsx
-// to resolve parallel page errors.
+// This file is obsolete. Careers page functionality is in /src/app/careers/page.tsx
 // Please remove this file.
+export {};
