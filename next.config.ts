@@ -32,7 +32,7 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  // output: 'standalone', // Temporarily removed for Vercel build troubleshooting
+  // output: 'standalone', // Vercel handles output optimization, this can sometimes conflict.
   experimental: {
     allowedDevOrigins: [
         "https://9003-firebase-studio-1747567658921.cluster-ancjwrkgr5dvux4qug5rbzyc2y.cloudworkstations.dev",
