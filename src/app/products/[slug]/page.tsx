@@ -68,7 +68,7 @@ export default function ProductDetailPage({ params: paramsPromise }: { params: P
     }
     setIsLoading(true);
     setError(null);
-    setProduct(null); 
+    setProduct(null);
 
     console.log(`[ProductDetail] Fetching product with slug: ${slug}`);
     try {
@@ -668,5 +668,6 @@ export default function ProductDetailPage({ params: paramsPromise }: { params: P
   );
 }
 
+// FormFieldItem is a simple wrapper, ensure it doesn't cause context issues
 const FormFieldItem = ({ children }: { children: React.ReactNode }) => <div className="space-y-1.5">{children}</div>;
     
