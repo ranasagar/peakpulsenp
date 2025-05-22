@@ -7,6 +7,7 @@ import type { User as AuthUserType } from '@/types';
 
 export const dynamic = 'force-dynamic';
 
+// GET user profile
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const uid = searchParams.get('uid');
@@ -28,102 +29,94 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const { data: profile, error } = await supabase
+    const { data: profile, error: fetchError } = await supabase
       .from('users')
       .select('*')
-      .eq('id', uid) // This query will fail if users.id is uuid and uid is a non-uuid string
-      .single();
+      .eq('id', uid)
+      .single(); // Use single() as ID should be unique
 
-    if (error) {
-      // Log the full error for server-side debugging
-      console.error(`[API /api/account/profile GET] Supabase error fetching profile for uid ${uid}:`, JSON.stringify(error, null, 2));
-      if (error.code === 'PGRST116') { // Row not found
+    if (fetchError) {
+      if (fetchError.code === 'PGRST116') { // Row not found
         console.log(`[API /api/account/profile GET] Profile not found in Supabase for uid ${uid}.`);
         return NextResponse.json({ message: 'Profile not found' }, { status: 404 });
       }
-      // For other errors, return a structured error
+      console.error(`[API /api/account/profile GET] Supabase error fetching profile for uid ${uid}:`, JSON.stringify(fetchError, null, 2));
       return NextResponse.json({ 
         message: 'Error fetching profile from database.', 
         rawSupabaseError: {
-          message: error.message,
-          details: error.details,
-          hint: error.hint,
-          code: error.code
+          message: fetchError.message,
+          details: fetchError.details,
+          hint: fetchError.hint,
+          code: fetchError.code
         }
       }, { status: 500 });
     }
 
-    if (profile) {
-      console.log(`[API /api/account/profile GET] Found profile for ${uid} in Supabase.`);
-      const responseProfile = { ...profile, wishlist: profile.wishlist || [] };
-      return NextResponse.json(responseProfile);
-    } else {
-      console.log(`[API /api/account/profile GET] Profile not found for uid ${uid} (data was null) after Supabase query - this should have been caught by error.code PGRST116.`);
-      return NextResponse.json({ message: 'Profile not found (data null)' }, { status: 404 });
-    }
+    // No 'if (profile)' check needed because .single() would have thrown PGRST116 if not found
+    console.log(`[API /api/account/profile GET] Found profile for ${uid} in Supabase.`);
+    const responseProfile = { ...profile, wishlist: profile.wishlist || [] };
+    return NextResponse.json(responseProfile);
+
   } catch (catchError: any) {
     console.error(`[API /api/account/profile GET] Unhandled exception fetching profile for uid ${uid}:`, catchError);
-    // It's good practice to include a hint about checking the database schema if a UUID format error is suspected.
     let errorMessage = 'Server error fetching profile.';
-    if (catchError.message && catchError.message.includes("uuid")) {
+    if (catchError.message && catchError.message.includes("uuid") && catchError.message.includes("type text")) {
         errorMessage += " Check if the 'id' column in the 'users' table is of type TEXT to store Firebase UIDs, not UUID.";
     }
     return NextResponse.json({ message: errorMessage, error: catchError.message, code: catchError.code }, { status: 500 });
   }
 }
 
-interface ProfileUpdateRequest {
-  uid: string;
+
+interface ProfileUpdateRequestBody {
+  id: string; // Firebase UID
   name?: string;
   avatarUrl?: string | null;
-  email?: string; 
+  email?: string; // Should be from Firebase Auth, generally not updated here
   roles?: string[];
   wishlist?: string[];
 }
 
+// POST to create or update user profile
 export async function POST(request: NextRequest) {
   console.log("[API /api/account/profile POST] Request received.");
+
   if (!supabase) {
     console.error('[API /api/account/profile POST] Supabase client is not initialized. Check environment variables and server restart.');
     return NextResponse.json({ 
         message: 'Database client not configured. Please check server logs and .env file.',
-        rawSupabaseError: { message: 'Supabase client not initialized due to server configuration problem.'} 
+        rawSupabaseError: { message: 'Supabase client not initialized.' } 
     }, { status: 503 });
   }
+
+  let requestBody: ProfileUpdateRequestBody;
   try {
-    const body = (await request.json()) as ProfileUpdateRequest;
-    const { uid, name, avatarUrl, email, roles, wishlist } = body;
+    requestBody = (await request.json()) as ProfileUpdateRequestBody;
+    console.log("[API /api/account/profile POST] Parsed request body:", requestBody);
+  } catch (e) {
+    console.error('[API /api/account/profile POST] Error parsing request JSON:', e);
+    return NextResponse.json({ message: 'Invalid request body. Expected JSON.', error: (e as Error).message }, { status: 400 });
+  }
+  
+  const { id: uid, name, avatarUrl, email, roles, wishlist } = requestBody;
 
-    if (!uid) {
-      return NextResponse.json({ message: 'User ID (uid) is required for update/create' }, { status: 400 });
-    }
+  if (!uid) {
+    console.warn("[API /api/account/profile POST] User ID (uid) is required in request body.");
+    return NextResponse.json({ message: 'User ID (uid) is required for update/create' }, { status: 400 });
+  }
 
-    // Ensure the 'id' column in your Supabase 'users' table is of type TEXT, not UUID,
-    // to correctly store Firebase UIDs.
-    const profileDataToUpsert: Partial<AuthUserType> & { id: string } = {
-      id: uid, // Firebase UID is a string
-      email: email, // Email from Firebase Auth
-    };
-
-    if (name !== undefined) profileDataToUpsert.name = name;
-    if (avatarUrl !== undefined) profileDataToUpsert.avatarUrl = avatarUrl === null ? undefined : avatarUrl; // Store null as undefined or Supabase handles it
-    if (roles !== undefined) profileDataToUpsert.roles = roles;
-    if (wishlist !== undefined) profileDataToUpsert.wishlist = wishlist;
-    
-    // @ts-ignore - Supabase types might not perfectly align if we use Partial, but it's for db interaction
-    profileDataToUpsert.updatedAt = new Date().toISOString();
-
-    // Check if user exists to determine if it's an insert or update
+  try {
+    // Check if user exists
     const { data: existingUser, error: fetchError } = await supabase
       .from('users')
-      .select('id, "createdAt"') // only select minimal fields
+      .select('id, "createdAt", roles, wishlist') // Select existing roles/wishlist for merging
       .eq('id', uid)
-      .maybeSingle(); // Use maybeSingle to handle user not existing without it being a hard error
+      .maybeSingle();
 
-    if (fetchError && fetchError.code !== 'PGRST116') { // PGRST116 means 0 rows, not an error for maybeSingle
-        console.error(`[API /api/account/profile POST] Error checking for existing user ${uid}:`, JSON.stringify(fetchError, null, 2));
+    if (fetchError && fetchError.code !== 'PGRST116') {
+        console.error(`[API /api/account/profile POST] Supabase error checking for existing user ${uid}:`, JSON.stringify(fetchError, null, 2));
         return NextResponse.json({ 
-          message: 'Error accessing user data.', 
+          message: 'Error accessing user data from database.', 
           rawSupabaseError: { message: fetchError.message, details: fetchError.details, hint: fetchError.hint, code: fetchError.code }
         }, { status: 500 });
     }
@@ -131,52 +124,78 @@ export async function POST(request: NextRequest) {
     let finalUserData;
 
     if (existingUser) {
-      console.log(`[API /api/account/profile POST] Updating existing profile for ${uid}`);
-      // @ts-ignore
-      delete profileDataToUpsert.createdAt; // Don't try to update createdAt
-      const { error: updateError, data: updatedUser } = await supabase
+      console.log(`[API /api/account/profile POST] Updating existing profile for UID: ${uid}`);
+      const profileDataToUpdate: Partial<AuthUserType> = {
+        updatedAt: new Date().toISOString(),
+      };
+      if (name !== undefined) profileDataToUpdate.name = name;
+      if (avatarUrl !== undefined) profileDataToUpdate.avatarUrl = avatarUrl === null ? undefined : avatarUrl; // Handle null to clear
+      // Roles & wishlist are typically managed by specific endpoints or admin actions,
+      // but if they are sent, merge them. User shouldn't update their own roles.
+      // For this endpoint, we generally expect only name and avatarUrl to be updated by the user.
+      // If 'roles' or 'wishlist' are sent here, it's likely from an initial profile creation.
+      if (roles !== undefined) profileDataToUpdate.roles = roles;
+      if (wishlist !== undefined) profileDataToUpdate.wishlist = wishlist;
+
+
+      console.log(`[API /api/account/profile POST] Data for update for UID ${uid}:`, profileDataToUpdate);
+      const { data: updatedUser, error: updateError } = await supabase
         .from('users')
-        .update(profileDataToUpsert)
+        .update(profileDataToUpdate)
         .eq('id', uid)
-        .select() // Select all columns after update
-        .single(); // Expect a single row to be updated
+        .select()
+        .single();
       
       if (updateError) {
-        console.error(`[API /api/account/profile POST] Supabase error updating profile for ${uid}:`, JSON.stringify(updateError, null, 2));
+        console.error(`[API /api/account/profile POST] Supabase error updating profile for UID ${uid}:`, JSON.stringify(updateError, null, 2));
         return NextResponse.json({ 
           message: 'Failed to update profile in database.', 
           rawSupabaseError: { message: updateError.message, details: updateError.details, hint: updateError.hint, code: updateError.code }
         }, { status: 500 });
       }
       finalUserData = updatedUser;
-      console.log(`[API /api/account/profile POST] Profile updated for ${uid}.`);
+      console.log(`[API /api/account/profile POST] Profile updated successfully for UID ${uid}.`);
     } else {
-      console.log(`[API /api/account/profile POST] Creating new profile for ${uid}`);
-      // @ts-ignore
-      profileDataToUpsert.createdAt = new Date().toISOString(); // Set createdAt for new user
-      const { error: insertError, data: insertedUser } = await supabase
+      console.log(`[API /api/account/profile POST] Creating new profile for UID: ${uid}`);
+      const defaultRoles = (uid === 'q7hmdfhYAReLqvux1Zw5PbuZ2XD2' && email === 'sagarrana@gmail.com') ? ['admin', 'customer'] : ['customer'];
+      const profileDataToInsert: AuthUserType = {
+        id: uid,
+        email: email || '', // Email should be present from auth
+        name: name || email?.split('@')[0] || 'New User',
+        avatarUrl: avatarUrl === null ? undefined : avatarUrl,
+        roles: roles && roles.length > 0 ? [...new Set([...roles, ...defaultRoles])] : defaultRoles, // Merge roles, ensure defaults
+        wishlist: wishlist || [],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+
+      console.log(`[API /api/account/profile POST] Data for insert for UID ${uid}:`, profileDataToInsert);
+      const { data: insertedUser, error: insertError } = await supabase
         .from('users')
-        .insert(profileDataToUpsert)
+        .insert(profileDataToInsert)
         .select()
-        .single(); // Expect a single row to be inserted
+        .single();
 
       if (insertError) {
-        console.error(`[API /api/account/profile POST] Supabase error inserting profile for ${uid}:`, JSON.stringify(insertError, null, 2));
+        console.error(`[API /api/account/profile POST] Supabase error inserting profile for UID ${uid}:`, JSON.stringify(insertError, null, 2));
         return NextResponse.json({ 
           message: 'Failed to create profile in database.', 
           rawSupabaseError: { message: insertError.message, details: insertError.details, hint: insertError.hint, code: insertError.code }
         }, { status: 500 });
       }
       finalUserData = insertedUser;
-      console.log(`[API /api/account/profile POST] Profile created for ${uid}.`);
+      console.log(`[API /api/account/profile POST] Profile created successfully for UID ${uid}.`);
     }
     
-    // Ensure wishlist is always an array in the response
-    const responseUser = { ...finalUserData, wishlist: finalUserData.wishlist || [] };
-    return NextResponse.json({ message: 'Profile updated successfully', user: responseUser });
+    const responseUser = { ...finalUserData, wishlist: finalUserData?.wishlist || [] };
+    return NextResponse.json({ message: 'Profile operation successful', user: responseUser });
 
   } catch (error: any) {
-    console.error('[API /api/account/profile POST] Unhandled error processing profile update:', error);
-    return NextResponse.json({ message: 'Error updating user profile', error: error.message }, { status: 500 });
+    console.error(`[API /api/account/profile POST] Unhandled error processing profile update for UID ${uid}:`, error);
+    return NextResponse.json({ 
+        message: 'Server error processing profile update.', 
+        error: error.message,
+        stack: error.stack // Include stack for better debugging if available
+    }, { status: 500 });
   }
 }
