@@ -31,19 +31,27 @@ const mapFirebaseUserToAppUser = (
   supaProfile?: Partial<AuthUserType>
 ): AuthUserType => {
   const defaultRoles = ['customer'];
-  // Special handling for sagarrana@gmail.com to be an admin
-  // This role assignment should ideally happen on profile creation if based on email
-  if (firebaseUser.email === 'sagarrana@gmail.com' && (!supaProfile || !supaProfile.roles || supaProfile.roles.length === 0)) {
-    defaultRoles.push('admin');
+
+  // Determine initial roles
+  let initialRoles = supaProfile?.roles && supaProfile.roles.length > 0 ? supaProfile.roles : defaultRoles;
+  if (firebaseUser.email === 'sagarrana@gmail.com' && !initialRoles.includes('admin')) {
+    initialRoles = ['admin', ...initialRoles.filter(role => role !== 'admin')];
   }
+  // Ensure 'customer' is always present if other roles are also assigned
+  if (!initialRoles.includes('customer')) {
+    initialRoles.push('customer');
+  }
+  // Remove duplicates if any
+  initialRoles = [...new Set(initialRoles)];
+
 
   return {
     id: firebaseUser.uid,
     email: firebaseUser.email || '',
     name: supaProfile?.name || firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'User',
     avatarUrl: supaProfile?.avatarUrl || firebaseUser.photoURL || undefined,
-    roles: supaProfile?.roles && supaProfile.roles.length > 0 ? supaProfile.roles : defaultRoles,
-    wishlist: supaProfile?.wishlist || [],
+    roles: initialRoles,
+    wishlist: supaProfile?.wishlist && Array.isArray(supaProfile.wishlist) ? supaProfile.wishlist : [],
   };
 };
 
@@ -64,11 +72,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       const profileResponse = await fetch(`/api/account/profile?uid=${firebaseUser.uid}`);
       console.log(`[AuthContext] Profile API response status for ${firebaseUser.uid}: ${profileResponse.status}`);
 
-      if (profileResponse.ok) {
-        const supaProfile = await profileResponse.json();
-        console.log(`[AuthContext] Supabase profile found for ${firebaseUser.uid}:`, supaProfile);
-        return mapFirebaseUserToAppUser(firebaseUser, supaProfile);
-      } else {
+      if (!profileResponse.ok) {
         let errorDetail = `[AuthContext] Error fetching Supabase profile for ${firebaseUser.uid}. Status: ${profileResponse.status} ${profileResponse.statusText || ''}.`;
         let responseBodyText = '';
         try {
@@ -84,19 +88,25 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         } catch (e) {
           errorDetail += ` (Could not fully parse error response body. Raw text might be: ${responseBodyText.substring(0,200) || 'N/A'}).`;
         }
-        console.error(errorDetail);
+        
+        if (profileResponse.status === 404) {
+          console.log(errorDetail + " (This is expected for a new user, attempting to create profile.)"); // Changed to console.log for 404
+        } else {
+          console.error(errorDetail); // Keep as console.error for other errors
+        }
         
         if (profileResponse.status === 404) {
           console.log(`[AuthContext] No Supabase profile for ${firebaseUser.uid}. Attempting to create initial profile.`);
           const initialRoles = firebaseUser.email === 'sagarrana@gmail.com' ? ['admin', 'customer'] : ['customer'];
           const initialProfileData = {
-            uid: firebaseUser.uid,
+            uid: firebaseUser.uid, // Ensure this key matches what API expects for id
             email: firebaseUser.email,
             name: firebaseUser.displayName || firebaseUser.email?.split('@')[0],
             avatarUrl: firebaseUser.photoURL || null,
             roles: initialRoles,
             wishlist: []
           };
+          console.log("[AuthContext] Initial profile data to POST:", initialProfileData);
           try {
             const createResponse = await fetch('/api/account/profile', {
               method: 'POST',
@@ -109,14 +119,19 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
               return mapFirebaseUserToAppUser(firebaseUser, newSupaProfile.user);
             } else {
                const createErrorData = await createResponse.json().catch(() => ({ message: `Failed to create profile, status ${createResponse.status}`}));
-               console.error(`[AuthContext] Failed to create initial Supabase profile for ${firebaseUser.uid}. API Message: ${createErrorData.message}`);
+               console.error(`[AuthContext] Failed to create initial Supabase profile for ${firebaseUser.uid}. Status: ${createResponse.status}. API Message: ${createErrorData.message}`, createErrorData);
             }
           } catch (createError: any) {
             console.error(`[AuthContext] Network error creating initial Supabase profile for ${firebaseUser.uid}:`, createError.message);
           }
         }
-        return mapFirebaseUserToAppUser(firebaseUser); // Fallback to Firebase data only after logging error
+        return mapFirebaseUserToAppUser(firebaseUser); // Fallback to Firebase data only after logging/attempting create
       }
+
+      const supaProfile = await profileResponse.json();
+      console.log(`[AuthContext] Supabase profile found for ${firebaseUser.uid}:`, supaProfile);
+      return mapFirebaseUserToAppUser(firebaseUser, supaProfile);
+
     } catch (error: any) {
       console.error(`[AuthContext] Network or other unhandled error in fetchAppUserProfile for ${firebaseUser.uid}:`, error.message, error.stack);
       return mapFirebaseUserToAppUser(firebaseUser); // Fallback
@@ -149,6 +164,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const login = useCallback(async (email: string, pass: string): Promise<{ success: boolean; error?: string }> => {
     try {
       await signInWithEmailAndPassword(auth, email, pass);
+      // onAuthStateChanged will handle setting the user and loading state.
       return { success: true };
     } catch (error: any) {
       console.error("Firebase login error:", error);
@@ -161,10 +177,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
       if (userCredential.user) {
         await updateFirebaseProfile(userCredential.user, { displayName: name });
+        // The onAuthStateChanged listener will call fetchAppUserProfile which will handle Firestore doc creation.
       }
       return { success: true };
     } catch (error: any) {
       console.error("Firebase registration error:", error);
+      setIsLoading(false);
       return { success: false, error: error.message || "Registration failed. Please try again." };
     }
   }, []); 
@@ -172,31 +190,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const logout = useCallback(async () => {
     try {
       await firebaseSignOut(auth);
-      setUser(null);
-      const publicRoutes = ['/', '/products', '/categories', '/our-story', '/contact', '/shipping-returns', '/privacy-policy', '/terms-of-service', '/accessibility', '/careers', '/community/create-post'];
-      const isAuthPage = pathname.startsWith('/login') || pathname.startsWith('/register');
-      
-      let onPublicOrAuthPage = isAuthPage;
-      if (!onPublicOrAuthPage) {
-        onPublicOrAuthPage = publicRoutes.some(route => {
-          if (route.endsWith('/[slug]')) { 
-            return pathname.startsWith(route.substring(0, route.lastIndexOf('/')));
-          }
-          return pathname === route || pathname.startsWith(route + '/');
-        });
-      }
-
-      if (!onPublicOrAuthPage) {
-          console.log("[AuthContext] Logging out, redirecting to /login from protected page:", pathname);
-          router.push('/login');
-      } else {
-          console.log("[AuthContext] Logging out from public/auth page, refreshing:", pathname);
-          router.refresh(); 
-      }
+      // User state will be set to null by onAuthStateChanged listener
+      // router.push('/login'); // Let pages handle redirect if they are protected
+      router.refresh(); // Refresh to ensure layouts re-evaluate auth state
     } catch (error) {
       console.error("Firebase logout error:", error);
     }
-  }, [router, pathname]);
+  }, [router]);
 
   const refreshUserProfile = useCallback(async () => {
     const currentFirebaseUser = auth.currentUser;
@@ -207,6 +207,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setUser(appUser);
       setIsLoading(false);
       console.log("[AuthContext] User profile refreshed via refreshUserProfile().");
+    } else {
+      console.log("[AuthContext] refreshUserProfile called but no Firebase user found.");
     }
   }, [fetchAppUserProfile]);
 
