@@ -4,6 +4,7 @@
 import { ProductCard } from '@/components/product/product-card';
 import type { Product } from '@/types';
 import { Gem, Crown } from 'lucide-react';
+import { Input } from '@/components/ui/input'; // Added Input import
 
 // Access control for this page is primarily handled by src/app/(account)/layout.tsx
 

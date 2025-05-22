@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/use-auth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, ShoppingBag, Heart, Edit3, Briefcase } from 'lucide-react'; // Removed User icon as it's not used
+import { Loader2, ShoppingBag, Heart, Edit3, Briefcase } from 'lucide-react';
 import Link from 'next/link';
 import type { Order, Product } from '@/types';
 import Image from 'next/image';
@@ -13,7 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 
 export default function CustomerDashboardPage() {
-  const { user, isLoading: authLoading, refreshUserProfile } = useAuth(); // refreshUserProfile might be useful for refetching if needed
+  const { user, isLoading: authLoading, refreshUserProfile } = useAuth();
   const { toast } = useToast();
 
   const [recentOrders, setRecentOrders] = useState<Order[]>([]);
@@ -37,6 +37,7 @@ export default function CustomerDashboardPage() {
             toast({ title: "Error", description: errorData.message || "Could not load recent orders.", variant: "destructive" });
           }
         } catch (error) {
+          console.error("Dashboard: Error fetching orders", error);
           toast({ title: "Error", description: "Failed to connect to orders service.", variant: "destructive" });
         }
         setIsLoadingOrders(false);
@@ -45,17 +46,19 @@ export default function CustomerDashboardPage() {
         setIsLoadingWishlist(true);
         if (user.wishlist && user.wishlist.length > 0) {
           try {
-            // Fetch product details for each ID in the wishlist (limit to 4 for preview)
-            const productDetailPromises = user.wishlist.slice(0, 4).map(productId =>
-              fetch(`/api/products/${productId}`).then(res => {
+            const productDetailPromises = user.wishlist.slice(0, 4).map(async (productId) => {
+                const res = await fetch(`/api/products/${productId}`); // Assuming slug can be ID for simple products
                 if (res.ok) return res.json();
-                console.warn(`Failed to fetch product ${productId} for wishlist preview.`);
+                // Try fetching by ID if slug is different (more robust if you have separate ID and slug)
+                // const resById = await fetch(`/api/products?id=${productId}`); 
+                // if (resById.ok) return resById.json();
+                console.warn(`[Dashboard] Failed to fetch product ${productId} for wishlist preview.`);
                 return null;
-              })
-            );
+            });
             const products = (await Promise.all(productDetailPromises)).filter(p => p !== null) as Product[];
             setWishlistPreview(products);
           } catch (error) {
+            console.error("Dashboard: Error fetching wishlist", error);
             toast({ title: "Error", description: "Could not load wishlist preview.", variant: "destructive" });
             setWishlistPreview([]);
           }
@@ -69,7 +72,7 @@ export default function CustomerDashboardPage() {
     if (!authLoading && user) {
       fetchDashboardData();
     }
-  }, [user, authLoading, toast]); // Removed refreshUserProfile from deps unless explicitly needed to trigger refetch
+  }, [user, authLoading, toast]);
 
   if (authLoading || (!user && !authLoading)) {
     return (
@@ -80,7 +83,7 @@ export default function CustomerDashboardPage() {
     );
   }
 
-  if (!user) { // This case should be handled by AccountLayout now, but kept as a fallback
+  if (!user) {
     return (
       <div className="container-wide section-padding text-center">
         <p>Please log in to view your dashboard.</p>
@@ -126,7 +129,6 @@ export default function CustomerDashboardPage() {
         </CardContent>
       </Card>
 
-      {/* Recent Orders */}
       <Card className="shadow-lg">
         <CardHeader>
           <CardTitle className="text-2xl flex items-center"><ShoppingBag className="mr-3 h-6 w-6 text-primary"/>Recent Orders</CardTitle>
@@ -164,7 +166,6 @@ export default function CustomerDashboardPage() {
         </CardContent>
       </Card>
 
-      {/* Wishlist Preview */}
       <Card className="shadow-lg">
         <CardHeader>
           <CardTitle className="text-2xl flex items-center"><Heart className="mr-3 h-6 w-6 text-pink-500"/>Wishlist Sneak Peek</CardTitle>
@@ -176,7 +177,7 @@ export default function CustomerDashboardPage() {
           ) : wishlistPreview.length > 0 ? (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {wishlistPreview.map(product => (
-                <Link key={product.id} href={`/products/${product.slug}`} className="block group">
+                <Link key={product.id} href={`/products/${product.slug || product.id}`} className="block group">
                   <Card className="overflow-hidden hover:shadow-md transition-shadow h-full flex flex-col">
                     <Image
                       src={product.images[0]?.url || `https://placehold.co/200x250.png`}

@@ -18,51 +18,56 @@ export default function WishlistPage() {
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchWishlistProducts = useCallback(async () => {
-    if (!user || !user.id || !user.wishlist) { // Check user.wishlist existence
+    if (!user || !user.id) {
       setIsLoading(false);
-      setWishlistItems([]); // Clear items if no user or no wishlist
+      setWishlistItems([]);
+      if (!authLoading) toast({ title: "Login Required", description: "Please log in to view your wishlist.", variant: "default" });
       return;
     }
     setIsLoading(true);
     try {
+      // Fetch wishlist product IDs from user object (now sourced from Supabase via useAuth)
       const wishlistProductIds = user.wishlist || [];
 
       if (wishlistProductIds.length > 0) {
-        const productDetailsPromises = wishlistProductIds.map((productId: string) =>
-          fetch(`/api/products/${productId}`) // Fetch by product slug (assuming ID is slug)
-            .then(res => {
-              if (res.ok) return res.json();
-              if (res.status === 404) {
-                 console.warn(`Wishlisted product ID/slug '${productId}' not found in products API.`);
-                 toast({ title: "Item Not Found", description: `Product with ID ${productId} is no longer available.`, variant: "default" });
-                 return null;
-              }
-              console.warn(`Failed to fetch product details for ID/slug: ${productId}, Status: ${res.status}`);
-              return null; 
-            })
-            .catch(err => {
-              console.warn(`Error fetching product details for ID/slug: ${productId}`, err);
+        // Fetch product details for each ID in the wishlist
+        const productDetailsPromises = wishlistProductIds.map(async (productId: string) => {
+          try {
+            const res = await fetch(`/api/products/${productId}`); // Assuming product ID can be used as slug
+            if (res.ok) return res.json();
+            if (res.status === 404) {
+              console.warn(`[Wishlist] Product ID '${productId}' not found.`);
+              toast({ title: "Item Not Found", description: `A product (ID: ${productId}) in your wishlist is no longer available and has been removed.`, variant: "default" });
+              // Optionally, automatically remove this missing product ID from the user's wishlist
+              // This would require calling the remove API here. For now, we'll just not display it.
               return null;
-            })
-        );
+            }
+            const errorData = await res.json().catch(() => ({}));
+            console.warn(`[Wishlist] Failed to fetch product ${productId}: ${errorData.message || res.statusText}`);
+            return null;
+          } catch (err) {
+            console.error(`[Wishlist] Network error fetching product ${productId}:`, err);
+            return null;
+          }
+        });
         const products = (await Promise.all(productDetailsPromises)).filter(p => p !== null) as Product[];
         setWishlistItems(products);
       } else {
         setWishlistItems([]);
       }
     } catch (error) {
-      console.error("Error fetching wishlist products:", error);
-      toast({ title: "Error", description: "Could not load your wishlist.", variant: "destructive" });
+      console.error("[WishlistPage] Error fetching wishlist products:", error);
+      toast({ title: "Error Loading Wishlist", description: "Could not load your wishlist items.", variant: "destructive" });
       setWishlistItems([]);
     } finally {
       setIsLoading(false);
     }
-  }, [user, toast]); // Removed authLoading from deps as user object change will trigger it.
+  }, [user, authLoading, toast]);
 
   useEffect(() => {
-    if (!authLoading && user) { // Only fetch if auth is resolved and user exists
+    if (!authLoading && user) {
       fetchWishlistProducts();
-    } else if (!authLoading && !user) { // Auth resolved, no user
+    } else if (!authLoading && !user) {
       setIsLoading(false);
       setWishlistItems([]);
     }
@@ -71,7 +76,7 @@ export default function WishlistPage() {
 
   const handleRemoveFromWishlist = async (productId: string) => {
     if (!user || !user.id) {
-      toast({ title: "Error", description: "You must be logged in.", variant: "destructive" });
+      toast({ title: "Authentication Error", description: "You must be logged in.", variant: "destructive" });
       return;
     }
     try {
@@ -82,18 +87,18 @@ export default function WishlistPage() {
       });
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({message: "Failed to remove item"}));
-        throw new Error(errorData.message || errorData.rawError || 'Failed to remove item from wishlist');
+        throw new Error(errorData.message || errorData.rawSupabaseError?.message || 'Failed to remove item from wishlist');
       }
       toast({ title: "Item Removed", description: "The item has been removed from your wishlist." });
-      await refreshUserProfile(); // This will re-fetch user data including the updated wishlist
-      // fetchWishlistProducts will then be called by the useEffect watching `user`
+      await refreshUserProfile(); // This re-fetches user data including the updated wishlist
+      // The useEffect watching `user` will then trigger `fetchWishlistProducts`
     } catch (error) {
       console.error("Error removing from wishlist:", error);
       toast({ title: "Error", description: (error as Error).message, variant: "destructive" });
     }
   };
 
-  if (isLoading || authLoading) { // Consider both loading states
+  if (isLoading || authLoading) {
     return (
         <div className="container-wide section-padding flex justify-center items-center min-h-[50vh]">
             <Loader2 className="h-12 w-12 animate-spin text-primary" />

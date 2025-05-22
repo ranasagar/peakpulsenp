@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { ShoppingBag, Loader2 } from 'lucide-react'; // Removed Eye icon
+import { ShoppingBag, Loader2 } from 'lucide-react';
 import Image from 'next/image';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
@@ -33,16 +33,20 @@ export default function OrdersPage() {
       try {
         const response = await fetch(`/api/account/orders?userId=${user.id}`);
         if (!response.ok) {
-          const errorData = await response.json().catch(() => ({ message: "Failed to fetch orders"}));
-          throw new Error(errorData.message || errorData.rawError || `Failed to fetch orders: ${response.statusText}`);
+          let errorDetail = "Failed to fetch orders.";
+          try {
+            const errorData = await response.json();
+            errorDetail = errorData.message || errorData.rawSupabaseError?.message || `Error ${response.status}: ${response.statusText}`;
+          } catch (e) { /* ignore if not json */ }
+          throw new Error(errorDetail);
         }
         const data = await response.json();
         setOrders(data);
       } catch (err) {
-        console.error(err);
+        console.error("[OrdersPage] Error fetching orders:", err);
         const errorMessage = (err as Error).message || 'Could not load orders.';
         setError(errorMessage);
-        toast({ title: "Error", description: errorMessage, variant: "destructive" });
+        toast({ title: "Error Loading Orders", description: errorMessage, variant: "destructive" });
       } finally {
         setIsLoading(false);
       }
@@ -53,6 +57,7 @@ export default function OrdersPage() {
     } else if (!authLoading && !user) {
       setIsLoading(false);
       setError("User not authenticated.");
+       toast({ title: "Authentication Required", description: "Please log in to view your orders.", variant: "default" });
     }
   }, [user, authLoading, toast]);
 
@@ -87,7 +92,7 @@ export default function OrdersPage() {
     );
   }
 
-  if (error) {
+  if (error && !orders.length) { // Show error only if no orders are loaded
     return (
       <div className="container-wide section-padding text-center text-destructive">
         <p>Error: {error}</p>

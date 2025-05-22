@@ -2,13 +2,13 @@
 "use client";
 
 import { useEffect } from 'react';
-import { useRouter, usePathname } from 'next/navigation'; // Corrected usePathname import
+import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
 import { Footer } from "@/components/layout/footer";
 import { Header } from "@/components/layout/header";
 import { ChatbotWidget } from "@/components/chatbot/chatbot-widget";
 import { Skeleton } from '@/components/ui/skeleton';
-import { Card } from '@/components/ui/card'; // Card was missing an import here
+import { Card } from '@/components/ui/card';
 import { AlertTriangle, ShieldAlert } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
@@ -16,15 +16,15 @@ import Link from 'next/link';
 export default function AccountLayout({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading, user } = useAuth();
   const router = useRouter();
-  const pathname = usePathname(); // Get current pathname
+  const pathname = usePathname();
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
-      // Construct the redirect query parameter carefully
       const currentPath = window.location.pathname + window.location.search;
+      console.log(`[AccountLayout] User not authenticated. Redirecting to /login from: ${currentPath}`);
       router.replace(`/login?redirect=${encodeURIComponent(currentPath)}`);
     }
-  }, [isAuthenticated, isLoading, router]);
+  }, [isAuthenticated, isLoading, router, pathname]); // Added pathname to deps
 
   if (isLoading) {
     return (
@@ -53,8 +53,7 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
     );
   }
 
-  if (!isAuthenticated && !isLoading) { // Check !isLoading here too
-     // This state should ideally be brief due to the redirect.
+  if (!isAuthenticated && !isLoading) {
     return (
        <div className="flex min-h-screen flex-col">
         <Header />
@@ -73,45 +72,47 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
     );
   }
   
-  // VIP Collection check
-  if (pathname?.includes('/vip-collection') && !user?.roles?.includes('vip') && !user?.roles?.includes('admin')) {
-    return (
-      <div className="flex min-h-screen flex-col">
-        <Header />
-        <main className="flex-grow container-wide section-padding flex items-center justify-center">
-          <Card className="max-w-md w-full p-8 text-center shadow-xl">
-            <AlertTriangle className="h-16 w-16 text-accent mx-auto mb-6" />
-            <h1 className="text-2xl font-bold mb-3">VIP Access Required</h1>
-            <p className="text-muted-foreground mb-6">This collection is exclusive to our VIP members.</p>
-            <Button asChild variant="outline">
-              <Link href="/products">Explore Other Collections</Link>
-            </Button>
-          </Card>
-        </main>
-        <Footer />
-      </div>
-    );
+  // Role-based access checks
+  if (user) {
+    if (pathname?.includes('/vip-collection') && !user.roles?.includes('vip') && !user.roles?.includes('admin')) {
+      return (
+        <div className="flex min-h-screen flex-col">
+          <Header />
+          <main className="flex-grow container-wide section-padding flex items-center justify-center">
+            <Card className="max-w-md w-full p-8 text-center shadow-xl">
+              <AlertTriangle className="h-16 w-16 text-accent mx-auto mb-6" />
+              <h1 className="text-2xl font-bold mb-3">VIP Access Required</h1>
+              <p className="text-muted-foreground mb-6">This collection is exclusive to our VIP members.</p>
+              <Button asChild variant="outline">
+                <Link href="/products">Explore Other Collections</Link>
+              </Button>
+            </Card>
+          </main>
+          <Footer />
+        </div>
+      );
+    }
+    
+     if (pathname?.includes('/affiliate-portal') && !user.roles?.includes('affiliate') && !user.roles?.includes('admin')) {
+      return (
+        <div className="flex min-h-screen flex-col">
+          <Header />
+          <main className="flex-grow container-wide section-padding flex items-center justify-center">
+            <Card className="max-w-md w-full p-8 text-center shadow-xl">
+              <AlertTriangle className="h-16 w-16 text-accent mx-auto mb-6" />
+              <h1 className="text-2xl font-bold mb-3">Affiliate Access Required</h1>
+              <p className="text-muted-foreground mb-6">This portal is for registered affiliates only.</p>
+              <Button asChild variant="outline">
+                <Link href="/">Return Home</Link>
+              </Button>
+            </Card>
+          </main>
+          <Footer />
+        </div>
+      );
+    }
   }
-  
-  // Affiliate Portal check
-   if (pathname?.includes('/affiliate-portal') && !user?.roles?.includes('affiliate') && !user?.roles?.includes('admin')) {
-    return (
-      <div className="flex min-h-screen flex-col">
-        <Header />
-        <main className="flex-grow container-wide section-padding flex items-center justify-center">
-          <Card className="max-w-md w-full p-8 text-center shadow-xl">
-            <AlertTriangle className="h-16 w-16 text-accent mx-auto mb-6" />
-            <h1 className="text-2xl font-bold mb-3">Affiliate Access Required</h1>
-            <p className="text-muted-foreground mb-6">This portal is for registered affiliates only.</p>
-            <Button asChild variant="outline">
-              <Link href="/">Return Home</Link>
-            </Button>
-          </Card>
-        </main>
-        <Footer />
-      </div>
-    );
-  }
+
 
   // If authenticated and authorized for the specific sub-route, render children
   return (

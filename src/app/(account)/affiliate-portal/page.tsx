@@ -81,7 +81,7 @@ export default function AffiliatePortalPage() {
           <CardTitle className="text-xl flex items-center"><LinkIcon className="mr-3 h-5 w-5 text-primary"/>Your Unique Referral Link</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col sm:flex-row items-center gap-4">
-          <input 
+          <Input 
             type="text" 
             readOnly 
             value={mockAffiliateData.uniqueLink} 
