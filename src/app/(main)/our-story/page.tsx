@@ -11,8 +11,9 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
 import type { OurStoryContentData } from '@/types';
-import { InteractiveExternalLink } from '@/components/interactive-external-link'; // Import the new component
-import { Skeleton } from '@/components/ui/skeleton'; // For loading state
+import { InteractiveExternalLink } from '@/components/interactive-external-link'; 
+import { Skeleton } from '@/components/ui/skeleton'; 
+import MainLayout from '@/components/layout/main-layout'; // Import MainLayout
 
 const fallbackContent: OurStoryContentData = {
   hero: { title: "Our Story (Loading...)", description: "Weaving together heritage and vision." },
@@ -23,7 +24,7 @@ const fallbackContent: OurStoryContentData = {
 };
 
 async function getOurStoryContent(): Promise<OurStoryContentData> {
-  const fetchUrl = `/api/content/our-story`; // Always use relative path for client-side fetch
+  const fetchUrl = `/api/content/our-story`; 
   console.log(`[OurStory Page Client Fetch] Attempting to fetch from: ${fetchUrl}`);
   const res = await fetch(fetchUrl, { cache: 'no-store' });
 
@@ -34,14 +35,36 @@ async function getOurStoryContent(): Promise<OurStoryContentData> {
       errorJson = await res.json();
       if (errorJson && errorJson.error) {
         errorBody = errorJson.error;
+      } else if (errorJson && errorJson.message) {
+        errorBody = errorJson.message;
       } else {
-         errorBody = await res.text(); // Fallback if not JSON or no 'error' field
+         errorBody = await res.text(); 
       }
-    } catch (e) { /* ignore if response is not json */ }
-    console.error(`[OurStory Page Client Fetch] Failed to fetch content. Status: ${res.status} ${res.statusText}. Body:`, errorBody);
-    throw new Error(`API Error fetching Our Story content: ${res.status} ${res.statusText}. Details: ${errorBody.substring(0, 200)}`);
+    } catch (e) { 
+        try {
+            errorBody = await res.text();
+        } catch (textErr) {
+            // ignore if response is not text either
+        }
+    }
+    console.error(`[OurStory Page Client Fetch] Failed to fetch content. Status: ${res.status} ${res.statusText}. Body:`, errorBody.substring(0, 500));
+    // Return a structure that matches OurStoryContentData but indicates error
+    return {
+        ...fallbackContent,
+        hero: {...fallbackContent.hero, title: "Error Loading Story", description: `Failed: ${res.statusText}`},
+        error: `API Error fetching Our Story content: ${res.status} ${res.statusText}. Details: ${errorBody.substring(0, 200)}`
+    };
   }
-  return res.json();
+  const jsonData = await res.json();
+  // Ensure the response has the expected structure, merging with defaults if parts are missing
+  const responseData: OurStoryContentData = {
+    hero: { ...fallbackContent.hero, ...jsonData.hero },
+    mission: { ...fallbackContent.mission, ...jsonData.mission },
+    craftsmanship: { ...fallbackContent.craftsmanship, ...jsonData.craftsmanship },
+    valuesSection: { ...fallbackContent.valuesSection, ...jsonData.valuesSection },
+    joinJourneySection: { ...fallbackContent.joinJourneySection, ...jsonData.joinJourneySection },
+  };
+  return responseData;
 }
 
 export default function OurStoryPage() {
@@ -55,13 +78,20 @@ export default function OurStoryPage() {
       try {
         const fetchedContent = await getOurStoryContent();
         setContent(fetchedContent);
+        if (fetchedContent.error) {
+             toast({
+                title: "Content Load Issue",
+                description: fetchedContent.error,
+                variant: "default" 
+            });
+        }
       } catch (error) {
         toast({
           title: "Error Loading Content",
           description: (error as Error).message || "Could not load Our Story content. Displaying defaults.",
           variant: "destructive"
         });
-        setContent(fallbackContent); // Ensure content is set to fallback on error
+        setContent(fallbackContent); 
       } finally {
         setIsLoading(false);
       }
@@ -71,35 +101,37 @@ export default function OurStoryPage() {
 
   if (isLoading) {
     return (
-      <div className="container-wide section-padding space-y-12">
-        <Skeleton className="h-20 w-1/2 mx-auto mb-6" />
-        <Skeleton className="h-8 w-3/4 mx-auto mb-16" />
-        <div className="grid md:grid-cols-2 gap-12 items-center mb-16">
-          <div>
-            <Skeleton className="h-10 w-1/3 mb-6" />
-            <Skeleton className="h-6 w-full mb-4" />
-            <Skeleton className="h-6 w-5/6 mb-4" />
-            <Skeleton className="h-6 w-full" />
+      <MainLayout>
+        <div className="container-wide section-padding space-y-12">
+          <Skeleton className="h-20 w-1/2 mx-auto mb-6" />
+          <Skeleton className="h-8 w-3/4 mx-auto mb-16" />
+          <div className="grid md:grid-cols-2 gap-12 items-center mb-16">
+            <div>
+              <Skeleton className="h-10 w-1/3 mb-6" />
+              <Skeleton className="h-6 w-full mb-4" />
+              <Skeleton className="h-6 w-5/6 mb-4" />
+              <Skeleton className="h-6 w-full" />
+            </div>
+            <AspectRatio ratio={4/3}><Skeleton className="w-full h-full rounded-xl" /></AspectRatio>
           </div>
-          <AspectRatio ratio={4/3}><Skeleton className="w-full h-full rounded-xl" /></AspectRatio>
-        </div>
-         <Separator className="my-16 md:my-24" />
-         <div className="grid md:grid-cols-2 gap-12 items-center mb-16">
-          <AspectRatio ratio={4/3} className="md:order-1"><Skeleton className="w-full h-full rounded-xl" /></AspectRatio>
-          <div className="md:order-2">
-            <Skeleton className="h-10 w-1/3 mb-6" />
-            <Skeleton className="h-6 w-full mb-4" />
-            <Skeleton className="h-6 w-5/6 mb-4" />
-            <Skeleton className="h-6 w-full" />
+          <Separator className="my-16 md:my-24" />
+          <div className="grid md:grid-cols-2 gap-12 items-center mb-16">
+            <AspectRatio ratio={4/3} className="md:order-1"><Skeleton className="w-full h-full rounded-xl" /></AspectRatio>
+            <div className="md:order-2">
+              <Skeleton className="h-10 w-1/3 mb-6" />
+              <Skeleton className="h-6 w-full mb-4" />
+              <Skeleton className="h-6 w-5/6 mb-4" />
+              <Skeleton className="h-6 w-full" />
+            </div>
           </div>
         </div>
-      </div>
+      </MainLayout>
     );
   }
 
 
   return (
-    <>
+    <MainLayout> {/* Wrap content with MainLayout */}
       {/* Hero Section */}
       <section className="relative py-16 md:py-24 bg-gradient-to-b from-primary/5 to-transparent">
         <div className="container-wide text-center">
@@ -211,6 +243,6 @@ export default function OurStoryPage() {
             </div>
         </section>
       </div>
-    </>
+    </MainLayout>
   );
 }
