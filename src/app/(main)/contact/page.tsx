@@ -1,3 +1,3 @@
-// This file is obsolete. Contact page functionality is in /src/app/contact/page.tsx
-// Please remove this file.
+// This file is obsolete and should be deleted.
+// The contact page is now served from /src/app/contact/page.tsx
 export {};

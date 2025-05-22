@@ -1,3 +1,3 @@
-// This file is obsolete. Shipping & Returns page functionality is in /src/app/shipping-returns/page.tsx
-// Please remove this file.
+// This file is obsolete and should be deleted.
+// The shipping-returns page is now served from /src/app/shipping-returns/page.tsx
 export {};

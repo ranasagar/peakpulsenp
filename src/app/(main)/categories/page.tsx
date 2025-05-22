@@ -1,3 +1,3 @@
-// This file is obsolete. Categories page functionality is in /src/app/categories/page.tsx
-// Please remove this file.
+// This file is obsolete and should be deleted.
+// The categories page is now served from /src/app/categories/page.tsx
 export {};

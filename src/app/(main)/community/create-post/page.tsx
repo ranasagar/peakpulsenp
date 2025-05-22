@@ -1,3 +1,3 @@
-// This file is obsolete. Create Post page functionality is in /src/app/community/create-post/page.tsx
-// Please remove this file.
+// This file is obsolete and should be deleted.
+// The create-post page is now served from /src/app/community/create-post/page.tsx
 export {};

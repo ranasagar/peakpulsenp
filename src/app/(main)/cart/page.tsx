@@ -1,3 +1,3 @@
-// This file is obsolete. Cart page functionality is in /src/app/cart/page.tsx
-// Please remove this file.
+// This file is obsolete and should be deleted.
+// The cart page is now served from /src/app/cart/page.tsx
 export {};

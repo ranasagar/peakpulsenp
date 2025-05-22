@@ -1,3 +1,3 @@
-// This file is obsolete. Products listing page functionality is in /src/app/products/page.tsx
-// Please remove this file.
+// This file is obsolete and should be deleted.
+// The products listing page is now served from /src/app/products/page.tsx
 export {};

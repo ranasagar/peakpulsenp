@@ -1,3 +1,3 @@
-// This file is obsolete. Accessibility page functionality is in /src/app/accessibility/page.tsx
-// Please remove this file.
+// This file is obsolete and should be deleted.
+// The accessibility page is now served from /src/app/accessibility/page.tsx
 export {};

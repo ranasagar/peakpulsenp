@@ -1,3 +1,3 @@
-// This file is obsolete. Sustainability page functionality is in /src/app/sustainability/page.tsx
-// Please remove this file.
+// This file is obsolete and should be deleted.
+// The sustainability page is now served from /src/app/sustainability/page.tsx
 export {};
