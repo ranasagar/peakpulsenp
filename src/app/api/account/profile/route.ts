@@ -1,31 +1,22 @@
-
 // /src/app/api/account/profile/route.ts
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { supabase } from '../../../../lib/supabaseClient'; // Relative path
+import { supabase } from '../../../../lib/supabaseClient.ts';
 import type { User as AuthUserType } from '@/types';
 
 export const dynamic = 'force-dynamic';
 
 interface ProfileUpdateRequestBody {
-  id?: string; // Firebase UID, now correctly named 'id' from client
-  uid?: string; // Keep for backward compatibility if some client still sends 'uid'
+  id?: string; // Firebase UID
   name?: string;
   avatarUrl?: string | null;
-  email?: string; 
+  email?: string;
   roles?: string[];
   wishlist?: string[];
 }
 
-
 // GET user profile
 export async function GET(request: NextRequest) {
-  const { searchParams } = new URL(request.url);
-  const uidFromQuery = searchParams.get('uid'); // Firebase UID from query
-  
-  console.log(`[API /api/account/profile GET] Request URL: ${request.url}`);
-  console.log(`[API /api/account/profile GET] Extracted UID from searchParams: ${uidFromQuery}`);
-
   if (!supabase) {
     console.error('[API /api/account/profile GET] Supabase client is not initialized. Check environment variables and server restart.');
     return NextResponse.json({ 
@@ -33,6 +24,12 @@ export async function GET(request: NextRequest) {
         rawSupabaseError: { message: 'Supabase client not initialized on server for GET.' } 
     }, { status: 503 });
   }
+
+  const { searchParams } = new URL(request.url);
+  const uidFromQuery = searchParams.get('uid');
+  
+  console.log(`[API /api/account/profile GET] Request URL: ${request.url}`);
+  console.log(`[API /api/account/profile GET] Extracted UID from searchParams: ${uidFromQuery}`);
 
   if (!uidFromQuery) {
     console.warn("[API /api/account/profile GET] User ID (uid) is required in query parameters.");
@@ -43,8 +40,8 @@ export async function GET(request: NextRequest) {
     const { data: profile, error: fetchError } = await supabase
       .from('users')
       .select('*')
-      .eq('id', uidFromQuery) // Compare with 'id' column in Supabase, which should store Firebase UID
-      .single();
+      .eq('id', uidFromQuery)
+      .single(); // Use single() if UID is unique and you expect one or zero rows
 
     if (fetchError) {
       if (fetchError.code === 'PGRST116') { // Row not found
@@ -63,25 +60,28 @@ export async function GET(request: NextRequest) {
       }, { status: 500 });
     }
     
-    console.log(`[API /api/account/profile GET] Found profile for ${uidFromQuery} in Supabase.`);
+    if (!profile) { // Should be caught by PGRST116, but good as a fallback
+        console.log(`[API /api/account/profile GET] Profile not found (profile was null) for uid ${uidFromQuery}.`);
+        return NextResponse.json({ message: 'Profile not found' }, { status: 404 });
+    }
+
+    console.log(`[API /api/account/profile GET] Profile found for ${uidFromQuery} in Supabase:`, profile);
     const responseProfile = { ...profile, wishlist: profile.wishlist || [] };
     return NextResponse.json(responseProfile);
 
   } catch (catchError: any) {
     console.error(`[API /api/account/profile GET] Unhandled exception fetching profile for uid ${uidFromQuery}:`, catchError);
-    let errorMessage = 'Server error fetching profile.';
-    if (catchError.message && catchError.message.includes("uuid") && catchError.message.includes("type text")) {
-        errorMessage += " Check if the 'id' column in the 'users' table is of type TEXT to store Firebase UIDs, not UUID.";
-    }
-    return NextResponse.json({ message: errorMessage, error: catchError.message, code: catchError.code }, { status: 500 });
+    return NextResponse.json({ 
+        message: 'Server error fetching profile.', 
+        error: catchError.message, 
+        code: catchError.code,
+        rawSupabaseError: { message: catchError.message, code: catchError.code } 
+    }, { status: 500 });
   }
 }
 
-
 // POST to create or update user profile
 export async function POST(request: NextRequest) {
-  console.log("[API /api/account/profile POST] Request received.");
-
   if (!supabase) {
     console.error('[API /api/account/profile POST] Supabase client is not initialized. Check environment variables and server restart.');
     return NextResponse.json({ 
@@ -92,34 +92,30 @@ export async function POST(request: NextRequest) {
 
   let requestBody: ProfileUpdateRequestBody;
   try {
-    const rawBody = await request.json();
-    requestBody = rawBody as ProfileUpdateRequestBody;
-    console.log("[API /api/account/profile POST] Parsed request body (rawBody):", JSON.stringify(rawBody, null, 2));
-    console.log("[API /api/account/profile POST] Parsed request body (destructured target):", JSON.stringify(requestBody, null, 2));
+    requestBody = (await request.json()) as ProfileUpdateRequestBody;
+    console.log("[API /api/account/profile POST] Parsed request body (rawBody):", JSON.stringify(requestBody, null, 2));
   } catch (e) {
     console.error('[API /api/account/profile POST] Error parsing request JSON:', e);
     return NextResponse.json({ message: 'Invalid request body. Expected JSON.', error: (e as Error).message }, { status: 400 });
   }
   
-  // Prefer `id` from body, fallback to `uid` for any old client sending it
-  const userIdToProcess = requestBody.id || requestBody.uid; 
+  const userIdToProcess = requestBody.id; // Expect 'id' from client now
   const { name, avatarUrl, email, roles, wishlist } = requestBody;
 
   if (!userIdToProcess) {
-    console.warn("[API /api/account/profile POST] User ID (expected as 'id' or 'uid' in requestBody) is required.");
-    return NextResponse.json({ message: "User ID (expected as 'id' or 'uid') is required for update/create" }, { status: 400 });
+    console.warn("[API /api/account/profile POST] User ID (expected as 'id' in requestBody) is required.");
+    return NextResponse.json({ message: "User ID (id) is required for update/create" }, { status: 400 });
   }
   console.log(`[API /api/account/profile POST] Processing for user ID: ${userIdToProcess}`);
-
 
   try {
     const { data: existingUser, error: fetchError } = await supabase
       .from('users')
-      .select('id, "createdAt", roles, wishlist')
+      .select('id, "createdAt", roles, wishlist') // Select existing roles and wishlist
       .eq('id', userIdToProcess)
       .maybeSingle();
 
-    if (fetchError && fetchError.code !== 'PGRST116') { // PGRST116 means not found, which is fine for creation
+    if (fetchError && fetchError.code !== 'PGRST116') { 
         console.error(`[API /api/account/profile POST] Supabase error checking for existing user ${userIdToProcess}:`, JSON.stringify(fetchError, null, 2));
         return NextResponse.json({ 
           message: 'Error accessing user data from database.', 
@@ -131,15 +127,14 @@ export async function POST(request: NextRequest) {
 
     if (existingUser) {
       console.log(`[API /api/account/profile POST] Updating existing profile for UID: ${userIdToProcess}`);
-      const profileDataToUpdate: Partial<Omit<AuthUserType, 'id' | 'email' | 'createdAt'>> & { updatedAt: string } = {
+      const profileDataToUpdate: Partial<Omit<AuthUserType, 'id' | 'email' | 'createdAt' | 'roles'>> & { updatedAt: string } = {
         updatedAt: new Date().toISOString(),
       };
       if (name !== undefined) profileDataToUpdate.name = name;
       if (avatarUrl !== undefined) profileDataToUpdate.avatarUrl = avatarUrl === null ? undefined : avatarUrl;
-      // Roles & wishlist are typically managed by specific endpoints or admin actions for existing users.
-      // Avoid letting users update their own roles directly here unless explicitly intended and secured.
-      // if (roles !== undefined) profileDataToUpdate.roles = roles; // Be cautious with this
-      // if (wishlist !== undefined) profileDataToUpdate.wishlist = wishlist; // Wishlist usually has dedicated add/remove APIs
+      // Roles and wishlist updates are usually handled by dedicated endpoints or admin actions.
+      // For general profile update by user, don't allow changing roles.
+      // If wishlist is part of this request, it should be merged, not overwritten, by dedicated APIs.
 
       console.log(`[API /api/account/profile POST] Data for update for UID ${userIdToProcess}:`, profileDataToUpdate);
       const { data: updatedUser, error: updateError } = await supabase
@@ -160,29 +155,22 @@ export async function POST(request: NextRequest) {
       console.log(`[API /api/account/profile POST] Profile updated successfully for UID ${userIdToProcess}.`);
     } else {
       console.log(`[API /api/account/profile POST] Creating new profile for UID: ${userIdToProcess}`);
-      // Ensure email is present for new profile creation based on Firebase Auth
-      if (!email) {
+      if (!email) { // Email is crucial for new profiles if not already set in Firebase Auth and part of your users table schema
         console.warn(`[API /api/account/profile POST] Email is required for new profile creation for UID ${userIdToProcess}.`);
         return NextResponse.json({ message: 'Email is required for new profile creation.' }, { status: 400 });
       }
-      const defaultRoles = ['customer']; // Base default
-      let assignedRoles = roles && roles.length > 0 ? [...new Set([...roles, ...defaultRoles])] : defaultRoles;
-      if (email === 'sagarrana@gmail.com' && !assignedRoles.includes('admin')) {
-        assignedRoles = [...new Set([...assignedRoles, 'admin'])];
-      }
 
-
-      const profileDataToInsert: Omit<AuthUserType, 'updatedAt' | 'createdAt'> & { createdAt?: string, updatedAt?: string } = {
+      const profileDataToInsert: AuthUserType = { // Use AuthUserType, ensure all fields are covered or optional
         id: userIdToProcess,
-        email: email,
+        email: email, // Should be provided by client for new profile
         name: name || email.split('@')[0] || 'New User',
         avatarUrl: avatarUrl === null ? undefined : avatarUrl,
-        roles: assignedRoles,
-        wishlist: wishlist || [],
+        roles: roles || ['customer'], // Default roles from client or fallback
+        wishlist: wishlist || [], // Default wishlist from client or fallback
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
-
+      
       console.log(`[API /api/account/profile POST] Data for insert for UID ${userIdToProcess}:`, JSON.stringify(profileDataToInsert, null, 2));
       const { data: insertedUser, error: insertError } = await supabase
         .from('users')
@@ -209,7 +197,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ 
         message: 'Server error processing profile operation.', 
         error: error.message,
-        stack: error.stack // Include stack for better debugging if available
+        rawSupabaseError: { message: error.message, code: error.code }
     }, { status: 500 });
   }
 }
+
+    
