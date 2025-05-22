@@ -27,7 +27,7 @@ const footerNavSectionSchema = z.object({
 });
 
 const footerContentSchema = z.object({
-  copyrightText: z.string().min(5, "Copyright text is required.").optional(),
+  copyrightText: z.string().min(5, "Copyright text is required.").optional().or(z.literal('')),
   navigationSections: z.array(footerNavSectionSchema).optional(),
 });
 
@@ -63,15 +63,20 @@ export default function AdminFooterContentPage() {
           console.warn("Failed to fetch current footer settings, using defaults.", errorData.message || response.statusText);
           return defaultFooterData;
         }
-        const data = await response.json();
+        const data: FooterContentData = await response.json();
         
         const mappedData = {
           copyrightText: data.copyrightText || defaultFooterData.copyrightText,
           navigationSections: (data.navigationSections && data.navigationSections.length > 0 
-            ? data.navigationSections.map((section: any, sIdx: number) => ({ 
+            ? data.navigationSections.map((section, sIdx) => ({ 
                 ...section, 
-                id: section.id || `section-${sIdx}-${Date.now()}`,
-                items: (section.items || []).map((item: any, iIdx: number) => ({...item, id: item.id || `item-${sIdx}-${iIdx}-${Date.now()}`}))
+                id: section.id || `section-loaded-${sIdx}-${Date.now()}`,
+                items: (section.items || []).map((item, iIdx) => ({
+                    ...item, 
+                    id: item.id || `item-loaded-${sIdx}-${iIdx}-${Date.now()}`,
+                    name: item.name || '', // Ensure default empty string
+                    href: item.href || '', // Ensure default empty string
+                }))
               })) 
             : defaultFooterData.navigationSections),
         };
@@ -90,8 +95,6 @@ export default function AdminFooterContentPage() {
     name: "navigationSections",
   });
 
-  // Effect to reset form once defaultValues promise resolves, which is handled by react-hook-form's defaultValues async support.
-  // This specific useEffect might not be necessary if the initial data load is solely handled by defaultValues.
   useEffect(() => {
     const fetchContent = async () => {
       setIsLoading(true);
@@ -99,7 +102,7 @@ export default function AdminFooterContentPage() {
         const response = await fetch('/api/admin/content/footer'); 
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}));
-          throw new Error(errorData.message || 'Failed to fetch footer content');
+          throw new Error(errorData.message || errorData.rawSupabaseError?.message || 'Failed to fetch footer content');
         }
         const data: FooterContentData = await response.json();
         form.reset({
@@ -108,7 +111,12 @@ export default function AdminFooterContentPage() {
             ? data.navigationSections.map((section, sIdx) => ({ 
                 ...section, 
                 id: section.id || `section-loaded-${sIdx}-${Date.now()}`,
-                items: (section.items || []).map((item, iIdx) => ({...item, id: item.id || `item-loaded-${sIdx}-${iIdx}-${Date.now()}`})) 
+                items: (section.items || []).map((item, iIdx) => ({
+                    ...item, 
+                    id: item.id || `item-loaded-${sIdx}-${iIdx}-${Date.now()}`,
+                    name: item.name || '', // Ensure default empty string
+                    href: item.href || '', // Ensure default empty string
+                })) 
               })) 
             : defaultFooterData.navigationSections),
         });
@@ -119,9 +127,7 @@ export default function AdminFooterContentPage() {
         setIsLoading(false);
       }
     };
-    // Call fetchContent if react-hook-form's async defaultValues doesn't cover initial state or if you want to refresh.
-    // For now, relying on async defaultValues might be cleaner. If issues persist, uncomment fetchContent().
-    // fetchContent(); 
+    fetchContent(); 
   }, [form, toast]);
 
 
@@ -153,68 +159,69 @@ export default function AdminFooterContentPage() {
     }
   };
 
-  if (isLoading && !form.formState.isDirty && !form.formState.isSubmitted) { // Adjusted loading condition
+  if (isLoading && !form.formState.isDirty && !form.formState.isSubmitted) {
     return (
-      <Card className="shadow-lg">
+      <Card className="shadow-lg flex flex-col h-full">
         <CardHeader><CardTitle className="text-2xl flex items-center"><ListChecks className="mr-3 h-6 w-6 text-primary"/>Edit Footer Content</CardTitle></CardHeader>
-        <CardContent className="flex justify-center items-center py-20"><Loader2 className="h-12 w-12 animate-spin text-primary" /></CardContent>
+        <CardContent className="flex-grow flex justify-center items-center"><Loader2 className="h-12 w-12 animate-spin text-primary" /></CardContent>
       </Card>
     );
   }
 
   return (
-    <Card className="shadow-xl">
+    <Card className="shadow-xl flex flex-col h-full"> {/* Apply flex flex-col h-full */}
       <CardHeader>
         <CardTitle className="text-2xl flex items-center"><ListChecks className="mr-3 h-6 w-6 text-primary"/>Edit Footer Content</CardTitle>
         <CardDescription>Manage the copyright text and navigation links displayed in your website footer.</CardDescription>
       </CardHeader>
-      <CardContent>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-            <FormField
-              control={form.control}
-              name="copyrightText"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Copyright Text</FormLabel>
-                  <FormControl><Input {...field} placeholder="e.g., © {currentYear} Peak Pulse. All rights reserved." /></FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+      <CardContent className="flex-grow overflow-hidden p-0"> {/* flex-grow and overflow-hidden */}
+        <ScrollArea className="h-full p-6"> {/* ScrollArea takes full height of CardContent, p-6 applied here */}
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+              <FormField
+                control={form.control}
+                name="copyrightText"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Copyright Text</FormLabel>
+                    <FormControl><Input {...field} placeholder="e.g., © {currentYear} Peak Pulse. All rights reserved." /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-            <fieldset className="space-y-4 p-4 border rounded-md">
-              <legend className="text-lg font-semibold px-1 -mt-1.5">Footer Navigation Sections</legend>
-              <ScrollArea className="max-h-[50vh] pr-3">
-                <div className="space-y-4">
-                {navSectionsFields.map((sectionField, sectionIndex) => (
-                  <NavSectionControl
-                    key={sectionField.id}
-                    control={form.control}
-                    sectionIndex={sectionIndex}
-                    removeNavSection={() => removeNavSection(sectionIndex)}
-                    canRemoveSection={navSectionsFields.length > 0} 
-                    totalNavSections={navSectionsFields.length}
-                  />
-                ))}
-                </div>
-              </ScrollArea>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => appendNavSection({ ...defaultNavSection, id: `section-new-${Date.now()}-${Math.random()}`, items: [{...defaultNavItem, id: `item-new-${Date.now()}-${Math.random()}`}] })}
-              >
-                <PlusCircle className="mr-2 h-4 w-4" /> Add Navigation Section
+              <fieldset className="space-y-4 p-4 border rounded-md">
+                <legend className="text-lg font-semibold px-1 -mt-1.5 bg-card">Footer Navigation Sections</legend>
+                <ScrollArea className="max-h-96 pr-3"> {/* Nested ScrollArea for sections */}
+                  <div className="space-y-4">
+                  {navSectionsFields.map((sectionField, sectionIndex) => (
+                    <NavSectionControl
+                      key={sectionField.id}
+                      control={form.control}
+                      sectionIndex={sectionIndex}
+                      removeNavSection={() => removeNavSection(sectionIndex)}
+                      totalNavSections={navSectionsFields.length}
+                    />
+                  ))}
+                  </div>
+                </ScrollArea>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => appendNavSection({ ...defaultNavSection, id: `section-new-${Date.now()}-${Math.random()}`, items: [{...defaultNavItem, id: `item-new-${Date.now()}-${Math.random()}`}] })}
+                >
+                  <PlusCircle className="mr-2 h-4 w-4" /> Add Navigation Section
+                </Button>
+              </fieldset>
+              
+              <Button type="submit" disabled={isSaving} size="lg" className="w-full sm:w-auto">
+                {isSaving ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Save className="mr-2 h-5 w-5" />}
+                Save Footer Content
               </Button>
-            </fieldset>
-            
-            <Button type="submit" disabled={isSaving} size="lg" className="w-full sm:w-auto">
-              {isSaving ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Save className="mr-2 h-5 w-5" />}
-              Save Footer Content
-            </Button>
-          </form>
-        </Form>
+            </form>
+          </Form>
+        </ScrollArea>
       </CardContent>
     </Card>
   );
@@ -224,11 +231,10 @@ interface NavSectionControlProps {
   control: any; 
   sectionIndex: number;
   removeNavSection: () => void;
-  canRemoveSection: boolean;
   totalNavSections: number;
 }
 
-function NavSectionControl({ control, sectionIndex, removeNavSection, canRemoveSection, totalNavSections }: NavSectionControlProps) {
+function NavSectionControl({ control, sectionIndex, removeNavSection, totalNavSections }: NavSectionControlProps) {
   const { fields, append, remove } = useFieldArray({
     control,
     name: `navigationSections.${sectionIndex}.items`,
@@ -248,7 +254,7 @@ function NavSectionControl({ control, sectionIndex, removeNavSection, canRemoveS
             </FormItem>
           )}
         />
-        {canRemoveSection && (
+        {totalNavSections > 0 && ( // Allow removing if more than one section, or if it's the only section but empty
             <Button type="button" variant="ghost" size="icon" onClick={removeNavSection} className="text-destructive hover:bg-destructive/10 mt-6">
                 <Trash2 className="h-4 w-4" />
             </Button>
@@ -287,7 +293,7 @@ function NavSectionControl({ control, sectionIndex, removeNavSection, canRemoveS
               variant="destructive" 
               size="xs" 
               onClick={() => remove(itemIndex)} 
-              disabled={fields.length <= 1 && sectionIndex === 0 && totalNavSections <= 1}
+              disabled={fields.length <= 1 && totalNavSections <=1 && sectionIndex === 0}
             >
                 <Trash2 className="mr-1 h-3 w-3" /> Remove Link
             </Button>

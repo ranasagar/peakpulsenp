@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Save, FileText } from 'lucide-react';
 import type { PageContent } from '@/types';
-import { ScrollArea } from '@/components/ui/scroll-area'; // Added for scrollability
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 const pageContentFormSchema = z.object({
   content: z.string().min(10, "Content must be at least 10 characters.").optional().or(z.literal('')),
@@ -72,7 +72,7 @@ export default function AdminSitePagesContentPage() {
       const response = await fetch(`/api/admin/content/page/${selectedPageKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: data.content || '' }), // Send empty string if undefined
+        body: JSON.stringify({ content: data.content || '' }), 
       });
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ message: `Failed to save content for ${selectedPageKey}. Status: ${response.status}` }));
@@ -89,33 +89,33 @@ export default function AdminSitePagesContentPage() {
   const selectedPageName = manageablePages.find(p => p.key === selectedPageKey)?.name || "Selected Page";
 
   return (
-    <Card className="shadow-xl">
+    <Card className="shadow-xl flex flex-col h-full"> {/* Apply flex flex-col h-full */}
       <CardHeader>
         <CardTitle className="text-2xl flex items-center"><FileText className="mr-3 h-6 w-6 text-primary"/>Edit Site Page Content</CardTitle>
         <CardDescription>Select a page and modify its text content. You can use HTML for formatting. Data is saved to Supabase.</CardDescription>
       </CardHeader>
-      <CardContent className="space-y-6">
-        <div className="space-y-2">
-          <Label htmlFor="page-select">Select Page to Edit</Label>
-          <Select value={selectedPageKey} onValueChange={setSelectedPageKey} name="page-select" >
-            <SelectTrigger className="w-full md:w-[300px]">
-              <SelectValue placeholder="Select a page" />
-            </SelectTrigger>
-            <SelectContent>
-              {manageablePages.map(page => (
-                <SelectItem key={page.key} value={page.key}>{page.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+      <CardContent className="space-y-6 flex-grow overflow-hidden p-0"> {/* flex-grow and overflow-hidden */}
+         <div className="p-6 border-b"> {/* Moved page selector outside ScrollArea for permanent visibility */}
+            <Label htmlFor="page-select">Select Page to Edit</Label>
+            <Select value={selectedPageKey} onValueChange={setSelectedPageKey} name="page-select" >
+                <SelectTrigger className="w-full md:w-[300px] mt-1">
+                <SelectValue placeholder="Select a page" />
+                </SelectTrigger>
+                <SelectContent>
+                {manageablePages.map(page => (
+                    <SelectItem key={page.key} value={page.key}>{page.name}</SelectItem>
+                ))}
+                </SelectContent>
+            </Select>
         </div>
 
         {isLoading ? (
-          <div className="flex justify-center items-center py-10">
+          <div className="flex-grow flex justify-center items-center py-10"> {/* Use flex-grow for loading state too */}
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
             <p className="ml-2">Loading content for {selectedPageName}...</p>
           </div>
         ) : (
-          <ScrollArea className="max-h-[60vh] pr-3">
+          <ScrollArea className="h-full p-6 pt-0"> {/* ScrollArea takes full height of remaining CardContent, adjust padding */}
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                 <FormField
@@ -127,9 +127,9 @@ export default function AdminSitePagesContentPage() {
                       <FormControl>
                         <Textarea
                           {...field}
-                          rows={25}
+                          rows={20} 
                           placeholder={`Enter content for ${selectedPageName} here. You can use HTML for formatting.`}
-                          className="font-mono text-sm leading-relaxed"
+                          className="font-mono text-sm leading-relaxed min-h-[400px]" 
                         />
                       </FormControl>
                       <FormMessage />

@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Save, BookOpenText } from 'lucide-react'; // Changed icon
+import { Loader2, Save, BookOpenText } from 'lucide-react'; 
 import type { OurStoryContentData } from '@/types';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
@@ -53,7 +53,7 @@ export default function AdminOurStoryContentPage() {
     const fetchContent = async () => {
       setIsLoading(true);
       try {
-        const response = await fetch('/api/admin/content/our-story'); // Fetches from Supabase
+        const response = await fetch('/api/admin/content/our-story'); 
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({}));
             throw new Error(errorData.message || errorData.rawSupabaseError?.message || 'Failed to fetch Our Story content');
@@ -93,7 +93,7 @@ export default function AdminOurStoryContentPage() {
         valuesSection: { title: data.valuesSectionTitle || '' },
         joinJourneySection: { title: data.joinJourneySectionTitle || '', description: data.joinJourneySectionDescription || '' },
       };
-      const response = await fetch('/api/admin/content/our-story', { // POSTs to Supabase
+      const response = await fetch('/api/admin/content/our-story', { 
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -113,29 +113,29 @@ export default function AdminOurStoryContentPage() {
 
   if (isLoading) {
     return (
-      <Card className="shadow-lg">
+      <Card className="shadow-lg flex flex-col h-full">
         <CardHeader>
           <CardTitle className="text-2xl flex items-center"><BookOpenText className="mr-3 h-6 w-6 text-primary"/>Edit Our Story Page Content</CardTitle>
           <CardDescription>Loading content...</CardDescription>
         </CardHeader>
-        <CardContent className="flex justify-center items-center py-10"><Loader2 className="h-8 w-8 animate-spin text-primary" /></CardContent>
+        <CardContent className="flex-grow flex justify-center items-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></CardContent>
       </Card>
     );
   }
 
   return (
-    <Card className="shadow-lg">
+    <Card className="shadow-lg flex flex-col h-full"> {/* Apply flex flex-col h-full */}
       <CardHeader>
         <CardTitle className="text-2xl flex items-center"><BookOpenText className="mr-3 h-6 w-6 text-primary"/>Edit Our Story Page Content</CardTitle>
         <CardDescription>Modify text content for various sections. Data is saved to Supabase.</CardDescription>
       </CardHeader>
-      <CardContent>
-        <ScrollArea className="max-h-[75vh] pr-6">
+      <CardContent className="flex-grow overflow-hidden p-0"> {/* flex-grow and overflow-hidden */}
+        <ScrollArea className="h-full p-6"> {/* ScrollArea takes full height of CardContent, p-6 applied here */}
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
               
               <fieldset className="space-y-4 p-4 border rounded-md">
-                <legend className="text-lg font-semibold px-1">Hero Section</legend>
+                <legend className="text-lg font-semibold px-1 -mt-1.5 bg-card">Hero Section</legend>
                 <FormField control={form.control} name="heroTitle" render={({ field }) => (
                   <FormItem><FormLabel>Title</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
@@ -145,7 +145,7 @@ export default function AdminOurStoryContentPage() {
               </fieldset>
 
               <fieldset className="space-y-4 p-4 border rounded-md">
-                <legend className="text-lg font-semibold px-1">Mission Section</legend>
+                <legend className="text-lg font-semibold px-1 -mt-1.5 bg-card">Mission Section</legend>
                 <FormField control={form.control} name="missionTitle" render={({ field }) => (
                   <FormItem><FormLabel>Title</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
@@ -158,7 +158,7 @@ export default function AdminOurStoryContentPage() {
               </fieldset>
 
               <fieldset className="space-y-4 p-4 border rounded-md">
-                <legend className="text-lg font-semibold px-1">Craftsmanship Section</legend>
+                <legend className="text-lg font-semibold px-1 -mt-1.5 bg-card">Craftsmanship Section</legend>
                 <FormField control={form.control} name="craftsmanshipTitle" render={({ field }) => (
                   <FormItem><FormLabel>Title</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
@@ -171,14 +171,14 @@ export default function AdminOurStoryContentPage() {
               </fieldset>
 
              <fieldset className="space-y-4 p-4 border rounded-md">
-              <legend className="text-lg font-semibold px-1">Values Section</legend>
+              <legend className="text-lg font-semibold px-1 -mt-1.5 bg-card">Values Section</legend>
               <FormField control={form.control} name="valuesSectionTitle" render={({ field }) => (
                 <FormItem><FormLabel>Title</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
               )} />
             </fieldset>
 
             <fieldset className="space-y-4 p-4 border rounded-md">
-              <legend className="text-lg font-semibold px-1">Join Our Journey Section</legend>
+              <legend className="text-lg font-semibold px-1 -mt-1.5 bg-card">Join Our Journey Section</legend>
               <FormField control={form.control} name="joinJourneySectionTitle" render={({ field }) => (
                 <FormItem><FormLabel>Title</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
               )} />
