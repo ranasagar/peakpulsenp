@@ -1,4 +1,3 @@
-
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -16,6 +15,7 @@ export default function CareersPage() {
   return (
     <MainLayout> 
       <div className="container-wide section-padding">
+        {/* Hero Section */}
         <section className="relative py-20 md:py-28 bg-gradient-to-b from-primary/5 to-transparent text-center">
           <Briefcase className="h-16 w-16 text-primary mx-auto mb-6" />
           <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-foreground mb-6">
@@ -27,6 +27,7 @@ export default function CareersPage() {
         </section>
 
         <div className="mt-16 md:mt-24 space-y-16 md:space-y-24">
+          {/* Why Work With Us Section */}
           <section>
               <div className="text-center mb-12">
                   <h2 className="text-3xl font-semibold text-foreground">Why Peak Pulse?</h2>
@@ -50,6 +51,7 @@ export default function CareersPage() {
               </div>
           </section>
           
+          {/* Current Openings Section */}
           <section>
             <Card className="shadow-xl">
               <CardHeader>
@@ -82,6 +84,7 @@ export default function CareersPage() {
             </Card>
           </section>
 
+          {/* How to Apply Section */}
            <section className="bg-card rounded-xl p-10 md:p-16 border">
               <div className="grid md:grid-cols-2 gap-10 items-center">
                    <div className="rounded-lg overflow-hidden">
@@ -113,4 +116,3 @@ export default function CareersPage() {
     </MainLayout>
   );
 }
-    
