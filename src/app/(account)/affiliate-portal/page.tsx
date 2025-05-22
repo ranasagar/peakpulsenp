@@ -1,28 +1,25 @@
 
 "use client";
 
-// This page's access control is primarily handled by src/app/(account)/layout.tsx
-// That layout checks for authentication and user roles ('affiliate' or 'admin').
-// If the user doesn't meet criteria, they'll see an access denied message from the layout.
-
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Briefcase, DollarSign, Link as LinkIcon, Users, BarChart3, Download, FileText, Edit3 } from 'lucide-react';
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
+// Access control for this page is primarily handled by src/app/(account)/layout.tsx
 
-
-// Mock Data - Replace with actual data fetching for the affiliate
 const mockAffiliateData = {
   totalReferrals: 25,
   totalSales: 15,
   commissionEarned: 75000, // NPR
   conversionRate: '60%', // (Sales / Referrals) * 100
-  uniqueLink: 'https://peakpulse.com/ref/your-unique-code'
+  uniqueLink: 'https://peakpulse.com/ref/your-unique-code' // This would come from user's profile or affiliate specific data
 };
 
 export default function AffiliatePortalPage() {
   const { toast } = useToast();
+
+  // In a real app, you'd fetch affiliate-specific data here, perhaps based on user.id
 
   return (
     <div className="container-wide section-padding">
@@ -133,9 +130,6 @@ export default function AffiliatePortalPage() {
             </CardContent>
         </Card>
       </div>
-
     </div>
   );
 }
-
-    

@@ -2,13 +2,13 @@
 "use client";
 
 import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation'; // Corrected usePathname import
 import { useAuth } from '@/hooks/use-auth';
 import { Footer } from "@/components/layout/footer";
 import { Header } from "@/components/layout/header";
 import { ChatbotWidget } from "@/components/chatbot/chatbot-widget";
 import { Skeleton } from '@/components/ui/skeleton';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card } from '@/components/ui/card'; // Card was missing an import here
 import { AlertTriangle, ShieldAlert } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
@@ -16,10 +16,13 @@ import Link from 'next/link';
 export default function AccountLayout({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading, user } = useAuth();
   const router = useRouter();
+  const pathname = usePathname(); // Get current pathname
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
-      router.replace('/login?redirect=/account/dashboard'); // Redirect to login if not authenticated
+      // Construct the redirect query parameter carefully
+      const currentPath = window.location.pathname + window.location.search;
+      router.replace(`/login?redirect=${encodeURIComponent(currentPath)}`);
     }
   }, [isAuthenticated, isLoading, router]);
 
@@ -50,9 +53,8 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
     );
   }
 
-  if (!isAuthenticated) {
+  if (!isAuthenticated && !isLoading) { // Check !isLoading here too
      // This state should ideally be brief due to the redirect.
-     // You could show a more specific "Access Denied" message here or rely on the redirect.
     return (
        <div className="flex min-h-screen flex-col">
         <Header />
@@ -62,7 +64,7 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
                 <h1 className="text-2xl font-bold mb-3">Access Denied</h1>
                 <p className="text-muted-foreground mb-6">You must be logged in to view this page.</p>
                 <Button asChild>
-                    <Link href="/login?redirect=/account/dashboard">Login</Link>
+                    <Link href={`/login?redirect=${encodeURIComponent(pathname || '/account/dashboard')}`}>Login</Link>
                 </Button>
             </Card>
         </main>
@@ -70,10 +72,9 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
       </div>
     );
   }
-
+  
   // VIP Collection check
-  const isVipPage = typeof window !== 'undefined' && window.location.pathname.includes('/vip-collection');
-  if (isVipPage && !user?.roles?.includes('vip') && !user?.roles?.includes('admin')) {
+  if (pathname?.includes('/vip-collection') && !user?.roles?.includes('vip') && !user?.roles?.includes('admin')) {
     return (
       <div className="flex min-h-screen flex-col">
         <Header />
@@ -93,8 +94,7 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
   }
   
   // Affiliate Portal check
-  const isAffiliatePage = typeof window !== 'undefined' && window.location.pathname.includes('/affiliate-portal');
-   if (isAffiliatePage && !user?.roles?.includes('affiliate') && !user?.roles?.includes('admin')) {
+   if (pathname?.includes('/affiliate-portal') && !user?.roles?.includes('affiliate') && !user?.roles?.includes('admin')) {
     return (
       <div className="flex min-h-screen flex-col">
         <Header />
@@ -113,13 +113,11 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
     );
   }
 
-
+  // If authenticated and authorized for the specific sub-route, render children
   return (
     <div className="flex min-h-screen flex-col">
       <Header />
       <main className="flex-grow bg-background">
-        {/* Optional: Could add Account specific sub-navigation here if needed */}
-        {/* e.g. <AccountNav /> */}
         {children}
       </main>
       <Footer />

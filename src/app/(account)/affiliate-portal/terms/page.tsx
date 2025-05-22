@@ -3,6 +3,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { FileText } from 'lucide-react';
+import Link from 'next/link'; // Added Link import
 
 export default function AffiliateTermsPage() {
   return (
@@ -64,5 +65,3 @@ export default function AffiliateTermsPage() {
     </div>
   );
 }
-
-    

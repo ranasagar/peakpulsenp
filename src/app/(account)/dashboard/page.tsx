@@ -3,9 +3,9 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/use-auth';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, ShoppingBag, Heart, User, Edit3, Gift, Briefcase } from 'lucide-react';
+import { Loader2, ShoppingBag, Heart, Edit3, Briefcase } from 'lucide-react'; // Removed User icon as it's not used
 import Link from 'next/link';
 import type { Order, Product } from '@/types';
 import Image from 'next/image';
@@ -13,7 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 
 export default function CustomerDashboardPage() {
-  const { user, isLoading: authLoading, refreshUserProfile } = useAuth();
+  const { user, isLoading: authLoading, refreshUserProfile } = useAuth(); // refreshUserProfile might be useful for refetching if needed
   const { toast } = useToast();
 
   const [recentOrders, setRecentOrders] = useState<Order[]>([]);
@@ -28,32 +28,39 @@ export default function CustomerDashboardPage() {
         // Fetch Recent Orders
         setIsLoadingOrders(true);
         try {
-          const ordersResponse = await fetch(`/api/account/orders?userId=${user.id}&limit=2`); // Assume API supports limit
+          const ordersResponse = await fetch(`/api/account/orders?userId=${user.id}`); 
           if (ordersResponse.ok) {
             const ordersData = await ordersResponse.json();
-            setRecentOrders(ordersData.slice(0, 2)); // Ensure only 2 are taken client-side too
+            setRecentOrders(ordersData.slice(0, 2)); 
           } else {
-            toast({ title: "Error", description: "Could not load recent orders.", variant: "destructive" });
+             const errorData = await ordersResponse.json().catch(() => ({ message: "Could not load recent orders."}));
+            toast({ title: "Error", description: errorData.message || "Could not load recent orders.", variant: "destructive" });
           }
         } catch (error) {
           toast({ title: "Error", description: "Failed to connect to orders service.", variant: "destructive" });
         }
         setIsLoadingOrders(false);
 
-        // Fetch Wishlist Preview (using wishlist from auth context if available and populated)
+        // Fetch Wishlist Preview
         setIsLoadingWishlist(true);
         if (user.wishlist && user.wishlist.length > 0) {
           try {
-            const productPromises = user.wishlist.slice(0, 4).map(productId =>
-              fetch(`/api/products/${productId}`).then(res => res.ok ? res.json() : null)
+            // Fetch product details for each ID in the wishlist (limit to 4 for preview)
+            const productDetailPromises = user.wishlist.slice(0, 4).map(productId =>
+              fetch(`/api/products/${productId}`).then(res => {
+                if (res.ok) return res.json();
+                console.warn(`Failed to fetch product ${productId} for wishlist preview.`);
+                return null;
+              })
             );
-            const products = (await Promise.all(productPromises)).filter(p => p !== null) as Product[];
+            const products = (await Promise.all(productDetailPromises)).filter(p => p !== null) as Product[];
             setWishlistPreview(products);
           } catch (error) {
             toast({ title: "Error", description: "Could not load wishlist preview.", variant: "destructive" });
+            setWishlistPreview([]);
           }
         } else {
-          setWishlistPreview([]); // Clear if no wishlist in context
+          setWishlistPreview([]); 
         }
         setIsLoadingWishlist(false);
       }
@@ -62,7 +69,7 @@ export default function CustomerDashboardPage() {
     if (!authLoading && user) {
       fetchDashboardData();
     }
-  }, [user, authLoading, toast]);
+  }, [user, authLoading, toast]); // Removed refreshUserProfile from deps unless explicitly needed to trigger refetch
 
   if (authLoading || (!user && !authLoading)) {
     return (
@@ -73,7 +80,7 @@ export default function CustomerDashboardPage() {
     );
   }
 
-  if (!user) {
+  if (!user) { // This case should be handled by AccountLayout now, but kept as a fallback
     return (
       <div className="container-wide section-padding text-center">
         <p>Please log in to view your dashboard.</p>

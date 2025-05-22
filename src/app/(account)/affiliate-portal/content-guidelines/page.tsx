@@ -3,6 +3,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Lightbulb, CheckCircle, XCircle, Image as ImageIconLucide } from 'lucide-react';
+import Link from 'next/link'; // Added Link import
 
 export default function AffiliateContentGuidelinesPage() {
   return (
@@ -67,5 +68,3 @@ export default function AffiliateContentGuidelinesPage() {
     </div>
   );
 }
-
-    

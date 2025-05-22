@@ -12,7 +12,6 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { User, Edit3, KeyRound, CheckCircle, ShieldAlert, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { Separator } from '@/components/ui/separator';
 import { useEffect, useState } from 'react';
 import type { User as AuthUserType } from '@/types';
 
@@ -20,7 +19,6 @@ const profileSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
   email: z.string().email({ message: "Invalid email address." }),
   avatarUrl: z.string().url({ message: "Invalid URL for avatar."}).optional().or(z.literal('')),
-  // Add other fields like phone, etc. if needed
 });
 
 const passwordSchema = z.object({
@@ -36,7 +34,7 @@ type ProfileFormValues = z.infer<typeof profileSchema>;
 type PasswordFormValues = z.infer<typeof passwordSchema>;
 
 export default function ProfilePage() {
-  const { user: authUser, isLoading: authLoading } = useAuth();
+  const { user: authUser, isLoading: authLoading, refreshUserProfile } = useAuth();
   const { toast } = useToast();
   const [isFetchingProfile, setIsFetchingProfile] = useState(true);
   const [profileData, setProfileData] = useState<AuthUserType | null>(null);
@@ -60,24 +58,25 @@ export default function ProfilePage() {
   });
 
   useEffect(() => {
-    if (authUser && authUser.id) {
+    if (authUser && authUser.id && !authLoading) { // Ensure authUser and not authLoading
       setIsFetchingProfile(true);
       fetch(`/api/account/profile?uid=${authUser.id}`)
         .then(res => {
           if (res.ok) return res.json();
-          if (res.status === 404) return null; // Profile not yet in Firestore
-          throw new Error('Failed to fetch profile');
+          if (res.status === 404) return null; 
+          return res.json().then(errData => { throw new Error(errData.message || 'Failed to fetch profile'); });
         })
         .then(data => {
           if (data) {
             setProfileData(data);
             profileForm.reset({
               name: data.name || authUser.name || '',
-              email: data.email || authUser.email || '',
+              email: data.email || authUser.email || '', // Email should likely come from authUser always
               avatarUrl: data.avatarUrl || authUser.avatarUrl || '',
             });
           } else {
             // Profile not in Firestore, use authUser details as fallback for form
+            setProfileData(authUser); // Set profileData to authUser if nothing from DB
             profileForm.reset({
               name: authUser.name || '',
               email: authUser.email || '',
@@ -87,16 +86,19 @@ export default function ProfilePage() {
         })
         .catch(error => {
           console.error("Error fetching profile:", error);
-          toast({ title: "Error", description: "Could not load profile data.", variant: "destructive" });
-           profileForm.reset({ // Fallback to auth user data on error
+          toast({ title: "Error", description: "Could not load profile data. Using basic info.", variant: "default" });
+           setProfileData(authUser); // Fallback to authUser data
+           profileForm.reset({ 
               name: authUser.name || '',
               email: authUser.email || '',
               avatarUrl: authUser.avatarUrl || '',
             });
         })
         .finally(() => setIsFetchingProfile(false));
-    } else if (!authLoading) {
-        setIsFetchingProfile(false); // Not authenticated or no user.id
+    } else if (!authLoading && !authUser) {
+        setIsFetchingProfile(false); 
+    } else if (authUser && authLoading) { // Still loading auth info, wait
+        setIsFetchingProfile(true);
     }
   }, [authUser, authLoading, toast, profileForm]);
 
@@ -107,39 +109,45 @@ export default function ProfilePage() {
       return;
     }
 
-    profileForm.formState.isSubmitting = true;
+    // profileForm.formState.isSubmitting is handled by react-hook-form
     try {
+      const payload = { 
+        uid: authUser.id, 
+        name: data.name, 
+        avatarUrl: data.avatarUrl || null, // Send null if empty to potentially clear it
+        email: authUser.email, // Email is not directly editable here
+        roles: authUser.roles, // Preserve existing roles
+        wishlist: authUser.wishlist, // Preserve existing wishlist
+      };
+
       const response = await fetch('/api/account/profile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ uid: authUser.id, ...data }),
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
+        const errorData = await response.json().catch(() => ({ message: 'Failed to update profile' }));
         throw new Error(errorData.message || 'Failed to update profile');
       }
+      
+      const updatedProfileData = await response.json();
+      await refreshUserProfile(); // This will refetch from Supabase and update authContext
 
       toast({
         title: "Profile Updated",
         description: "Your personal information has been successfully updated.",
         action: <CheckCircle className="text-green-500" />,
       });
-      // Optionally re-fetch profile data or update local state
-      setProfileData(prev => ({...(prev || authUser!), ...data, id: authUser.id, roles: prev?.roles || authUser?.roles || ['customer'] }));
+      setProfileData(updatedProfileData.user); // Update local state as well
 
     } catch (error) {
       console.error("Error updating profile:", error);
       toast({ title: "Update Failed", description: (error as Error).message, variant: "destructive" });
-    } finally {
-       profileForm.formState.isSubmitting = false;
     }
   };
 
   const onPasswordSubmit = async (data: PasswordFormValues) => {
-    // Mock API call for password change - Firebase handles this directly on client or via Admin SDK
-    // For this example, we'll just log it and show a toast.
-    // Real implementation would involve `updatePassword` from `firebase/auth` after re-authenticating the user.
     console.log("Password change data (client-side mock):", data);
     toast({
       title: "Password Change (Mock)",
@@ -150,12 +158,12 @@ export default function ProfilePage() {
     passwordForm.reset();
   };
   
-  const currentDisplayUser = profileData || authUser;
+  const currentDisplayUser = profileData || authUser; // Use profileData if available, fallback to authUser
 
   if (authLoading || isFetchingProfile) {
       return <div className="container-wide section-padding text-center flex items-center justify-center min-h-[50vh]"><Loader2 className="h-12 w-12 animate-spin text-primary" /> <span className="ml-4 text-lg">Loading profile...</span></div>
   }
-  if (!authUser) { // Check authUser specifically for auth status
+  if (!authUser) { 
       return <div className="container-wide section-padding text-center text-destructive">User not found or not logged in. Please try logging in again.</div>
   }
 
@@ -176,7 +184,6 @@ export default function ProfilePage() {
                 <AvatarImage src={profileForm.watch('avatarUrl') || currentDisplayUser?.avatarUrl || `https://placehold.co/150x150.png`} alt={currentDisplayUser?.name || 'User'} data-ai-hint="profile avatar user"/>
                 <AvatarFallback className="text-4xl">{currentDisplayUser?.name ? currentDisplayUser.name.charAt(0).toUpperCase() : <User />}</AvatarFallback>
             </Avatar>
-            {/* Avatar URL Field integrated into profile form */}
             <h2 className="text-xl font-semibold text-foreground">{profileForm.watch('name') || currentDisplayUser?.name}</h2>
             <p className="text-sm text-muted-foreground">{profileForm.watch('email') || currentDisplayUser?.email}</p>
              <p className="text-xs text-accent mt-1 capitalize">Role: {currentDisplayUser?.roles?.join(', ') || 'Customer'}</p>
@@ -213,7 +220,6 @@ export default function ProfilePage() {
                         <FormLabel>Email Address</FormLabel>
                         <FormControl>
                           <Input type="email" placeholder="your.email@example.com" {...field} disabled />
-                          {/* Email editing is complex due to Firebase Auth constraints; disabled for now */}
                         </FormControl>
                         <FormMessage />
                          <p className="text-xs text-muted-foreground pt-1">Email address cannot be changed here. This requires a separate secure process.</p>
@@ -227,7 +233,7 @@ export default function ProfilePage() {
                       <FormItem>
                         <FormLabel>Avatar URL (Optional)</FormLabel>
                         <FormControl>
-                          <Input placeholder="https://example.com/avatar.png" {...field} />
+                          <Input placeholder="https://example.com/avatar.png" {...field} value={field.value || ''} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>

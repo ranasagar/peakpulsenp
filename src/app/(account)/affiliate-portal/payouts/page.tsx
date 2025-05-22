@@ -11,14 +11,13 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 interface Payout {
   id: string;
-  date: string; // ISO Date string
+  date: string; 
   amountNPR: number;
   status: 'Pending' | 'Processing' | 'Paid' | 'Failed';
-  method: string; // e.g., 'Bank Transfer', 'eSewa'
+  method: string; 
   transactionId?: string;
 }
 
-// Mock Data - Replace with actual data fetching for the affiliate
 const mockPayouts: Payout[] = [
   { id: 'PAY-001', date: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(), amountNPR: 55000, status: 'Paid', method: 'Bank Transfer', transactionId: 'TXN12345XYZ' },
   { id: 'PAY-002', date: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString(), amountNPR: 48000, status: 'Paid', method: 'eSewa', transactionId: 'ESW98765ABC' },
@@ -26,9 +25,9 @@ const mockPayouts: Payout[] = [
 ];
 
 const mockAffiliateAccount = {
-    currentBalanceNPR: 62000, // Example current unpaid balance
-    nextPayoutDate: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toLocaleDateString(), // Example next payout date
-    payoutMethod: 'Bank Transfer', // Example
+    currentBalanceNPR: 62000, 
+    nextPayoutDate: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toLocaleDateString(), 
+    payoutMethod: 'Bank Transfer', 
     minimumPayoutThresholdNPR: 5000,
 };
 
@@ -37,7 +36,6 @@ export default function PayoutInformationPage() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Simulate API call
     setTimeout(() => {
       setPayouts(mockPayouts);
       setIsLoading(false);
@@ -46,7 +44,7 @@ export default function PayoutInformationPage() {
 
   const getStatusBadgeVariant = (status: Payout['status']) => {
     switch (status) {
-      case 'Paid': return 'default'; // Using primary color for paid
+      case 'Paid': return 'default'; 
       case 'Pending': return 'outline';
       case 'Processing': return 'secondary';
       case 'Failed': return 'destructive';
@@ -92,7 +90,6 @@ export default function PayoutInformationPage() {
             </CardHeader>
             <CardContent>
                 <p className="text-sm text-muted-foreground mb-3">Update your preferred payout method and details.</p>
-                {/* This would ideally link to a form or modal to update settings */}
                 <Button variant="outline" disabled>
                     <Settings className="mr-2 h-4 w-4" /> Update Settings (UI Only)
                 </Button>
@@ -170,5 +167,3 @@ export default function PayoutInformationPage() {
     </div>
   );
 }
-
-    

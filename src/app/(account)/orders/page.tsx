@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { ShoppingBag, Eye, Loader2 } from 'lucide-react';
+import { ShoppingBag, Loader2 } from 'lucide-react'; // Removed Eye icon
 import Image from 'next/image';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
@@ -33,7 +33,7 @@ export default function OrdersPage() {
       try {
         const response = await fetch(`/api/account/orders?userId=${user.id}`);
         if (!response.ok) {
-          const errorData = await response.json();
+          const errorData = await response.json().catch(() => ({ message: "Failed to fetch orders"}));
           throw new Error(errorData.message || errorData.rawError || `Failed to fetch orders: ${response.statusText}`);
         }
         const data = await response.json();
@@ -58,9 +58,9 @@ export default function OrdersPage() {
 
   const getOrderStatusBadgeVariant = (status: Order['status']): "default" | "secondary" | "destructive" | "outline" => {
     switch (status) {
-      case 'Delivered': return 'default'; // More prominent for success
+      case 'Delivered': return 'default'; 
       case 'Shipped': return 'secondary';
-      case 'Processing': return 'outline'; // Using 'outline' for pending states
+      case 'Processing': return 'outline'; 
       case 'Pending': return 'outline';
       case 'Cancelled': return 'destructive';
       case 'Refunded': return 'destructive';
@@ -70,14 +70,13 @@ export default function OrdersPage() {
   
   const getPaymentStatusBadgeVariant = (status: Order['paymentStatus']): "default" | "secondary" | "destructive" | "outline" => {
     switch (status) {
-      case 'Paid': return 'default'; // More prominent for success
+      case 'Paid': return 'default'; 
       case 'Pending': return 'outline';
       case 'Failed': return 'destructive';
       case 'Refunded': return 'destructive';
       default: return 'secondary';
     }
   };
-
 
   if (isLoading || authLoading) {
     return (
@@ -123,15 +122,12 @@ export default function OrdersPage() {
                     <TableHead className="text-right">Total</TableHead>
                     <TableHead className="text-center">Order Status</TableHead>
                     <TableHead className="text-center">Payment Status</TableHead>
-                    {/* <TableHead className="text-right">Actions</TableHead> */}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {orders.map((order) => (
                     <TableRow key={order.id} className="hover:bg-muted/30" id={order.id}>
-                      <TableCell className="font-medium text-primary hover:underline">
-                        {/* Link functionality can be added later if a dedicated order detail page is built */}
-                        {/* <Link href={`/account/orders/${order.id}`}>{order.id.substring(0,15)}...</Link> */}
+                      <TableCell className="font-medium text-primary">
                          {order.id.substring(0,15)}...
                       </TableCell>
                       <TableCell>{new Date(order.createdAt).toLocaleDateString()}</TableCell>
@@ -170,13 +166,6 @@ export default function OrdersPage() {
                           {order.paymentStatus}
                         </Badge>
                       </TableCell>
-                      {/* <TableCell className="text-right">
-                        <Button variant="outline" size="sm" asChild>
-                          <Link href={`/account/orders/#${order.id}`}>
-                            <Eye className="mr-1.5 h-4 w-4" /> View
-                          </Link>
-                        </Button>
-                      </TableCell> */}
                     </TableRow>
                   ))}
                 </TableBody>
