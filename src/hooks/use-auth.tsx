@@ -40,12 +40,17 @@ const mapFirebaseUserToAppUser = (
   // Specific admin role assignment
   if (firebaseUser.email === 'sagarrana@gmail.com' && !mergedRoles.includes('admin')) {
     mergedRoles.push('admin');
-    mergedRoles = [...new Set(mergedRoles)]; // Ensure uniqueness again
+    mergedRoles = [...new Set(mergedRoles)]; 
+  }
+  if (firebaseUser.email === 'sagarbikramrana7@gmail.com' && !mergedRoles.includes('admin')) { // Added second admin email
+    mergedRoles.push('admin');
+    mergedRoles = [...new Set(mergedRoles)];
   }
   if (!mergedRoles.includes('customer')) {
     mergedRoles.push('customer');
     mergedRoles = [...new Set(mergedRoles)];
   }
+
 
   return {
     id: firebaseUser.uid,
@@ -70,48 +75,56 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     console.log(`[AuthContext] Fetching Supabase profile for Firebase UID: ${firebaseUser.uid}`);
     
     let profileResponse;
+    const fetchUrl = `/api/account/profile?uid=${firebaseUser.uid}`;
+    console.log(`[AuthContext] API Call URL: ${fetchUrl}`);
+
     try {
-      console.log(`[AuthContext] API Call URL: /api/account/profile?uid=${firebaseUser.uid}`);
-      profileResponse = await fetch(`/api/account/profile?uid=${firebaseUser.uid}`);
+      profileResponse = await fetch(fetchUrl);
       console.log(`[AuthContext] Profile API response status for ${firebaseUser.uid}: ${profileResponse.status}`);
 
       if (!profileResponse.ok) {
         let errorDetail = `[AuthContext] Error fetching Supabase profile for ${firebaseUser.uid}. Status: ${profileResponse.status}`;
-        let responseBodyText = '';
+        let apiMessage = 'Profile fetch failed.';
+        let rawSupaErrorObject = null;
+
         try {
-          responseBodyText = await profileResponse.text(); // Get raw text first
-          const errorData = JSON.parse(responseBodyText); // Then try to parse
-          
+          const errorData = await profileResponse.json(); // Assume it's JSON first
+          apiMessage = errorData.message || apiMessage;
           if (errorData.rawSupabaseError) {
-            errorDetail += ` . Supabase Error: ${errorData.rawSupabaseError.message || ''}. Details: ${errorData.rawSupabaseError.details || ''}. Hint: ${errorData.rawSupabaseError.hint || ''}. Code: ${errorData.rawSupabaseError.code || ''}.`;
-          } else if (errorData.message) {
-            errorDetail += ` . API Message: ${errorData.message}`;
-          } else {
-             errorDetail += ` . Raw Response: ${responseBodyText.substring(0, 500)}`;
+            rawSupaErrorObject = errorData.rawSupabaseError;
+            apiMessage += ` Supabase Error: ${errorData.rawSupabaseError.message || 'Unknown Supabase error'}.`;
+            if (errorData.rawSupabaseError.details) apiMessage += ` Details: ${errorData.rawSupabaseError.details}.`;
+            if (errorData.rawSupabaseError.hint) apiMessage += ` Hint: ${errorData.rawSupabaseError.hint}.`;
+            if (errorData.rawSupabaseError.code) apiMessage += ` Code: ${errorData.rawSupabaseError.code}.`;
           }
-        } catch (e) {
-          errorDetail += ` (Could not fully parse error response body. Raw text might be: ${responseBodyText.substring(0,200) || 'N/A'}).`;
+        } catch (e) { // If .json() fails, it means the server response was not valid JSON
+          try {
+            const responseBodyText = await profileResponse.text(); // Try to get raw text
+            apiMessage += ` (Could not parse error as JSON. Raw Response: ${responseBodyText.substring(0,200) || 'N/A'}).`;
+          } catch (textErr) {
+            apiMessage += ` (Could not parse error as JSON and response body not readable).`;
+          }
         }
         
         if (profileResponse.status === 404) {
-          console.log(errorDetail + " (This is expected for a new user, attempting to create profile.)");
+            console.log(`${errorDetail}. API Message: ${apiMessage} (This is expected for a new user, attempting to create profile.)`);
         } else {
-          console.error(errorDetail);
+            console.error(`${errorDetail}. API Message: ${apiMessage}`, rawSupaErrorObject || '(No raw Supabase error details in response)');
         }
         
         if (profileResponse.status === 404) {
           console.log(`[AuthContext] No Supabase profile for ${firebaseUser.uid}. Attempting to create initial profile.`);
-          const initialRoles = firebaseUser.email === 'sagarrana@gmail.com' ? ['admin', 'customer'] : ['customer'];
+          const initialRoles = (firebaseUser.email === 'sagarrana@gmail.com' || firebaseUser.email === 'sagarbikramrana7@gmail.com') ? ['admin', 'customer'] : ['customer'];
           
           const initialProfileData = {
-            id: firebaseUser.uid, // Ensure this is 'id'
+            id: firebaseUser.uid,
             email: firebaseUser.email || '',
             name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'New User',
             avatarUrl: firebaseUser.photoURL || null,
             roles: initialRoles,
-            wishlist: [] as string[] // Explicitly typed empty array
+            wishlist: [] as string[]
           };
-          console.log("[AuthContext] Initial profile data to POST:", JSON.stringify(initialProfileData, null, 2)); // Log the exact data being sent
+          console.log("[AuthContext] Initial profile data to POST:", JSON.stringify(initialProfileData, null, 2));
 
           try {
             const createResponse = await fetch('/api/account/profile', {
@@ -119,19 +132,30 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify(initialProfileData),
             });
+            console.log(`[AuthContext] Profile creation API response status for ${firebaseUser.uid}: ${createResponse.status}`);
+
             if (createResponse.ok) {
               const newSupaProfileResponse = await createResponse.json();
               console.log(`[AuthContext] Successfully created initial Supabase profile for ${firebaseUser.uid}:`, newSupaProfileResponse.user);
               return mapFirebaseUserToAppUser(firebaseUser, newSupaProfileResponse.user);
             } else {
-               const createErrorData = await createResponse.json().catch(() => ({ message: `Failed to create profile, status ${createResponse.status}`}));
-               console.error(`[AuthContext] Failed to create initial Supabase profile for ${firebaseUser.uid}. Status: ${createResponse.status}. API Message: ${createErrorData.message}`, createErrorData);
+               let createErrorMsg = `Failed to create profile, status ${createResponse.status}`;
+               let createErrorDetails = {};
+               try {
+                   const errorData = await createResponse.json();
+                   createErrorMsg = errorData.message || createErrorMsg; // Main message from API
+                   createErrorDetails = errorData.rawSupabaseError || errorData; // Store the Supabase error or the whole data
+                   if (errorData.rawSupabaseError && errorData.rawSupabaseError.message) {
+                     createErrorMsg += ` Supabase Error: ${errorData.rawSupabaseError.message}`;
+                     if(errorData.rawSupabaseError.hint) createErrorMsg += ` Hint: ${errorData.rawSupabaseError.hint}`;
+                   }
+               } catch(e) {/* ignore if createResponse body is not json */}
+               console.error(`[AuthContext] Failed to create initial Supabase profile for ${firebaseUser.uid}. Status: ${createResponse.status}. API Message: ${createErrorMsg}`, createErrorDetails);
             }
           } catch (createError: any) {
-            console.error(`[AuthContext] Network error creating initial Supabase profile for ${firebaseUser.uid}:`, createError.message);
+            console.error(`[AuthContext] Network error creating initial Supabase profile for ${firebaseUser.uid}:`, createError.message, createError);
           }
         }
-        // If fetch failed (not 404) or creation failed, fallback to Firebase data
         return mapFirebaseUserToAppUser(firebaseUser); 
       }
 
@@ -153,10 +177,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         console.log("[AuthContext] Firebase auth state changed, user found:", firebaseUser.uid);
         const appUser = await fetchAppUserProfile(firebaseUser);
         setUser(currentAppUser => {
-            if (JSON.stringify(currentAppUser) !== JSON.stringify(appUser)) {
+            const rolesChanged = JSON.stringify(currentAppUser?.roles) !== JSON.stringify(appUser?.roles);
+            const wishlistChanged = JSON.stringify(currentAppUser?.wishlist) !== JSON.stringify(appUser?.wishlist);
+
+            if (currentAppUser?.id !== appUser?.id ||
+                currentAppUser?.name !== appUser?.name ||
+                currentAppUser?.email !== appUser?.email ||
+                currentAppUser?.avatarUrl !== appUser?.avatarUrl ||
+                rolesChanged || wishlistChanged) {
                 console.log("[AuthContext] App user state updated in context:", appUser);
                 return appUser;
             }
+            console.log("[AuthContext] App user state unchanged, no update to context needed for user:", appUser?.id);
             return currentAppUser;
         });
       } else {
@@ -171,7 +203,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const login = useCallback(async (email: string, pass: string): Promise<{ success: boolean; error?: string }> => {
     try {
       await signInWithEmailAndPassword(auth, email, pass);
-      // onAuthStateChanged will handle setting the user, loading state, and subsequent redirects from login/register pages
       return { success: true };
     } catch (error: any) {
       console.error("Firebase login error:", error);
@@ -184,21 +215,19 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
       if (userCredential.user) {
         await updateFirebaseProfile(userCredential.user, { displayName: name });
-        // onAuthStateChanged will call fetchAppUserProfile, which will handle Firestore doc creation.
       }
       return { success: true };
     } catch (error: any) {
         console.error("Firebase registration error:", error);
         return { success: false, error: error.message || "Registration failed. Please try again." };
       }
-    }, []); // Removed router and fetchAppUserProfile from dependencies as they are stable or handled by onAuthStateChanged
+    }, []); 
 
   const logout = useCallback(async () => {
     try {
       await firebaseSignOut(auth);
-      setUser(null); // Explicitly set user to null
+      setUser(null); 
       router.refresh(); 
-      // No direct router.push here; let pages handle redirects if they are protected and user is logged out.
     } catch (error) {
       console.error("Firebase logout error:", error);
     }
@@ -234,3 +263,5 @@ export const useAuth = (): AuthContextType => {
   }
   return context;
 };
+
+    
