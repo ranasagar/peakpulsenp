@@ -4,13 +4,13 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import type { User as AuthUserType } from '@/types';
-import { auth, db } from '@/firebase/config';
+import { auth, db } from '@/firebase/config'; // Assuming db is for Firestore
 import {
   onAuthStateChanged,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   signOut as firebaseSignOut,
-  updateProfile as updateFirebaseProfile, // Renamed to avoid conflict
+  updateProfile as updateFirebaseProfile,
   type User as FirebaseUser,
 } from 'firebase/auth';
 
@@ -21,7 +21,7 @@ interface AuthContextType {
   login: (email: string, pass: string) => Promise<{ success: boolean; error?: string }>;
   register: (name: string, email: string, pass: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
-  refreshUserProfile: () => Promise<void>; // Added to manually refresh user profile
+  refreshUserProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -30,12 +30,18 @@ const mapFirebaseUserToAppUser = (
   firebaseUser: FirebaseUser,
   supaProfile?: Partial<AuthUserType>
 ): AuthUserType => {
+  const defaultRoles = ['customer'];
+  // Special handling for sagarrana@gmail.com to be an admin
+  if (firebaseUser.email === 'sagarrana@gmail.com') {
+    defaultRoles.push('admin');
+  }
+
   return {
     id: firebaseUser.uid,
     email: firebaseUser.email || '',
     name: supaProfile?.name || firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'User',
     avatarUrl: supaProfile?.avatarUrl || firebaseUser.photoURL || undefined,
-    roles: supaProfile?.roles || ['customer'],
+    roles: supaProfile?.roles && supaProfile.roles.length > 0 ? supaProfile.roles : defaultRoles,
     wishlist: supaProfile?.wishlist || [],
   };
 };
@@ -47,52 +53,72 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const pathname = usePathname();
 
   const fetchAppUserProfile = useCallback(async (firebaseUser: FirebaseUser | null): Promise<AuthUserType | null> => {
-    if (!firebaseUser) {
+    if (!firebaseUser || !firebaseUser.uid) {
+      console.warn("[AuthContext] fetchAppUserProfile called with null or invalid firebaseUser.");
       return null;
     }
+    console.log(`[AuthContext] Fetching Supabase profile for Firebase UID: ${firebaseUser.uid}`);
     try {
-      console.log(`[AuthContext] Fetching Supabase profile for Firebase UID: ${firebaseUser.uid}`);
       const profileResponse = await fetch(`/api/account/profile?uid=${firebaseUser.uid}`);
-      
+      console.log(`[AuthContext] Profile API response status for ${firebaseUser.uid}: ${profileResponse.status}`);
+
       if (profileResponse.ok) {
         const supaProfile = await profileResponse.json();
         console.log(`[AuthContext] Supabase profile found for ${firebaseUser.uid}:`, supaProfile);
         return mapFirebaseUserToAppUser(firebaseUser, supaProfile);
-      } else if (profileResponse.status === 404) {
-        console.log(`[AuthContext] No Supabase profile found for ${firebaseUser.uid}. Attempting to create one.`);
-        // Profile doesn't exist, try to create a basic one
-        const initialProfileData = {
-          uid: firebaseUser.uid,
-          email: firebaseUser.email,
-          name: firebaseUser.displayName || firebaseUser.email?.split('@')[0],
-          avatarUrl: firebaseUser.photoURL || null,
-          roles: ['customer'],
-          wishlist: []
-        };
-        try {
-          const createResponse = await fetch('/api/account/profile', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(initialProfileData),
-          });
-          if (createResponse.ok) {
-            const newSupaProfile = await createResponse.json();
-            console.log(`[AuthContext] Successfully created initial Supabase profile for ${firebaseUser.uid}:`, newSupaProfile.user);
-            return mapFirebaseUserToAppUser(firebaseUser, newSupaProfile.user);
-          } else {
-             console.error(`[AuthContext] Failed to create initial Supabase profile for ${firebaseUser.uid}. Status: ${createResponse.status}`);
-          }
-        } catch (createError) {
-          console.error(`[AuthContext] Error creating initial Supabase profile for ${firebaseUser.uid}:`, createError);
-        }
-        // Fallback if creation fails or not found
-        return mapFirebaseUserToAppUser(firebaseUser);
       } else {
-        console.error(`[AuthContext] Error fetching Supabase profile for ${firebaseUser.uid}. Status: ${profileResponse.status}`);
-        return mapFirebaseUserToAppUser(firebaseUser); // Fallback to Firebase data only
+        // Handle error responses more thoroughly
+        let errorDetail = `[AuthContext] Error fetching Supabase profile for ${firebaseUser.uid}. Status: ${profileResponse.status} ${profileResponse.statusText || ''}.`;
+        let responseBodyText = '';
+        try {
+          responseBodyText = await profileResponse.text(); // Get raw text first
+          const errorData = JSON.parse(responseBodyText); // Then try to parse as JSON
+          if (errorData.rawSupabaseError) {
+            errorDetail += ` Supabase Error: ${errorData.rawSupabaseError.message || ''}. Details: ${errorData.rawSupabaseError.details || ''}. Hint: ${errorData.rawSupabaseError.hint || ''}. Code: ${errorData.rawSupabaseError.code || ''}.`;
+          } else if (errorData.message) {
+            errorDetail += ` API Message: ${errorData.message}.`;
+          } else {
+            errorDetail += ` Response Body: ${responseBodyText.substring(0, 500)}.`; // Show part of raw body if not structured error
+          }
+        } catch (e) { // Catch if .text() or JSON.parse() fails
+          errorDetail += ` (Could not fully parse error response body. Raw text might be: ${responseBodyText.substring(0,200) || 'N/A'}).`;
+        }
+        console.error(errorDetail); // This is the log the user is seeing.
+        
+        // If profile not found (404), attempt to create it
+        if (profileResponse.status === 404) {
+          console.log(`[AuthContext] No Supabase profile for ${firebaseUser.uid}. Attempting to create initial profile.`);
+          const initialRoles = firebaseUser.email === 'sagarrana@gmail.com' ? ['admin', 'customer'] : ['customer'];
+          const initialProfileData = {
+            uid: firebaseUser.uid,
+            email: firebaseUser.email,
+            name: firebaseUser.displayName || firebaseUser.email?.split('@')[0],
+            avatarUrl: firebaseUser.photoURL || null,
+            roles: initialRoles,
+            wishlist: []
+          };
+          try {
+            const createResponse = await fetch('/api/account/profile', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(initialProfileData),
+            });
+            if (createResponse.ok) {
+              const newSupaProfile = await createResponse.json();
+              console.log(`[AuthContext] Successfully created initial Supabase profile for ${firebaseUser.uid}:`, newSupaProfile.user);
+              return mapFirebaseUserToAppUser(firebaseUser, newSupaProfile.user);
+            } else {
+               const createErrorData = await createResponse.json().catch(() => ({ message: `Failed to create profile, status ${createResponse.status}`}));
+               console.error(`[AuthContext] Failed to create initial Supabase profile for ${firebaseUser.uid}. API Message: ${createErrorData.message}`);
+            }
+          } catch (createError: any) {
+            console.error(`[AuthContext] Network error creating initial Supabase profile for ${firebaseUser.uid}:`, createError.message);
+          }
+        }
+        return mapFirebaseUserToAppUser(firebaseUser); // Fallback to Firebase data only after logging error
       }
-    } catch (error) {
-      console.error(`[AuthContext] Network error fetching/creating Supabase profile for ${firebaseUser.uid}:`, error);
+    } catch (error: any) {
+      console.error(`[AuthContext] Network or other unhandled error in fetchAppUserProfile for ${firebaseUser.uid}:`, error.message, error.stack);
       return mapFirebaseUserToAppUser(firebaseUser); // Fallback
     }
   }, []);
@@ -123,7 +149,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const login = useCallback(async (email: string, pass: string): Promise<{ success: boolean; error?: string }> => {
     try {
       await signInWithEmailAndPassword(auth, email, pass);
-      // onAuthStateChanged will handle setting user and isLoading
+      // onAuthStateChanged will handle setting user and isLoading, and redirect will be handled by page
       return { success: true };
     } catch (error: any) {
       console.error("Firebase login error:", error);
@@ -136,25 +162,37 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
       if (userCredential.user) {
         await updateFirebaseProfile(userCredential.user, { displayName: name });
-        // The onAuthStateChanged listener will call fetchAppUserProfile which will create the Supabase profile if needed.
+        // onAuthStateChanged will call fetchAppUserProfile which will create the Supabase profile.
       }
       return { success: true };
     } catch (error: any) {
       console.error("Firebase registration error:", error);
       return { success: false, error: error.message || "Registration failed. Please try again." };
     }
-  }, []); // Removed fetchAppUserProfile from here, onAuthStateChanged handles it
+  }, []); // Removed fetchAppUserProfile and router from dependencies here as they are not directly used.
 
   const logout = useCallback(async () => {
     try {
       await firebaseSignOut(auth);
-      setUser(null); // Clear user immediately
-      const publicRoutes = ['/', '/products', '/our-story', '/contact', '/faq', '/shipping-returns', '/privacy-policy', '/terms-of-service', '/accessibility'];
+      setUser(null);
+      const publicRoutes = ['/', '/products', '/categories', '/our-story', '/contact', '/shipping-returns', '/privacy-policy', '/terms-of-service', '/accessibility', '/careers', '/community/create-post'];
       const isAuthPage = pathname.startsWith('/login') || pathname.startsWith('/register');
+      
+      let onPublicOrAuthPage = isAuthPage;
+      if (!onPublicOrAuthPage) {
+        onPublicOrAuthPage = publicRoutes.some(route => {
+          if (route.endsWith('/[slug]')) { // crude check for dynamic routes like products/[slug]
+            return pathname.startsWith(route.substring(0, route.lastIndexOf('/')));
+          }
+          return pathname === route || pathname.startsWith(route + '/');
+        });
+      }
 
-      if (!publicRoutes.some(route => pathname === route || pathname.startsWith(route + '/')) && !isAuthPage) {
+      if (!onPublicOrAuthPage) {
+          console.log("[AuthContext] Logging out, redirecting to /login from protected page:", pathname);
           router.push('/login');
       } else {
+          console.log("[AuthContext] Logging out from public/auth page, refreshing:", pathname);
           router.refresh(); 
       }
     } catch (error) {
@@ -166,11 +204,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const currentFirebaseUser = auth.currentUser;
     if (currentFirebaseUser) {
       setIsLoading(true);
-      console.log("[AuthContext] Refreshing user profile...");
+      console.log("[AuthContext] Refreshing user profile via refreshUserProfile()...");
       const appUser = await fetchAppUserProfile(currentFirebaseUser);
       setUser(appUser);
       setIsLoading(false);
-      console.log("[AuthContext] User profile refreshed.");
+      console.log("[AuthContext] User profile refreshed via refreshUserProfile().");
     }
   }, [fetchAppUserProfile]);
 
@@ -190,3 +228,5 @@ export const useAuth = (): AuthContextType => {
   }
   return context;
 };
+
+    
