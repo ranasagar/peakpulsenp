@@ -1,3 +1,3 @@
-// This file is obsolete and should be deleted.
-// The categories page is now served from /src/app/categories/page.tsx
+// This file is obsolete and its content has been moved to /src/app/categories/page.tsx
+// Please delete the entire /src/app/(main)/ directory from your project and Git repository.
 export {};
