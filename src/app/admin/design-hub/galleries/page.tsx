@@ -13,7 +13,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDes
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Save, PlusCircle, Trash2, Edit, Image as ImageIconLucide, BookOpen, Palette, CalendarDays, User as UserIcon } from 'lucide-react';
+import { Loader2, Save, PlusCircle, Trash2, Edit, Image as ImageIconLucide, Palette, CalendarDays, User as UserIcon } from 'lucide-react';
 import type { DesignCollaborationGallery, DesignCollaborationCategory, GalleryImageItem } from '@/types';
 import {
   Dialog, DialogContent, DialogDescription as DialogFormDescription, DialogFooter, DialogHeader, DialogTitle, DialogClose
@@ -25,10 +25,12 @@ import {
   AlertDialogDescription as AlertDialogDeleteDescription, AlertDialogFooter as AlertDialogDeleteFooter,
   AlertDialogHeader as AlertDialogDeleteHeader, AlertDialogTitle as AlertDialogDeleteTitle
 } from "@/components/ui/alert-dialog";
-import { formatInputDate, formatDisplayDate } from '@/lib/dateUtils'; // Assuming you'll create this
+import { formatInputDate, formatDisplayDate } from '@/lib/dateUtils';
+
+const NO_COLLAB_CATEGORY_ID_VALUE = "__NONE_CATEGORY__"; // Unique value for "None" option
 
 const galleryImageItemSchema = z.object({
-  id: z.string().optional(), // For react-hook-form key, can be client-generated
+  id: z.string().optional(),
   url: z.string().url({ message: "Valid image URL is required." }).min(1, "Image URL cannot be empty."),
   altText: z.string().optional(),
   dataAiHint: z.string().optional(),
@@ -45,12 +47,14 @@ const gallerySchema = z.object({
   ai_cover_image_prompt: z.string().optional(),
   artist_name: z.string().optional(),
   artist_statement: z.string().optional(),
-  gallery_images: z.array(galleryImageItemSchema).min(0).optional(), // Min 0 to allow creating gallery first
+  gallery_images: z.array(galleryImageItemSchema).min(0).optional(),
   is_published: z.boolean().default(false),
-  collaboration_date: z.string().optional(), // Stored as YYYY-MM-DD
+  collaboration_date: z.string().optional().or(z.literal('')), // Allow empty string from date input, will convert to null
 });
 
 type GalleryFormValues = z.infer<typeof gallerySchema>;
+
+const defaultGalleryImage: Omit<GalleryImageItem, 'id'> = { url: '', altText: '', dataAiHint: '', displayOrder: 0};
 
 export default function AdminDesignCollaborationsPage() {
   const { toast } = useToast();
@@ -83,8 +87,14 @@ export default function AdminDesignCollaborationsPage() {
         fetch('/api/admin/design-collaborations'),
         fetch('/api/admin/design-collaboration-categories')
       ]);
-      if (!galleriesRes.ok) throw new Error('Failed to fetch collaborations');
-      if (!categoriesRes.ok) throw new Error('Failed to fetch collaboration categories');
+      if (!galleriesRes.ok) {
+        const errorData = await galleriesRes.json().catch(() => ({}));
+        throw new Error(errorData.message || errorData.rawSupabaseError?.message || 'Failed to fetch collaborations');
+      }
+      if (!categoriesRes.ok) {
+        const errorData = await categoriesRes.json().catch(() => ({}));
+        throw new Error(errorData.message || errorData.rawSupabaseError?.message || 'Failed to fetch collaboration categories');
+      }
       
       const galleriesData: DesignCollaborationGallery[] = await galleriesRes.json();
       const categoriesData: DesignCollaborationCategory[] = await categoriesRes.json();
@@ -107,8 +117,12 @@ export default function AdminDesignCollaborationsPage() {
     form.reset({
       ...gallery,
       category_id: gallery.category_id || null,
-      collaboration_date: gallery.collaboration_date ? formatInputDate(new Date(gallery.collaboration_date)) : undefined,
-      gallery_images: (gallery.gallery_images || []).map(img => ({...img, id: img.id || `img-${Date.now()}`})), // Ensure client-side keys
+      collaboration_date: gallery.collaboration_date ? formatInputDate(new Date(gallery.collaboration_date)) : '',
+      gallery_images: (gallery.gallery_images || []).map((img, index) => ({
+        ...img, 
+        id: img.id || `img-client-${Date.now()}-${index}`, // Ensure client-side key for useFieldArray
+        displayOrder: img.displayOrder === undefined ? index : img.displayOrder 
+      })),
     });
     setIsFormOpen(true);
   };
@@ -119,6 +133,7 @@ export default function AdminDesignCollaborationsPage() {
       title: '', slug: '', description: '', category_id: null, cover_image_url: '', ai_cover_image_prompt: '',
       artist_name: '', artist_statement: '', gallery_images: [], is_published: false, collaboration_date: formatInputDate(new Date()),
     });
+    replaceGalleryImages([]); // Ensure field array is reset
     setIsFormOpen(true);
   };
 
@@ -130,9 +145,12 @@ export default function AdminDesignCollaborationsPage() {
     const payload = {
       ...data,
       slug: data.slug || data.title.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, ''),
-      category_id: data.category_id === '' ? null : data.category_id,
-      collaboration_date: data.collaboration_date || null, // Ensure null if empty
-      gallery_images: (data.gallery_images || []).map(({id, ...img}) => img), // Remove client-side ID before saving
+      category_id: data.category_id === NO_COLLAB_CATEGORY_ID_VALUE ? null : data.category_id,
+      collaboration_date: data.collaboration_date || null,
+      gallery_images: (data.gallery_images || []).map(({id, ...img}, index) => ({
+        ...img, 
+        displayOrder: img.displayOrder === undefined ? index : img.displayOrder // Ensure displayOrder is set
+      })),
     };
 
     try {
@@ -140,8 +158,8 @@ export default function AdminDesignCollaborationsPage() {
         method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
       });
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || `Failed to ${editingGallery ? 'update' : 'create'} collaboration`);
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || errorData.rawSupabaseError?.message || `Failed to ${editingGallery ? 'update' : 'create'} collaboration`);
       }
       toast({ title: "Success!", description: `Collaboration "${payload.title}" ${editingGallery ? 'updated' : 'created'}.` });
       fetchData();
@@ -159,8 +177,8 @@ export default function AdminDesignCollaborationsPage() {
     try {
       const response = await fetch(`/api/admin/design-collaborations/${galleryToDelete.id}`, { method: 'DELETE' });
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to delete collaboration');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || errorData.rawSupabaseError?.message ||'Failed to delete collaboration');
       }
       toast({ title: "Collaboration Deleted", description: `"${galleryToDelete.title}" deleted.` });
       fetchData();
@@ -237,6 +255,9 @@ export default function AdminDesignCollaborationsPage() {
         <DialogContent className="max-w-3xl">
           <DialogHeader>
             <DialogTitle>{editingGallery ? 'Edit Collaboration/Gallery' : 'Add New Collaboration/Gallery'}</DialogTitle>
+             <DialogFormDescription>
+              {editingGallery ? `Editing details for ${editingGallery.title}.` : 'Fill in the details for the new collaboration.'}
+            </DialogFormDescription>
           </DialogHeader>
           <ScrollArea className="max-h-[75vh] p-1 -mx-1">
             <div className="p-5">
@@ -255,10 +276,13 @@ export default function AdminDesignCollaborationsPage() {
                   )} />
                   <FormField control={form.control} name="category_id" render={({ field }) => (
                     <FormItem><FormLabel>Category</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value || undefined} value={field.value === null ? undefined : field.value}>
+                      <Select 
+                        onValueChange={(value) => field.onChange(value === NO_COLLAB_CATEGORY_ID_VALUE ? null : value)} 
+                        value={field.value === null || field.value === undefined || field.value === '' ? NO_COLLAB_CATEGORY_ID_VALUE : field.value}
+                      >
                         <FormControl><SelectTrigger><SelectValue placeholder="Select a category" /></SelectTrigger></FormControl>
                         <SelectContent>
-                          <SelectItem value="">None</SelectItem>
+                          <SelectItem value={NO_COLLAB_CATEGORY_ID_VALUE}>None</SelectItem>
                           {categories.map(cat => <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>)}
                         </SelectContent>
                       </Select><FormMessage />
@@ -293,31 +317,31 @@ export default function AdminDesignCollaborationsPage() {
 
                   <fieldset className="space-y-3 p-3 border rounded-md">
                     <legend className="text-md font-medium px-1 flex items-center"><ImageIconLucide className="mr-2 h-4 w-4"/>Gallery Images</legend>
-                    <ScrollArea className="max-h-80"> {/* Nested Scroll for images */}
+                    <ScrollArea className="max-h-80">
                         <div className="space-y-3 p-1">
-                        {galleryImagesFields.map((field, index) => (
-                        <Card key={field.id} className="p-3 space-y-2 bg-muted/50">
-                            <FormLabel>Image {index + 1}</FormLabel>
+                        {galleryImagesFields.map((item, index) => (
+                        <Card key={item.id} className="p-3 space-y-2 bg-muted/50">
+                            <FormLabel className="text-sm">Image {index + 1}</FormLabel>
                             <FormField control={form.control} name={`gallery_images.${index}.url`} render={({ field }) => (
                             <FormItem><FormLabel className="text-xs">URL*</FormLabel><FormControl><Input {...field} placeholder="https://example.com/gallery_img.jpg" /></FormControl><FormMessage /></FormItem>
                             )} />
                             <div className="grid grid-cols-2 gap-2">
                             <FormField control={form.control} name={`gallery_images.${index}.altText`} render={({ field }) => (
-                                <FormItem><FormLabel className="text-xs">Alt Text</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
+                                <FormItem><FormLabel className="text-xs">Alt Text</FormLabel><FormControl><Input {...field} value={field.value || ''} /></FormControl></FormItem>
                             )} />
                             <FormField control={form.control} name={`gallery_images.${index}.dataAiHint`} render={({ field }) => (
-                                <FormItem><FormLabel className="text-xs">AI Hint</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
+                                <FormItem><FormLabel className="text-xs">AI Hint</FormLabel><FormControl><Input {...field} value={field.value || ''} /></FormControl></FormItem>
                             )} />
                             </div>
                             <FormField control={form.control} name={`gallery_images.${index}.displayOrder`} render={({ field }) => (
-                                <FormItem><FormLabel className="text-xs">Display Order</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>
+                                <FormItem><FormLabel className="text-xs">Display Order</FormLabel><FormControl><Input type="number" {...field} value={field.value === undefined ? index : field.value} onChange={(e) => field.onChange(parseInt(e.target.value,10))} /></FormControl></FormItem>
                             )} />
                             <Button type="button" variant="destructive" size="xs" onClick={() => removeGalleryImage(index)}><Trash2 className="mr-1 h-3 w-3"/>Remove Image</Button>
                         </Card>
                         ))}
                         </div>
                     </ScrollArea>
-                    <Button type="button" variant="outline" size="sm" onClick={() => appendGalleryImage({ id: `new-img-${Date.now()}`, url: '', altText: '', dataAiHint:'', displayOrder: galleryImagesFields.length })}><PlusCircle className="mr-2 h-4 w-4"/>Add Gallery Image</Button>
+                    <Button type="button" variant="outline" size="sm" onClick={() => appendGalleryImage({ ...defaultGalleryImage, id: `client-img-${Date.now()}`, displayOrder: galleryImagesFields.length })}><PlusCircle className="mr-2 h-4 w-4"/>Add Gallery Image</Button>
                   </fieldset>
 
                   <DialogFooter className="pt-4">
@@ -353,20 +377,5 @@ export default function AdminDesignCollaborationsPage() {
     </>
   );
 }
-
-// Helper for date formatting (create this file or inline)
-// src/lib/dateUtils.ts
-// export const formatInputDate = (date?: Date | string | null): string => {
-//   if (!date) return '';
-//   try {
-//     return new Date(date).toISOString().split('T')[0];
-//   } catch (e) { return ''; }
-// };
-// export const formatDisplayDate = (dateString?: string | null): string => {
-//   if (!dateString) return 'N/A';
-//   try {
-//     return new Date(dateString).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
-//   } catch (e) { return 'Invalid Date'; }
-// };
 
     
