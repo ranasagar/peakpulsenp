@@ -9,7 +9,6 @@ export const dynamic = 'force-dynamic';
 
 interface ProfileUpdateRequestBody {
   id?: string; // Firebase UID
-  uid?: string; // Legacy, if client sends this
   name?: string;
   avatarUrl?: string | null;
   email?: string; // Required for new profiles
@@ -46,19 +45,16 @@ export async function GET(request: NextRequest) {
       .single();
 
     if (fetchError) {
-      if (fetchError.code === 'PGRST116') { // Standard PostgREST code for "0 rows"
-        console.log(`[API /api/account/profile GET] Profile not found in Supabase for uid ${uidFromQuery}.`);
-        return NextResponse.json({ message: 'Profile not found' }, { status: 404 });
-      }
-      console.error(`[API /api/account/profile GET] Supabase error fetching profile for uid ${uidFromQuery}:`, JSON.stringify(fetchError, null, 2));
+      const isNotFound = fetchError.code === 'PGRST116'; // Standard PostgREST code for "0 rows"
+      console.error(`[API /api/account/profile GET] Supabase error fetching profile for uid ${uidFromQuery}${isNotFound ? ' (Profile not found)' : ''}:`, JSON.stringify(fetchError, null, 2));
+      
       return NextResponse.json({ 
-        message: 'Error fetching profile from database.', 
+        message: isNotFound ? 'Profile not found' : 'Error fetching profile from database.', 
         rawSupabaseError: { message: fetchError.message, details: fetchError.details, hint: fetchError.hint, code: fetchError.code }
-      }, { status: 500 });
+      }, { status: isNotFound ? 404 : 500 });
     }
     
     console.log(`[API /api/account/profile GET] Profile found for ${uidFromQuery} in Supabase.`);
-    // Ensure wishlist is always an array, even if null in DB
     const responseProfile = { ...profile, wishlist: profile.wishlist || [] };
     return NextResponse.json(responseProfile);
 
@@ -67,7 +63,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ 
         message: 'Server error fetching profile.', 
         error: catchError.message,
-        rawSupabaseError: { message: catchError.message, code: catchError.code, details: catchError.details, hint: catchError.hint }
+        rawSupabaseError: { message: catchError.message, code: catchError.code || 'UNKNOWN', details: catchError.details, hint: catchError.hint }
     }, { status: 500 });
   }
 }
@@ -93,24 +89,23 @@ export async function POST(request: NextRequest) {
   const requestBody = rawBody as ProfileUpdateRequestBody;
   console.log("[API /api/account/profile POST] Parsed request body (rawBody):", JSON.stringify(requestBody, null, 2));
   
-  const userIdToProcess = requestBody.id || requestBody.uid; // Prefer 'id', fallback to 'uid' if sent
+  const userIdToProcess = requestBody.id; // Expect 'id' directly now
   const { name, avatarUrl, email, roles, wishlist } = requestBody;
 
   if (!userIdToProcess) {
-    console.warn("[API /api/account/profile POST] User ID (id or uid) is required in request body.");
-    return NextResponse.json({ message: 'User ID (id or uid) is required for update/create' }, { status: 400 });
+    console.warn("[API /api/account/profile POST] User ID (from requestBody.id) is required in request body.");
+    return NextResponse.json({ message: 'User ID (id) is required for update/create' }, { status: 400 });
   }
   console.log(`[API /api/account/profile POST] Processing for user ID: ${userIdToProcess}`);
 
   try {
-    // Check if user exists
     const { data: existingUser, error: fetchError } = await supabase
       .from('users')
       .select('id')
       .eq('id', userIdToProcess)
       .maybeSingle();
 
-    if (fetchError && fetchError.code !== 'PGRST116') { // PGRST116 means 0 rows, which is fine for a potential insert
+    if (fetchError && fetchError.code !== 'PGRST116') {
         console.error(`[API /api/account/profile POST] Supabase error checking for existing user ${userIdToProcess}:`, JSON.stringify(fetchError, null, 2));
         return NextResponse.json({ 
           message: 'Error accessing user data from database.', 
@@ -127,9 +122,12 @@ export async function POST(request: NextRequest) {
         "updatedAt": new Date().toISOString(),
       };
       if (name !== undefined) profileDataToUpdate.name = name;
-      // Only update avatarUrl if explicitly provided (even if null to clear it)
-      if (avatarUrl !== undefined) profileDataToUpdate["avatarUrl"] = avatarUrl;
-      if (roles !== undefined) profileDataToUpdate.roles = roles; // API should validate if user is allowed to change roles
+      if (avatarUrl !== undefined) profileDataToUpdate["avatarUrl"] = avatarUrl; // Allows setting to null
+      // IMPORTANT: Do not allow users to update their own roles here unless they are admin.
+      // This should be handled by more sophisticated logic if non-admins can update profiles.
+      // For now, we assume only admins or specific flows would update roles.
+      // If `roles` is part of requestBody, it might be from an admin action or initial creation.
+      if (roles !== undefined) profileDataToUpdate.roles = roles; 
       if (wishlist !== undefined) profileDataToUpdate.wishlist = wishlist;
 
       console.log(`[API /api/account/profile POST] Data for Supabase UPDATE for UID ${userIdToProcess}:`, JSON.stringify(profileDataToUpdate, null, 2));
@@ -142,12 +140,10 @@ export async function POST(request: NextRequest) {
       
       if (updateError) {
         console.error(`[API /api/account/profile POST] Supabase error updating profile for UID ${userIdToProcess}:`, JSON.stringify(updateError, null, 2));
-        let specificMessage = 'Failed to update profile in database.';
-        if (updateError.code === '42501') { // RLS violation
-            specificMessage = 'Database Row Level Security (RLS) policy violation prevents profile update. Please check UPDATE policy for the authenticated user on "users" table in Supabase.';
-        } else if (updateError.code === '23505') { // Unique constraint violation (e.g. email)
-            specificMessage = `Failed to update profile: ${updateError.message}. This could be due to a duplicate email.`;
-        }
+        const errorCode = updateError.code || 'UNKNOWN_DB_ERROR';
+        const specificMessage = errorCode === '42501' 
+          ? 'Database Row Level Security (RLS) policy violation prevents profile update. Please check UPDATE policy for the authenticated user on "users" table in Supabase.'
+          : `Failed to update profile in database.`;
         return NextResponse.json({ 
           message: specificMessage, 
           rawSupabaseError: { message: updateError.message, details: updateError.details, hint: updateError.hint, code: updateError.code }
@@ -165,14 +161,13 @@ export async function POST(request: NextRequest) {
 
       const profileDataToInsert = {
         id: userIdToProcess, 
-        email: email, // Required
-        name: name || email.split('@')[0] || 'New User', // Default name if not provided
-        "avatarUrl": avatarUrl, // Can be null
-        // roles and wishlist will use database defaults if not explicitly sent or handled by API based on user type
-        roles: roles || ['customer'], // Default roles from client
-        wishlist: wishlist || [],     // Default wishlist from client
-        "createdAt": new Date().toISOString(), // Explicitly set
-        "updatedAt": new Date().toISOString()  // Explicitly set
+        email: email,
+        name: name || email.split('@')[0] || 'New User',
+        "avatarUrl": avatarUrl === undefined ? null : avatarUrl, // Ensure null if undefined
+        roles: roles || ['customer'], // Rely on DB default or ensure this is correct from client
+        wishlist: wishlist || [],     // Rely on DB default or ensure this is correct from client
+        "createdAt": new Date().toISOString(),
+        "updatedAt": new Date().toISOString()
       };
       
       console.log(`[API /api/account/profile POST] Data for insert for UID ${userIdToProcess}:`, JSON.stringify(profileDataToInsert, null, 2));
@@ -184,13 +179,12 @@ export async function POST(request: NextRequest) {
         .single();
 
       if (insertError) {
-        console.error(`[API /api/account/profile POST] Supabase error inserting profile for UID ${userIdToProcess}:`, JSON.stringify(insertError, null, 2));
-        let specificMessage = 'Failed to create profile in database.';
-        if (insertError.code === '42501') { // RLS violation
-            specificMessage = 'Database Row Level Security (RLS) policy violation prevents profile creation. Please check INSERT policy for "anon" role on "users" table in Supabase.';
-        } else if (insertError.code === '23505') { // Unique constraint violation (e.g. email or id)
-            specificMessage = `Failed to create profile: ${insertError.message}. This could be due to a duplicate email or ID.`;
-        }
+        console.error(`[API /api/account/profile POST] Supabase error inserting profile for UID ${userIdToProcess}:`, JSON.stringify(insertError, null, 2)); // Log the full error
+        const errorCode = insertError.code || 'UNKNOWN_DB_ERROR';
+        const specificMessage = errorCode === '42501' 
+          ? 'Database Row Level Security (RLS) policy violation prevents profile creation. Please check INSERT policy for "anon" role on "users" table in Supabase.'
+          : `Failed to create profile in database.`;
+
         return NextResponse.json({ 
           message: specificMessage, 
           rawSupabaseError: { message: insertError.message, details: insertError.details, hint: insertError.hint, code: insertError.code }
@@ -208,7 +202,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ 
         message: 'Server error processing profile operation.', 
         error: error.message,
-        rawSupabaseError: { message: error.message, code: error.code }
+        rawSupabaseError: { message: error.message, code: error.code || 'UNKNOWN_SERVER_ERROR' }
     }, { status: 500 });
   }
 }
+
