@@ -19,16 +19,16 @@ import { Icons } from '@/components/icons';
 import { useAuth } from '@/hooks/use-auth';
 import { cn } from '@/lib/utils';
 import type { NavItem } from '@/types';
-import { ShoppingCart, Search, LogOut, UserCircle, LayoutDashboard, Settings, Star, ShoppingBag, Briefcase, LayoutGrid } from 'lucide-react';
+import { ShoppingCart, Search, LogOut, UserCircle, LayoutDashboard, Settings, Star, ShoppingBag, Briefcase, LayoutGrid, Home as HomeIcon, Store, BookOpenText, Mail } from 'lucide-react';
 import { ModeToggle } from './mode-toggle';
 import { useCart } from '@/context/cart-context';
 
 const mainNavItems: NavItem[] = [
-  { title: 'Home', href: '/' },
-  { title: 'Shop', href: '/products' },
+  { title: 'Home', href: '/', icon: HomeIcon },
+  { title: 'Shop', href: '/products', icon: Store },
   { title: 'Categories', href: '/categories', icon: LayoutGrid },
-  { title: 'Our Story', href: '/our-story' },
-  { title: 'Contact', href: '/contact' },
+  { title: 'Our Story', href: '/our-story', icon: BookOpenText },
+  { title: 'Contact', href: '/contact', icon: Mail },
 ];
 
 const userNavItems: NavItem[] = [
@@ -50,7 +50,7 @@ export function Header() {
 
   const navLinks = mainNavItems.map((item) => {
     const isVipLink = item.href === '/vip-collection';
-    if (isVipLink && !isAuthenticated) return null; // This logic remains, though vip-collection isn't in mainNavItems
+    if (isVipLink && !isAuthenticated) return null; 
     return (
       <Link
         key={item.href}
@@ -79,7 +79,7 @@ export function Header() {
       ))}
        {user?.roles?.includes('affiliate') && (
         <DropdownMenuItem asChild>
-          <Link href="/affiliate-portal" className="flex items-center">
+          <Link href="/account/affiliate-portal" className="flex items-center">
             <Briefcase className="mr-2 h-4 w-4" />
             Affiliate Portal
           </Link>
@@ -99,8 +99,8 @@ export function Header() {
         {/* Mobile Menu Trigger */}
         <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
           <SheetTrigger asChild>
-            <Button variant="ghost" size="icon" className="md:hidden mr-2">
-              <Icons.AnimatedMenuIcon className="h-16 w-16" />
+            <Button variant="ghost" size="icon" className="md:hidden mr-2 h-16 w-16">
+              <Icons.AnimatedMenuIcon className="h-8 w-8" /> {/* Adjusted size to match desktop logo in header */}
               <span className="sr-only">Toggle Menu</span>
             </Button>
           </SheetTrigger>
@@ -131,7 +131,7 @@ export function Header() {
                     ))}
                     {user?.roles?.includes('affiliate') && (
                       <Link
-                        href="/affiliate-portal"
+                        href="/account/affiliate-portal"
                         className="flex items-center py-2 text-sm font-medium text-foreground/80 hover:text-primary header-link-pulse"
                         onClick={() => setIsMobileMenuOpen(false)}
                       >
@@ -220,4 +220,3 @@ export function Header() {
     </header>
   );
 }
-    
