@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Save, Youtube, Image as ImageIcon, PlusCircle, Trash2, Package, Tv, BookOpen, ExternalLink } from 'lucide-react';
+import { Loader2, Save, Youtube, Image as ImageIcon, PlusCircle, Trash2, Package, Tv, BookOpen, ExternalLink, ListChecks } from 'lucide-react';
 import type { HomepageContent, HeroSlide, SocialCommerceItem } from '@/types';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
@@ -102,17 +102,16 @@ export default function AdminHomepageContentPage() {
         form.reset({
           heroSlides: (data.heroSlides && data.heroSlides.length > 0
             ? data.heroSlides.map(slide => ({ ...defaultHeroSlide, ...slide, id: slide.id || `hs-loaded-${Date.now()}-${Math.random()}` }))
-            : []), // Default to empty array if none from DB
+            : []),
           artisanalRootsTitle: data.artisanalRoots?.title || defaultHomepageFormValues.artisanalRootsTitle,
           artisanalRootsDescription: data.artisanalRoots?.description || defaultHomepageFormValues.artisanalRootsDescription,
           socialCommerceItems: (data.socialCommerceItems && data.socialCommerceItems.length > 0
             ? data.socialCommerceItems.map(item => ({ ...defaultSocialCommerceItem, ...item, id: item.id || `sc-loaded-${Date.now()}-${Math.random()}` }))
-            : []), // Default to empty array
+            : []),
           heroVideoId: data.heroVideoId || defaultHomepageFormValues.heroVideoId,
           heroImageUrl: data.heroImageUrl || defaultHomepageFormValues.heroImageUrl,
         });
       } catch (error) {
-        console.error("Error fetching homepage content:", error);
         toast({ title: "Error Loading Content", description: (error as Error).message + ". Displaying defaults.", variant: "destructive" });
         form.reset(defaultHomepageFormValues);
       } finally {
@@ -125,12 +124,16 @@ export default function AdminHomepageContentPage() {
   const onSubmit = async (data: HomepageContentFormValues) => {
     setIsSaving(true);
     try {
-      const payload: HomepageContent = {
+      const payload: Partial<HomepageContent> = { // Use Partial for top level as API expects full structure but handles defaults
         heroSlides: (data.heroSlides || []).map(slide => ({
           ...slide,
           id: slide.id || `slide-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
           videoId: slide.videoId || undefined,
           imageUrl: slide.imageUrl || undefined,
+          altText: slide.altText || '',
+          dataAiHint: slide.dataAiHint || '',
+          ctaText: slide.ctaText || '',
+          ctaLink: slide.ctaLink || '',
         })),
         artisanalRoots: {
           title: data.artisanalRootsTitle || '',
@@ -139,6 +142,8 @@ export default function AdminHomepageContentPage() {
         socialCommerceItems: (data.socialCommerceItems || []).map(item => ({
           ...item,
           id: item.id || `social-${Date.now()}-${Math.random().toString(36).substr(2,5)}`,
+          altText: item.altText || '',
+          dataAiHint: item.dataAiHint || '',
         })),
         heroVideoId: data.heroVideoId || undefined,
         heroImageUrl: data.heroImageUrl || undefined,
@@ -168,7 +173,6 @@ export default function AdminHomepageContentPage() {
 
       toast({ title: "Content Saved!", description: "Homepage content has been updated successfully." });
     } catch (error) {
-      console.error("Error saving homepage content:", error);
       toast({ title: "Save Failed", description: (error as Error).message, variant: "destructive" });
     } finally {
       setIsSaving(false);
@@ -190,17 +194,16 @@ export default function AdminHomepageContentPage() {
         <CardTitle className="text-2xl flex items-center"><Tv className="mr-3 h-6 w-6 text-primary"/>Edit Homepage Content</CardTitle>
         <CardDescription>Modify text, media, and links for various sections of your homepage. Content is saved to Supabase.</CardDescription>
       </CardHeader>
-      <CardContent className="flex-grow overflow-hidden p-0">
+      <CardContent className="flex-1 overflow-hidden p-0">
         <ScrollArea className="h-full p-6">
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-10">
               
               <div className="space-y-6 p-4 border border-border rounded-lg shadow-sm">
                 <h3 className="text-xl font-semibold text-foreground flex items-center">
-                  <ImageIcon className="mr-3 h-5 w-5 text-primary" /> Hero Section Carousel Slides
+                  <ListChecks className="mr-3 h-5 w-5 text-primary" /> Hero Section Carousel Slides
                 </h3>
-                <ScrollArea className="max-h-[60vh]"> {/* Increased max-height */}
-                  <div className="space-y-4 p-1">
+                <div className="space-y-4 p-1">
                     {heroSlidesFields.map((field, index) => (
                       <Card key={field.id} className="p-4 space-y-3 bg-muted/30">
                         <div className="flex justify-between items-center mb-2">
@@ -246,7 +249,6 @@ export default function AdminHomepageContentPage() {
                       </Card>
                     ))}
                   </div>
-                </ScrollArea>
                 <Button type="button" variant="outline" size="sm" onClick={() => appendHeroSlide({ ...defaultHeroSlide, id: `slide-${Date.now()}-${Math.random().toString(36).substr(2, 5)}` })} className="mt-4">
                   <PlusCircle className="mr-2 h-4 w-4" /> Add Hero Slide
                 </Button>
@@ -291,8 +293,7 @@ export default function AdminHomepageContentPage() {
                 <h3 className="text-xl font-semibold text-foreground flex items-center">
                   <Package className="mr-3 h-5 w-5 text-primary" /> Social Commerce Section (#PeakPulseStyle)
                 </h3>
-                <ScrollArea className="max-h-[60vh]"> {/* Increased max-height */}
-                  <div className="space-y-4 p-1">
+                 <div className="space-y-4 p-1">
                     {socialCommerceFields.map((field, index) => (
                       <Card key={field.id} className="p-4 space-y-3 bg-muted/30">
                         <div className="flex justify-between items-center mb-2">
@@ -321,7 +322,6 @@ export default function AdminHomepageContentPage() {
                       </Card>
                     ))}
                   </div>
-                </ScrollArea>
                 <Button type="button" variant="outline" size="sm" onClick={() => appendSocialCommerceItem({ ...defaultSocialCommerceItem, id: `social-${Date.now()}-${Math.random().toString(36).substr(2,5)}`})} className="mt-4">
                   <PlusCircle className="mr-2 h-4 w-4" /> Add Instagram Post Item
                 </Button>
@@ -339,3 +339,4 @@ export default function AdminHomepageContentPage() {
   );
 }
 
+    

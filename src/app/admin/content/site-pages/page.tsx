@@ -8,8 +8,8 @@ import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Form, FormControl, FormField, FormItem as RHFFormItem, FormLabel as RHFFormLabel, FormMessage } from '@/components/ui/form';
-import { Label } from '@/components/ui/label';
+import { Form, FormControl, FormField, FormItem as RHFFormItem, FormLabel as RHFFormLabel, FormMessage } from '@/components/ui/form'; // Renamed to avoid conflict
+import { Label } from '@/components/ui/label'; // Use basic Label for non-form elements
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Save, FileText } from 'lucide-react';
@@ -89,13 +89,12 @@ export default function AdminSitePagesContentPage() {
   const selectedPageName = manageablePages.find(p => p.key === selectedPageKey)?.name || "Selected Page";
 
   return (
-    <Card className="shadow-xl flex flex-col h-full"> {/* Apply flex flex-col h-full */}
+    <Card className="shadow-xl flex flex-col h-full">
       <CardHeader>
         <CardTitle className="text-2xl flex items-center"><FileText className="mr-3 h-6 w-6 text-primary"/>Edit Site Page Content</CardTitle>
         <CardDescription>Select a page and modify its text content. You can use HTML for formatting. Data is saved to Supabase.</CardDescription>
       </CardHeader>
-      <CardContent className="space-y-6 flex-grow overflow-hidden p-0"> {/* flex-grow and overflow-hidden */}
-         <div className="p-6 border-b"> {/* Moved page selector outside ScrollArea for permanent visibility */}
+      <div className="p-6 border-b">
             <Label htmlFor="page-select">Select Page to Edit</Label>
             <Select value={selectedPageKey} onValueChange={setSelectedPageKey} name="page-select" >
                 <SelectTrigger className="w-full md:w-[300px] mt-1">
@@ -108,14 +107,14 @@ export default function AdminSitePagesContentPage() {
                 </SelectContent>
             </Select>
         </div>
-
+      <CardContent className="flex-1 overflow-hidden p-0">
         {isLoading ? (
-          <div className="flex-grow flex justify-center items-center py-10"> {/* Use flex-grow for loading state too */}
+          <div className="flex-grow flex justify-center items-center py-10 h-full">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
             <p className="ml-2">Loading content for {selectedPageName}...</p>
           </div>
         ) : (
-          <ScrollArea className="h-full p-6 pt-0"> {/* ScrollArea takes full height of remaining CardContent, adjust padding */}
+          <ScrollArea className="h-full p-6 pt-2">
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                 <FormField
@@ -130,6 +129,7 @@ export default function AdminSitePagesContentPage() {
                           rows={20} 
                           placeholder={`Enter content for ${selectedPageName} here. You can use HTML for formatting.`}
                           className="font-mono text-sm leading-relaxed min-h-[400px]" 
+                          value={field.value || ''}
                         />
                       </FormControl>
                       <FormMessage />
@@ -148,3 +148,5 @@ export default function AdminSitePagesContentPage() {
     </Card>
   );
 }
+
+    

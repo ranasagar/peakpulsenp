@@ -54,40 +54,7 @@ export default function AdminFooterContentPage() {
 
   const form = useForm<FooterContentFormValues>({
     resolver: zodResolver(footerContentSchema),
-    defaultValues: async () => {
-      setIsLoading(true);
-      try {
-        const response = await fetch('/api/admin/content/footer');
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          console.warn("Failed to fetch current footer settings, using defaults.", errorData.message || response.statusText);
-          return defaultFooterData;
-        }
-        const data: FooterContentData = await response.json();
-        
-        const mappedData = {
-          copyrightText: data.copyrightText || defaultFooterData.copyrightText,
-          navigationSections: (data.navigationSections && data.navigationSections.length > 0 
-            ? data.navigationSections.map((section, sIdx) => ({ 
-                ...section, 
-                id: section.id || `section-loaded-${sIdx}-${Date.now()}`,
-                items: (section.items || []).map((item, iIdx) => ({
-                    ...item, 
-                    id: item.id || `item-loaded-${sIdx}-${iIdx}-${Date.now()}`,
-                    name: item.name || '', // Ensure default empty string
-                    href: item.href || '', // Ensure default empty string
-                }))
-              })) 
-            : defaultFooterData.navigationSections),
-        };
-        return mappedData;
-      } catch (error) {
-        console.error("Error fetching settings, using defaults:", error);
-        return defaultFooterData;
-      } finally {
-        setIsLoading(false);
-      }
-    }
+    defaultValues: defaultFooterData
   });
   
   const { fields: navSectionsFields, append: appendNavSection, remove: removeNavSection } = useFieldArray({
@@ -114,14 +81,14 @@ export default function AdminFooterContentPage() {
                 items: (section.items || []).map((item, iIdx) => ({
                     ...item, 
                     id: item.id || `item-loaded-${sIdx}-${iIdx}-${Date.now()}`,
-                    name: item.name || '', // Ensure default empty string
-                    href: item.href || '', // Ensure default empty string
+                    name: item.name || '',
+                    href: item.href || '',
                 })) 
               })) 
             : defaultFooterData.navigationSections),
         });
       } catch (error) {
-        toast({ title: "Error Loading Content", description: (error as Error).message, variant: "destructive" });
+        toast({ title: "Error Loading Content", description: (error as Error).message + ". Displaying defaults.", variant: "destructive" });
         form.reset(defaultFooterData); 
       } finally {
         setIsLoading(false);
@@ -161,7 +128,7 @@ export default function AdminFooterContentPage() {
 
   if (isLoading && !form.formState.isDirty && !form.formState.isSubmitted) {
     return (
-      <Card className="shadow-lg flex flex-col h-full">
+      <Card className="shadow-xl flex flex-col h-full">
         <CardHeader><CardTitle className="text-2xl flex items-center"><ListChecks className="mr-3 h-6 w-6 text-primary"/>Edit Footer Content</CardTitle></CardHeader>
         <CardContent className="flex-grow flex justify-center items-center"><Loader2 className="h-12 w-12 animate-spin text-primary" /></CardContent>
       </Card>
@@ -169,13 +136,13 @@ export default function AdminFooterContentPage() {
   }
 
   return (
-    <Card className="shadow-xl flex flex-col h-full"> {/* Apply flex flex-col h-full */}
+    <Card className="shadow-xl flex flex-col h-full">
       <CardHeader>
         <CardTitle className="text-2xl flex items-center"><ListChecks className="mr-3 h-6 w-6 text-primary"/>Edit Footer Content</CardTitle>
         <CardDescription>Manage the copyright text and navigation links displayed in your website footer.</CardDescription>
       </CardHeader>
-      <CardContent className="flex-grow overflow-hidden p-0"> {/* flex-grow and overflow-hidden */}
-        <ScrollArea className="h-full p-6"> {/* ScrollArea takes full height of CardContent, p-6 applied here */}
+      <CardContent className="flex-1 overflow-hidden p-0">
+        <ScrollArea className="h-full p-6">
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
               <FormField
@@ -184,15 +151,14 @@ export default function AdminFooterContentPage() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Copyright Text</FormLabel>
-                    <FormControl><Input {...field} placeholder="e.g., © {currentYear} Peak Pulse. All rights reserved." /></FormControl>
+                    <FormControl><Input {...field} placeholder="e.g., © {currentYear} Peak Pulse. All rights reserved." value={field.value || ''} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
 
-              <fieldset className="space-y-4 p-4 border rounded-md">
-                <legend className="text-lg font-semibold px-1 -mt-1.5 bg-card">Footer Navigation Sections</legend>
-                <ScrollArea className="max-h-96 pr-3"> {/* Nested ScrollArea for sections */}
+              <div className="space-y-4 p-4 border rounded-md">
+                <h3 className="text-lg font-semibold text-foreground">Footer Navigation Sections</h3>
                   <div className="space-y-4">
                   {navSectionsFields.map((sectionField, sectionIndex) => (
                     <NavSectionControl
@@ -204,16 +170,16 @@ export default function AdminFooterContentPage() {
                     />
                   ))}
                   </div>
-                </ScrollArea>
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
                   onClick={() => appendNavSection({ ...defaultNavSection, id: `section-new-${Date.now()}-${Math.random()}`, items: [{...defaultNavItem, id: `item-new-${Date.now()}-${Math.random()}`}] })}
+                  className="mt-4"
                 >
                   <PlusCircle className="mr-2 h-4 w-4" /> Add Navigation Section
                 </Button>
-              </fieldset>
+              </div>
               
               <Button type="submit" disabled={isSaving} size="lg" className="w-full sm:w-auto">
                 {isSaving ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Save className="mr-2 h-5 w-5" />}
@@ -249,12 +215,12 @@ function NavSectionControl({ control, sectionIndex, removeNavSection, totalNavSe
           render={({ field }) => (
             <FormItem className="flex-grow mr-2">
               <FormLabel>Section Label {sectionIndex + 1}</FormLabel>
-              <FormControl><Input {...field} placeholder="e.g., Company" /></FormControl>
+              <FormControl><Input {...field} placeholder="e.g., Company" value={field.value || ''} /></FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
-        {totalNavSections > 0 && ( // Allow removing if more than one section, or if it's the only section but empty
+        {totalNavSections > 0 && (
             <Button type="button" variant="ghost" size="icon" onClick={removeNavSection} className="text-destructive hover:bg-destructive/10 mt-6">
                 <Trash2 className="h-4 w-4" />
             </Button>
@@ -271,7 +237,7 @@ function NavSectionControl({ control, sectionIndex, removeNavSection, totalNavSe
                 render={({ field }) => (
                     <FormItem>
                     <FormLabel>Link Text</FormLabel>
-                    <FormControl><Input {...field} placeholder="e.g., Our Story" /></FormControl>
+                    <FormControl><Input {...field} placeholder="e.g., Our Story" value={field.value || ''} /></FormControl>
                     <FormMessage />
                     </FormItem>
                 )}
@@ -282,7 +248,7 @@ function NavSectionControl({ control, sectionIndex, removeNavSection, totalNavSe
                 render={({ field }) => (
                     <FormItem>
                     <FormLabel>Link Href (Path)</FormLabel>
-                    <FormControl><Input {...field} placeholder="e.g., /our-story" /></FormControl>
+                    <FormControl><Input {...field} placeholder="e.g., /our-story" value={field.value || ''} /></FormControl>
                     <FormMessage />
                     </FormItem>
                 )}
@@ -306,3 +272,5 @@ function NavSectionControl({ control, sectionIndex, removeNavSection, totalNavSe
     </Card>
   );
 }
+
+    

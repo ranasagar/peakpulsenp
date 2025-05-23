@@ -113,7 +113,7 @@ export default function AdminOurStoryContentPage() {
 
   if (isLoading) {
     return (
-      <Card className="shadow-lg flex flex-col h-full">
+      <Card className="shadow-xl flex flex-col h-full">
         <CardHeader>
           <CardTitle className="text-2xl flex items-center"><BookOpenText className="mr-3 h-6 w-6 text-primary"/>Edit Our Story Page Content</CardTitle>
           <CardDescription>Loading content...</CardDescription>
@@ -124,68 +124,68 @@ export default function AdminOurStoryContentPage() {
   }
 
   return (
-    <Card className="shadow-lg flex flex-col h-full"> {/* Apply flex flex-col h-full */}
+    <Card className="shadow-xl flex flex-col h-full">
       <CardHeader>
         <CardTitle className="text-2xl flex items-center"><BookOpenText className="mr-3 h-6 w-6 text-primary"/>Edit Our Story Page Content</CardTitle>
         <CardDescription>Modify text content for various sections. Data is saved to Supabase.</CardDescription>
       </CardHeader>
-      <CardContent className="flex-grow overflow-hidden p-0"> {/* flex-grow and overflow-hidden */}
-        <ScrollArea className="h-full p-6"> {/* ScrollArea takes full height of CardContent, p-6 applied here */}
+      <CardContent className="flex-1 overflow-hidden p-0">
+        <ScrollArea className="h-full p-6">
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
               
-              <fieldset className="space-y-4 p-4 border rounded-md">
-                <legend className="text-lg font-semibold px-1 -mt-1.5 bg-card">Hero Section</legend>
+              <div className="space-y-4 p-4 border rounded-md">
+                <h3 className="text-lg font-semibold text-foreground">Hero Section</h3>
                 <FormField control={form.control} name="heroTitle" render={({ field }) => (
-                  <FormItem><FormLabel>Title</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                  <FormItem><FormLabel>Title</FormLabel><FormControl><Input {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="heroDescription" render={({ field }) => (
-                  <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea {...field} rows={3} /></FormControl><FormMessage /></FormItem>
+                  <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea {...field} rows={3} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
                 )} />
-              </fieldset>
+              </div>
 
-              <fieldset className="space-y-4 p-4 border rounded-md">
-                <legend className="text-lg font-semibold px-1 -mt-1.5 bg-card">Mission Section</legend>
+              <div className="space-y-4 p-4 border rounded-md">
+                <h3 className="text-lg font-semibold text-foreground">Mission Section</h3>
                 <FormField control={form.control} name="missionTitle" render={({ field }) => (
-                  <FormItem><FormLabel>Title</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                  <FormItem><FormLabel>Title</FormLabel><FormControl><Input {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="missionParagraph1" render={({ field }) => (
-                  <FormItem><FormLabel>Paragraph 1</FormLabel><FormControl><Textarea {...field} rows={4} /></FormControl><FormMessage /></FormItem>
+                  <FormItem><FormLabel>Paragraph 1</FormLabel><FormControl><Textarea {...field} rows={4} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="missionParagraph2" render={({ field }) => (
-                  <FormItem><FormLabel>Paragraph 2</FormLabel><FormControl><Textarea {...field} rows={4} /></FormControl><FormMessage /></FormItem>
+                  <FormItem><FormLabel>Paragraph 2</FormLabel><FormControl><Textarea {...field} rows={4} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
                 )} />
-              </fieldset>
+              </div>
 
-              <fieldset className="space-y-4 p-4 border rounded-md">
-                <legend className="text-lg font-semibold px-1 -mt-1.5 bg-card">Craftsmanship Section</legend>
+              <div className="space-y-4 p-4 border rounded-md">
+                <h3 className="text-lg font-semibold text-foreground">Craftsmanship Section</h3>
                 <FormField control={form.control} name="craftsmanshipTitle" render={({ field }) => (
-                  <FormItem><FormLabel>Title</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                  <FormItem><FormLabel>Title</FormLabel><FormControl><Input {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="craftsmanshipParagraph1" render={({ field }) => (
-                  <FormItem><FormLabel>Paragraph 1</FormLabel><FormControl><Textarea {...field} rows={4} /></FormControl><FormMessage /></FormItem>
+                  <FormItem><FormLabel>Paragraph 1</FormLabel><FormControl><Textarea {...field} rows={4} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="craftsmanshipParagraph2" render={({ field }) => (
-                  <FormItem><FormLabel>Paragraph 2</FormLabel><FormControl><Textarea {...field} rows={4} /></FormControl><FormMessage /></FormItem>
+                  <FormItem><FormLabel>Paragraph 2</FormLabel><FormControl><Textarea {...field} rows={4} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
                 )} />
-              </fieldset>
+              </div>
 
-             <fieldset className="space-y-4 p-4 border rounded-md">
-              <legend className="text-lg font-semibold px-1 -mt-1.5 bg-card">Values Section</legend>
+             <div className="space-y-4 p-4 border rounded-md">
+              <h3 className="text-lg font-semibold text-foreground">Values Section</h3>
               <FormField control={form.control} name="valuesSectionTitle" render={({ field }) => (
-                <FormItem><FormLabel>Title</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                <FormItem><FormLabel>Title</FormLabel><FormControl><Input {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
               )} />
-            </fieldset>
+            </div>
 
-            <fieldset className="space-y-4 p-4 border rounded-md">
-              <legend className="text-lg font-semibold px-1 -mt-1.5 bg-card">Join Our Journey Section</legend>
+            <div className="space-y-4 p-4 border rounded-md">
+              <h3 className="text-lg font-semibold text-foreground">Join Our Journey Section</h3>
               <FormField control={form.control} name="joinJourneySectionTitle" render={({ field }) => (
-                <FormItem><FormLabel>Title</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                <FormItem><FormLabel>Title</FormLabel><FormControl><Input {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
               )} />
               <FormField control={form.control} name="joinJourneySectionDescription" render={({ field }) => (
-                <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea {...field} rows={3} /></FormControl><FormMessage /></FormItem>
+                <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea {...field} rows={3} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
               )} />
-            </fieldset>
+            </div>
             
             <Button type="submit" disabled={isSaving} className="w-full sm:w-auto">
               {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
@@ -198,3 +198,5 @@ export default function AdminOurStoryContentPage() {
     </Card>
   );
 }
+
+    
