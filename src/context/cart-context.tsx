@@ -11,7 +11,7 @@ const CART_STORAGE_KEY = 'peakPulseCart';
 
 export const CartProvider = ({ children }: { children: ReactNode }) => {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
-  const [isCartLoading, setIsCartLoading] = useState(true); 
+  const [isCartLoading, setIsCartLoading] = useState(true);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -29,7 +29,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   useEffect(() => {
-    if (!isCartLoading) { 
+    if (!isCartLoading) {
       try {
         localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cartItems));
       } catch (error) {
@@ -39,44 +39,47 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   }, [cartItems, isCartLoading]);
 
   const addToCart = useCallback((
-    product: Product, 
-    quantity: number, 
+    product: Product,
+    quantity: number,
     selectedVariant?: ProductVariant,
-    customization?: CartItemCustomization 
+    customization?: CartItemCustomization
   ) => {
     setCartItems(prevItems => {
       const baseItemId = selectedVariant ? `${product.id}-${selectedVariant.id}` : product.id;
-      const cartItemId = customization 
-        ? `${baseItemId}-custom-${Date.now()}` // Ensures uniqueness for customized items
+      // If customization is present, always treat as a new item by adding a timestamp for uniqueness.
+      // If no customization, try to find an existing item to increment quantity.
+      const cartItemId = customization
+        ? `${baseItemId}-custom-${Date.now()}`
         : baseItemId;
 
-      const existingItemIndex = customization 
-        ? -1 
-        : prevItems.findIndex(item => item.id === cartItemId && !item.customization);
+      const existingItemIndex = customization
+        ? -1 // Customized items are always new line items
+        : prevItems.findIndex(item => item.id === cartItemId && !item.customization); // Only merge if existing is not customized
 
       const itemPrice = selectedVariant?.price ?? product.price;
-      const itemCostPrice = selectedVariant?.costPrice ?? product.costPrice; // Get cost price
+      const itemCostPrice = selectedVariant?.costPrice ?? product.costPrice;
       const itemName = selectedVariant ? `${product.name} (${selectedVariant.value})` : product.name;
       const itemImage = selectedVariant?.imageId
         ? product.images.find(img => img.id === selectedVariant.imageId)?.url
         : product.images[0]?.url;
 
-      if (existingItemIndex > -1 && !customization) { 
+      if (existingItemIndex > -1) { // Item exists and neither new nor existing has customization
         return prevItems.map((item, index) =>
           index === existingItemIndex
             ? { ...item, quantity: item.quantity + quantity }
             : item
         );
-      } else {
+      } else { // New item or customized item
         return [
           ...prevItems,
           {
-            id: cartItemId,
+            id: cartItemId, // This ID will be unique for unique combinations
             productId: product.id,
+            slug: product.slug, // Store slug for linking
             variantId: selectedVariant?.id,
             name: itemName,
             price: itemPrice,
-            costPrice: itemCostPrice, // Store cost price
+            costPrice: itemCostPrice,
             quantity: quantity,
             imageUrl: itemImage || 'https://placehold.co/100x120.png',
             dataAiHint: product.images[0]?.dataAiHint || 'product fashion',
@@ -101,7 +104,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
 
   const updateItemQuantity = useCallback((itemId: string, newQuantity: number) => {
     if (newQuantity < 1) {
-      removeFromCart(itemId); 
+      removeFromCart(itemId);
       return;
     }
     setCartItems(prevItems =>

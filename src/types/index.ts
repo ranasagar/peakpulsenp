@@ -107,8 +107,9 @@ export interface CartItemCustomization {
 }
 
 export interface CartItem {
-  id: string;
-  productId: string;
+  id: string; // This ID will be unique for each cart line item (product + variant + customization)
+  productId: string; // Original product ID
+  slug?: string; // Product slug for linking
   variantId?: string;
   name: string;
   price: number;
@@ -138,19 +139,19 @@ export type PaymentStatus = typeof ALL_PAYMENT_STATUSES[number];
 
 
 export interface Order {
-  id: string;
-  userId: string;
-  items: CartItem[];
-  totalAmount: number;
-  currency: string;
-  status: OrderStatus;
-  shippingAddress: OrderAddress;
-  paymentMethod?: string;
-  paymentStatus: PaymentStatus;
-  shippingMethod?: string;
-  trackingNumber?: string;
-  createdAt: string;
-  updatedAt: string;
+  id: string; // Supabase UUID
+  userId: string; // Firebase UID, maps to users.id which is TEXT
+  items: CartItem[]; // Stored as JSONB
+  totalAmount: number; // Numeric
+  currency: string; // Text
+  status: OrderStatus; // Text
+  shippingAddress: OrderAddress; // Stored as JSONB
+  paymentMethod?: string; // Text
+  paymentStatus: PaymentStatus; // Text
+  shippingMethod?: string; // Text
+  trackingNumber?: string; // Text
+  createdAt: string; // Timestamptz
+  updatedAt: string; // Timestamptz
 }
 
 export interface Loan {
@@ -191,8 +192,8 @@ export interface HeroSlide {
   id: string;
   title: string;
   description: string;
-  imageUrl?: string; // Optional: use if no videoId
-  videoId?: string;   // Optional: YouTube video ID
+  imageUrl?: string;
+  videoId?: string;
   altText?: string;
   dataAiHint?: string;
   ctaText?: string;
@@ -209,14 +210,14 @@ export interface SocialCommerceItem {
 
 export interface HomepageContent {
   heroSlides?: HeroSlide[];
-  heroVideoId?: string; // Fallback if no slides, or default video for slides without one
-  heroImageUrl?: string; // Fallback if no videoId on slides or standalone hero
+  heroVideoId?: string;
+  heroImageUrl?: string;
   artisanalRoots?: {
     title: string;
     description: string;
   };
   socialCommerceItems?: SocialCommerceItem[];
-  error?: string; // For API error handling on client
+  error?: string;
 }
 
 export interface OurStoryContentData {
@@ -241,24 +242,24 @@ export interface OurStoryContentData {
     title: string;
     description: string;
   };
-  error?: string; // For API error handling
+  error?: string;
 }
 
 export interface UserPost {
-  id: string;
-  user_id: string;
-  user_name?: string;
-  user_avatar_url?: string;
+  id: string; // Supabase UUID
+  user_id: string; // Firebase UID (TEXT in Supabase)
+  user_name?: string; // Joined from users table
+  user_avatar_url?: string; // Joined from users table
   image_url: string;
   caption?: string;
   product_tags?: string[];
   status: 'pending' | 'approved' | 'rejected';
-  created_at: string;
-  updated_at: string;
+  created_at: string; // Timestamptz
+  updated_at: string; // Timestamptz
 }
 
 export interface SocialLink {
-  id?: string; 
+  id?: string;
   platform: string;
   url: string;
 }
@@ -269,7 +270,7 @@ export interface SiteSettings {
   storeEmail: string;
   storePhone?: string;
   storeAddress?: string;
-  socialLinks?: SocialLink[]; // Managed via FooterContent now
+  socialLinks?: SocialLink[];
 }
 
 export interface BreadcrumbItem {
@@ -309,15 +310,14 @@ export interface Review {
   updatedAt?: string;
 }
 
-// Footer Content Types
 export interface FooterNavItem {
-  id: string; 
+  id: string;
   name: string;
   href: string;
 }
 
 export interface FooterNavSection {
-  id: string; 
+  id: string;
   label: string;
   items: FooterNavItem[];
 }
@@ -327,17 +327,15 @@ export interface FooterContentData {
   navigationSections?: FooterNavSection[];
 }
 
-// Generic Page Content Type (for Privacy, Terms, etc.)
 export interface PageContent {
-  content: string; 
-  error?: string; 
+  content: string;
+  error?: string;
 }
 
-// Filter types for products page
 export interface FilterOptionValue {
   value: string;
   label: string;
-  color?: string; // For color swatches
+  color?: string;
 }
 
 export interface FilterOption {
@@ -345,7 +343,6 @@ export interface FilterOption {
   label: string;
   type: 'checkbox' | 'radio' | 'range' | 'color';
   options?: FilterOptionValue[];
-  // For range type
   min?: number;
   max?: number;
   step?: number;

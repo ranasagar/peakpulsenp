@@ -22,17 +22,10 @@ export default function CartPage() {
     const newQuantity = currentQuantity + change;
     if (newQuantity >= 1) {
       updateItemQuantity(itemId, newQuantity);
-    } else {
-      // Optionally, you could ask for confirmation before removing if quantity goes to 0
-      // For now, let's assume user uses the trash icon for direct removal.
-      // Or, you can treat quantity 0 as removal:
-      // removeFromCart(itemId);
-      // toast({ title: "Item Removed", description: "Item quantity set to 0 and removed." });
     }
   };
 
   if (isCartLoading) {
-    // This can be a more elaborate skeleton loader if desired
     return (
       <MainLayout>
         <div className="container-wide section-padding text-center">
@@ -102,7 +95,7 @@ export default function CartPage() {
                               />
                             </TableCell>
                             <TableCell>
-                              <Link href={`/products/${item.productId}`} className="font-medium text-foreground hover:text-primary">{item.name}</Link>
+                              <Link href={`/products/${item.slug || item.productId}`} className="font-medium text-foreground hover:text-primary">{item.name}</Link>
                               {item.customization && (
                                 <div className="mt-1 text-xs text-muted-foreground">
                                   <p className="font-medium text-primary/80 flex items-center"><Palette size={12} className="mr-1"/>Customized:</p>
@@ -183,5 +176,3 @@ export default function CartPage() {
     </MainLayout>
   );
 }
-
-    
