@@ -2,7 +2,7 @@
 "use client"; 
 
 import Link from 'next/link';
-import { Shield, LayoutDashboard, Settings, ArrowLeft, BookOpenText, ShoppingBag, BarChart3, ListOrdered, Landmark, Tags, Users, ListChecks, FileText, Package, Home as HomeIcon, PenSquare, DollarSign, FileSpreadsheet, Palette, Image as ImageIconLucide, Printer } from 'lucide-react'; // Added FileText here
+import { Shield, LayoutDashboard, Settings, ArrowLeft, BookOpenText, ShoppingBag, BarChart3, ListOrdered, Landmark, Tags, Users, ListChecks, FileText, Package, Home as HomeIcon, PenSquare, DollarSign, FileSpreadsheet, Palette, ImageIcon as ImageIconLucide, Printer } from 'lucide-react';
 import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
 import { Button } from '@/components/ui/button';
@@ -10,7 +10,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { useAuth } from '@/hooks/use-auth';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card } from '@/components/ui/card';
-import { ScrollArea } from '@/components/ui/scroll-area'; // Added ScrollArea import
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 export default function AdminLayout({
   children,
@@ -69,15 +69,15 @@ export default function AdminLayout({
           
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <aside className="w-full md:col-span-1 md:sticky md:top-28 bg-card p-4 rounded-lg shadow-sm h-fit">
-              <ScrollArea className="h-auto md:max-h-[calc(100vh-8rem-3.5rem)]"> {/* Adjusted max-h for sticky position */}
-                <nav className="space-y-1 pr-2">
+              <ScrollArea className="md:max-h-[calc(100vh-10rem)]"> {/* Adjusted max-h and removed h-auto */}
+                <nav className="space-y-1"> {/* Removed pr-2 */}
                   <Button variant="ghost" className="w-full justify-start pl-2 pr-3 py-2" asChild>
                     <Link href="/admin">
                       <LayoutDashboard className="mr-2 h-4 w-4" /> Dashboard
                     </Link>
                   </Button>
                   
-                  <Accordion type="multiple" defaultValue={['store-management', 'content-management', 'accounting', 'design-hub']} className="w-full">
+                  <Accordion type="multiple" defaultValue={['store-management', 'content-management', 'design-hub', 'accounting']} className="w-full">
                     <AccordionItem value="store-management" className="border-b-0">
                       <AccordionTrigger className="py-2 px-3 hover:bg-accent hover:text-accent-foreground rounded-md text-sm font-medium hover:no-underline [&[data-state=open]>svg]:text-primary">
                         <div className="flex items-center">

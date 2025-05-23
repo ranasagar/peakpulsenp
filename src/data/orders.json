@@ -16,7 +16,7 @@
     ],
     "totalAmount": 13000,
     "currency": "NPR",
-    "status": "Delivered",
+    "status": "Pending",
     "shippingAddress": {
       "street": "50 East Derry Road",
       "city": "kathmandu",
@@ -28,7 +28,7 @@
     "paymentMethod": "card_nepal",
     "paymentStatus": "Paid",
     "createdAt": "2025-05-19T13:59:21.934Z",
-    "updatedAt": "2025-05-19T14:10:52.419Z"
+    "updatedAt": "2025-05-23T15:38:29.089Z"
   },
   {
     "id": "PP-MOCK-1747670306310",
