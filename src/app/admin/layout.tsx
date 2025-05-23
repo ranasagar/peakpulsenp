@@ -7,7 +7,6 @@ import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
 import { Button } from '@/components/ui/button';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-// Removed ScrollArea import as it's no longer used for the main sidebar nav
 
 export default function AdminLayout({
   children,
@@ -30,8 +29,7 @@ export default function AdminLayout({
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8 items-start">
-            <aside className="md:col-span-1 sticky top-28 bg-card p-4 rounded-lg shadow-sm h-fit"> {/* h-fit allows natural height */}
-              {/* ScrollArea removed from here */}
+            <aside className="w-full md:col-span-1 md:sticky md:top-28 bg-card p-4 rounded-lg shadow-sm h-fit"> {/* Changed sticky to md:sticky and md:top-28 */}
               <nav className="space-y-1">
                 <Button variant="ghost" className="w-full justify-start" asChild>
                   <Link href="/admin">
@@ -103,15 +101,14 @@ export default function AdminLayout({
                     <BarChart3 className="mr-2 h-4 w-4" /> Site Analytics (AI)
                   </Link>
                 </Button>
-                <Button variant="ghost" className="w-full justify-start" asChild>
+                 <Button variant="ghost" className="w-full justify-start" asChild>
                   <Link href="/admin/settings">
                     <Settings className="mr-2 h-4 w-4" /> General Settings
                   </Link>
                 </Button>
               </nav>
             </aside>
-            {/* Main content area now starts in the second column on md+ screens */}
-            <div className="md:col-start-2 md:col-span-3 flex flex-col"> {/* Added flex flex-col */}
+            <div className="w-full md:col-start-2 md:col-span-3 flex flex-col">
               {children}
             </div>
           </div>
