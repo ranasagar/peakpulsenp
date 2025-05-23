@@ -1,17 +1,17 @@
 
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Save, PlusCircle, Trash2, Edit, Tags, Image as ImageIcon, MessageSquare } from 'lucide-react';
+import { Loader2, Save, PlusCircle, Trash2, Edit, Tags, Image as ImageIconLucide, MessageSquare, Network } from 'lucide-react';
 import type { AdminCategory } from '@/types';
 import {
   Dialog,
@@ -32,8 +32,8 @@ import {
   AlertDialogFooter as AlertDialogDeleteFooter,
   AlertDialogHeader as AlertDialogDeleteHeader,
   AlertDialogTitle as AlertDialogDeleteTitle,
-  // AlertDialogTrigger, // No longer needed here
 } from "@/components/ui/alert-dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const categoryFormSchema = z.object({
   id: z.string().optional(),
@@ -42,6 +42,7 @@ const categoryFormSchema = z.object({
   description: z.string().optional(),
   imageUrl: z.string().url({ message: "Please enter a valid image URL." }).optional().or(z.literal('')),
   aiImagePrompt: z.string().optional(),
+  parentId: z.string().nullable().optional(), // Can be string (UUID), null, or undefined
 });
 
 type CategoryFormValues = z.infer<typeof categoryFormSchema>;
@@ -54,7 +55,7 @@ export default function AdminCategoriesPage() {
   const [editingCategory, setEditingCategory] = useState<AdminCategory | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [categoryToDelete, setCategoryToDelete] = useState<AdminCategory | null>(null);
-  const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false); // New state for delete dialog
+  const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
 
   const form = useForm<CategoryFormValues>({
     resolver: zodResolver(categoryFormSchema),
@@ -64,10 +65,11 @@ export default function AdminCategoriesPage() {
       description: '',
       imageUrl: '',
       aiImagePrompt: '',
+      parentId: null, // Default to null for top-level
     },
   });
 
-  const fetchCategories = async () => {
+  const fetchCategories = useCallback(async () => {
     setIsLoading(true);
     try {
       const response = await fetch('/api/admin/categories');
@@ -82,11 +84,11 @@ export default function AdminCategoriesPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [toast]);
 
   useEffect(() => {
     fetchCategories();
-  }, []);
+  }, [fetchCategories]);
 
   const handleEdit = (category: AdminCategory) => {
     setEditingCategory(category);
@@ -97,6 +99,7 @@ export default function AdminCategoriesPage() {
       description: category.description || '',
       imageUrl: category.imageUrl || '',
       aiImagePrompt: category.aiImagePrompt || '',
+      parentId: category.parentId || null,
     });
     setIsFormOpen(true);
   };
@@ -110,6 +113,7 @@ export default function AdminCategoriesPage() {
       description: '',
       imageUrl: '',
       aiImagePrompt: '',
+      parentId: null,
     });
     setIsFormOpen(true);
   };
@@ -122,7 +126,10 @@ export default function AdminCategoriesPage() {
     const payload = {
       ...data,
       slug: data.slug || data.name.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, ''),
+      parentId: data.parentId === '' ? null : data.parentId, // Ensure empty string becomes null for DB
     };
+    
+    console.log("Submitting category payload:", payload);
 
     try {
       const response = await fetch(url, {
@@ -148,7 +155,7 @@ export default function AdminCategoriesPage() {
 
   const handleDelete = async () => {
     if (!categoryToDelete) return;
-    setIsSaving(true); // Can use the same saving indicator
+    setIsSaving(true);
     try {
       const response = await fetch(`/api/admin/categories/${categoryToDelete.id}`, {
         method: 'DELETE',
@@ -164,8 +171,14 @@ export default function AdminCategoriesPage() {
     } finally {
       setIsSaving(false);
       setCategoryToDelete(null);
-      setIsDeleteAlertOpen(false); // Close dialog
+      setIsDeleteAlertOpen(false);
     }
+  };
+
+  const getParentCategoryName = (parentId: string | null | undefined): string => {
+    if (!parentId) return 'None';
+    const parent = categories.find(cat => cat.id === parentId);
+    return parent ? parent.name : 'Unknown';
   };
 
   if (isLoading) {
@@ -188,7 +201,7 @@ export default function AdminCategoriesPage() {
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
             <CardTitle className="text-2xl flex items-center"><Tags className="mr-3 h-6 w-6 text-primary" />Manage Product Categories</CardTitle>
-            <CardDescription>Add, edit, or delete product categories.</CardDescription>
+            <CardDescription>Add, edit, or delete product categories. You can create subcategories by assigning a parent.</CardDescription>
           </div>
           <Button onClick={handleAddNew}><PlusCircle className="mr-2 h-4 w-4" /> Add New Category</Button>
         </CardHeader>
@@ -204,12 +217,17 @@ export default function AdminCategoriesPage() {
                       <Image src={category.imageUrl} alt={category.name} width={80} height={80} className="rounded-md object-cover aspect-square bg-muted" data-ai-hint={category.aiImagePrompt || 'category image'} />
                     ) : (
                       <div className="w-20 h-20 bg-muted rounded-md flex items-center justify-center">
-                        <ImageIcon className="w-10 h-10 text-muted-foreground" />
+                        <ImageIconLucide className="w-10 h-10 text-muted-foreground" />
                       </div>
                     )}
                     <div className="flex-grow">
                       <h3 className="font-semibold text-lg text-foreground">{category.name} <span className="text-xs text-muted-foreground">({category.slug})</span></h3>
                       <p className="text-sm text-muted-foreground line-clamp-2">{category.description || "No description."}</p>
+                      {category.parentId && (
+                        <p className="text-xs text-accent mt-1 flex items-center">
+                          <Network size={12} className="mr-1"/> Parent: {getParentCategoryName(category.parentId)}
+                        </p>
+                      )}
                       {category.aiImagePrompt && <p className="text-xs text-accent mt-1 flex items-center"><MessageSquare size={12} className="mr-1"/> Prompt: <span className="italic line-clamp-1">{category.aiImagePrompt}</span></p>}
                     </div>
                   </div>
@@ -251,6 +269,32 @@ export default function AdminCategoriesPage() {
                   <FormField control={form.control} name="slug" render={({ field }) => (
                     <FormItem><FormLabel>Slug*</FormLabel><FormControl><Input {...field} placeholder="auto-generated if empty" /></FormControl><FormMessage /></FormItem>
                   )} />
+                  <FormField
+                    control={form.control}
+                    name="parentId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Parent Category (Optional)</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value || undefined} value={field.value || undefined}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select a parent category (or leave for top-level)" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="">None (Top-Level Category)</SelectItem>
+                            {categories
+                              .filter(cat => cat.id !== editingCategory?.id) // Prevent self-parenting
+                              .map(cat => (
+                                <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormDescription>Select a parent to make this a subcategory.</FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                   <FormField control={form.control} name="description" render={({ field }) => (
                     <FormItem><FormLabel>Description (Optional)</FormLabel><FormControl><Textarea {...field} rows={3} /></FormControl><FormMessage /></FormItem>
                   )} />
@@ -266,7 +310,7 @@ export default function AdminCategoriesPage() {
                     <FormItem>
                       <FormLabel>Image URL (Optional)</FormLabel>
                       <FormControl><Input {...field} placeholder="https://example.com/category-image.jpg" /></FormControl>
-                      <FormDescription>After generating an image using the prompt, upload it to a hosting service (e.g., ImgBB, Postimages, Firebase Storage) and paste the direct URL here.</FormDescription>
+                      <FormDescription>Tip: For quick uploads, try free sites like ImgBB.com or Postimages.org. Upload your image, then copy and paste the "Direct link" here.</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )} />
@@ -295,7 +339,8 @@ export default function AdminCategoriesPage() {
           <AlertDialogDeleteHeader>
             <AlertDialogDeleteTitle>Are you sure you want to delete this category?</AlertDialogDeleteTitle>
             <AlertDialogDeleteDescription>
-              This action cannot be undone. This will permanently delete the category: "{categoryToDelete?.name}".
+              This action cannot be undone. This will permanently delete the category: "{categoryToDelete?.name}". 
+              Any subcategories under it will become top-level categories (their parent_id will be set to NULL).
             </AlertDialogDeleteDescription>
           </AlertDialogDeleteHeader>
           <AlertDialogDeleteFooter>

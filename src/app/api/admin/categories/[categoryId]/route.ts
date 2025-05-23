@@ -2,7 +2,7 @@
 // /src/app/api/admin/categories/[categoryId]/route.ts
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { supabase } from '../../../../../lib/supabaseClient.ts';
+import { supabase } from '../../../../../lib/supabaseClient'; // Adjusted path
 import type { AdminCategory } from '@/types';
 
 export const dynamic = 'force-dynamic';
@@ -16,8 +16,8 @@ export async function PUT(
   console.log(`[API /api/admin/categories/${categoryId}] PUT request received.`);
 
   if (!supabase) {
-    console.error(`[API /api/admin/categories/${categoryId} PUT] Supabase client is not initialized. Check environment variables and server restart.`);
-    return NextResponse.json({ message: 'Database client not configured. Please check server logs and .env file.' }, { status: 503 });
+    console.error(`[API /api/admin/categories/${categoryId} PUT] Supabase client is not initialized.`);
+    return NextResponse.json({ message: 'Database client not configured.' }, { status: 503 });
   }
   if (!categoryId) {
     return NextResponse.json({ message: 'Category ID is required' }, { status: 400 });
@@ -27,19 +27,20 @@ export async function PUT(
     const body = await request.json() as Partial<Omit<AdminCategory, 'id' | 'createdAt' | 'updatedAt'>>;
     
     const categoryToUpdate: { [key: string]: any } = {};
-    if (body.name) categoryToUpdate.name = body.name;
-    if (body.slug) categoryToUpdate.slug = body.slug;
-    else if (body.name) categoryToUpdate.slug = body.name.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, '');
+    if (body.name !== undefined) categoryToUpdate.name = body.name;
+    if (body.slug !== undefined) categoryToUpdate.slug = body.slug;
+    else if (body.name !== undefined) categoryToUpdate.slug = body.name.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, '');
     
     if (body.hasOwnProperty('description')) categoryToUpdate.description = body.description || null;
-    if (body.hasOwnProperty('imageUrl')) categoryToUpdate.image_url = body.imageUrl || null; // Supabase uses image_url
-    if (body.hasOwnProperty('aiImagePrompt')) categoryToUpdate.ai_image_prompt = body.aiImagePrompt || null; // Supabase uses ai_image_prompt
+    if (body.hasOwnProperty('imageUrl')) categoryToUpdate.image_url = body.imageUrl || null;
+    if (body.hasOwnProperty('aiImagePrompt')) categoryToUpdate.ai_image_prompt = body.aiImagePrompt || null;
+    if (body.hasOwnProperty('parentId')) categoryToUpdate.parent_id = body.parentId === '' ? null : body.parentId || null;
     
-    categoryToUpdate.updated_at = new Date().toISOString(); // Explicitly set for Supabase if trigger isn't used/reliable
+    categoryToUpdate.updated_at = new Date().toISOString();
 
     console.log(`[API /api/admin/categories/${categoryId}] Attempting to update category with:`, categoryToUpdate);
 
-    const { data, error } = await supabase
+    const { data: updatedData, error } = await supabase
       .from('categories')
       .update(categoryToUpdate)
       .eq('id', categoryId)
@@ -47,15 +48,25 @@ export async function PUT(
       .single();
 
     if (error) {
-      console.error(`[API /api/admin/categories/${categoryId}] Supabase error updating category:`, error);
+      console.error(`[API /api/admin/categories/${categoryId}] Supabase error updating category:`, JSON.stringify(error, null, 2));
       return NextResponse.json({ message: error.message, details: error.details, hint: error.hint, code: error.code, rawSupabaseError: error }, { status: 400 });
     }
-    if (!data) {
+    if (!updatedData) {
         return NextResponse.json({ message: 'Category not found or update failed' }, { status: 404 });
     }
-    console.log(`[API /api/admin/categories/${categoryId}] Category updated successfully:`, data);
-    return NextResponse.json(data);
-  } catch (e) {
+
+    const responseCategory = {
+        ...updatedData,
+        imageUrl: updatedData.image_url,
+        aiImagePrompt: updatedData.ai_image_prompt,
+        parentId: updatedData.parent_id,
+        createdAt: updatedData.createdAt || updatedData.created_at,
+        updatedAt: updatedData.updatedAt || updatedData.updated_at,
+    };
+    
+    console.log(`[API /api/admin/categories/${categoryId}] Category updated successfully:`, responseCategory);
+    return NextResponse.json(responseCategory);
+  } catch (e: any) {
     console.error(`[API /api/admin/categories/${categoryId}] Unhandled error updating category:`, e);
     return NextResponse.json({ message: (e as Error).message }, { status: 500 });
   }
@@ -70,26 +81,27 @@ export async function DELETE(
   console.log(`[API /api/admin/categories/${categoryId}] DELETE request received.`);
 
   if (!supabase) {
-    console.error(`[API /api/admin/categories/${categoryId} DELETE] Supabase client is not initialized. Check environment variables and server restart.`);
-    return NextResponse.json({ message: 'Database client not configured. Please check server logs and .env file.' }, { status: 503 });
+    console.error(`[API /api/admin/categories/${categoryId} DELETE] Supabase client is not initialized.`);
+    return NextResponse.json({ message: 'Database client not configured.' }, { status: 503 });
   }
   if (!categoryId) {
     return NextResponse.json({ message: 'Category ID is required' }, { status: 400 });
   }
 
   try {
+    // Note: ON DELETE SET NULL for parent_id in the DB schema handles children becoming top-level.
     const { error } = await supabase
       .from('categories')
       .delete()
       .eq('id', categoryId);
 
     if (error) {
-      console.error(`[API /api/admin/categories/${categoryId}] Supabase error deleting category:`, error);
+      console.error(`[API /api/admin/categories/${categoryId}] Supabase error deleting category:`, JSON.stringify(error, null, 2));
       return NextResponse.json({ message: error.message, details: error.details, hint: error.hint, rawSupabaseError: error }, { status: 500 });
     }
     console.log(`[API /api/admin/categories/${categoryId}] Category deleted successfully.`);
     return NextResponse.json({ message: 'Category deleted successfully' }, { status: 200 });
-  } catch (e) {
+  } catch (e: any) {
     console.error(`[API /api/admin/categories/${categoryId}] Unhandled error deleting category:`, e);
     return NextResponse.json({ message: (e as Error).message }, { status: 500 });
   }

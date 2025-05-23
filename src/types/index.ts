@@ -17,6 +17,7 @@ export interface AdminCategory {
   description?: string;
   imageUrl?: string;
   aiImagePrompt?: string;
+  parentId?: string | null; // ID of the parent category
   createdAt?: string; // ISO string
   updatedAt?: string; // ISO string
 }
@@ -76,7 +77,7 @@ export interface Product {
   costPrice?: number | null;
   images: ProductImage[];
   variants?: ProductVariant[];
-  categories: Pick<AdminCategory, 'id' | 'name' | 'slug'>[];
+  categories: Pick<AdminCategory, 'id' | 'name' | 'slug'>[]; // Product still links to categories flatly for now
   collections?: Pick<Collection, 'id' | 'name' | 'slug'>[];
   tags?: string[];
   fabricDetails?: string;
@@ -107,9 +108,9 @@ export interface CartItemCustomization {
 }
 
 export interface CartItem {
-  id: string; // This ID will be unique for each cart line item (product + variant + customization)
-  productId: string; // Original product ID
-  slug?: string; // Product slug for linking
+  id: string;
+  productId: string;
+  slug?: string;
   variantId?: string;
   name: string;
   price: number;
@@ -140,7 +141,7 @@ export type PaymentStatus = typeof ALL_PAYMENT_STATUSES[number];
 
 export interface Order {
   id: string; // Supabase UUID
-  userId: string; // Firebase UID, maps to users.id which is TEXT
+  userId: string; // Firebase UID, TEXT in Supabase users table
   items: CartItem[]; // Stored as JSONB
   totalAmount: number; // Numeric
   currency: string; // Text
@@ -155,7 +156,7 @@ export interface Order {
 }
 
 export interface Loan {
-  id: string;
+  id: string; // Supabase UUID
   loan_name: string;
   lender_name: string;
   principal_amount: number;
@@ -164,9 +165,10 @@ export interface Loan {
   start_date: string; // YYYY-MM-DD
   status: string;
   notes?: string;
-  created_at?: string;
-  updated_at?: string;
+  created_at?: string; // ISO string from Supabase
+  updated_at?: string; // ISO string from Supabase
 }
+
 
 export interface NavItem {
   title: string;
@@ -221,24 +223,24 @@ export interface HomepageContent {
 }
 
 export interface OurStoryContentData {
-  hero: {
+  hero?: {
     title: string;
     description: string;
   };
-  mission: {
+  mission?: {
     title: string;
     paragraph1: string;
     paragraph2: string;
   };
-  craftsmanship: {
+  craftsmanship?: {
     title: string;
     paragraph1: string;
     paragraph2: string;
   };
-  valuesSection: {
+  valuesSection?: {
     title: string;
   };
-  joinJourneySection: {
+  joinJourneySection?: {
     title: string;
     description: string;
   };
@@ -264,18 +266,52 @@ export interface SocialLink {
   url: string;
 }
 
+export interface FooterNavItem {
+  id: string;
+  name: string;
+  href: string;
+}
+
+export interface FooterNavSection {
+  id: string;
+  label: string;
+  items: FooterNavItem[];
+}
+
+export interface FooterContentData {
+  copyrightText?: string;
+  navigationSections?: FooterNavSection[];
+}
+
 export interface SiteSettings {
   siteTitle: string;
   siteDescription: string;
   storeEmail: string;
   storePhone?: string;
   storeAddress?: string;
-  socialLinks?: SocialLink[];
+  socialLinks?: SocialLink[]; // Kept for potential direct use, though footer gets them from FooterContentData now
 }
 
-export interface BreadcrumbItem {
-  name: string;
-  href?: string;
+
+export interface PageContent {
+  content: string;
+  error?: string;
+}
+
+export interface FilterOptionValue {
+  value: string;
+  label: string;
+  color?: string;
+}
+
+export interface FilterOption {
+  id: string;
+  label: string;
+  type: 'checkbox' | 'radio' | 'range' | 'color';
+  options?: FilterOptionValue[];
+  min?: number;
+  max?: number;
+  step?: number;
 }
 
 export interface CartContextType {
@@ -310,40 +346,7 @@ export interface Review {
   updatedAt?: string;
 }
 
-export interface FooterNavItem {
-  id: string;
+export interface BreadcrumbItem {
   name: string;
-  href: string;
-}
-
-export interface FooterNavSection {
-  id: string;
-  label: string;
-  items: FooterNavItem[];
-}
-
-export interface FooterContentData {
-  copyrightText?: string;
-  navigationSections?: FooterNavSection[];
-}
-
-export interface PageContent {
-  content: string;
-  error?: string;
-}
-
-export interface FilterOptionValue {
-  value: string;
-  label: string;
-  color?: string;
-}
-
-export interface FilterOption {
-  id: string;
-  label: string;
-  type: 'checkbox' | 'radio' | 'range' | 'color';
-  options?: FilterOptionValue[];
-  min?: number;
-  max?: number;
-  step?: number;
+  href?: string;
 }
