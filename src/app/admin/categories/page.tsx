@@ -42,10 +42,12 @@ const categoryFormSchema = z.object({
   description: z.string().optional(),
   imageUrl: z.string().url({ message: "Please enter a valid image URL." }).optional().or(z.literal('')),
   aiImagePrompt: z.string().optional(),
-  parentId: z.string().nullable().optional(), // Can be string (UUID), null, or undefined
+  parentId: z.string().nullable().optional(),
 });
 
 type CategoryFormValues = z.infer<typeof categoryFormSchema>;
+
+const NO_PARENT_ID_VALUE = "__NONE__"; // Special value for the "None" option
 
 export default function AdminCategoriesPage() {
   const { toast } = useToast();
@@ -65,7 +67,7 @@ export default function AdminCategoriesPage() {
       description: '',
       imageUrl: '',
       aiImagePrompt: '',
-      parentId: null, // Default to null for top-level
+      parentId: null,
     },
   });
 
@@ -99,7 +101,7 @@ export default function AdminCategoriesPage() {
       description: category.description || '',
       imageUrl: category.imageUrl || '',
       aiImagePrompt: category.aiImagePrompt || '',
-      parentId: category.parentId || null,
+      parentId: category.parentId || null, // Will be handled by Select's value prop
     });
     setIsFormOpen(true);
   };
@@ -113,7 +115,7 @@ export default function AdminCategoriesPage() {
       description: '',
       imageUrl: '',
       aiImagePrompt: '',
-      parentId: null,
+      parentId: null, // Default to null for top-level
     });
     setIsFormOpen(true);
   };
@@ -126,11 +128,9 @@ export default function AdminCategoriesPage() {
     const payload = {
       ...data,
       slug: data.slug || data.name.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, ''),
-      parentId: data.parentId === '' ? null : data.parentId, // Ensure empty string becomes null for DB
+      parentId: data.parentId, // Already null or a string ID from form state
     };
     
-    console.log("Submitting category payload:", payload);
-
     try {
       const response = await fetch(url, {
         method: method,
@@ -176,9 +176,9 @@ export default function AdminCategoriesPage() {
   };
 
   const getParentCategoryName = (parentId: string | null | undefined): string => {
-    if (!parentId) return 'None';
+    if (!parentId) return 'None (Top-Level)';
     const parent = categories.find(cat => cat.id === parentId);
-    return parent ? parent.name : 'Unknown';
+    return parent ? parent.name : 'Unknown Parent';
   };
 
   if (isLoading) {
@@ -223,7 +223,7 @@ export default function AdminCategoriesPage() {
                     <div className="flex-grow">
                       <h3 className="font-semibold text-lg text-foreground">{category.name} <span className="text-xs text-muted-foreground">({category.slug})</span></h3>
                       <p className="text-sm text-muted-foreground line-clamp-2">{category.description || "No description."}</p>
-                      {category.parentId && (
+                      {category.parentId !== undefined && ( // Check explicitly for undefined as null means top-level
                         <p className="text-xs text-accent mt-1 flex items-center">
                           <Network size={12} className="mr-1"/> Parent: {getParentCategoryName(category.parentId)}
                         </p>
@@ -275,16 +275,19 @@ export default function AdminCategoriesPage() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Parent Category (Optional)</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value || undefined} value={field.value || undefined}>
+                        <Select
+                          onValueChange={(value) => field.onChange(value === NO_PARENT_ID_VALUE ? null : value)}
+                          value={field.value === null || field.value === undefined ? NO_PARENT_ID_VALUE : field.value}
+                        >
                           <FormControl>
                             <SelectTrigger>
                               <SelectValue placeholder="Select a parent category (or leave for top-level)" />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="">None (Top-Level Category)</SelectItem>
+                            <SelectItem value={NO_PARENT_ID_VALUE}>None (Top-Level Category)</SelectItem>
                             {categories
-                              .filter(cat => cat.id !== editingCategory?.id) // Prevent self-parenting
+                              .filter(cat => cat.id !== editingCategory?.id) 
                               .map(cat => (
                                 <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
                             ))}
@@ -302,7 +305,7 @@ export default function AdminCategoriesPage() {
                     <FormItem>
                       <FormLabel>AI Image Generation Prompt (Optional)</FormLabel>
                       <FormControl><Textarea {...field} rows={3} placeholder="e.g., 'Vibrant streetwear suitable for Holi festival, paint splashes, dynamic pose'" /></FormControl>
-                      <FormDescription>Use this prompt with an AI image generator (e.g., Midjourney, DALL-E) to create a category image.</FormDescription>
+                      <FormDescription>Use this prompt with an AI image generator to create a category image.</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )} />
@@ -340,7 +343,7 @@ export default function AdminCategoriesPage() {
             <AlertDialogDeleteTitle>Are you sure you want to delete this category?</AlertDialogDeleteTitle>
             <AlertDialogDeleteDescription>
               This action cannot be undone. This will permanently delete the category: "{categoryToDelete?.name}". 
-              Any subcategories under it will become top-level categories (their parent_id will be set to NULL).
+              Any subcategories under it will become top-level categories (their parent_id will be set to NULL in Supabase due to ON DELETE SET NULL).
             </AlertDialogDeleteDescription>
           </AlertDialogDeleteHeader>
           <AlertDialogDeleteFooter>
