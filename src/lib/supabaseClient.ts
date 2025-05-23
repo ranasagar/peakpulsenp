@@ -1,5 +1,5 @@
 // src/lib/supabaseClient.ts
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -16,7 +16,6 @@ if (!supabaseUrl) {
   );
 } else {
   try {
-    // Log the URL and a masked version of the key to confirm they are being read
     console.log(`[SupabaseClient] Attempting to initialize with URL: ${supabaseUrl}`);
     console.log(`[SupabaseClient] Attempting to initialize with Anon Key starting with: ${supabaseAnonKey.substring(0, 10)}...`);
     supabaseInstance = createClient(supabaseUrl, supabaseAnonKey);
