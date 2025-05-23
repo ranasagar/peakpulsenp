@@ -2,17 +2,55 @@
 "use client"; 
 
 import Link from 'next/link';
-import { Shield, LayoutDashboard, Settings, ArrowLeft, BookOpenText, ShoppingBag, BarChart3, ListOrdered, Landmark, Tags, Users, ListChecks, FileText as PageIcon, Package, Home as HomeIcon, PenSquare, DollarSign, FileSpreadsheet } from 'lucide-react';
+import { Shield, LayoutDashboard, Settings, ArrowLeft, BookOpenText, ShoppingBag, BarChart3, ListOrdered, Landmark, Tags, Users, ListChecks, FileText as PageIcon, Package, Home as HomeIcon, PenSquare, DollarSign, FileSpreadsheet, Palette, Image as ImageIconLucide, Printer } from 'lucide-react'; // Added Palette, ImageIconLucide, Printer
 import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
 import { Button } from '@/components/ui/button';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { useAuth } from '@/hooks/use-auth';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Card } from '@/components/ui/card';
 
 export default function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const { user, isAuthenticated, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-screen flex-col">
+        <Header />
+        <main className="flex-grow container-wide section-padding">
+          <Skeleton className="h-12 w-1/3 mb-8" />
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+            <Card className="p-4 md:col-span-1"><Skeleton className="h-64 w-full" /></Card>
+            <Card className="p-6 md:col-span-3"><Skeleton className="h-96 w-full" /></Card>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  if (!isAuthenticated || !user?.roles?.includes('admin')) {
+    return (
+      <div className="flex min-h-screen flex-col">
+        <Header />
+        <main className="flex-grow container-wide section-padding flex items-center justify-center">
+          <Card className="p-8 text-center shadow-xl">
+            <Shield className="h-16 w-16 text-destructive mx-auto mb-6" />
+            <h1 className="text-2xl font-bold mb-3">Access Denied</h1>
+            <p className="text-muted-foreground mb-6">You do not have permission to view this page.</p>
+            <Button asChild><Link href="/">Go to Homepage</Link></Button>
+          </Card>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
   return (
     <div className="flex min-h-screen flex-col">
       <Header />
@@ -29,7 +67,7 @@ export default function AdminLayout({
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8 items-start">
-            <aside className="w-full md:col-span-1 md:sticky md:top-28 bg-card p-4 rounded-lg shadow-sm h-fit">
+            <aside className="w-full md:col-span-1 sticky top-28 bg-card p-4 rounded-lg shadow-sm h-fit">
               <nav className="space-y-1">
                 <Button variant="ghost" className="w-full justify-start" asChild>
                   <Link href="/admin">
@@ -37,7 +75,7 @@ export default function AdminLayout({
                   </Link>
                 </Button>
                 
-                <Accordion type="multiple" defaultValue={['store-management', 'content-management', 'accounting']} className="w-full">
+                <Accordion type="multiple" defaultValue={['store-management', 'content-management', 'accounting', 'design-hub']} className="w-full">
                   <AccordionItem value="store-management" className="border-b-0">
                     <AccordionTrigger className="py-2 px-3 hover:bg-accent hover:text-accent-foreground rounded-md text-sm font-medium hover:no-underline [&[data-state=open]>svg]:text-primary">
                       <div className="flex items-center">
@@ -75,6 +113,25 @@ export default function AdminLayout({
                       </Button>
                       <Button variant="ghost" className="w-full justify-start text-sm font-normal h-9" asChild>
                         <Link href="/admin/content/site-pages"><PageIcon className="mr-2 h-4 w-4" /> Site Pages Content</Link>
+                      </Button>
+                    </AccordionContent>
+                  </AccordionItem>
+                  
+                  <AccordionItem value="design-hub" className="border-b-0">
+                    <AccordionTrigger className="py-2 px-3 hover:bg-accent hover:text-accent-foreground rounded-md text-sm font-medium hover:no-underline [&[data-state=open]>svg]:text-primary">
+                      <div className="flex items-center">
+                        <Palette className="mr-2 h-4 w-4" /> Design Hub
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent className="pt-1 pl-4 space-y-0.5">
+                      <Button variant="ghost" className="w-full justify-start text-sm font-normal h-9" asChild>
+                        <Link href="/admin/design-hub/collaboration-categories"><Tags className="mr-2 h-4 w-4" />Collaboration Categories</Link>
+                      </Button>
+                      <Button variant="ghost" className="w-full justify-start text-sm font-normal h-9" asChild>
+                        <Link href="/admin/design-hub/galleries"><ImageIconLucide className="mr-2 h-4 w-4" />Collaboration Galleries</Link>
+                      </Button>
+                      <Button variant="ghost" className="w-full justify-start text-sm font-normal h-9" asChild>
+                        <Link href="/admin/design-hub/print-designs"><Printer className="mr-2 h-4 w-4" />Print-on-Demand Designs</Link>
                       </Button>
                     </AccordionContent>
                   </AccordionItem>
@@ -118,3 +175,5 @@ export default function AdminLayout({
     </div>
   );
 }
+
+    

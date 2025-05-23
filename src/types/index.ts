@@ -17,7 +17,7 @@ export interface AdminCategory {
   description?: string;
   imageUrl?: string;
   aiImagePrompt?: string;
-  parentId?: string | null; // ID of the parent category
+  parentId?: string | null;
   createdAt?: string; // ISO string
   updatedAt?: string; // ISO string
 }
@@ -28,7 +28,7 @@ export interface Collection {
   slug: string;
   description?: string;
   imageUrl?: string;
-  isPrivate?: boolean; // For VIP collections
+  isPrivate?: boolean;
 }
 
 export interface ProductImage {
@@ -40,13 +40,13 @@ export interface ProductImage {
 
 export interface ProductVariant {
   id: string;
-  name: string; // e.g., "Size", "Color"
-  value: string; // e.g., "M", "Red"
-  sku?: string; // Optional SKU
+  name: string;
+  value: string;
+  sku?: string;
   price: number;
-  costPrice?: number | null; // Cost of goods for this variant
+  costPrice?: number | null;
   stock: number;
-  imageId?: string; // Link to a specific image for this variant
+  imageId?: string;
 }
 
 export interface PrintDesign {
@@ -77,7 +77,7 @@ export interface Product {
   costPrice?: number | null;
   images: ProductImage[];
   variants?: ProductVariant[];
-  categories: Pick<AdminCategory, 'id' | 'name' | 'slug'>[]; // Product still links to categories flatly for now
+  categories: Pick<AdminCategory, 'id' | 'name' | 'slug'>[];
   collections?: Pick<Collection, 'id' | 'name' | 'slug'>[];
   tags?: string[];
   fabricDetails?: string;
@@ -165,8 +165,8 @@ export interface Loan {
   start_date: string; // YYYY-MM-DD
   status: string;
   notes?: string;
-  created_at?: string; // ISO string from Supabase
-  updated_at?: string; // ISO string from Supabase
+  createdAt?: string; // ISO string from Supabase
+  updatedAt?: string; // ISO string from Supabase
 }
 
 
@@ -289,7 +289,7 @@ export interface SiteSettings {
   storeEmail: string;
   storePhone?: string;
   storeAddress?: string;
-  socialLinks?: SocialLink[]; // Kept for potential direct use, though footer gets them from FooterContentData now
+  socialLinks?: SocialLink[];
 }
 
 
@@ -350,3 +350,59 @@ export interface BreadcrumbItem {
   name: string;
   href?: string;
 }
+
+// New Types for Design Collaborations
+export interface DesignCollaborationCategory {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string;
+  image_url?: string;
+  ai_image_prompt?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface GalleryImageItem {
+  id: string; // Can be a temporary client-side ID or a persistent one if stored separately
+  url: string;
+  altText?: string;
+  dataAiHint?: string;
+  displayOrder?: number;
+}
+
+export interface DesignCollaborationGallery {
+  id: string;
+  title: string;
+  slug: string;
+  description?: string;
+  category_id?: string | null;
+  category_name?: string; // For display, joined in API
+  cover_image_url?: string;
+  ai_cover_image_prompt?: string;
+  artist_name?: string;
+  artist_statement?: string;
+  gallery_images?: GalleryImageItem[]; // Stored as JSONB for now
+  is_published?: boolean;
+  collaboration_date?: string; // YYYY-MM-DD
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface PrintOnDemandDesign {
+  id: string;
+  title: string;
+  slug: string;
+  description?: string;
+  image_url: string;
+  ai_image_prompt?: string;
+  price: number;
+  is_for_sale?: boolean;
+  sku?: string;
+  collaboration_id?: string | null; // Optional link to a DesignCollaborationGallery
+  collaboration_title?: string; // For display
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+    
