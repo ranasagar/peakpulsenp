@@ -2,7 +2,7 @@
 "use client"; 
 
 import Link from 'next/link';
-import { Shield, LayoutDashboard, Settings, ArrowLeft, BookOpenText, ShoppingBag, BarChart3, ListOrdered, Landmark, Tags, Users, ListChecks, FileText as PageIcon, Package, Home as HomeIcon, PenSquare, DollarSign, FileSpreadsheet, Palette, Image as ImageIconLucide, Printer } from 'lucide-react'; // Added Palette, ImageIconLucide, Printer
+import { Shield, LayoutDashboard, Settings, ArrowLeft, BookOpenText, ShoppingBag, BarChart3, ListOrdered, Landmark, Tags, Users, ListChecks, FileText, Package, Home as HomeIcon, PenSquare, DollarSign, FileSpreadsheet, Palette, Image as ImageIconLucide, Printer } from 'lucide-react';
 import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
 import { Button } from '@/components/ui/button';
@@ -66,7 +66,7 @@ export default function AdminLayout({
             </Button>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 items-start">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-8"> {/* Removed items-start */}
             <aside className="w-full md:col-span-1 sticky top-28 bg-card p-4 rounded-lg shadow-sm h-fit">
               <nav className="space-y-1">
                 <Button variant="ghost" className="w-full justify-start" asChild>
@@ -103,16 +103,16 @@ export default function AdminLayout({
                     </AccordionTrigger>
                     <AccordionContent className="pt-1 pl-4 space-y-0.5">
                       <Button variant="ghost" className="w-full justify-start text-sm font-normal h-9" asChild>
-                        <Link href="/admin/content/homepage"><HomeIcon className="mr-2 h-4 w-4" />Homepage Content</Link>
+                        <Link href="/admin/content/homepage"><HomeIcon className="mr-2 h-4 w-4" />Homepage</Link>
                       </Button>
                       <Button variant="ghost" className="w-full justify-start text-sm font-normal h-9" asChild>
-                        <Link href="/admin/content/our-story"><PenSquare className="mr-2 h-4 w-4" />Our Story Content</Link>
+                        <Link href="/admin/content/our-story"><PenSquare className="mr-2 h-4 w-4" />Our Story</Link>
                       </Button>
                       <Button variant="ghost" className="w-full justify-start text-sm font-normal h-9" asChild>
-                        <Link href="/admin/content/footer"><ListChecks className="mr-2 h-4 w-4" /> Footer Content</Link>
+                        <Link href="/admin/content/footer"><ListChecks className="mr-2 h-4 w-4" /> Footer</Link>
                       </Button>
                       <Button variant="ghost" className="w-full justify-start text-sm font-normal h-9" asChild>
-                        <Link href="/admin/content/site-pages"><PageIcon className="mr-2 h-4 w-4" /> Site Pages Content</Link>
+                        <Link href="/admin/content/site-pages"><PageIcon className="mr-2 h-4 w-4" /> Site Pages</Link>
                       </Button>
                     </AccordionContent>
                   </AccordionItem>
@@ -125,13 +125,13 @@ export default function AdminLayout({
                     </AccordionTrigger>
                     <AccordionContent className="pt-1 pl-4 space-y-0.5">
                       <Button variant="ghost" className="w-full justify-start text-sm font-normal h-9" asChild>
-                        <Link href="/admin/design-hub/collaboration-categories"><Tags className="mr-2 h-4 w-4" />Collaboration Categories</Link>
+                        <Link href="/admin/design-hub/collaboration-categories"><Tags className="mr-2 h-4 w-4" />Collab Categories</Link>
                       </Button>
                       <Button variant="ghost" className="w-full justify-start text-sm font-normal h-9" asChild>
-                        <Link href="/admin/design-hub/galleries"><ImageIconLucide className="mr-2 h-4 w-4" />Collaboration Galleries</Link>
+                        <Link href="/admin/design-hub/galleries"><ImageIconLucide className="mr-2 h-4 w-4" />Collab Galleries</Link>
                       </Button>
                       <Button variant="ghost" className="w-full justify-start text-sm font-normal h-9" asChild>
-                        <Link href="/admin/design-hub/print-designs"><Printer className="mr-2 h-4 w-4" />Print-on-Demand Designs</Link>
+                        <Link href="/admin/design-hub/print-designs"><Printer className="mr-2 h-4 w-4" />Print Designs</Link>
                       </Button>
                     </AccordionContent>
                   </AccordionItem>
@@ -165,7 +165,7 @@ export default function AdminLayout({
                 </Button>
               </nav>
             </aside>
-            <div className="w-full md:col-start-2 md:col-span-3 flex flex-col">
+            <div className="w-full md:col-span-3 flex flex-col md:col-start-2">
               {children}
             </div>
           </div>
@@ -175,5 +175,3 @@ export default function AdminLayout({
     </div>
   );
 }
-
-    
