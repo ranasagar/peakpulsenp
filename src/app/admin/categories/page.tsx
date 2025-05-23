@@ -32,7 +32,7 @@ import {
   AlertDialogFooter as AlertDialogDeleteFooter,
   AlertDialogHeader as AlertDialogDeleteHeader,
   AlertDialogTitle as AlertDialogDeleteTitle,
-  AlertDialogTrigger,
+  // AlertDialogTrigger, // No longer needed here
 } from "@/components/ui/alert-dialog";
 
 const categoryFormSchema = z.object({
@@ -54,6 +54,7 @@ export default function AdminCategoriesPage() {
   const [editingCategory, setEditingCategory] = useState<AdminCategory | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [categoryToDelete, setCategoryToDelete] = useState<AdminCategory | null>(null);
+  const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false); // New state for delete dialog
 
   const form = useForm<CategoryFormValues>({
     resolver: zodResolver(categoryFormSchema),
@@ -71,8 +72,8 @@ export default function AdminCategoriesPage() {
     try {
       const response = await fetch('/api/admin/categories');
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to fetch categories');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || errorData.rawSupabaseError?.message ||'Failed to fetch categories');
       }
       const data: AdminCategory[] = await response.json();
       setCategories(data);
@@ -103,7 +104,7 @@ export default function AdminCategoriesPage() {
   const handleAddNew = () => {
     setEditingCategory(null);
     form.reset({
-      id: undefined, // Important for Supabase to auto-generate UUID
+      id: undefined, 
       name: '',
       slug: '',
       description: '',
@@ -131,8 +132,8 @@ export default function AdminCategoriesPage() {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || `Failed to ${editingCategory ? 'update' : 'create'} category`);
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || errorData.rawSupabaseError?.message || `Failed to ${editingCategory ? 'update' : 'create'} category`);
       }
       toast({ title: "Success!", description: `Category "${payload.name}" ${editingCategory ? 'updated' : 'created'}.` });
       fetchCategories();
@@ -147,14 +148,14 @@ export default function AdminCategoriesPage() {
 
   const handleDelete = async () => {
     if (!categoryToDelete) return;
-    setIsSaving(true);
+    setIsSaving(true); // Can use the same saving indicator
     try {
       const response = await fetch(`/api/admin/categories/${categoryToDelete.id}`, {
         method: 'DELETE',
       });
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to delete category');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || errorData.rawSupabaseError?.message || 'Failed to delete category');
       }
       toast({ title: "Category Deleted", description: `Category "${categoryToDelete.name}" has been deleted.` });
       fetchCategories();
@@ -163,6 +164,7 @@ export default function AdminCategoriesPage() {
     } finally {
       setIsSaving(false);
       setCategoryToDelete(null);
+      setIsDeleteAlertOpen(false); // Close dialog
     }
   };
 
@@ -213,9 +215,16 @@ export default function AdminCategoriesPage() {
                   </div>
                   <div className="flex space-x-2 flex-shrink-0 pt-2 sm:pt-0">
                     <Button variant="outline" size="sm" onClick={() => handleEdit(category)}><Edit className="mr-1.5 h-3 w-3" /> Edit</Button>
-                    <AlertDialogTrigger asChild>
-                      <Button variant="destructive" size="sm" onClick={() => setCategoryToDelete(category)}><Trash2 className="mr-1.5 h-3 w-3" /> Delete</Button>
-                    </AlertDialogTrigger>
+                    <Button 
+                      variant="destructive" 
+                      size="sm" 
+                      onClick={() => { 
+                        setCategoryToDelete(category); 
+                        setIsDeleteAlertOpen(true); 
+                      }}
+                    >
+                      <Trash2 className="mr-1.5 h-3 w-3" /> Delete
+                    </Button>
                   </div>
                 </Card>
               ))}
@@ -224,7 +233,7 @@ export default function AdminCategoriesPage() {
         </CardContent>
       </Card>
 
-      <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
+      <Dialog open={isFormOpen} onOpenChange={(open) => { setIsFormOpen(open); if (!open) form.reset(); }}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>{editingCategory ? 'Edit Category' : 'Add New Category'}</DialogTitle>
@@ -257,12 +266,12 @@ export default function AdminCategoriesPage() {
                     <FormItem>
                       <FormLabel>Image URL (Optional)</FormLabel>
                       <FormControl><Input {...field} placeholder="https://example.com/category-image.jpg" /></FormControl>
-                      <FormDescription>After generating an image using the prompt, upload it to a hosting service and paste the direct URL here.</FormDescription>
+                      <FormDescription>After generating an image using the prompt, upload it to a hosting service (e.g., ImgBB, Postimages, Firebase Storage) and paste the direct URL here.</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )} />
                   <DialogFooter className="pt-4">
-                    <Button type="button" variant="outline" onClick={() => setIsFormOpen(false)}>Cancel</Button>
+                    <Button type="button" variant="outline" onClick={() => {setIsFormOpen(false); form.reset();}}>Cancel</Button>
                     <Button type="submit" disabled={isSaving}>
                       {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                       {editingCategory ? 'Save Changes' : 'Create Category'}
@@ -275,17 +284,22 @@ export default function AdminCategoriesPage() {
         </DialogContent>
       </Dialog>
 
-      <AlertDialog open={!!categoryToDelete} onOpenChange={(open) => !open && setCategoryToDelete(null)}>
+      <AlertDialog 
+        open={isDeleteAlertOpen} 
+        onOpenChange={(open) => { 
+          setIsDeleteAlertOpen(open); 
+          if (!open) setCategoryToDelete(null); 
+        }}
+      >
         <AlertDialogDeleteContent>
           <AlertDialogDeleteHeader>
             <AlertDialogDeleteTitle>Are you sure you want to delete this category?</AlertDialogDeleteTitle>
             <AlertDialogDeleteDescription>
-              This action cannot be undone. This will permanently delete the category
-              "{categoryToDelete?.name}".
+              This action cannot be undone. This will permanently delete the category: "{categoryToDelete?.name}".
             </AlertDialogDeleteDescription>
           </AlertDialogDeleteHeader>
           <AlertDialogDeleteFooter>
-            <AlertDialogCancel onClick={() => setCategoryToDelete(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel onClick={() => { setCategoryToDelete(null); setIsDeleteAlertOpen(false); }}>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleDelete} disabled={isSaving} className="bg-destructive hover:bg-destructive/90">
               {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
               Delete
