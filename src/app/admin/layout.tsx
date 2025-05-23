@@ -2,7 +2,7 @@
 "use client"; 
 
 import Link from 'next/link';
-import { Shield, LayoutDashboard, Settings, ArrowLeft, BookOpenText, ShoppingBag, BarChart3, ListOrdered, Landmark, Tags, Users, ListChecks, FileText as PageIcon } from 'lucide-react';
+import { Shield, LayoutDashboard, Settings, ArrowLeft, BookOpenText, ShoppingBag, BarChart3, ListOrdered, Landmark, Tags, Users, ListChecks, FileText as PageIcon, Package, Home as HomeIcon, PenSquare, DollarSign, FileSpreadsheet } from 'lucide-react';
 import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
 import { Button } from '@/components/ui/button';
@@ -29,7 +29,7 @@ export default function AdminLayout({
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8 items-start">
-            <aside className="w-full md:col-span-1 md:sticky md:top-28 bg-card p-4 rounded-lg shadow-sm h-fit"> {/* Changed sticky to md:sticky and md:top-28 */}
+            <aside className="w-full md:col-span-1 md:sticky md:top-28 bg-card p-4 rounded-lg shadow-sm h-fit">
               <nav className="space-y-1">
                 <Button variant="ghost" className="w-full justify-start" asChild>
                   <Link href="/admin">
@@ -46,7 +46,7 @@ export default function AdminLayout({
                     </AccordionTrigger>
                     <AccordionContent className="pt-1 pl-4 space-y-0.5">
                       <Button variant="ghost" className="w-full justify-start text-sm font-normal h-9" asChild>
-                          <Link href="/admin/products">Manage Products</Link>
+                          <Link href="/admin/products"><Package className="mr-2 h-4 w-4" />Manage Products</Link>
                         </Button>
                         <Button variant="ghost" className="w-full justify-start text-sm font-normal h-9" asChild>
                           <Link href="/admin/categories"><Tags className="mr-2 h-4 w-4" /> Manage Categories</Link>
@@ -65,10 +65,10 @@ export default function AdminLayout({
                     </AccordionTrigger>
                     <AccordionContent className="pt-1 pl-4 space-y-0.5">
                       <Button variant="ghost" className="w-full justify-start text-sm font-normal h-9" asChild>
-                        <Link href="/admin/content/homepage">Homepage Content</Link>
+                        <Link href="/admin/content/homepage"><HomeIcon className="mr-2 h-4 w-4" />Homepage Content</Link>
                       </Button>
                       <Button variant="ghost" className="w-full justify-start text-sm font-normal h-9" asChild>
-                        <Link href="/admin/content/our-story">Our Story Content</Link>
+                        <Link href="/admin/content/our-story"><PenSquare className="mr-2 h-4 w-4" />Our Story Content</Link>
                       </Button>
                       <Button variant="ghost" className="w-full justify-start text-sm font-normal h-9" asChild>
                         <Link href="/admin/content/footer"><ListChecks className="mr-2 h-4 w-4" /> Footer Content</Link>
@@ -87,10 +87,10 @@ export default function AdminLayout({
                     </AccordionTrigger>
                     <AccordionContent className="pt-1 pl-4 space-y-0.5">
                         <Button variant="ghost" className="w-full justify-start text-sm font-normal h-9" asChild>
-                          <Link href="/admin/accounting/loans">Manage Loans</Link>
+                          <Link href="/admin/accounting/loans"><DollarSign className="mr-2 h-4 w-4" />Manage Loans</Link>
                         </Button>
                         <Button variant="ghost" className="w-full justify-start text-sm font-normal h-9" asChild>
-                          <Link href="/admin/accounting/tax-report">Tax Data Export</Link>
+                          <Link href="/admin/accounting/tax-report"><FileSpreadsheet className="mr-2 h-4 w-4" />Tax Data Export</Link>
                         </Button>
                     </AccordionContent>
                   </AccordionItem>
