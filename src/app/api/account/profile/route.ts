@@ -7,10 +7,10 @@ import type { User as AuthUserType } from '@/types';
 export const dynamic = 'force-dynamic';
 
 interface ProfileUpdateRequestBody {
-  id: string; // Firebase UID, now expected as 'id'
+  id: string; // Firebase UID
   name?: string;
   avatarUrl?: string | null;
-  email?: string; // Required for new profiles
+  email: string; // Required for new profiles
   roles?: string[];
   wishlist?: string[];
 }
@@ -41,16 +41,16 @@ export async function GET(request: NextRequest) {
       .from('users')
       .select('*')
       .eq('id', uidFromQuery)
-      .single(); // .single() expects one row or zero, throws error if multiple
+      .single();
 
     if (fetchError) {
-      const isNotFound = fetchError.code === 'PGRST116'; // PostgREST code for "Fetched result consists of 0 rows"
+      const isNotFound = fetchError.code === 'PGRST116';
       const errorMessage = isNotFound ? 'Profile not found' : 'Error fetching profile from database.';
       const specificMessage = isNotFound
           ? `Profile not found. Supabase: ${fetchError.message}. Details: ${fetchError.details || 'N/A'}. Hint: ${fetchError.hint || 'N/A'}. Code: ${fetchError.code}.`
           : `Error fetching profile. Supabase: ${fetchError.message}. Details: ${fetchError.details || 'N/A'}. Hint: ${fetchError.hint || 'N/A'}. Code: ${fetchError.code}.`;
       
-      console.error(`[API /api/account/profile GET] Supabase error fetching profile for uid ${uidFromQuery}${isNotFound ? ' (Profile not found)' : ''}:`, specificMessage);
+      console.error(`[API /api/account/profile GET] Supabase error fetching profile for uid ${uidFromQuery}${isNotFound ? ' (Profile not found)' : ''}:`, specificMessage, fetchError);
       
       return NextResponse.json({
         message: errorMessage,
@@ -58,12 +58,11 @@ export async function GET(request: NextRequest) {
       }, { status: isNotFound ? 404 : 500 });
     }
     
-    // If profile is null but no error (should be caught by .single() as PGRST116), treat as not found.
     if (!profile) {
       console.warn(`[API /api/account/profile GET] Profile not found for ${uidFromQuery} (data was null after query).`);
       return NextResponse.json({
         message: 'Profile not found',
-        rawSupabaseError: { message: 'No profile data returned from database.', code: 'PGRST116_MANUAL' } // Custom code
+        rawSupabaseError: { message: 'No profile data returned from database (PGRST116 implied).', code: 'PGRST116_MANUAL' }
       }, { status: 404 });
     }
 
@@ -75,16 +74,15 @@ export async function GET(request: NextRequest) {
     console.error(`[API /api/account/profile GET] Unhandled exception fetching profile for uid ${uidFromQuery}:`, catchError);
     return NextResponse.json({
         message: 'Server error fetching profile.',
-        errorDetails: catchError.message, // Changed from 'error' to 'errorDetails' for clarity
+        errorDetails: catchError.message,
         rawSupabaseError: { message: catchError.message, code: catchError.code || 'UNKNOWN_SERVER_ERROR_PROFILE_GET', details: catchError.details, hint: catchError.hint }
     }, { status: 500 });
   }
 }
 
-
 // POST to create or update user profile
 export async function POST(request: NextRequest) {
-  const clientForWrite = supabaseAdmin || supabase;
+  const clientForWrite = supabaseAdmin || supabase; // Prefer admin client for writes to bypass RLS for this system op
 
   if (!clientForWrite) {
      const errorMsg = supabaseAdmin ? '[API /api/account/profile POST] Admin Supabase client (service_role) is not initialized.' : '[API /api/account/profile POST] Public Supabase client (fallback) is not initialized.';
@@ -95,7 +93,7 @@ export async function POST(request: NextRequest) {
      }, { status: 503 });
   }
   if (!supabaseAdmin) {
-    console.warn("[API /api/account/profile POST] WARNING: Using public anon key for profile creation/update because SUPABASE_SERVICE_ROLE_KEY is likely not set. RLS policies for 'anon' role on 'users' table will apply for UPSERT.");
+    console.warn("[API /api/account/profile POST] WARNING: Using public anon key for profile creation/update because SUPABASE_SERVICE_ROLE_KEY is likely not set. RLS policies for 'anon' role on 'users' table will apply.");
   }
 
   let requestBody: ProfileUpdateRequestBody;
@@ -111,97 +109,124 @@ export async function POST(request: NextRequest) {
   const { name, avatarUrl, email, roles, wishlist } = requestBody;
 
   if (!userIdToProcess) {
-    console.warn("[API /api/account/profile POST] User ID ('id' field) is required in request body for upsert.");
-    return NextResponse.json({ message: "User ID ('id' field) is required for upsert" }, { status: 400 });
+    console.warn("[API /api/account/profile POST] User ID ('id' field) is required in request body.");
+    return NextResponse.json({ message: "User ID ('id' field) is required for update/create" }, { status: 400 });
   }
   if (!email) {
       console.warn(`[API /api/account/profile POST] Email is required for profile creation/update (UID ${userIdToProcess}).`);
-      return NextResponse.json({ message: 'Email is required.' }, { status: 400 });
+      return NextResponse.json({ message: 'Email is required for profile.', rawSupabaseError: {message: 'Email is required.'} }, { status: 400 });
   }
-  console.log(`[API /api/account/profile POST] Processing upsert for user ID: ${userIdToProcess}`);
-
-  // Data for upsert. For a new user, these will be the initial values.
-  // For an existing user, these will be the fields to update.
-  const profileDataToUpsert: Partial<AuthUserType> & { id: string; email: string; updatedAt: string; createdAt?: string } = {
-    id: userIdToProcess,
-    email: email,
-    name: name || email.split('@')[0] || 'New User',
-    "avatarUrl": avatarUrl === undefined ? null : avatarUrl, // Ensure null if undefined
-    updatedAt: new Date().toISOString(),
-  };
-
-  // Only set roles and wishlist if they are provided in the request.
-  // For initial creation, 'useAuth' sends default roles and empty wishlist.
-  // For updates, the client should send the current roles/wishlist if not changing them,
-  // or the new ones if they are changing. RLS should protect role changes for non-admins.
-  if (roles !== undefined) {
-    profileDataToUpsert.roles = roles;
-  }
-  if (wishlist !== undefined) {
-    profileDataToUpsert.wishlist = wishlist;
-  }
-  
-  // Special handling for admin role assignment based on email during initial creation
-  // This is typically done when the profile is first created, so we check if it's 'sagarrana@gmail.com'
-  // and ensure 'admin' role is added. This logic might be better if checked against existing roles.
-  if ((email === 'sagarrana@gmail.com' || email === 'sagarbikramrana7@gmail.com')) {
-    profileDataToUpsert.roles = Array.from(new Set([...(profileDataToUpsert.roles || ['customer']), 'admin']));
-  } else if (profileDataToUpsert.roles === undefined) { // Ensure default role if not admin
-    profileDataToUpsert.roles = ['customer'];
-  }
-  if (profileDataToUpsert.wishlist === undefined) {
-      profileDataToUpsert.wishlist = [];
-  }
-
-
-  // On conflict on 'id', Supabase will perform an update.
-  // Otherwise, it will insert.
-  console.log(`[API /api/account/profile POST] Data for Supabase UPSERT for UID ${userIdToProcess} (using ${clientForWrite === supabaseAdmin ? 'ADMIN client' : 'PUBLIC client'}):`, JSON.stringify(profileDataToUpsert, null, 2));
+  console.log(`[API /api/account/profile POST] Processing request for user ID: ${userIdToProcess}. Using ${clientForWrite === supabaseAdmin ? "ADMIN client" : "PUBLIC client"}.`);
 
   try {
-    const { data: upsertedUser, error: upsertError } = await clientForWrite
+    // Check if user already exists
+    const { data: existingUser, error: selectError } = await clientForWrite
       .from('users')
-      .upsert(profileDataToUpsert, { onConflict: 'id' }) // Upsert on 'id' (Firebase UID)
-      .select()
-      .single();
+      .select('id, roles, wishlist') // Select only what's needed for merging logic
+      .eq('id', userIdToProcess)
+      .maybeSingle();
 
-    if (upsertError) {
-      let specificMessage = 'Failed to create or update profile in database.';
-      if (upsertError.code === '42501') { // RLS violation
-        specificMessage = 'Database Row Level Security (RLS) policy violation prevents profile creation/update. Please check INSERT/UPDATE policy for the acting role on "users" table in Supabase.';
-      } else if (upsertError.code === '23505') { // Unique constraint violation
-          if (upsertError.message.includes('users_email_key')) {
-            specificMessage = `Error: Email '${email}' already exists. Please use a different email.`;
-          } else if (upsertError.message.includes('users_pkey')) {
-            specificMessage = `Error: User ID '${userIdToProcess}' already exists with a different email. This should not happen if UIDs are unique.`;
-          } else {
-            specificMessage = `Error: A unique value constraint was violated. ${upsertError.message}`;
-          }
-      } else {
-        specificMessage = `Supabase error: ${upsertError.message}`;
-      }
-      console.error(`[API /api/account/profile POST] Supabase error upserting profile for UID ${userIdToProcess}:`, upsertError);
+    if (selectError && selectError.code !== 'PGRST116') { // PGRST116 means 0 rows, which is fine for a new user
+      console.error(`[API /api/account/profile POST] Supabase error selecting existing user ${userIdToProcess}:`, selectError);
       return NextResponse.json({
-        message: specificMessage,
-        rawSupabaseError: { message: upsertError.message, details: upsertError.details, hint: upsertError.hint, code: upsertError.code }
+        message: 'Error checking existing user profile.',
+        rawSupabaseError: { message: selectError.message, details: selectError.details, hint: selectError.hint, code: selectError.code }
       }, { status: 500 });
     }
 
-    if (!upsertedUser) {
-        console.error(`[API /api/account/profile POST] Upsert operation for UID ${userIdToProcess} returned no data and no error. This is unexpected.`);
-        return NextResponse.json({ message: 'Profile operation completed but returned no data. Please check server logs.'}, {status: 500});
+    let finalUserData;
+    let operationType = '';
+
+    if (existingUser) {
+      // User exists, prepare for update
+      operationType = 'UPDATE';
+      const dataToUpdate: Partial<AuthUserType> & { updatedAt: string } = {
+        name: name || existingUser.name || email.split('@')[0],
+        "avatarUrl": avatarUrl === undefined ? existingUser.avatarUrl : avatarUrl, // Use existing if undefined, allow null to clear
+        email: email, // Keep email consistent, Firebase Auth is source of truth for email
+        // Retain existing roles and wishlist if not explicitly provided for update,
+        // or merge if new ones are provided (though client form doesn't send these for update)
+        roles: roles || existingUser.roles || ['customer'],
+        wishlist: wishlist || existingUser.wishlist || [],
+        updatedAt: new Date().toISOString(),
+      };
+      // Special handling for admin assignment
+      if (email === 'sagarrana@gmail.com' || email === 'sagarbikramrana7@gmail.com') {
+        dataToUpdate.roles = Array.from(new Set([...(dataToUpdate.roles || ['customer']), 'admin']));
+      }
+
+
+      console.log(`[API /api/account/profile POST] Data for update for UID ${userIdToProcess}:`, JSON.stringify(dataToUpdate, null, 2));
+      const { data: updatedUser, error: updateError } = await clientForWrite
+        .from('users')
+        .update(dataToUpdate)
+        .eq('id', userIdToProcess)
+        .select()
+        .single();
+      
+      if (updateError) throw updateError;
+      finalUserData = updatedUser;
+
+    } else {
+      // User does not exist, prepare for insert
+      operationType = 'INSERT';
+      let initialRoles = roles || ['customer'];
+      if (email === 'sagarrana@gmail.com' || email === 'sagarbikramrana7@gmail.com') {
+        initialRoles = Array.from(new Set([...initialRoles, 'admin']));
+      }
+
+      const dataToInsert: Omit<AuthUserType, 'wishlist'> & { wishlist: string[], createdAt: string, updatedAt: string } = {
+        id: userIdToProcess,
+        email: email,
+        name: name || email.split('@')[0] || 'New User',
+        "avatarUrl": avatarUrl === undefined ? null : avatarUrl,
+        roles: initialRoles,
+        wishlist: wishlist || [],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      console.log(`[API /api/account/profile POST] Data for insert for UID ${userIdToProcess}:`, JSON.stringify(dataToInsert, null, 2));
+      const { data: insertedUser, error: insertError } = await clientForWrite
+        .from('users')
+        .insert(dataToInsert)
+        .select()
+        .single();
+      
+      if (insertError) throw insertError;
+      finalUserData = insertedUser;
     }
 
-    console.log(`[API /api/account/profile POST] Profile upserted successfully for UID ${userIdToProcess}.`);
-    const responseUser = { ...upsertedUser, wishlist: upsertedUser.wishlist || [] };
-    return NextResponse.json({ message: `Profile created/updated successfully`, user: responseUser });
+    if (!finalUserData) {
+        console.error(`[API /api/account/profile POST] Supabase ${operationType} operation for UID ${userIdToProcess} returned no data and no error. This is unexpected.`);
+        return NextResponse.json({ message: `Profile ${operationType.toLowerCase()} operation returned no data.`}, {status: 500});
+    }
+    
+    console.log(`[API /api/account/profile POST] Profile ${operationType.toLowerCase()}d successfully for UID ${userIdToProcess}.`);
+    const responseUser = { ...finalUserData, wishlist: finalUserData.wishlist || [] };
+    return NextResponse.json({ message: `Profile ${operationType.toLowerCase()}d successfully`, user: responseUser });
 
   } catch (error: any) {
-    console.error(`[API /api/account/profile POST] Unhandled error during profile upsert operation for user ID ${userIdToProcess}:`, error);
+    console.error(`[API /api/account/profile POST] Error during profile ${requestBody.id ? 'update' : 'creation'} for user ID ${userIdToProcess}:`, error);
+    let errorMessage = 'Failed to create profile in database.';
+    let errorDetails = {};
+
+    if (error.code) { // Likely a Supabase error
+      errorMessage = `Supabase error: ${error.message}`;
+      errorDetails = { message: error.message, details: error.details, hint: error.hint, code: error.code };
+      if (error.code === '42501') { // RLS violation
+        errorMessage = 'Database Row Level Security (RLS) policy violation prevents profile creation. Please check INSERT policy for "anon" role on "users" table in Supabase.';
+      } else if (error.code === '23505' && error.message.includes('users_email_key')) { // Unique constraint on email
+        errorMessage = `Error: The email address '${email}' is already registered.`;
+      } else if (error.code === '23505' && error.message.includes('users_pkey')) { // Unique constraint on id (PK)
+        errorMessage = `Error: A profile for this user ID already exists.`;
+      }
+    } else {
+      errorMessage = error.message || errorMessage;
+    }
+    
     return NextResponse.json({
-        message: 'Server error processing profile operation.',
-        errorDetails: error.message,
-        rawSupabaseError: { message: error.message, code: error.code || 'UNKNOWN_SERVER_ERROR_PROFILE_POST' }
+        message: errorMessage,
+        rawSupabaseError: errorDetails
     }, { status: 500 });
   }
 }
