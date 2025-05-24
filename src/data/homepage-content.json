@@ -1,5 +1,6 @@
 
-This file is no longer used for homepage content.
-Homepage content (hero slides, artisanal roots text, etc.) is now managed in the Supabase 'site_configurations' table with config_key 'homepageContent'.
-Please refer to your Supabase dashboard or the admin panel at /admin/content/homepage to manage this content.
-Initial default data can be set via the admin panel save action.
+{
+  "message": "This file is no longer used for homepage content. Homepage content (hero slides, artisanal roots text, etc.) is now managed in the Supabase 'site_configurations' table with config_key 'homepageContent'. Please refer to your Supabase dashboard or the admin panel at /admin/content/homepage to manage this content. Initial default data can be set via the admin panel save action if no entry exists in Supabase."
+}
+
+    

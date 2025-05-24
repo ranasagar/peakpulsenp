@@ -8,8 +8,8 @@ import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Form, FormControl, FormField, FormItem as RHFFormItem, FormLabel as RHFFormLabel, FormMessage } from '@/components/ui/form'; // Renamed to avoid conflict
-import { Label } from '@/components/ui/label'; // Use basic Label for non-form elements
+import { Form, FormControl, FormField, FormItem as RHFFormItem, FormLabel as RHFFormLabel, FormMessage } from '@/components/ui/form';
+import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Save, FileText } from 'lucide-react';
@@ -17,7 +17,7 @@ import type { PageContent } from '@/types';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
 const pageContentFormSchema = z.object({
-  content: z.string().min(10, "Content must be at least 10 characters.").optional().or(z.literal('')),
+  content: z.string().min(1, "Content cannot be empty.").optional().or(z.literal('')), // Allow empty string for initial state
 });
 
 type PageContentFormValues = z.infer<typeof pageContentFormSchema>;
@@ -28,6 +28,8 @@ const manageablePages = [
   { key: 'shippingReturnsPageContent', name: 'Shipping & Returns Policy' },
   { key: 'accessibilityPageContent', name: 'Accessibility Statement' },
 ];
+
+const DEFAULT_CONTENT_FOR_KEY = (pageKey: string, pageName: string) => `<h2>Default ${pageName} Content</h2><p>Please edit this content in the admin panel for the ${pageName} page. This page is now managed via Supabase.</p>`;
 
 export default function AdminSitePagesContentPage() {
   const { toast } = useToast();
@@ -46,15 +48,23 @@ export default function AdminSitePagesContentPage() {
       setIsLoading(true);
       try {
         const response = await fetch(`/api/admin/content/page/${selectedPageKey}`);
+        const selectedPage = manageablePages.find(p => p.key === selectedPageKey);
+        const pageName = selectedPage ? selectedPage.name : "Selected Page";
+
         if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          throw new Error(errorData.message || errorData.rawSupabaseError?.message || `Failed to fetch content for ${selectedPageKey}`);
+          let errorDetail = `Failed to fetch content for ${pageName}.`;
+          try {
+            const errorData = await response.json();
+            errorDetail = errorData.message || errorData.rawSupabaseError?.message || `Server error ${response.status}`;
+          } catch (e) { /* ignore if not json */ }
+          throw new Error(errorDetail);
         }
         const data: PageContent = await response.json();
-        form.reset({ content: data.content || `<!-- Default content for ${selectedPageKey}. Please edit. -->` });
+        form.reset({ content: data.content || DEFAULT_CONTENT_FOR_KEY(selectedPageKey, pageName) });
       } catch (error) {
+        const pageName = manageablePages.find(p => p.key === selectedPageKey)?.name || "Selected Page";
         toast({ title: "Error Loading Content", description: (error as Error).message, variant: "destructive" });
-        form.reset({ content: `Error loading content for ${selectedPageKey}. Please try again or set initial content.` });
+        form.reset({ content: DEFAULT_CONTENT_FOR_KEY(selectedPageKey, pageName) });
       } finally {
         setIsLoading(false);
       }
@@ -68,6 +78,7 @@ export default function AdminSitePagesContentPage() {
       return;
     }
     setIsSaving(true);
+    const selectedPageName = manageablePages.find(p=>p.key === selectedPageKey)?.name || selectedPageKey;
     try {
       const response = await fetch(`/api/admin/content/page/${selectedPageKey}`, {
         method: 'POST',
@@ -75,18 +86,22 @@ export default function AdminSitePagesContentPage() {
         body: JSON.stringify({ content: data.content || '' }), 
       });
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: `Failed to save content for ${selectedPageKey}. Status: ${response.status}` }));
-        throw new Error(errorData.message || errorData.rawSupabaseError?.message || `Failed to save content for ${selectedPageKey}`);
+        let errorDetail = `Failed to save content for ${selectedPageName}.`;
+        try {
+            const errorData = await response.json();
+            errorDetail = errorData.message || errorData.rawSupabaseError?.message || `Server error ${response.status}`;
+        } catch (e) { /* ignore */ }
+        throw new Error(errorDetail);
       }
-      toast({ title: "Content Saved!", description: `${manageablePages.find(p=>p.key === selectedPageKey)?.name || selectedPageKey} content has been updated.` });
+      toast({ title: "Content Saved!", description: `${selectedPageName} content has been updated.` });
     } catch (error) {
       toast({ title: "Save Failed", description: (error as Error).message, variant: "destructive" });
     } finally {
       setIsSaving(false);
     }
   };
-
-  const selectedPageName = manageablePages.find(p => p.key === selectedPageKey)?.name || "Selected Page";
+  
+  const selectedPageNameForDisplay = manageablePages.find(p => p.key === selectedPageKey)?.name || "Selected Page";
 
   return (
     <Card className="shadow-xl flex flex-col h-full">
@@ -111,7 +126,7 @@ export default function AdminSitePagesContentPage() {
         {isLoading ? (
           <div className="flex-grow flex justify-center items-center py-10 h-full">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            <p className="ml-2">Loading content for {selectedPageName}...</p>
+            <p className="ml-2">Loading content for {selectedPageNameForDisplay}...</p>
           </div>
         ) : (
           <ScrollArea className="h-full p-6 pt-2">
@@ -122,12 +137,12 @@ export default function AdminSitePagesContentPage() {
                   name="content"
                   render={({ field }) => (
                     <RHFFormItem>
-                      <RHFFormLabel>Content for {selectedPageName}</RHFFormLabel>
+                      <RHFFormLabel>Content for {selectedPageNameForDisplay}</RHFFormLabel>
                       <FormControl>
                         <Textarea
                           {...field}
                           rows={20} 
-                          placeholder={`Enter content for ${selectedPageName} here. You can use HTML for formatting.`}
+                          placeholder={`Enter content for ${selectedPageNameForDisplay} here. You can use HTML for formatting.`}
                           className="font-mono text-sm leading-relaxed min-h-[400px]" 
                           value={field.value || ''}
                         />
@@ -138,7 +153,7 @@ export default function AdminSitePagesContentPage() {
                 />
                 <Button type="submit" disabled={isSaving || isLoading} size="lg">
                   {isSaving ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Save className="mr-2 h-5 w-5" />}
-                  Save {selectedPageName} Content
+                  Save {selectedPageNameForDisplay} Content
                 </Button>
               </form>
             </Form>

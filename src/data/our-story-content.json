@@ -1,5 +1,6 @@
 
-This file is no longer used for Our Story page content.
-"Our Story" content is now managed in the Supabase 'site_configurations' table with config_key 'ourStoryContent'.
-Please refer to your Supabase dashboard or the admin panel at /admin/content/our-story to manage this content.
-Initial default data can be set via the admin panel save action.
+{
+  "message": "This file is no longer used for Our Story page content. 'Our Story' content is now managed in the Supabase 'site_configurations' table with config_key 'ourStoryContent'. Please refer to your Supabase dashboard or the admin panel at /admin/content/our-story to manage this content. Initial default data can be set via the admin panel save action if no entry exists in Supabase."
+}
+
+    

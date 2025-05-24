@@ -1,28 +1,28 @@
 
 // /src/app/api/content/footer/route.ts
 import { NextResponse } from 'next/server';
-import { supabase } from '../../../../lib/supabaseClient.ts'; // Relative path for Supabase client
-import type { FooterContentData } from '@/types';
+import { supabase } from '@/lib/supabaseClient';
+import type { FooterContentData, FooterNavSection } from '@/types';
 
 export const dynamic = 'force-dynamic';
 
 const FOOTER_CONFIG_KEY = 'footerContent';
 
 const defaultFooterContent: FooterContentData = {
-  copyrightText: "© {currentYear} Peak Pulse. All rights reserved.",
+  copyrightText: "© {currentYear} Peak Pulse. All rights reserved. (Default)",
   navigationSections: [
-    { id: "company-fallback", label: "Company", items: [{ id: "os-fb", name: "Our Story", href: "/our-story" }] },
-    { id: "support-fallback", label: "Support", items: [{ id: "cu-fb", name: "Contact Us", href: "/contact" }] },
-    { id: "legal-fallback", label: "Legal", items: [{ id: "pp-fb", name: "Privacy Policy", href: "/privacy-policy" }] },
+    { id: "company-fallback-public", label: "Company", items: [{ id: "os-fb-pub", name: "Our Story", href: "/our-story" }] },
+    { id: "support-fallback-public", label: "Support", items: [{ id: "cu-fb-pub", name: "Contact Us", href: "/contact" }] },
+    { id: "legal-fallback-public", label: "Legal", items: [{ id: "pp-fb-pub", name: "Privacy Policy", href: "/privacy-policy" }] },
   ]
 };
 
 export async function GET() {
-  console.log("[API /api/content/footer] GET request received. Fetching from Supabase.");
   if (!supabase) {
-    console.error('[API /api/content/footer] Supabase client is not initialized. Returning default content.');
-    return NextResponse.json(defaultFooterContent); // Return default on client init failure
+    console.error('[Public API Footer GET] Supabase client is not initialized. Returning default content.');
+    return NextResponse.json({ ...defaultFooterContent, error: "Database client not configured." });
   }
+  console.log("[Public API Footer GET] Request to fetch content from Supabase.");
 
   try {
     const { data, error } = await supabase
@@ -32,25 +32,44 @@ export async function GET() {
       .maybeSingle();
 
     if (error) {
-      console.error('[API /api/content/footer] Supabase error fetching footer content:', error);
+      console.error('[Public API Footer GET] Supabase error fetching footer content:', error);
       return NextResponse.json({ 
         ...defaultFooterContent, 
-        error: `Failed to load footer content from database. ${error.message}` 
+        error: `Failed to load footer content. Supabase: ${error.message}` 
       }, { status: 500 });
     }
 
     if (data && data.value) {
-      console.log("[API /api/content/footer] Successfully fetched footer content from Supabase.");
-      return NextResponse.json(data.value as FooterContentData);
+      console.log("[Public API Footer GET] Successfully fetched footer content from Supabase.");
+      const dbContent = data.value as Partial<FooterContentData>;
+      const responseData: FooterContentData = {
+        copyrightText: dbContent.copyrightText || defaultFooterContent.copyrightText,
+        navigationSections: (dbContent.navigationSections && dbContent.navigationSections.length > 0)
+          ? dbContent.navigationSections.map((section: Partial<FooterNavSection>, sIdx: number) => ({
+              id: section.id || defaultFooterContent.navigationSections![sIdx]?.id || `section-pub-${Date.now()}-${sIdx}`,
+              label: section.label || defaultFooterContent.navigationSections![sIdx]?.label || "Section",
+              items: (section.items && section.items.length > 0)
+                ? section.items.map((item, iIdx) => ({
+                    id: item.id || defaultFooterContent.navigationSections![sIdx]?.items[iIdx]?.id || `item-pub-${Date.now()}-${sIdx}-${iIdx}`,
+                    name: item.name || defaultFooterContent.navigationSections![sIdx]?.items[iIdx]?.name || "Link",
+                    href: item.href || defaultFooterContent.navigationSections![sIdx]?.items[iIdx]?.href || "/",
+                }))
+                : defaultFooterContent.navigationSections![sIdx]?.items || [],
+            }))
+          : defaultFooterContent.navigationSections!,
+      };
+      return NextResponse.json(responseData);
     } else {
-      console.warn('[API /api/content/footer] No footer content found in Supabase for key "footerContent". Returning default.');
+      console.warn(`[Public API Footer GET] No content found for key "${FOOTER_CONFIG_KEY}". Returning default.`);
       return NextResponse.json(defaultFooterContent);
     }
   } catch (e) {
-    console.error('[API /api/content/footer] Unhandled error fetching footer content, returning default. Error:', (e as Error).message);
+    console.error('[Public API Footer GET] Unhandled error fetching footer content:', e);
     return NextResponse.json({
          ...defaultFooterContent, 
          error: `Server error fetching footer content. ${(e as Error).message}` 
     }, { status: 500 });
   }
 }
+
+    

@@ -1,7 +1,6 @@
 
-This file is no longer used for footer content. Footer content is now managed in the Supabase 'site_configurations' table with config_key 'footerContent'.
+{
+  "message": "This file is no longer used. Footer content (copyright, navigation links, social links) is now managed via Supabase `site_configurations` table with config_key 'footerContent'. Edit via Admin Panel > Content Management > Footer."
+}
 
-Please refer to your Supabase dashboard or the admin panel at /admin/content/footer to manage this content.
-
-If you need to restore initial data to Supabase, you can use the INSERT statement provided in the migration instructions for the 'site_configurations' table.
-
+    
