@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Save, PlusCircle, Trash2, Edit, Tags, Image as ImageIconLucide, MessageSquare, Network } from 'lucide-react';
+import { Loader2, Save, PlusCircle, Trash2, Edit, Tags, Image as ImageIconLucide, Network } from 'lucide-react';
 import type { AdminCategory } from '@/types';
 import {
   Dialog,
@@ -35,10 +35,12 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
+const NO_PARENT_ID_VALUE = "__NONE__"; // Special value for the "None" option
+
 const categoryFormSchema = z.object({
   id: z.string().optional(),
   name: z.string().min(2, "Category name must be at least 2 characters."),
-  slug: z.string().min(2, "Slug must be at least 2 characters.").regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Slug must be lowercase alphanumeric with hyphens."),
+  slug: z.string().min(2, "Slug must be at least 2 characters.").regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Slug must be lowercase alphanumeric with hyphens.").optional().or(z.literal('')),
   description: z.string().optional(),
   imageUrl: z.string().url({ message: "Please enter a valid image URL." }).optional().or(z.literal('')),
   aiImagePrompt: z.string().optional(),
@@ -46,8 +48,6 @@ const categoryFormSchema = z.object({
 });
 
 type CategoryFormValues = z.infer<typeof categoryFormSchema>;
-
-const NO_PARENT_ID_VALUE = "__NONE__"; // Special value for the "None" option
 
 export default function AdminCategoriesPage() {
   const { toast } = useToast();
@@ -101,7 +101,7 @@ export default function AdminCategoriesPage() {
       description: category.description || '',
       imageUrl: category.imageUrl || '',
       aiImagePrompt: category.aiImagePrompt || '',
-      parentId: category.parentId || null, // Will be handled by Select's value prop
+      parentId: category.parentId || null,
     });
     setIsFormOpen(true);
   };
@@ -115,7 +115,7 @@ export default function AdminCategoriesPage() {
       description: '',
       imageUrl: '',
       aiImagePrompt: '',
-      parentId: null, // Default to null for top-level
+      parentId: null,
     });
     setIsFormOpen(true);
   };
@@ -128,7 +128,7 @@ export default function AdminCategoriesPage() {
     const payload = {
       ...data,
       slug: data.slug || data.name.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, ''),
-      parentId: data.parentId, // Already null or a string ID from form state
+      parentId: data.parentId === NO_PARENT_ID_VALUE ? null : data.parentId,
     };
     
     try {
@@ -139,8 +139,20 @@ export default function AdminCategoriesPage() {
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || errorData.rawSupabaseError?.message || `Failed to ${editingCategory ? 'update' : 'create'} category`);
+        let errorDetail = `Failed to ${editingCategory ? 'update' : 'create'} category.`;
+        try {
+            const errorData = await response.json();
+            if (errorData.rawSupabaseError && errorData.rawSupabaseError.message) {
+                errorDetail = `Database error: ${errorData.rawSupabaseError.message}${errorData.rawSupabaseError.hint ? ` Hint: ${errorData.rawSupabaseError.hint}` : ''}`;
+            } else if (errorData.message) {
+                errorDetail = errorData.message;
+            } else {
+                 errorDetail = `${response.status}: ${response.statusText || errorDetail}`;
+            }
+        } catch (e) {
+             errorDetail = `${response.status}: ${response.statusText || 'Failed to process error response.'}`;
+        }
+        throw new Error(errorDetail);
       }
       toast({ title: "Success!", description: `Category "${payload.name}" ${editingCategory ? 'updated' : 'created'}.` });
       fetchCategories();
@@ -223,12 +235,12 @@ export default function AdminCategoriesPage() {
                     <div className="flex-grow">
                       <h3 className="font-semibold text-lg text-foreground">{category.name} <span className="text-xs text-muted-foreground">({category.slug})</span></h3>
                       <p className="text-sm text-muted-foreground line-clamp-2">{category.description || "No description."}</p>
-                      {category.parentId !== undefined && ( // Check explicitly for undefined as null means top-level
+                      {category.parentId !== undefined && (
                         <p className="text-xs text-accent mt-1 flex items-center">
                           <Network size={12} className="mr-1"/> Parent: {getParentCategoryName(category.parentId)}
                         </p>
                       )}
-                      {category.aiImagePrompt && <p className="text-xs text-accent mt-1 flex items-center"><MessageSquare size={12} className="mr-1"/> Prompt: <span className="italic line-clamp-1">{category.aiImagePrompt}</span></p>}
+                      {category.aiImagePrompt && <p className="text-xs text-accent mt-1 flex items-center"><ImageIconLucide size={12} className="mr-1"/> Prompt: <span className="italic line-clamp-1">{category.aiImagePrompt}</span></p>}
                     </div>
                   </div>
                   <div className="flex space-x-2 flex-shrink-0 pt-2 sm:pt-0">
@@ -267,7 +279,7 @@ export default function AdminCategoriesPage() {
                     <FormItem><FormLabel>Category Name*</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                   )} />
                   <FormField control={form.control} name="slug" render={({ field }) => (
-                    <FormItem><FormLabel>Slug*</FormLabel><FormControl><Input {...field} placeholder="auto-generated if empty" /></FormControl><FormMessage /></FormItem>
+                    <FormItem><FormLabel>Slug</FormLabel><FormControl><Input {...field} placeholder="auto-generated if empty" /></FormControl><FormDescription>Lowercase alphanumeric with hyphens (e.g., 'summer-collection'). Auto-generated from name if left empty.</FormDescription><FormMessage /></FormItem>
                   )} />
                   <FormField
                     control={form.control}
@@ -305,7 +317,7 @@ export default function AdminCategoriesPage() {
                     <FormItem>
                       <FormLabel>AI Image Generation Prompt (Optional)</FormLabel>
                       <FormControl><Textarea {...field} rows={3} placeholder="e.g., 'Vibrant streetwear suitable for Holi festival, paint splashes, dynamic pose'" /></FormControl>
-                      <FormDescription>Use this prompt with an AI image generator to create a category image.</FormDescription>
+                      <FormDescription>Describe the image you want for this category. Use this prompt with an AI image generator. Paste the generated image URL below.</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )} />
@@ -343,7 +355,7 @@ export default function AdminCategoriesPage() {
             <AlertDialogDeleteTitle>Are you sure you want to delete this category?</AlertDialogDeleteTitle>
             <AlertDialogDeleteDescription>
               This action cannot be undone. This will permanently delete the category: "{categoryToDelete?.name}". 
-              Any subcategories under it will become top-level categories (their parent_id will be set to NULL in Supabase due to ON DELETE SET NULL).
+              Any subcategories under this category will become top-level categories (their `parentId` will be set to NULL in Supabase due to the ON DELETE SET NULL constraint). Products associated with this category will need to be manually reassigned.
             </AlertDialogDeleteDescription>
           </AlertDialogDeleteHeader>
           <AlertDialogDeleteFooter>
