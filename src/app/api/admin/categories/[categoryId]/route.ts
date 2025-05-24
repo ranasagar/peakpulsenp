@@ -2,21 +2,25 @@
 // /src/app/api/admin/categories/[categoryId]/route.ts
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { supabaseAdmin, supabase as fallbackSupabase } from '../../../../../lib/supabaseClient.ts';
+import { supabaseAdmin, supabase as fallbackSupabase } from '../../../../lib/supabaseClient'; // Import both
 import type { AdminCategory } from '@/types';
 
 export const dynamic = 'force-dynamic';
 
-// GET a single category (already exists, no changes needed here for this specific error)
+// GET a single category (for editing form prefill, though admin page fetches all)
 export async function GET(
   request: NextRequest,
   { params }: { params: { categoryId: string } }
 ) {
   const { categoryId } = params;
-  const supabase = supabaseAdmin || fallbackSupabase;
+  const supabase = supabaseAdmin || fallbackSupabase; // Use admin if available, else public
+  const clientName = supabase === supabaseAdmin ? "ADMIN client" : "public client";
+  console.log(`[API ADMIN CATEGORY GET /${categoryId}] Request received. Using ${clientName}.`);
+
 
   if (!supabase) {
-    return NextResponse.json({ message: 'Database client not configured.' }, { status: 503 });
+    console.error(`[API ADMIN CATEGORY GET /${categoryId}] Supabase client is not initialized.`);
+    return NextResponse.json({ message: 'Database client not configured.', rawSupabaseError: { message: 'Database client not initialized.'} }, { status: 503 });
   }
   if (!categoryId) {
     return NextResponse.json({ message: 'Category ID is required' }, { status: 400 });
@@ -25,12 +29,12 @@ export async function GET(
   try {
     const { data, error } = await supabase
       .from('categories')
-      .select('*, parent_id')
+      .select('*, parent_id') // Ensure parent_id is selected
       .eq('id', categoryId)
       .single();
 
     if (error) {
-      if (error.code === 'PGRST116') {
+      if (error.code === 'PGRST116') { // Row not found
         return NextResponse.json({ message: 'Category not found' }, { status: 404 });
       }
       console.error(`[API ADMIN CATEGORY GET /${categoryId}] Supabase error fetching category:`, error);
@@ -39,8 +43,8 @@ export async function GET(
         rawSupabaseError: { message: error.message, details: error.details, hint: error.hint, code: error.code }
       }, { status: 500 });
     }
-     if (!data) {
-      return NextResponse.json({ message: 'Category not found' }, { status: 404 });
+     if (!data) { // Should be caught by PGRST116, but as a fallback
+      return NextResponse.json({ message: 'Category not found (no data)' }, { status: 404 });
     }
 
     const responseCategory: AdminCategory = {
@@ -54,6 +58,7 @@ export async function GET(
       createdAt: data.createdAt || data.created_at,
       updatedAt: data.updatedAt || data.updated_at,
     };
+    console.log(`[API ADMIN CATEGORY GET /${categoryId}] Category fetched successfully:`, responseCategory.name);
     return NextResponse.json(responseCategory);
   } catch (e: any) {
     console.error(`[API ADMIN CATEGORY GET /${categoryId}] Unhandled error:`, e);
@@ -68,13 +73,19 @@ export async function PUT(
   { params }: { params: { categoryId: string } }
 ) {
   const { categoryId } = params;
-  const supabaseClientToUse = supabaseAdmin || fallbackSupabase;
+  const supabaseClientToUse = supabaseAdmin || fallbackSupabase; // Prefer admin client
+  const clientName = supabaseClientToUse === supabaseAdmin ? "ADMIN client (service_role)" : "public fallback client";
 
-  console.log(`[API ADMIN CATEGORY PUT /${categoryId}] Received request. Using ${supabaseClientToUse === supabaseAdmin ? "ADMIN client" : "public client"}.`);
+  console.log(`[API ADMIN CATEGORY PUT /${categoryId}] Received request. Using ${clientName}.`);
 
   if (!supabaseClientToUse) {
-    return NextResponse.json({ message: 'Database client not configured.' }, { status: 503 });
+    console.error(`[API ADMIN CATEGORY PUT /${categoryId}] Supabase client for write is not initialized.`);
+    return NextResponse.json({ message: 'Database client for write operations not configured.', rawSupabaseError: { message: 'Supabase client for write not initialized.'} }, { status: 503 });
   }
+  if (!supabaseAdmin) {
+      console.warn(`[API ADMIN CATEGORY PUT /${categoryId}] WARNING: Supabase ADMIN client (service_role) is not available. Falling back to public client. RLS policies for 'authenticated' admin role will apply if not bypassed.`);
+  }
+
   if (!categoryId) {
     return NextResponse.json({ message: 'Category ID is required' }, { status: 400 });
   }
@@ -85,34 +96,31 @@ export async function PUT(
 
     const categoryToUpdate: { [key: string]: any } = {};
 
-    if (body.name !== undefined) {
-      categoryToUpdate.name = body.name;
-      // If name changes and slug is not explicitly provided OR is empty, regenerate slug
-      if (body.slug === undefined || (typeof body.slug === 'string' && body.slug.trim() === '')) {
-        categoryToUpdate.slug = body.name.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, '');
-      }
+    if (body.hasOwnProperty('name')) {
+        categoryToUpdate.name = body.name;
+        // If name changes and slug is not explicitly provided OR is empty, regenerate slug
+        if (body.name && (body.slug === undefined || (typeof body.slug === 'string' && body.slug.trim() === ''))) {
+            categoryToUpdate.slug = body.name.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, '');
+        }
     }
-    // If slug is explicitly provided and not empty, use it. Takes precedence over auto-generation.
-    if (body.slug !== undefined && typeof body.slug === 'string' && body.slug.trim() !== '') {
-      categoryToUpdate.slug = body.slug.trim();
+    // If slug is explicitly provided and not empty, use it. Takes precedence.
+    if (body.hasOwnProperty('slug') && typeof body.slug === 'string' && body.slug.trim() !== '') {
+        categoryToUpdate.slug = body.slug.trim();
     }
-
-    // Handle optional text fields: map client names to DB names, convert empty strings from form to null for DB
+    
     if (body.hasOwnProperty('description')) categoryToUpdate.description = body.description || null;
-    if (body.hasOwnProperty('imageUrl')) categoryToUpdate.image_url = body.imageUrl || null; // Ensure DB column is image_url
-    if (body.hasOwnProperty('aiImagePrompt')) categoryToUpdate.ai_image_prompt = body.aiImagePrompt || null; // Ensure DB column is ai_image_prompt
+    if (body.hasOwnProperty('imageUrl')) categoryToUpdate.image_url = body.imageUrl || null;
+    if (body.hasOwnProperty('aiImagePrompt')) categoryToUpdate.ai_image_prompt = body.aiImagePrompt || null;
     
     if (body.hasOwnProperty('parentId')) {
-      // The client-side form sends NO_PARENT_ID_VALUE which is then converted to null by form logic before submit,
-      // or it sends an actual ID string. So body.parentId should be string or null.
-      categoryToUpdate.parent_id = body.parentId === '' ? null : body.parentId;
+      categoryToUpdate.parent_id = body.parentId === '' || body.parentId === undefined ? null : body.parentId;
     }
     
-    // The database trigger should handle updatedAt automatically
-    // categoryToUpdate["updatedAt"] = new Date().toISOString(); // Rely on trigger
+    // Rely on database trigger for "updatedAt"
+    // categoryToUpdate["updatedAt"] = new Date().toISOString();
 
     if (Object.keys(categoryToUpdate).length === 0) {
-      return NextResponse.json({ message: 'No fields to update provided.' }, { status: 400 });
+      return NextResponse.json({ message: 'No valid fields to update provided.' }, { status: 400 });
     }
 
     console.log(`[API ADMIN CATEGORY PUT /${categoryId}] Attempting to update with payload:`, JSON.stringify(categoryToUpdate, null, 2));
@@ -126,7 +134,7 @@ export async function PUT(
 
     if (error) {
       console.error(`[API ADMIN CATEGORY PUT /${categoryId}] Supabase error updating category:`, error);
-      if (error.code === 'PGRST116') { // Row not found or more than one row returned by .single()
+      if (error.code === 'PGRST116') { 
         return NextResponse.json({ message: 'Category not found or update constraint issue.' }, { status: 404 });
       }
       return NextResponse.json({ 
@@ -149,10 +157,10 @@ export async function PUT(
       aiImagePrompt: updatedData.ai_image_prompt,
       parentId: updatedData.parent_id,
       createdAt: updatedData.createdAt || updatedData.created_at,
-      updatedAt: updatedData.updatedAt || updatedData.updated_at,
+      updatedAt: updatedData.updatedAt || updated_at, // Use the actual column name returned by Supabase
     };
     
-    console.log(`[API ADMIN CATEGORY PUT /${categoryId}] Category updated successfully:`, responseCategory);
+    console.log(`[API ADMIN CATEGORY PUT /${categoryId}] Category updated successfully:`, responseCategory.name);
     return NextResponse.json(responseCategory);
 
   } catch (e: any) {
@@ -170,12 +178,18 @@ export async function DELETE(
   { params }: { params: { categoryId: string } }
 ) {
   const { categoryId } = params;
-  const supabaseClientToUse = supabaseAdmin || fallbackSupabase;
-  console.log(`[API ADMIN CATEGORY DELETE /${categoryId}] Received request. Using ${supabaseClientToUse === supabaseAdmin ? "ADMIN client" : "public client"}.`);
+  const supabaseClientToUse = supabaseAdmin || fallbackSupabase; // Prefer admin client
+  const clientName = supabaseClientToUse === supabaseAdmin ? "ADMIN client (service_role)" : "public fallback client";
+  console.log(`[API ADMIN CATEGORY DELETE /${categoryId}] Received request. Using ${clientName}.`);
 
   if (!supabaseClientToUse) {
-    return NextResponse.json({ message: 'Database client not configured.' }, { status: 503 });
+    console.error(`[API ADMIN CATEGORY DELETE /${categoryId}] Supabase client for write is not initialized.`);
+    return NextResponse.json({ message: 'Database client for write operations not configured.', rawSupabaseError: { message: 'Supabase client for write not initialized.'} }, { status: 503 });
   }
+   if (!supabaseAdmin) {
+      console.warn(`[API ADMIN CATEGORY DELETE /${categoryId}] WARNING: Supabase ADMIN client (service_role) is not available. Falling back to public client. RLS policies for 'authenticated' admin role will apply if not bypassed.`);
+  }
+
   if (!categoryId) {
     return NextResponse.json({ message: 'Category ID is required' }, { status: 400 });
   }
