@@ -9,23 +9,31 @@ export const dynamic = 'force-dynamic';
 
 const HOMEPAGE_CONFIG_KEY = 'homepageContent';
 
+const defaultHeroSlideStructure: HeroSlide = {
+  id: '', title: '', description: '', imageUrl: undefined, videoId: undefined, altText: '', dataAiHint: '', ctaText: '', ctaLink: ''
+};
+
+const defaultSocialCommerceItemStructure: SocialCommerceItem = {
+  id: '', imageUrl: '', linkUrl: '#', altText: '', dataAiHint: ''
+};
+
 const defaultHomepageContentData: HomepageContent = {
-  heroSlides: [{ id: 'default-slide-admin-api', title: "Default Hero Title (API)", description: "Default description (API).", ctaText: "Shop Now", ctaLink: "/products", imageUrl: "https://placehold.co/1920x1080.png?text=Default+Hero", altText:"Default Hero Image", dataAiHint:"abstract background" }],
-  artisanalRoots: { title: "Our Artisanal Roots (API Default)", description: "Default artisanal roots description (API)." },
-  socialCommerceItems: [],
+  heroSlides: [defaultHeroSlideStructure],
+  artisanalRoots: { title: "Our Artisanal Roots (Default)", description: "Default description." },
+  socialCommerceItems: [defaultSocialCommerceItemStructure],
   heroVideoId: undefined,
   heroImageUrl: undefined,
 };
 
-// GET current homepage content for admin
+// GET current homepage content
 export async function GET() {
-  const supabase = supabaseAdmin || fallbackSupabase; // Prefer admin for reading config if available
+  const supabase = supabaseAdmin || fallbackSupabase; // Prefer admin for reading system config
   const clientName = supabase === supabaseAdmin ? "ADMIN client" : "public fallback client";
-  console.log(`[Admin API Homepage GET] Request to fetch content. Using ${clientName}. Key: ${HOMEPAGE_CONFIG_KEY}`);
+  console.log(`[API /api/content/homepage GET] Request to fetch. Using ${clientName}. Key: ${HOMEPAGE_CONFIG_KEY}`);
 
   if (!supabase) {
-    console.error('[Admin API Homepage GET] Supabase client is not initialized.');
-    return NextResponse.json({ ...defaultHomepageContentData, error: "Database client not configured.", rawSupabaseError: { message: 'Supabase client not initialized.'} }, { status: 503 });
+    console.error(`[API /api/content/homepage GET] Supabase client is not initialized.`);
+    return NextResponse.json({ ...defaultHomepageContentData, error: "Database client not configured." }, { status: 503 });
   }
 
   try {
@@ -36,67 +44,44 @@ export async function GET() {
       .maybeSingle();
 
     if (error) {
-      console.error(`[Admin API Homepage GET] Supabase error fetching content for ${HOMEPAGE_CONFIG_KEY}:`, error);
-      return NextResponse.json({ ...defaultHomepageContentData, error: `Failed to load content. ${error.message}`, rawSupabaseError: error }, { status: 500 });
+      console.error(`[API /api/content/homepage GET] Supabase error fetching for ${HOMEPAGE_CONFIG_KEY}:`, error);
+      return NextResponse.json({ ...defaultHomepageContentData, error: `Failed to load content. Supabase: ${error.message}`, rawSupabaseError: error }, { status: 500 });
     }
 
     if (data && data.value) {
-      console.log(`[Admin API Homepage GET] Successfully fetched content for ${HOMEPAGE_CONFIG_KEY}.`);
+      console.log(`[API /api/content/homepage GET] Successfully fetched for ${HOMEPAGE_CONFIG_KEY}.`);
       const dbContent = data.value as Partial<HomepageContent>;
-      // Ensure structure consistency, merging with defaults for missing parts
       const responseData: HomepageContent = {
-        heroSlides: (dbContent.heroSlides && dbContent.heroSlides.length > 0)
-          ? dbContent.heroSlides.map((slide: Partial<HeroSlide>, index: number) => ({
-              id: slide.id || `hs-db-${Date.now()}-${index}`,
-              title: slide.title || defaultHomepageContentData.heroSlides![0].title,
-              description: slide.description || defaultHomepageContentData.heroSlides![0].description,
-              imageUrl: slide.imageUrl || undefined,
-              videoId: slide.videoId === null ? undefined : slide.videoId,
-              altText: slide.altText || '',
-              dataAiHint: slide.dataAiHint || '',
-              ctaText: slide.ctaText || '',
-              ctaLink: slide.ctaLink || '',
-          }))
-          : defaultHomepageContentData.heroSlides!,
-        artisanalRoots: { 
-            title: dbContent.artisanalRoots?.title || defaultHomepageContentData.artisanalRoots!.title,
-            description: dbContent.artisanalRoots?.description || defaultHomepageContentData.artisanalRoots!.description,
-        },
-        socialCommerceItems: (dbContent.socialCommerceItems && dbContent.socialCommerceItems.length > 0)
-          ? dbContent.socialCommerceItems.map((item: Partial<SocialCommerceItem>, index: number) => ({
-              id: item.id || `sc-db-${Date.now()}-${index}`,
-              imageUrl: item.imageUrl || "https://placehold.co/400x400.png",
-              linkUrl: item.linkUrl || "#",
-              altText: item.altText || "Social post",
-              dataAiHint: item.dataAiHint || "social fashion",
-          }))
-          : defaultHomepageContentData.socialCommerceItems!,
+        heroSlides: (Array.isArray(dbContent.heroSlides) ? dbContent.heroSlides : []).map(slide => ({ ...defaultHeroSlideStructure, ...slide })),
+        artisanalRoots: { ...defaultHomepageContentData.artisanalRoots!, ...dbContent.artisanalRoots },
+        socialCommerceItems: (Array.isArray(dbContent.socialCommerceItems) ? dbContent.socialCommerceItems : []).map(item => ({ ...defaultSocialCommerceItemStructure, ...item })),
         heroVideoId: dbContent.heroVideoId === null ? undefined : dbContent.heroVideoId,
         heroImageUrl: dbContent.heroImageUrl === null ? undefined : dbContent.heroImageUrl,
       };
       return NextResponse.json(responseData);
     } else {
-      console.log(`[Admin API Homepage GET] No content found for ${HOMEPAGE_CONFIG_KEY}. Returning default structure.`);
+      console.warn(`[API /api/content/homepage GET] No content for ${HOMEPAGE_CONFIG_KEY}. Returning default.`);
       return NextResponse.json(defaultHomepageContentData);
     }
   } catch (e) {
-    console.error(`[Admin API Homepage GET] Unhandled error fetching content for ${HOMEPAGE_CONFIG_KEY}:`, e);
-    return NextResponse.json({ ...defaultHomepageContentData, error: `Server error fetching homepage content. ${(e as Error).message}` }, { status: 500 });
+    console.error(`[API /api/content/homepage GET] Unhandled error for ${HOMEPAGE_CONFIG_KEY}:`, e);
+    return NextResponse.json({ ...defaultHomepageContentData, error: `Server error. ${(e as Error).message}` }, { status: 500 });
   }
 }
 
+
 // POST to update homepage content
 export async function POST(request: NextRequest) {
-  const client = supabaseAdmin || fallbackSupabase; // Prefer admin client for writes
-  const clientName = client === supabaseAdmin ? "ADMIN client (service_role)" : "public fallback client";
-  console.log(`[Admin API Homepage POST] Request to update content. Key: ${HOMEPAGE_CONFIG_KEY}. Using ${clientName}.`);
+  const clientToUse = supabaseAdmin || fallbackSupabase;
+  const clientName = clientToUse === supabaseAdmin ? "ADMIN client (service_role)" : "public fallback client";
+  console.log(`[Admin API Homepage POST] Request to update. Key: ${HOMEPAGE_CONFIG_KEY}. Using ${clientName}.`);
 
-  if (!client) {
+  if (!clientToUse) {
     console.error('[Admin API Homepage POST] Supabase client for write is not initialized.');
-    return NextResponse.json({ message: 'Database client for write operations not configured.', rawSupabaseError: { message: 'Supabase client not initialized.'} }, { status: 503 });
+    return NextResponse.json({ message: 'Database client for write operations not configured.', rawSupabaseError: { message: 'Supabase client for write not initialized.'} }, { status: 503 });
   }
-   if (client !== supabaseAdmin) {
-    console.warn(`[Admin API Homepage POST] WARNING: Using public fallback Supabase client. RLS policies for 'authenticated' admin role will apply for key ${HOMEPAGE_CONFIG_KEY}. Ensure they allow update/insert for site_configurations.`);
+  if (clientToUse !== supabaseAdmin) {
+    console.warn(`[Admin API Homepage POST] WARNING: Using public fallback Supabase client. RLS policies for 'authenticated' admin role will apply for key ${HOMEPAGE_CONFIG_KEY}.`);
   }
 
   let newDataFromRequest: Partial<HomepageContent>;
@@ -106,11 +91,11 @@ export async function POST(request: NextRequest) {
     console.error(`[Admin API Homepage POST] Error parsing request JSON for ${HOMEPAGE_CONFIG_KEY}:`, e);
     return NextResponse.json({ message: 'Invalid JSON in request body.', error: (e as Error).message }, { status: 400 });
   }
-  console.log(`[Admin API Homepage POST] Received newDataFromRequest for ${HOMEPAGE_CONFIG_KEY}:`, JSON.stringify(newDataFromRequest, null, 2).substring(0, 1000) + "...");
+  console.log(`[Admin API Homepage POST] Received newDataFromRequest for ${HOMEPAGE_CONFIG_KEY}:`, JSON.stringify(newDataFromRequest, null, 2).substring(0, 500) + "...");
   
   const dataToStore: HomepageContent = {
     heroSlides: (newDataFromRequest.heroSlides || []).map((slide, index) => ({
-      id: slide.id || `slide-${Date.now()}-${index}-${Math.random().toString(16).slice(2)}`,
+      id: slide.id || `slide-submit-${Date.now()}-${index}`,
       title: slide.title || '',
       description: slide.description || '',
       imageUrl: slide.imageUrl || undefined,
@@ -125,7 +110,7 @@ export async function POST(request: NextRequest) {
       description: newDataFromRequest.artisanalRoots?.description || defaultHomepageContentData.artisanalRoots!.description,
     },
     socialCommerceItems: (newDataFromRequest.socialCommerceItems || []).map((item, index) => ({
-      id: item.id || `social-${Date.now()}-${index}-${Math.random().toString(16).slice(2)}`,
+      id: item.id || `social-submit-${Date.now()}-${index}`,
       imageUrl: item.imageUrl || '',
       linkUrl: item.linkUrl || '#',
       altText: item.altText || '',
@@ -136,8 +121,8 @@ export async function POST(request: NextRequest) {
   };
   
   try {
-    console.log(`[Admin API Homepage POST] Attempting to query existing config for key: ${HOMEPAGE_CONFIG_KEY}`);
-    const { data: existingConfig, error: selectError } = await client
+    console.log(`[Admin API Homepage POST] Checking existing config for key: ${HOMEPAGE_CONFIG_KEY}`);
+    const { data: existingConfig, error: selectError } = await clientToUse
       .from('site_configurations')
       .select('config_key')
       .eq('config_key', HOMEPAGE_CONFIG_KEY)
@@ -153,17 +138,17 @@ export async function POST(request: NextRequest) {
 
     let operationError;
     if (existingConfig) {
-      console.log(`[Admin API Homepage POST] Existing config found. Attempting UPDATE for ${HOMEPAGE_CONFIG_KEY} with payload:`, JSON.stringify(dataToStore, null, 2).substring(0,500)+"...");
-      const { error } = await client
+      console.log(`[Admin API Homepage POST] Existing config found. Attempting UPDATE for ${HOMEPAGE_CONFIG_KEY}.`);
+      const { error } = await clientToUse
         .from('site_configurations')
-        .update({ value: dataToStore as any, updated_at: new Date().toISOString() }) // Explicitly set updated_at
+        .update({ value: dataToStore as any, updated_at: new Date().toISOString() })
         .eq('config_key', HOMEPAGE_CONFIG_KEY);
       operationError = error;
     } else {
-      console.log(`[Admin API Homepage POST] No existing config. Attempting INSERT for ${HOMEPAGE_CONFIG_KEY} with payload:`, JSON.stringify(dataToStore, null, 2).substring(0,500)+"...");
-      const { error } = await client
+      console.log(`[Admin API Homepage POST] No existing config. Attempting INSERT for ${HOMEPAGE_CONFIG_KEY}.`);
+      const { error } = await clientToUse
         .from('site_configurations')
-        .insert({ config_key: HOMEPAGE_CONFIG_KEY, value: dataToStore as any, updated_at: new Date().toISOString() }); // Also set updated_at for insert
+        .insert({ config_key: HOMEPAGE_CONFIG_KEY, value: dataToStore as any, updated_at: new Date().toISOString() });
       operationError = error;
     }
 
@@ -184,4 +169,3 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ message: 'Failed to update homepage content.', error: errorMessage }, { status: 500 });
   }
 }
-    
