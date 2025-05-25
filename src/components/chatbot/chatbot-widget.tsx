@@ -6,11 +6,18 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { MessageSquare, Send, X, Bot, User, Loader2 } from 'lucide-react';
+import { MessageSquare, Send, X, Bot, User, Loader2, Trash2 } from 'lucide-react'; // Added Trash2
 import type { ChatMessage } from '@/types';
 import { aiChatbotConcierge } from '@/ai/flows/ai-chatbot-concierge';
 import type { AiChatbotConciergeInput } from '@/ai/flows/ai-chatbot-concierge';
-import { Icons } from '@/components/icons'; // Added import for Icons.Logo
+import { Icons } from '@/components/icons';
+
+const initialMessage: ChatMessage = {
+  id: 'initial',
+  role: 'assistant',
+  content: 'Hello! How can I help you today at Peak Pulse?',
+  timestamp: Date.now()
+};
 
 export function ChatbotWidget() {
   const [isOpen, setIsOpen] = useState(false);
@@ -21,22 +28,23 @@ export function ChatbotWidget() {
 
   useEffect(() => {
     if (isOpen && messages.length === 0) {
-      setMessages([
-        { id: 'initial', role: 'assistant', content: 'Hello! How can I help you today at Peak Pulse?', timestamp: Date.now() }
-      ]);
+      setMessages([initialMessage]);
     }
   }, [isOpen, messages.length]);
   
   useEffect(() => {
-    // Scroll to bottom when new messages are added
     if (scrollAreaRef.current) {
-      const scrollableView = scrollAreaRef.current.querySelector('div > div'); // Target the viewport div
+      const scrollableView = scrollAreaRef.current.querySelector('div > div');
       if (scrollableView) {
         scrollableView.scrollTop = scrollableView.scrollHeight;
       }
     }
   }, [messages]);
 
+  const handleClearChat = () => {
+    setMessages([initialMessage]);
+    setInputValue(''); // Optionally clear input field as well
+  };
 
   const handleSendMessage = async () => {
     if (inputValue.trim() === '') return;
@@ -48,11 +56,12 @@ export function ChatbotWidget() {
       timestamp: Date.now(),
     };
     setMessages(prev => [...prev, userMessage]);
+    const currentInputValue = inputValue;
     setInputValue('');
     setIsLoading(true);
 
     try {
-      const aiInput: AiChatbotConciergeInput = { query: userMessage.content };
+      const aiInput: AiChatbotConciergeInput = { query: currentInputValue }; // Use captured input value
       const aiResponse = await aiChatbotConcierge(aiInput);
       
       const assistantMessage: ChatMessage = {
@@ -97,10 +106,16 @@ export function ChatbotWidget() {
             <Icons.Logo className="h-7 w-7 text-primary" /> 
             <CardTitle className="text-lg font-semibold">Peak Pulse Help</CardTitle>
         </div>
-        <Button variant="ghost" size="icon" onClick={() => setIsOpen(false)} className="h-8 w-8">
-          <X className="h-5 w-5" />
-          <span className="sr-only">Close chat</span>
-        </Button>
+        <div className="flex items-center">
+            <Button variant="ghost" size="icon" onClick={handleClearChat} className="h-8 w-8 mr-1 text-muted-foreground hover:text-destructive">
+                <Trash2 className="h-4 w-4" />
+                <span className="sr-only">Clear chat</span>
+            </Button>
+            <Button variant="ghost" size="icon" onClick={() => setIsOpen(false)} className="h-8 w-8">
+              <X className="h-5 w-5" />
+              <span className="sr-only">Close chat</span>
+            </Button>
+        </div>
       </CardHeader>
       <CardContent className="flex-grow p-0 overflow-hidden">
         <ScrollArea className="h-full p-4" ref={scrollAreaRef}>
@@ -145,7 +160,7 @@ export function ChatbotWidget() {
             className="flex-grow h-10"
             disabled={isLoading}
           />
-          <Button type="submit" size="icon" className="h-10 w-10" disabled={isLoading}>
+          <Button type="submit" size="icon" className="h-10 w-10" disabled={isLoading || !inputValue.trim()}>
             <Send className="h-5 w-5" />
             <span className="sr-only">Send message</span>
           </Button>
