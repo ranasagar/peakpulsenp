@@ -18,9 +18,9 @@ import MainLayout from '@/components/layout/main-layout';
 
 const fallbackHeroSlide: HeroSlide = {
   id: 'fallback-hero-main',
-  title: "Peak Pulse (Content Loading...)",
+  title: "Peak Pulse",
   description: "Experience the fusion of ancient Nepali artistry and modern streetwear. Content may be loading or using defaults.",
-  imageUrl: "https://images.unsplash.com/photo-1500917293891-ef795e70e1f6?q=80&w=1920&h=1080&fit=crop&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D", // A generic placeholder
+  imageUrl: "https://images.unsplash.com/photo-1500917293891-ef795e70e1f6?q=80&w=1920&h=1080&fit=crop&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
   altText: "Abstract mountain range placeholder",
   dataAiHint: "mountain abstract texture",
   ctaText: "Explore Collections",
@@ -28,66 +28,54 @@ const fallbackHeroSlide: HeroSlide = {
   videoId: undefined,
 };
 
-const fallbackContent: HomepageContent = {
+const defaultHomepageContent: HomepageContent = {
   heroSlides: [fallbackHeroSlide],
   artisanalRoots: {
-    title: "Our Artisanal Roots (Content Loading...)",
-    description: "Details about our commitment to craftsmanship are being updated."
+    title: "Our Artisanal Roots (Default)",
+    description: "Default description about craftsmanship."
   },
   socialCommerceItems: [],
   heroVideoId: undefined,
   heroImageUrl: undefined,
 };
 
-async function getHomepageContent(): Promise<HomepageContent> {
-  const fetchUrl = `/api/content/homepage`; // Always use relative path for client-side fetch
-  console.log(`[Client Fetch] Attempting to fetch from: ${fetchUrl}`);
+async function getHomepageApiContent(): Promise<HomepageContent> {
+  const fetchUrl = `/api/content/homepage`;
+  console.log(`[Client Fetch] Attempting to fetch homepage content from: ${fetchUrl}`);
   try {
     const res = await fetch(fetchUrl, { cache: 'no-store' });
-
     if (!res.ok) {
-      let errorBody = "Could not read error response body.";
-      let errorJson = null;
+      let errorBody = "Could not read error response body from API.";
       try {
-        errorJson = await res.json();
-        if (errorJson && errorJson.error) {
-          errorBody = errorJson.error;
-        } else if (errorJson && errorJson.message) {
-          errorBody = errorJson.message;
-        } else {
-          errorBody = await res.text();
-        }
+        const errorJson = await res.json();
+        errorBody = errorJson.error || errorJson.message || errorBody;
       } catch (e) { /* ignore if response is not json */ }
-      console.error(`[Client Fetch] Failed to fetch content. Status: ${res.status} ${res.statusText}. Body:`, errorBody.substring(0, 500));
+      console.error(`[Client Fetch] Failed to fetch homepage content. Status: ${res.status} ${res.statusText}. Body:`, errorBody.substring(0, 500));
       throw new Error(`API Error fetching homepage content: ${res.status} ${res.statusText}. Details: ${errorBody.substring(0, 200)}`);
     }
-
     const jsonData = await res.json() as Partial<HomepageContent>;
-    console.log("[Client Fetch] Successfully fetched content:", jsonData);
-
+    console.log("[Client Fetch] Successfully fetched homepage content:", jsonData);
     const processedHeroSlides = (Array.isArray(jsonData.heroSlides) && jsonData.heroSlides.length > 0)
       ? jsonData.heroSlides.map((slide: Partial<HeroSlide>, index: number) => ({
           id: slide.id || `slide-client-${Date.now()}-${index}`,
           title: slide.title || fallbackHeroSlide.title,
           description: slide.description || fallbackHeroSlide.description,
           imageUrl: slide.imageUrl || undefined,
-          videoId: slide.videoId || undefined,
+          videoId: slide.videoId === null ? undefined : slide.videoId,
           altText: slide.altText || "Hero image",
           dataAiHint: slide.dataAiHint || "fashion background",
           ctaText: slide.ctaText || "Shop Now",
           ctaLink: slide.ctaLink || "/products",
         }))
       : [fallbackHeroSlide];
-      
     if (processedHeroSlides.length === 0) { 
         processedHeroSlides.push(fallbackHeroSlide);
     }
-
-    const responseData: HomepageContent = {
+    return {
       heroSlides: processedHeroSlides,
       artisanalRoots: (jsonData.artisanalRoots && jsonData.artisanalRoots.title && jsonData.artisanalRoots.description)
         ? jsonData.artisanalRoots
-        : fallbackContent.artisanalRoots!,
+        : defaultHomepageContent.artisanalRoots!,
       socialCommerceItems: (Array.isArray(jsonData.socialCommerceItems))
         ? jsonData.socialCommerceItems.map((item: Partial<SocialCommerceItem>, index: number) => ({
             id: item.id || `social-client-${Date.now()}-${index}`,
@@ -96,20 +84,17 @@ async function getHomepageContent(): Promise<HomepageContent> {
             altText: item.altText || "Social post",
             dataAiHint: item.dataAiHint || "social fashion",
         }))
-        : fallbackContent.socialCommerceItems!,
-      heroVideoId: jsonData.heroVideoId, 
-      heroImageUrl: jsonData.heroImageUrl,
+        : defaultHomepageContent.socialCommerceItems!,
+      heroVideoId: jsonData.heroVideoId === null ? undefined : jsonData.heroVideoId,
+      heroImageUrl: jsonData.heroImageUrl === null ? undefined : jsonData.heroImageUrl,
     };
-    console.log("[Client Fetch] Processed content to be set:", responseData);
-    return responseData;
-
   } catch (error) {
-    console.error('[Client Fetch] CRITICAL ERROR in getHomepageContent:', error);
-    return { ...fallbackContent, error: (error as Error).message }; 
+    console.error('[Client Fetch] CRITICAL ERROR in getHomepageApiContent:', error);
+    return { ...defaultHomepageContent, error: (error as Error).message };
   }
 }
 
-async function getCategories(): Promise<CategoryType[]> {
+async function getCategoriesForHomepage(): Promise<CategoryType[]> {
   try {
     const res = await fetch('/api/categories', { cache: 'no-store' });
     if (!res.ok) {
@@ -123,16 +108,30 @@ async function getCategories(): Promise<CategoryType[]> {
   }
 }
 
-const mockFeaturedProducts: Product[] = [
-  { id: 'prod-1', name: 'Himalayan Breeze Jacket', slug: 'himalayan-breeze-jacket', price: 12000, images: [{ id: 'img-1', url: 'https://catalog-resize-images.thedoublef.com/606bc76216f1f9cb1ad8281eb9b7e84e/900/900/NF0A4QYXNY_P_NORTH-ZU31.a.jpg', altText: 'Himalayan Breeze Jacket', dataAiHint: 'jacket fashion' }], categories: [{ id: 'cat-1', name: 'Outerwear', slug: 'outerwear' }], shortDescription: 'Lightweight and versatile.', createdAt: "2023-01-15T10:00:00Z", updatedAt: "2023-01-15T10:00:00Z", description: "Full description here." },
-  { id: 'prod-2', name: 'Kathmandu Comfort Tee', slug: 'kathmandu-comfort-tee', price: 3500, images: [{ id: 'img-2', url: 'https://placehold.co/600x800.png', altText: 'Kathmandu Comfort Tee', dataAiHint: 'tee shirt' }], categories: [{ id: 'cat-2', name: 'Tops', slug: 'tops' }], shortDescription: 'Premium cotton for daily wear.', createdAt: "2023-02-01T09:00:00Z", updatedAt: "2023-02-01T09:00:00Z", description: "Full description here." },
-  { id: 'prod-3', name: 'Urban Nomad Pants', slug: 'urban-nomad-pants', price: 7500, images: [{ id: 'img-3', url: 'https://placehold.co/600x800.png', altText: 'Urban Nomad Pants', dataAiHint: 'pants fashion' }], categories: [{ id: 'cat-3', name: 'Bottoms', slug: 'bottoms' }], shortDescription: 'Street-ready style.', createdAt: "2023-03-10T14:00:00Z", updatedAt: "2023-03-10T14:00:00Z", description: "Full description here." },
-];
+async function getDynamicFeaturedProducts(): Promise<Product[]> {
+  try {
+    const res = await fetch('/api/products', { cache: 'no-store' }); // Fetches all products, sorted by newest
+    if (!res.ok) {
+      console.error("Failed to fetch products for featured section:", res.status, res.statusText);
+      return [];
+    }
+    const allProducts: Product[] = await res.json();
+    const featured = allProducts.filter(p => p.isFeatured === true).slice(0, 3); // Take first 3 featured
+    console.log("[Client Fetch] Fetched featured products:", featured.length);
+    return featured;
+  } catch (error) {
+    console.error("Error fetching products for featured section:", error);
+    return [];
+  }
+}
 
-export default function RootPage() {
+
+function HomePageContent() {
   const [isLoadingContent, setIsLoadingContent] = useState(true);
-  const [content, setContent] = useState<HomepageContent>(fallbackContent);
+  const [content, setContent] = useState<HomepageContent>(defaultHomepageContent);
   const [categories, setCategories] = useState<CategoryType[]>([]);
+  const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
+  const [isLoadingFeaturedProducts, setIsLoadingFeaturedProducts] = useState(true);
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isPlaying, setIsPlaying] = useState(true);
   const { toast } = useToast();
@@ -140,16 +139,22 @@ export default function RootPage() {
   const [isLoadingUserPosts, setIsLoadingUserPosts] = useState(true);
 
   const activeHeroSlides = content.heroSlides?.length ? content.heroSlides : [fallbackHeroSlide];
+  const heroVideoId = content.heroVideoId;
+  const heroImageUrl = content.heroImageUrl;
 
-  const loadContent = useCallback(async () => {
+  const loadPageData = useCallback(async () => {
     setIsLoadingContent(true);
+    setIsLoadingFeaturedProducts(true);
     try {
-      const [fetchedContent, fetchedCategories] = await Promise.all([
-        getHomepageContent(),
-        getCategories()
+      const [fetchedContent, fetchedCategories, fetchedFeaturedProducts] = await Promise.all([
+        getHomepageApiContent(),
+        getCategoriesForHomepage(),
+        getDynamicFeaturedProducts()
       ]);
       setContent(fetchedContent);
       setCategories(fetchedCategories);
+      setFeaturedProducts(fetchedFeaturedProducts);
+
       if (fetchedContent.error) {
         toast({
           title: "Homepage Load Warning",
@@ -163,9 +168,10 @@ export default function RootPage() {
         description: (error as Error).message || "Could not load homepage data. Displaying fallbacks.",
         variant: "destructive"
       });
-      setContent(fallbackContent); 
+      setContent(defaultHomepageContent); 
     } finally {
       setIsLoadingContent(false);
+      setIsLoadingFeaturedProducts(false);
     }
   }, [toast]);
 
@@ -185,7 +191,7 @@ export default function RootPage() {
                  errorDetail = `${response.status}: ${response.statusText || errorDetail}`;
             }
         } catch (e) {
-             errorDetail = `${response.status}: ${response.statusText || errorDetail}`;
+             errorDetail = `${response.status}: ${response.statusText || 'Failed to fetch user posts. Server returned an unexpected response.'}`;
         }
         throw new Error(errorDetail);
       }
@@ -200,9 +206,9 @@ export default function RootPage() {
   }, [toast]);
 
   useEffect(() => {
-    loadContent();
+    loadPageData();
     loadUserPosts();
-  }, [loadContent, loadUserPosts]);
+  }, [loadPageData, loadUserPosts]);
 
   const nextSlide = useCallback(() => {
     if (activeHeroSlides.length > 0) {
@@ -239,22 +245,53 @@ export default function RootPage() {
   }, [isPlaying, nextSlide, activeHeroSlides.length]);
 
 
-  if (isLoadingContent) {
+  if (isLoadingContent || isLoadingFeaturedProducts) { // Check both loading states
     return (
-      <MainLayout>
         <div className="flex items-center justify-center min-h-screen bg-background">
             <div className="flex flex-col items-center">
                 <Icons.Logo className="h-20 w-20 text-primary animate-pulse mb-4" />
                 <p className="text-muted-foreground">Loading Peak Pulse...</p>
             </div>
         </div>
-      </MainLayout>
     );
   }
   
   return (
-    <MainLayout>
+    <>
       <section style={{ backgroundColor: 'black' }} className="relative h-screen w-full overflow-hidden">
+        {/* Main Background Layer (Video or Image from content, or final black fallback) */}
+        <div className="absolute inset-0 z-0 pointer-events-none">
+            {heroVideoId ? (
+            <>
+                <iframe
+                className="absolute top-1/2 left-1/2 w-full h-full min-w-[177.77vh] min-h-[56.25vw] transform -translate-x-1/2 -translate-y-1/2"
+                src={`https://www.youtube.com/embed/${heroVideoId}?autoplay=1&mute=1&loop=1&playlist=${heroVideoId}&controls=0&showinfo=0&autohide=1&modestbranding=1&playsinline=1&enablejsapi=1`}
+                title="Peak Pulse Background Video"
+                frameBorder="0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen={false}
+                />
+                <div className="absolute inset-0 bg-black/60 z-[1]" /> {/* Overlay for video */}
+            </>
+            ) : heroImageUrl ? (
+            <>
+                <Image
+                src={heroImageUrl}
+                alt="Peak Pulse Hero Background"
+                fill
+                sizes="100vw"
+                priority
+                className="absolute inset-0 w-full h-full object-cover"
+                data-ai-hint="fashion mountains nepal"
+                />
+                <div className="absolute inset-0 bg-black/60 z-[1]" /> {/* Overlay for image */}
+            </>
+            ) : (
+                <div className="absolute inset-0 bg-black" /> // Fallback solid black if no video/image URL
+            )}
+        </div>
+
+        {/* Carousel Slides - Rendered on top of the main background if activeHeroSlides exist */}
         {activeHeroSlides.map((slide, index) => (
           <div
             key={slide.id || index}
@@ -262,25 +299,26 @@ export default function RootPage() {
               index === currentSlide ? 'opacity-100' : 'opacity-0 pointer-events-none'
             }`}
           >
-            {/* Background media container */}
-            <div className="absolute inset-0 z-0 pointer-events-none"> 
+            {/* Slide-specific Background (if different from main heroVideoId/heroImageUrl) */}
+            {/* This assumes slide.videoId or slide.imageUrl are for the slide's *own* background if different from main hero */}
+            <div className="absolute inset-0 z-0 pointer-events-none">
               {slide.videoId ? (
                 <>
                   <iframe
                     className="absolute top-1/2 left-1/2 w-full h-full min-w-[177.77vh] min-h-[56.25vw] transform -translate-x-1/2 -translate-y-1/2"
                     src={`https://www.youtube.com/embed/${slide.videoId}?autoplay=1&mute=1&loop=1&playlist=${slide.videoId}&controls=0&showinfo=0&autohide=1&modestbranding=1&playsinline=1&enablejsapi=1`}
-                    title="Peak Pulse Background Video"
+                    title={slide.altText || "Peak Pulse Slide Video"}
                     frameBorder="0"
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                     allowFullScreen={false}
                   />
-                  <div className="absolute inset-0 bg-black/60 z-[1]" /> {/* Overlay for video */}
+                   <div className="absolute inset-0 bg-black/60 z-[1]" /> {/* Overlay for video */}
                 </>
               ) : slide.imageUrl ? (
                 <>
                   <Image
                     src={slide.imageUrl}
-                    alt={slide.altText || "Peak Pulse Hero Background"}
+                    alt={slide.altText || "Peak Pulse Hero Slide"}
                     fill
                     sizes="100vw"
                     className="absolute inset-0 w-full h-full object-cover"
@@ -289,15 +327,16 @@ export default function RootPage() {
                   />
                   <div className="absolute inset-0 bg-black/60 z-[1]" /> {/* Overlay for image */}
                 </>
-              ) : null}
+              ) : null /* No background for this slide if neither videoId nor imageUrl is on the slide object */}
             </div>
-            {/* Text Content Overlay */}
+            
+            {/* Text Content Overlay for this specific slide */}
             {index === currentSlide && (
                 <div className="relative z-20 flex flex-col items-center justify-center h-full pt-[calc(theme(spacing.20)_+_theme(spacing.6))] pb-12 px-6 md:px-8 text-center text-white max-w-3xl mx-auto">
-                <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-6">
+                <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-6 text-shadow-lg">
                     {slide.title}
                 </h1>
-                <p className="text-lg md:text-xl lg:text-2xl text-neutral-200 mb-10 max-w-2xl mx-auto">
+                <p className="text-lg md:text-xl lg:text-2xl text-neutral-200 mb-10 max-w-2xl mx-auto text-shadow-md">
                     {slide.description}
                 </p>
                 {slide.ctaText && slide.ctaLink && (
@@ -360,11 +399,19 @@ export default function RootPage() {
       {/* Featured Collection Section */}
       <section className="section-padding container-wide relative z-[1] bg-background">
         <h2 className="text-3xl font-bold text-center mb-12 text-foreground">Featured Collection</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-          {mockFeaturedProducts.map(product => (
-            <ProductCard key={product.id} product={product} />
-          ))}
-        </div>
+        {isLoadingFeaturedProducts ? (
+          <div className="flex justify-center items-center py-10">
+            <Loader2 className="h-10 w-10 animate-spin text-primary" />
+          </div>
+        ) : featuredProducts.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+            {featuredProducts.map(product => (
+              <ProductCard key={product.id} product={product} />
+            ))}
+          </div>
+        ) : (
+          <p className="text-center text-muted-foreground">No featured products available at the moment. Check back soon!</p>
+        )}
         <div className="text-center mt-12">
           <Button variant="outline" size="lg" asChild className="text-base">
             <Link href="/products">View All Products <ArrowRight className="ml-2 h-5 w-5" /></Link>
@@ -540,6 +587,15 @@ export default function RootPage() {
           <NewsletterSignupForm />
         </div>
       </section>
+    </>
+  );
+}
+
+
+export default function RootPage() {
+  return (
+    <MainLayout>
+      <HomePageContent />
     </MainLayout>
   );
 }
