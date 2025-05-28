@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from 'react'; // Added useMemo
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useForm, useFieldArray, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -9,7 +9,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel as RHFFormLabel, FormMessage, FormDescription } from '@/components/ui/form'; // Renamed FormLabel to RHFFormLabel to avoid conflict
+import { Label } from "@/components/ui/label"; // <<< ADDED THIS IMPORT
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Save, PlusCircle, Trash2, Edit, XCircle, Paintbrush, Package, Tags } from 'lucide-react';
 import type { Product, ProductImage, Category as ProductCategoryType, ProductVariant, PrintDesign, ProductCustomizationConfig, AdminCategory } from '@/types';
@@ -53,7 +54,7 @@ const variantSchema = z.object({
 });
 
 const printDesignSchema = z.object({
-  id: z.string().optional(), // Should be UUID if coming from DB, or generated
+  id: z.string().optional(),
   name: z.string().min(1, "Design name is required."),
   imageUrl: z.string().url("Invalid image URL for design.").min(1, "Design image URL is required."),
   dataAiHint: z.string().optional(),
@@ -120,7 +121,7 @@ export default function AdminProductsPage() {
   const form = useForm<ProductFormValues>({
     resolver: zodResolver(productFormSchema),
     defaultValues: {
-      name: '', slug: '', price: 0, compareAtPrice: undefined, costPrice: undefined, stock: 0, shortDescription: '', description: '',
+      name: '', slug: '', price: 0, compareAtPrice: null, costPrice: null, stock: 0, shortDescription: '', description: '',
       images: [{...defaultImage, id: `img-${Date.now()}`}],
       categories: [],
       isFeatured: false,
@@ -155,7 +156,7 @@ export default function AdminProductsPage() {
   const fetchAvailableCategories = useCallback(async () => {
     setIsLoadingCategories(true);
     try {
-      const response = await fetch('/api/categories');
+      const response = await fetch('/api/categories'); // Fetches from the public categories endpoint
       if (!response.ok) throw new Error("Failed to fetch available categories");
       const data: AdminCategory[] = await response.json();
       setAvailableCategories(data);
@@ -172,7 +173,7 @@ export default function AdminProductsPage() {
   }, [fetchProducts]);
 
   const handleOpenFormDialog = async () => {
-    await fetchAvailableCategories();
+    await fetchAvailableCategories(); // Ensure categories are loaded before opening dialog
     setIsFormOpen(true);
   };
 
@@ -191,15 +192,15 @@ export default function AdminProductsPage() {
       stock: product.variants && product.variants.length > 0 ? null : (product.stock === undefined ? null : product.stock),
       shortDescription: product.shortDescription || '',
       description: product.description,
-      images: product.images.length > 0 ? product.images.map(img => ({ ...defaultImage, ...img, id: img.id || `img-loaded-${Date.now()}` })) : [{...defaultImage, id: `img-${Date.now()}`}],
+      images: product.images.length > 0 ? product.images.map(img => ({ ...defaultImage, ...img, id: img.id || `img-loaded-${Date.now()}-${Math.random()}` })) : [{...defaultImage, id: `img-${Date.now()}-${Math.random()}`}],
       categories: productCategoriesForForm,
       isFeatured: product.isFeatured || false,
       fabricDetails: product.fabricDetails || '',
       careInstructions: product.careInstructions || '',
       sustainabilityMetrics: product.sustainabilityMetrics || '',
       fitGuide: product.fitGuide || '',
-      variants: product.variants ? product.variants.map(v => ({...defaultVariant, ...v, id: v.id || `var-loaded-${Date.now()}`, costPrice: v.costPrice === undefined ? null : v.costPrice })) : [],
-      availablePrintDesigns: product.availablePrintDesigns ? product.availablePrintDesigns.map(d => ({...defaultPrintDesign, ...d, id: d.id || `design-loaded-${Date.now()}`})) : [],
+      variants: product.variants ? product.variants.map(v => ({...defaultVariant, ...v, id: v.id || `var-loaded-${Date.now()}-${Math.random()}`, costPrice: v.costPrice === undefined ? null : v.costPrice })) : [],
+      availablePrintDesigns: product.availablePrintDesigns ? product.availablePrintDesigns.map(d => ({...defaultPrintDesign, ...d, id: d.id || `design-loaded-${Date.now()}-${Math.random()}`})) : [],
       customizationConfig: product.customizationConfig ? {...defaultCustomizationConfig, ...product.customizationConfig} : {...defaultCustomizationConfig},
     });
     handleOpenFormDialog();
@@ -210,9 +211,9 @@ export default function AdminProductsPage() {
     const newProductName = `Untitled Product ${Date.now()}`;
     form.reset({
       name: newProductName,
-      slug: '', // Let API generate slug
+      slug: '', // API will generate slug if empty
       price: 0, compareAtPrice: null, costPrice: null, stock: 0, shortDescription: '', description: '',
-      images: [{...defaultImage, id: `img-${Date.now()}`}],
+      images: [{...defaultImage, id: `img-${Date.now()}-${Math.random()}`}],
       categories: [],
       isFeatured: false,
       fabricDetails: '', careInstructions: '', sustainabilityMetrics: '', fitGuide: '',
@@ -226,9 +227,13 @@ export default function AdminProductsPage() {
   const onSubmit = async (data: ProductFormValues) => {
     setIsSaving(true);
     try {
-      const payload = { ...data, id: editingProduct?.id };
-      const response = await fetch('/api/admin/products', {
-        method: 'POST',
+      const payload = { 
+        ...data, 
+        id: editingProduct?.id, // Include ID for updates, undefined for new products
+        slug: data.slug?.trim() || data.name.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, ''),
+      };
+      const response = await fetch('/api/admin/products', { // Single endpoint for create/update
+        method: 'POST', // Let the backend decide create vs update based on ID
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
@@ -237,22 +242,13 @@ export default function AdminProductsPage() {
         let errorDetail = `Failed to ${editingProduct ? 'update' : 'create'} product.`;
         try {
             const errorData = await response.json();
-            if (errorData.rawSupabaseError && errorData.rawSupabaseError.message) {
-                errorDetail = `Database error: ${errorData.rawSupabaseError.message}${errorData.rawSupabaseError.hint ? ` Hint: ${errorData.rawSupabaseError.hint}` : ''}`;
-            } else if (errorData.message) {
-                errorDetail = errorData.message;
-            } else {
-                 errorDetail = `${response.status}: ${response.statusText || errorDetail}`;
-            }
-        } catch (e) {
-             errorDetail = `${response.status}: ${response.statusText || 'Failed to process error response.'}`;
-        }
+            errorDetail = errorData.message || errorData.rawSupabaseError?.message || `Server responded with ${response.status}`;
+        } catch (e) { /* ignore */ }
         throw new Error(errorDetail);
       }
       toast({ title: "Success!", description: `Product "${data.name}" ${editingProduct ? 'updated' : 'created'} successfully.` });
       fetchProducts();
       setIsFormOpen(false);
-      setEditingProduct(null);
     } catch (error) {
       toast({ title: "Save Failed", description: (error as Error).message, variant: "destructive" });
     } finally {
@@ -260,20 +256,24 @@ export default function AdminProductsPage() {
     }
   };
 
+  const selectedCategoryIds = useMemo(() => {
+    return (form.watch('categories') || []).map(cat => cat.id);
+  }, [form.watch('categories')]);
+
   const handleCategorySelection = (categoryId: string, categoryName: string, categorySlug: string, checked: boolean) => {
     const currentCategories = form.getValues('categories') || [];
     let newCategories: ProductCategoryType[];
     if (checked) {
-      newCategories = [...currentCategories, { id: categoryId, name: categoryName, slug: categorySlug }];
+      if (!currentCategories.find(cat => cat.id === categoryId)) {
+        newCategories = [...currentCategories, { id: categoryId, name: categoryName, slug: categorySlug }];
+      } else {
+        newCategories = currentCategories; // Already exists
+      }
     } else {
       newCategories = currentCategories.filter(cat => cat.id !== categoryId);
     }
     form.setValue('categories', newCategories, { shouldValidate: true, shouldDirty: true });
   };
-
-  const selectedCategoryIds = useMemo(() => {
-    return (form.watch('categories') || []).map(cat => cat.id);
-  }, [form.watch('categories')]);
 
 
   const hasVariants = (form.watch('variants') || []).length > 0;
@@ -360,33 +360,35 @@ export default function AdminProductsPage() {
                   <legend className="text-lg font-semibold px-1 -mt-7 bg-card">Basic Information</legend>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <FormField control={form.control} name="name" render={({ field }) => (
-                      <FormItem><FormLabel>Name*</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                      <FormItem><RHFFormLabel>Name*</RHFFormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                     )} />
                     <FormField control={form.control} name="slug" render={({ field }) => (
-                      <FormItem><FormLabel>Slug</FormLabel><FormControl><Input {...field} placeholder="auto-generated if empty" /></FormControl><FormDescription>Lowercase, hyphens only.</FormDescription><FormMessage /></FormItem>
+                      <FormItem><RHFFormLabel>Slug</RHFFormLabel><FormControl><Input {...field} placeholder="auto-generated if empty" /></FormControl><FormDescription>Lowercase, hyphens only.</FormDescription><FormMessage /></FormItem>
                     )} />
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <FormField control={form.control} name="price" render={({ field }) => (
-                          <FormItem><FormLabel>Price (NPR)*</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
+                          <FormItem><RHFFormLabel>Price (NPR)*</RHFFormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
                       )} />
                       <FormField control={form.control} name="compareAtPrice" render={({ field }) => (
-                          <FormItem><FormLabel>Compare At Price (Optional)</FormLabel><FormControl><Input type="number" step="0.01" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? null : parseFloat(e.target.value))} /></FormControl><FormMessage /></FormItem>
+                          <FormItem><RHFFormLabel>Compare At Price (Optional)</RHFFormLabel><FormControl><Input type="number" step="0.01" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? null : parseFloat(e.target.value))} /></FormControl><FormMessage /></FormItem>
                       )} />
                        <FormField control={form.control} name="costPrice" render={({ field }) => (
-                          <FormItem><FormLabel>Cost Price (NPR)</FormLabel><FormControl><Input type="number" step="0.01" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? null : parseFloat(e.target.value))}/></FormControl><FormMessage /></FormItem>
+                          <FormItem><RHFFormLabel>Cost Price (NPR)</RHFFormLabel><FormControl><Input type="number" step="0.01" {...field} value={field.value ?? ''}  onChange={e => field.onChange(e.target.value === '' ? null : parseFloat(e.target.value))}/></FormControl><FormMessage /></FormItem>
                       )} />
                   </div>
 
                   {!hasVariants && (
                        <FormField control={form.control} name="stock" render={({ field }) => (
-                          <FormItem><FormLabel>Base Stock (if no variants)</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? 0} onChange={e => field.onChange(e.target.value === '' ? null : parseInt(e.target.value, 10))} /></FormControl><FormMessage /></FormItem>
+                          <FormItem><RHFFormLabel>Base Stock (if no variants)</RHFFormLabel><FormControl><Input type="number" {...field} value={field.value ?? 0} onChange={e => field.onChange(e.target.value === '' ? null : parseInt(e.target.value, 10))} /></FormControl><FormMessage /></FormItem>
                       )} />
                   )}
                    <FormField control={form.control} name="isFeatured" render={({ field }) => (
                       <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-3 shadow-sm">
                           <FormControl><Checkbox checked={!!field.value} onCheckedChange={field.onChange} /></FormControl>
-                          <FormLabel className="font-normal mb-0! pt-0!">Mark as Featured Product</FormLabel>
+                          <div className="space-y-0.5 leading-none">
+                            <RHFFormLabel className="font-normal cursor-pointer">Mark as Featured Product</RHFFormLabel>
+                          </div>
                       </FormItem>
                     )} />
                 </fieldset>
@@ -394,10 +396,10 @@ export default function AdminProductsPage() {
                 <fieldset className="space-y-4 p-4 border rounded-md">
                   <legend className="text-lg font-semibold px-1 -mt-7 bg-card">Descriptions</legend>
                   <FormField control={form.control} name="shortDescription" render={({ field }) => (
-                    <FormItem><FormLabel>Short Description</FormLabel><FormControl><Textarea {...field} rows={2} /></FormControl><FormMessage /></FormItem>
+                    <FormItem><RHFFormLabel>Short Description</RHFFormLabel><FormControl><Textarea {...field} rows={2} /></FormControl><FormMessage /></FormItem>
                   )} />
                   <FormField control={form.control} name="description" render={({ field }) => (
-                    <FormItem><FormLabel>Full Description (HTML allowed)</FormLabel><FormControl><Textarea {...field} rows={5} /></FormControl><FormMessage /></FormItem>
+                    <FormItem><RHFFormLabel>Full Description (HTML allowed)</RHFFormLabel><FormControl><Textarea {...field} rows={5} /></FormControl><FormMessage /></FormItem>
                   )} />
                 </fieldset>
 
@@ -405,10 +407,10 @@ export default function AdminProductsPage() {
                   <legend className="text-lg font-semibold px-1 -mt-7 bg-card">Images (First image is main)</legend>
                   {imagesFields.map((field, index) => (
                     <Card key={field.id} className="p-3 space-y-2 bg-muted/30">
-                      <FormLabel className="text-sm">Image {index + 1}</FormLabel>
+                      <RHFFormLabel className="text-sm">Image {index + 1}</RHFFormLabel>
                       <FormField control={form.control} name={`images.${index}.url`} render={({ field }) => (
                         <FormItem>
-                            <FormLabel className="text-xs">Image URL*</FormLabel>
+                            <RHFFormLabel className="text-xs">Image URL*</RHFFormLabel>
                             <FormControl><Input {...field} placeholder="https://example.com/image.jpg" /></FormControl>
                             <FormDescription>Tip: Use ImgBB.com or Postimages.org for free uploads. Paste the "Direct link".</FormDescription>
                             <FormMessage />
@@ -416,10 +418,10 @@ export default function AdminProductsPage() {
                       )} />
                       <div className="grid grid-cols-2 gap-2">
                         <FormField control={form.control} name={`images.${index}.altText`} render={({ field }) => (
-                            <FormItem><FormLabel className="text-xs">Alt Text</FormLabel><FormControl><Input {...field} placeholder="Descriptive alt text" /></FormControl></FormItem>
+                            <FormItem><RHFFormLabel className="text-xs">Alt Text</RHFFormLabel><FormControl><Input {...field} placeholder="Descriptive alt text" /></FormControl></FormItem>
                         )} />
                         <FormField control={form.control} name={`images.${index}.dataAiHint`} render={({ field }) => (
-                            <FormItem><FormLabel className="text-xs">AI Hint</FormLabel><FormControl><Input {...field} placeholder="e.g. jacket fashion" /></FormControl></FormItem>
+                            <FormItem><RHFFormLabel className="text-xs">AI Hint</RHFFormLabel><FormControl><Input {...field} placeholder="e.g. jacket fashion" /></FormControl></FormItem>
                         )} />
                       </div>
                       <Button type="button" variant="destructive" size="xs" onClick={() => removeImage(index)} disabled={imagesFields.length <= 1}><Trash2 className="mr-1 h-3 w-3"/>Remove Image</Button>
@@ -437,8 +439,8 @@ export default function AdminProductsPage() {
                             <FormField
                               key={category.id}
                               control={form.control}
-                              name="categories" // This name needs to be handled correctly
-                              render={() => (
+                              name="categories"
+                              render={() => ( // No 'field' needed directly here for a group of checkboxes
                                 <FormItem className="flex flex-row items-center space-x-2 space-y-0">
                                   <FormControl>
                                     <Checkbox
@@ -466,16 +468,16 @@ export default function AdminProductsPage() {
                 <fieldset className="space-y-4 p-4 border rounded-md">
                   <legend className="text-lg font-semibold px-1 -mt-7 bg-card">Additional Details</legend>
                   <FormField control={form.control} name="fabricDetails" render={({ field }) => (
-                    <FormItem><FormLabel>Fabric Details</FormLabel><FormControl><Textarea {...field} rows={2} /></FormControl><FormMessage /></FormItem>
+                    <FormItem><RHFFormLabel>Fabric Details</RHFFormLabel><FormControl><Textarea {...field} rows={2} /></FormControl><FormMessage /></FormItem>
                   )} />
                   <FormField control={form.control} name="careInstructions" render={({ field }) => (
-                    <FormItem><FormLabel>Care Instructions</FormLabel><FormControl><Textarea {...field} rows={2} /></FormControl><FormMessage /></FormItem>
+                    <FormItem><RHFFormLabel>Care Instructions</RHFFormLabel><FormControl><Textarea {...field} rows={2} /></FormControl><FormMessage /></FormItem>
                   )} />
                   <FormField control={form.control} name="sustainabilityMetrics" render={({ field }) => (
-                    <FormItem><FormLabel>Sustainability Metrics</FormLabel><FormControl><Textarea {...field} rows={2} /></FormControl><FormMessage /></FormItem>
+                    <FormItem><RHFFormLabel>Sustainability Metrics</RHFFormLabel><FormControl><Textarea {...field} rows={2} /></FormControl><FormMessage /></FormItem>
                   )} />
                   <FormField control={form.control} name="fitGuide" render={({ field }) => (
-                    <FormItem><FormLabel>Fit Guide</FormLabel><FormControl><Textarea {...field} rows={2} /></FormControl><FormMessage /></FormItem>
+                    <FormItem><RHFFormLabel>Fit Guide</RHFFormLabel><FormControl><Textarea {...field} rows={2} /></FormControl><FormMessage /></FormItem>
                   )} />
                 </fieldset>
 
@@ -483,28 +485,28 @@ export default function AdminProductsPage() {
                   <legend className="text-lg font-semibold px-1 -mt-7 bg-card">Variants (Optional)</legend>
                   {variantsFields.map((field, index) => (
                     <Card key={field.id} className="p-3 space-y-2 bg-muted/30">
-                      <FormLabel className="text-sm">Variant {index + 1}</FormLabel>
+                      <RHFFormLabel className="text-sm">Variant {index + 1}</RHFFormLabel>
                       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                         <FormField control={form.control} name={`variants.${index}.name`} render={({ field }) => (
-                          <FormItem><FormLabel className="text-xs">Type (e.g. Size)*</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                          <FormItem><RHFFormLabel className="text-xs">Type (e.g. Size)*</RHFFormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                         )} />
                         <FormField control={form.control} name={`variants.${index}.value`} render={({ field }) => (
-                          <FormItem><FormLabel className="text-xs">Value (e.g. M)*</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                          <FormItem><RHFFormLabel className="text-xs">Value (e.g. M)*</RHFFormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                         )} />
                         <FormField control={form.control} name={`variants.${index}.sku`} render={({ field }) => (
-                          <FormItem><FormLabel className="text-xs">SKU</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                          <FormItem><RHFFormLabel className="text-xs">SKU</RHFFormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                         )} />
                         <FormField control={form.control} name={`variants.${index}.price`} render={({ field }) => (
-                          <FormItem><FormLabel className="text-xs">Variant Price*</FormLabel><FormControl><Input type="number" step="0.01" {...field} value={field.value ?? 0} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} placeholder="Overrides base price if set" /></FormControl><FormMessage /></FormItem>
+                          <FormItem><RHFFormLabel className="text-xs">Variant Price*</RHFFormLabel><FormControl><Input type="number" step="0.01" {...field} value={field.value ?? 0} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} placeholder="Overrides base price if set" /></FormControl><FormMessage /></FormItem>
                         )} />
                         <FormField control={form.control} name={`variants.${index}.costPrice`} render={({ field }) => (
-                          <FormItem><FormLabel className="text-xs">Variant Cost Price</FormLabel><FormControl><Input type="number" step="0.01" {...field} value={field.value ?? ''}  onChange={e => field.onChange(e.target.value === '' ? null : parseFloat(e.target.value))} /></FormControl><FormMessage /></FormItem>
+                          <FormItem><RHFFormLabel className="text-xs">Variant Cost Price</RHFFormLabel><FormControl><Input type="number" step="0.01" {...field} value={field.value ?? ''}  onChange={e => field.onChange(e.target.value === '' ? null : parseFloat(e.target.value))} /></FormControl><FormMessage /></FormItem>
                         )} />
                         <FormField control={form.control} name={`variants.${index}.stock`} render={({ field }) => (
-                          <FormItem><FormLabel className="text-xs">Stock*</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? 0} onChange={e => field.onChange(parseInt(e.target.value, 10) || 0)} /></FormControl><FormMessage /></FormItem>
+                          <FormItem><RHFFormLabel className="text-xs">Stock*</RHFFormLabel><FormControl><Input type="number" {...field} value={field.value ?? 0} onChange={e => field.onChange(parseInt(e.target.value, 10) || 0)} /></FormControl><FormMessage /></FormItem>
                         )} />
                         <FormField control={form.control} name={`variants.${index}.imageId`} render={({ field }) => (
-                          <FormItem><FormLabel className="text-xs">Image ID (Optional)</FormLabel><FormControl><Input {...field} placeholder="img-variant-id" /></FormControl><FormDescription>ID of an image from the main list above.</FormDescription><FormMessage /></FormItem>
+                          <FormItem><RHFFormLabel className="text-xs">Image ID (Optional)</RHFFormLabel><FormControl><Input {...field} placeholder="img-variant-id" /></FormControl><FormDescription>ID of an image from the main list above.</FormDescription><FormMessage /></FormItem>
                         )} />
                       </div>
                       <Button type="button" variant="destructive" size="xs" onClick={() => removeVariant(index)}><Trash2 className="mr-1 h-3 w-3"/>Remove Variant</Button>
@@ -522,7 +524,7 @@ export default function AdminProductsPage() {
                         render={({ field }) => (
                         <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm bg-muted/30">
                             <div className="space-y-0.5">
-                            <FormLabel>Enable Customization for this Product</FormLabel>
+                            <RHFFormLabel className="cursor-pointer">Enable Customization for this Product</RHFFormLabel>
                             <FormMessage />
                             </div>
                             <FormControl>
@@ -539,14 +541,14 @@ export default function AdminProductsPage() {
                                 render={({ field }) => (
                                 <FormItem className="flex flex-row items-center space-x-3 space-y-0">
                                     <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>
-                                    <FormLabel className="font-normal">Allow Predefined Designs</FormLabel>
+                                    <RHFFormLabel className="font-normal cursor-pointer">Allow Predefined Designs</RHFFormLabel>
                                 </FormItem>
                                 )}
                             />
                             {form.watch("customizationConfig.allowPredefinedDesigns") && (
                                 <FormField control={form.control} name="customizationConfig.predefinedDesignsLabel" render={({ field }) => (
                                     <FormItem className="ml-6">
-                                        <FormLabel>Label for 'Signature Peak Design' Section</FormLabel>
+                                        <RHFFormLabel>Label for 'Signature Peak Design' Section</RHFFormLabel>
                                         <FormControl><Input {...field} /></FormControl>
                                         <FormDescription>This is the title shown above the selectable predefined designs on the product page (e.g., &quot;Choose a Signature Peak Design&quot;).</FormDescription>
                                         <FormMessage />
@@ -560,13 +562,13 @@ export default function AdminProductsPage() {
                                 render={({ field }) => (
                                 <FormItem className="flex flex-row items-center space-x-3 space-y-0">
                                     <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>
-                                    <FormLabel className="font-normal">Allow User Custom Design Description</FormLabel>
+                                    <RHFFormLabel className="font-normal cursor-pointer">Allow User Custom Design Description</RHFFormLabel>
                                 </FormItem>
                                 )}
                             />
                             {form.watch("customizationConfig.allowCustomDescription") && (
                                 <FormField control={form.control} name="customizationConfig.customDescriptionLabel" render={({ field }) => (
-                                     <FormItem className="ml-6"><FormLabel>Label for Custom Design Description Input</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                                     <FormItem className="ml-6"><RHFFormLabel>Label for Custom Design Description Input</RHFFormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                                 )} />
                             )}
 
@@ -576,13 +578,13 @@ export default function AdminProductsPage() {
                                 render={({ field }) => (
                                 <FormItem className="flex flex-row items-center space-x-3 space-y-0">
                                     <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>
-                                    <FormLabel className="font-normal">Allow User Instructions</FormLabel>
+                                    <RHFFormLabel className="font-normal cursor-pointer">Allow User Instructions</RHFFormLabel>
                                 </FormItem>
                                 )}
                             />
                             {form.watch("customizationConfig.allowInstructions") && (
                                 <FormField control={form.control} name="customizationConfig.instructionsLabel" render={({ field }) => (
-                                     <FormItem className="ml-6"><FormLabel>Label for Instructions Input</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                                     <FormItem className="ml-6"><RHFFormLabel>Label for Instructions Input</RHFFormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                                 )} />
                             )}
                         </div>
@@ -594,20 +596,20 @@ export default function AdminProductsPage() {
                         <legend className="text-lg font-semibold px-1 -mt-7 bg-card">Available Predefined Print Designs</legend>
                         {printDesignsFields.map((field, index) => (
                             <Card key={field.id} className="p-3 space-y-2 bg-muted/30">
-                              <FormLabel className="text-sm">Design {index + 1}</FormLabel>
+                              <RHFFormLabel className="text-sm">Design {index + 1}</RHFFormLabel>
                               <FormField control={form.control} name={`availablePrintDesigns.${index}.name`} render={({ field }) => (
-                                  <FormItem><FormLabel className="text-xs">Design Name*</FormLabel><FormControl><Input {...field} placeholder="e.g. Everest Peak Outline" /></FormControl><FormMessage /></FormItem>
+                                  <FormItem><RHFFormLabel className="text-xs">Design Name*</RHFFormLabel><FormControl><Input {...field} placeholder="e.g. Everest Peak Outline" /></FormControl><FormMessage /></FormItem>
                               )} />
                               <FormField control={form.control} name={`availablePrintDesigns.${index}.imageUrl`} render={({ field }) => (
                                   <FormItem>
-                                    <FormLabel className="text-xs">Design Image URL*</FormLabel>
+                                    <RHFFormLabel className="text-xs">Design Image URL*</RHFFormLabel>
                                     <FormControl><Input {...field} placeholder="https://example.com/design.png" /></FormControl>
                                     <FormDescription>Tip: Use ImgBB.com or Postimages.org for free uploads. Paste the "Direct link".</FormDescription>
                                     <FormMessage />
                                   </FormItem>
                               )} />
                               <FormField control={form.control} name={`availablePrintDesigns.${index}.dataAiHint`} render={({ field }) => (
-                                  <FormItem><FormLabel className="text-xs">AI Hint for Design Image</FormLabel><FormControl><Input {...field} placeholder="e.g. mountain lineart" /></FormControl><FormMessage /></FormItem>
+                                  <FormItem><RHFFormLabel className="text-xs">AI Hint for Design Image</RHFFormLabel><FormControl><Input {...field} placeholder="e.g. mountain lineart" /></FormControl><FormMessage /></FormItem>
                               )} />
                               <Button type="button" variant="destructive" size="xs" onClick={() => removePrintDesign(index)}><Trash2 className="mr-1 h-3 w-3"/>Remove Design</Button>
                             </Card>
@@ -634,5 +636,3 @@ export default function AdminProductsPage() {
     </div>
   );
 }
-
-    
