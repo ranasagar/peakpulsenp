@@ -9,17 +9,19 @@ export const dynamic = 'force-dynamic';
 
 // GET all reviews for admin panel
 export async function GET(request: NextRequest) {
-  const client = supabaseAdmin || fallbackSupabase;
-  if (!client) {
-    console.error('[API /api/admin/reviews GET] Supabase client not initialized.');
-    return NextResponse.json({ message: 'Database client not configured.' , rawSupabaseError: { message: 'Supabase client not initialized.'}}, { status: 503 });
+  console.log('[API /api/admin/reviews GET] Request received to fetch all reviews for admin.');
+
+  if (!supabaseAdmin) {
+    console.error('[API /api/admin/reviews GET] CRITICAL: Admin Supabase client (service_role) is not initialized. Check SUPABASE_SERVICE_ROLE_KEY in .env and server restart.');
+    return NextResponse.json({
+      message: 'Admin database client not configured. Cannot fetch reviews. Contact administrator.',
+      rawSupabaseError: { message: 'Admin database client (service_role) missing.' }
+    }, { status: 503 }); // Service Unavailable
   }
-  if (client === fallbackSupabase && !supabaseAdmin) { // Check if admin client failed and we are on fallback
-      console.warn("[API /api/admin/reviews GET] Using fallback public Supabase client because admin client (service_role) is not available. RLS policies for 'authenticated' admin role will apply.");
-  }
+  console.log('[API /api/admin/reviews GET] Using ADMIN Supabase client (service_role).');
 
   try {
-    const { data, error } = await client
+    const { data, error } = await supabaseAdmin // Strictly use supabaseAdmin
       .from('reviews')
       .select(`
         id,
@@ -34,13 +36,16 @@ export async function GET(request: NextRequest) {
         "createdAt",
         "updatedAt",
         product:products (name),
-        user:users (name, "avatarUrl", email)
+        user:users (name, "avatarUrl")
       `)
       .order('"createdAt"', { ascending: false });
 
     if (error) {
       console.error('[API /api/admin/reviews GET] Supabase error fetching reviews:', error);
-      return NextResponse.json({ message: 'Failed to fetch reviews for admin.', rawSupabaseError: error }, { status: 500 });
+      return NextResponse.json({
+        message: 'Failed to fetch reviews for admin.',
+        rawSupabaseError: { message: error.message, details: error.details, hint: error.hint, code: error.code }
+      }, { status: 500 });
     }
     
     const reviews: Review[] = (data || []).map((r: any) => ({
@@ -49,22 +54,20 @@ export async function GET(request: NextRequest) {
         product_name: r.product?.name || 'N/A',
         user_id: r.user_id,
         user_name: r.user?.name || r.user?.email || 'Anonymous',
-        user_avatar_url: r.user?.avatarUrl,
+        user_avatar_url: r.user?.["avatarUrl"], // Corrected access for quoted column
         rating: r.rating,
         title: r.title,
         comment: r.comment,
         images: r.images,
-        status: r.status,
+        status: r.status as Review['status'],
         verified_purchase: r.verified_purchase,
         createdAt: r.createdAt,
         updatedAt: r.updatedAt,
     }));
-
+    console.log(`[API /api/admin/reviews GET] Successfully fetched ${reviews.length} reviews for admin.`);
     return NextResponse.json(reviews);
   } catch (e: any) {
     console.error('[API /api/admin/reviews GET] Unhandled error:', e);
-    return NextResponse.json({ message: 'Server error fetching reviews for admin.', error: e.message }, { status: 500 });
+    return NextResponse.json({ message: 'Server error fetching reviews for admin.', errorDetails: e.message }, { status: 500 });
   }
 }
-
-    
