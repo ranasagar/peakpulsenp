@@ -1,4 +1,3 @@
-
 // /src/app/api/user-posts/route.ts
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
@@ -7,7 +6,7 @@ import type { UserPost } from '@/types';
 
 export const dynamic = 'force-dynamic';
 
-// GET approved user posts
+// GET approved user posts for frontend display
 export async function GET(request: NextRequest) {
   console.log("[API /api/user-posts GET] request received for approved posts.");
 
@@ -52,12 +51,10 @@ export async function GET(request: NextRequest) {
       }, { status: 500 });
     }
     
-    const posts: UserPost[] = (data || []).map(post => ({
+    const posts: UserPost[] = (data || []).map((post: any) => ({ // Use 'any' for Supabase join result before mapping
         id: post.id,
         user_id: post.user_id,
-        // @ts-ignore
         user_name: post.users?.name || 'Peak Pulse User', 
-        // @ts-ignore
         user_avatar_url: post.users?.["avatarUrl"] || undefined,
         image_url: post.image_url,
         caption: post.caption,
@@ -70,15 +67,17 @@ export async function GET(request: NextRequest) {
     console.log(`[API /api/user-posts GET] Successfully fetched ${posts.length} approved posts.`);
     return NextResponse.json(posts);
   } catch (e) {
-    console.error('[API /api/user-posts GET] Unhandled error in GET handler:', e);
+    const error = e as Error;
+    console.error('[API /api/user-posts GET] Unhandled error in GET handler:', error);
     return NextResponse.json({
       message: 'Server error while fetching user posts.',
-      error: (e as Error).message
+      errorName: error.name,
+      errorMessage: error.message,
     }, { status: 500 });
   }
 }
 
-// POST to create a new user post
+// POST to create a new user post (submitted by users)
 interface CreateUserPostPayload {
   userId: string;
   imageUrl: string;
@@ -96,50 +95,63 @@ export async function POST(request: NextRequest) {
     }, { status: 503 });
   }
 
+  let payload: CreateUserPostPayload;
   try {
-    const { userId, imageUrl, caption, productTags } = (await request.json()) as CreateUserPostPayload;
+    payload = await request.json();
+  } catch (error) {
+    console.error('[API /api/user-posts POST] Invalid JSON payload:', error);
+    return NextResponse.json({ message: 'Invalid JSON payload.' }, { status: 400 });
+  }
 
-    if (!userId || !imageUrl) {
-      return NextResponse.json({ message: 'User ID and Image URL are required.' }, { status: 400 });
-    }
+  const { userId, imageUrl, caption, productTags } = payload;
+  console.log('[API /api/user-posts POST] Parsed Payload:', payload);
 
-    const newPostData = {
-      user_id: userId, 
-      image_url: imageUrl,
-      caption: caption || null,
-      product_tags: productTags && productTags.length > 0 ? productTags : null,
-      status: 'pending', 
-    };
-    
-    console.log('[API /api/user-posts POST] Attempting to insert new post data:', JSON.stringify(newPostData, null, 2));
 
-    const { data, error } = await supabase
+  if (!userId || !imageUrl) {
+    console.warn('[API /api/user-posts POST] Missing required fields: userId or imageUrl.');
+    return NextResponse.json({ message: 'User ID and Image URL are required.' }, { status: 400 });
+  }
+
+  const newPostData = {
+    user_id: userId, 
+    image_url: imageUrl,
+    caption: caption || null,
+    product_tags: productTags && productTags.length > 0 ? productTags : null,
+    status: 'pending', // New posts default to pending
+    // Supabase will handle created_at and updated_at
+  };
+  
+  console.log('[API /api/user-posts POST] Attempting to insert new post data into Supabase:', newPostData);
+
+  try {
+    const { data, error: insertError } = await supabase
       .from('user_posts')
       .insert(newPostData)
       .select()
       .single();
 
-    if (error) {
-      console.error('[API /api/user-posts POST] Supabase error creating post:', error);
+    if (insertError) {
+      console.error('[API /api/user-posts POST] Supabase error creating post:', insertError);
       return NextResponse.json({
         message: 'Failed to create post in database.',
         rawSupabaseError: {
-          message: error.message,
-          details: error.details,
-          hint: error.hint,
-          code: error.code,
+          message: insertError.message,
+          details: insertError.details,
+          hint: insertError.hint,
+          code: insertError.code,
         },
-      }, { status: 500 });
+      }, { status: 500 }); // Use 500 for DB errors, or specific codes if applicable (e.g. 403 for RLS)
     }
 
     console.log('[API /api/user-posts POST] User post created successfully:', data);
     return NextResponse.json(data, { status: 201 });
   } catch (e) {
-    console.error('[API /api/user-posts POST] Unhandled error creating user post:', e);
+    const error = e as Error;
+    console.error('[API /api/user-posts POST] Unhandled exception during post creation:', error);
     return NextResponse.json({
       message: 'Server error while creating user post.',
-      error: (e as Error).message
+      errorName: error.name,
+      errorMessage: error.message,
     }, { status: 500 });
   }
 }
-

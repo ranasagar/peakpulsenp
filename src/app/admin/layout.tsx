@@ -1,4 +1,4 @@
-
+// /src/app/admin/layout.tsx
 "use client"; 
 
 import Link from 'next/link';
@@ -67,9 +67,9 @@ export default function AdminLayout({
             </Button>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 items-start"> {/* Added items-start */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <aside className="w-full md:col-span-1 md:sticky md:top-28 bg-card p-4 rounded-lg shadow-sm">
-              <nav className="space-y-1"> {/* Removed ScrollArea and fixed height from here */}
+              <nav className="space-y-1">
                 <Button variant="ghost" className="w-full justify-start pl-2 pr-3 py-2" asChild>
                   <Link href="/admin">
                     <LayoutDashboard className="mr-2 h-4 w-4" /> Dashboard
@@ -117,6 +117,9 @@ export default function AdminLayout({
                       </Button>
                       <Button variant="ghost" className="w-full justify-start text-sm font-normal h-9 pl-2 pr-3 py-2" asChild>
                         <Link href="/admin/content/site-pages"><FileText className="mr-2 h-4 w-4" /> Site Pages</Link>
+                      </Button>
+                       <Button variant="ghost" className="w-full justify-start text-sm font-normal h-9 pl-2 pr-3 py-2" asChild>
+                        <Link href="/admin/content/user-posts"><Users className="mr-2 h-4 w-4" /> User Posts</Link>
                       </Button>
                     </AccordionContent>
                   </AccordionItem>
@@ -169,7 +172,7 @@ export default function AdminLayout({
                 </Button>
               </nav>
             </aside>
-            <div className="w-full md:col-span-3 md:col-start-2">
+            <div className="w-full md:col-span-3 md:col-start-2"> {/* Ensure this starts after the sidebar */}
               {children}
             </div>
           </div>
@@ -179,5 +182,3 @@ export default function AdminLayout({
     </div>
   );
 }
-
-    
