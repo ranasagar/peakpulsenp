@@ -19,7 +19,7 @@ import { Icons } from '@/components/icons';
 import { useAuth } from '@/hooks/use-auth';
 import { cn } from '@/lib/utils';
 import type { NavItem } from '@/types';
-import { ShoppingCart, Search, LogOut, UserCircle, LayoutDashboard, Settings, Star, ShoppingBag, Briefcase, LayoutGrid, Home as HomeIcon, Store, BookOpenText, Mail } from 'lucide-react';
+import { ShoppingCart, Search, LogOut, UserCircle, LayoutDashboard, Settings, Star, ShoppingBag, Briefcase, LayoutGrid, Home as HomeIcon, Store, BookOpenText, Mail, Handshake } from 'lucide-react'; // Added Handshake
 import { ModeToggle } from './mode-toggle';
 import { useCart } from '@/context/cart-context';
 
@@ -27,6 +27,7 @@ const mainNavItems: NavItem[] = [
   { title: 'Home', href: '/', icon: HomeIcon },
   { title: 'Shop', href: '/products', icon: Store },
   { title: 'Categories', href: '/categories', icon: LayoutGrid },
+  { title: 'Collaborations', href: '/collaborations', icon: Handshake }, // New Link Added
   { title: 'Our Story', href: '/our-story', icon: BookOpenText },
   { title: 'Contact', href: '/contact', icon: Mail },
 ];
@@ -100,7 +101,7 @@ export function Header() {
         <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
           <SheetTrigger asChild>
             <Button variant="ghost" size="icon" className="md:hidden mr-2 h-16 w-16">
-              <Icons.AnimatedMenuIcon className="h-8 w-8" /> {/* Adjusted size to match desktop logo in header */}
+              <Icons.AnimatedMenuIcon className="h-8 w-8" />
               <span className="sr-only">Toggle Menu</span>
             </Button>
           </SheetTrigger>
