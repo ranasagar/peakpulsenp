@@ -4,8 +4,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Button } from '@/components/ui/button';
-import { ProductCard } from '@/components/product/product-card';
+import { Button, buttonVariants } from '@/components/ui/button'; // Import buttonVariants
 import { Icons } from '@/components/icons';
 import { ChevronLeft, ChevronRight, ShoppingBag, ArrowRight, Instagram, Send, Users, ImagePlus, Loader2, Play, Pause, LayoutGrid, Palette as PaletteIcon, Handshake, Sprout } from 'lucide-react';
 import { NewsletterSignupForm } from '@/components/forms/newsletter-signup-form';
@@ -17,11 +16,12 @@ import { InteractiveExternalLink } from '@/components/interactive-external-link'
 import MainLayout from '@/components/layout/main-layout';
 import { formatDisplayDate } from '@/lib/dateUtils';
 import { cn } from '@/lib/utils';
+import { ProductCard } from '@/components/product/product-card';
 
 const fallbackHeroSlide: HeroSlide = {
   id: 'fallback-hero-main-public',
   title: "Peak Pulse",
-  description: "Experience the fusion of ancient Nepali artistry and modern streetwear. (Default content)",
+  description: "Experience the fusion of ancient Nepali artistry and modern streetwear. (Fallback content)",
   imageUrl: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1920&h=1080&q=80",
   altText: "Default Peak Pulse Hero Image",
   dataAiHint: "fashion abstract modern",
@@ -42,17 +42,70 @@ const defaultHomepageContent: HomepageContent = {
   heroImageUrl: undefined,
 };
 
+
+async function getHomepageContent(): Promise<HomepageContent> {
+  const fetchUrl = `/api/content/homepage`;
+  console.log(`[Client Fetch] Attempting to fetch from: ${fetchUrl}`);
+  try {
+    const res = await fetch(fetchUrl, { cache: 'no-store' });
+
+    if (!res.ok) {
+      let errorBody = `Failed to fetch content: ${res.status} ${res.statusText}`;
+      try {
+        const textError = await res.text();
+        errorBody = textError.substring(0, 500) || errorBody; // Get first 500 chars or default
+      } catch (e) { /* ignore if reading text fails */ }
+      console.error(`[Client Fetch] Failed to fetch content. Status: ${res.status} ${res.statusText}. Body:`, errorBody);
+      return { 
+        ...defaultHomepageContent, 
+        error: `API Error: ${res.status} ${res.statusText}. Details: ${errorBody.substring(0,200)}`
+      };
+    }
+    const jsonData = await res.json();
+    console.log("[Client Fetch] Successfully fetched content:", jsonData);
+    
+    // Ensure structure, especially for arrays
+    const processedData: HomepageContent = {
+      heroSlides: Array.isArray(jsonData.heroSlides) && jsonData.heroSlides.length > 0 
+        ? jsonData.heroSlides.map((slide: any, index: number) => ({ ...fallbackHeroSlide, ...slide, id: slide.id || `hs-fetched-${Date.now()}-${index}` }))
+        : [fallbackHeroSlide],
+      artisanalRoots: {
+        title: jsonData.artisanalRoots?.title || defaultHomepageContent.artisanalRoots!.title,
+        description: jsonData.artisanalRoots?.description || defaultHomepageContent.artisanalRoots!.description,
+        slides: Array.isArray(jsonData.artisanalRoots?.slides) 
+          ? jsonData.artisanalRoots.slides.map((slide: any, index: number) => ({ id: slide.id || `ars-fetched-${Date.now()}-${index}`, imageUrl: slide.imageUrl || '', altText: slide.altText || '', dataAiHint: slide.dataAiHint || '' })) 
+          : [],
+      },
+      socialCommerceItems: Array.isArray(jsonData.socialCommerceItems) 
+        ? jsonData.socialCommerceItems.map((item: any, index: number) => ({ id: item.id || `scs-fetched-${Date.now()}-${index}`, imageUrl: item.imageUrl || '', linkUrl: item.linkUrl || '#', altText: item.altText || '', dataAiHint: item.dataAiHint || '', displayOrder: item.displayOrder || 0}))
+        : [],
+      heroVideoId: jsonData.heroVideoId === null ? undefined : jsonData.heroVideoId,
+      heroImageUrl: jsonData.heroImageUrl === null ? undefined : jsonData.heroImageUrl,
+    };
+    return processedData;
+  } catch (error) {
+    console.error('[Client Fetch] CRITICAL ERROR in getHomepageContent:', error);
+    return { ...defaultHomepageContent, error: (error as Error).message };
+  }
+}
+
+
 function HomePageContent() {
-  const [isLoadingContent, setIsLoadingContent] = useState(true);
   const [content, setContent] = useState<HomepageContent>(defaultHomepageContent);
-  const [categories, setCategories] = useState<CategoryType[]>([]);
-  const [isLoadingCategories, setIsLoadingCategories] = useState(true);
+  const [isLoadingContent, setIsLoadingContent] = useState(true);
+  
   const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
   const [isLoadingFeaturedProducts, setIsLoadingFeaturedProducts] = useState(true);
-  const [featuredCollaborations, setFeaturedCollaborations] = useState<DesignCollaborationGallery[]>([]);
-  const [isLoadingCollaborations, setIsLoadingCollaborations] = useState(true);
+  
+  const [categories, setCategories] = useState<CategoryType[]>([]);
+  const [isLoadingCategories, setIsLoadingCategories] = useState(true);
+  
   const [userPosts, setUserPosts] = useState<UserPost[]>([]);
   const [isLoadingUserPosts, setIsLoadingUserPosts] = useState(true);
+
+  const [featuredCollaborations, setFeaturedCollaborations] = useState<DesignCollaborationGallery[]>([]);
+  const [isLoadingCollaborations, setIsLoadingCollaborations] = useState(true);
+
 
   const [currentHeroSlide, setCurrentHeroSlide] = useState(0);
   const [isHeroPlaying, setIsHeroPlaying] = useState(true);
@@ -60,76 +113,85 @@ function HomePageContent() {
   const [currentArtisanalSlide, setCurrentArtisanalSlide] = useState(0);
   const [isArtisanalPlaying, setIsArtisanalPlaying] = useState(true);
 
-  const { toast } = useToast();
-  
-  const activeHeroSlides = content.heroSlides?.length ? content.heroSlides : [fallbackHeroSlide];
-  const activeArtisanalSlides = content.artisanalRoots?.slides?.length ? content.artisanalRoots.slides : [];
 
+  const { toast } = useToast();
 
   const loadPageData = useCallback(async () => {
+    // Reset loading states
     setIsLoadingContent(true);
     setIsLoadingFeaturedProducts(true);
     setIsLoadingCategories(true);
     setIsLoadingUserPosts(true);
     setIsLoadingCollaborations(true);
+    
+    const fetchedContent = await getHomepageContent();
+    setContent(fetchedContent);
+    if (fetchedContent.error && fetchedContent.error !== "Database client not configured. Check server logs and .env file for Supabase credentials.") {
+      toast({ title: "Homepage Content Issue", description: fetchedContent.error, variant: "default" });
+    }
+    setIsLoadingContent(false);
 
     try {
-      const [
-        fetchedContent, 
-        fetchedCategories, 
-        fetchedFeatured, 
-        fetchedUserPosts,
-        fetchedCollabs
-      ] = await Promise.all([
-        (async () => {
-          try {
-            const res = await fetch(`/api/content/homepage`, { cache: 'no-store' });
-            if (!res.ok) {
-              const errorBody = await res.text().catch(() => "Failed to read error body");
-              console.error(`[Client Fetch Homepage] Failed to fetch content. Status: ${res.status} ${res.statusText}. Body:`, errorBody.substring(0, 500));
-              return { ...defaultHomepageContent, error: `API Error: ${res.status} ${res.statusText}. ${errorBody.substring(0,200)}`};
-            }
-            const data = await res.json();
-            console.log("[Client Fetch Homepage] Successfully fetched content:", data);
-            return data;
-          } catch (error) {
-            console.error('[Client Fetch Homepage] CRITICAL ERROR:', error);
-            return { ...defaultHomepageContent, error: (error as Error).message };
-          }
-        })(),
-        fetch('/api/categories', { cache: 'no-store' }).then(res => res.ok ? res.json() : Promise.reject(new Error(`Failed to fetch categories: ${res.statusText}`))).catch(err => { toast({ title: "Error Loading Categories", description: err.message, variant: "destructive" }); return []; }),
-        fetch('/api/products', { cache: 'no-store' }).then(res => res.ok ? res.json() : Promise.reject(new Error(`Failed to fetch products: ${res.statusText}`))).then((allProducts: Product[]) => allProducts.filter(p => p.isFeatured).slice(0, 3)).catch(err => { toast({ title: "Error Loading Featured Products", description: err.message, variant: "destructive" }); return []; }),
-        fetch('/api/user-posts', { cache: 'no-store' }).then(res => res.ok ? res.json() : Promise.reject(new Error(`Failed to fetch user posts: ${res.statusText}`))).then((posts: UserPost[]) => posts.slice(0, 4)).catch(err => { toast({ title: "Error Loading User Posts", description: err.message, variant: "destructive" }); return []; }),
-        fetch('/api/design-collaborations', { cache: 'no-store' }).then(res => res.ok ? res.json() : Promise.reject(new Error(`Failed to fetch collaborations: ${res.statusText}`))).then((collabs: DesignCollaborationGallery[]) => collabs.slice(0,3)).catch(err => { toast({ title: "Error Loading Collaborations", description: err.message, variant: "destructive"}); return []; })
-      ]);
-      
-      setContent(fetchedContent);
-      setCategories(fetchedCategories);
-      setFeaturedProducts(fetchedFeatured);
-      setUserPosts(fetchedUserPosts);
-      setFeaturedCollaborations(fetchedCollabs);
-
-      if (fetchedContent.error && fetchedContent.error !== "Database client not configured. Check server logs and .env file for Supabase credentials.") {
-        toast({ title: "Homepage Content Issue", description: fetchedContent.error, variant: "default" });
-      }
-    } catch (error) { // Catch for Promise.all rejection (though individual catches handle UI better)
-      toast({ title: "Error Loading Homepage Data", description: (error as Error).message || "Could not load all homepage data.", variant: "destructive" });
-      setContent(defaultHomepageContent);
+      const productsResponse = await fetch('/api/products');
+      if (!productsResponse.ok) throw new Error('Failed to fetch products for featured section');
+      const allProducts: Product[] = await productsResponse.json();
+      const featured = allProducts.filter(p => p.isFeatured).slice(0, 3);
+      setFeaturedProducts(featured);
+    } catch (err) {
+      toast({ title: "Error Loading Featured Products", description: (err as Error).message, variant: "destructive" });
     } finally {
-      setIsLoadingContent(false);
       setIsLoadingFeaturedProducts(false);
+    }
+
+    try {
+      const categoriesResponse = await fetch('/api/categories');
+      if (!categoriesResponse.ok) throw new Error('Failed to fetch categories');
+      const categoriesData: CategoryType[] = await categoriesResponse.json();
+      setCategories(categoriesData);
+    } catch (err) {
+      toast({ title: "Error Loading Categories", description: (err as Error).message, variant: "destructive" });
+    } finally {
       setIsLoadingCategories(false);
-      setIsLoadingUserPosts(false);
+    }
+    
+    try {
+        const userPostsResponse = await fetch('/api/user-posts');
+        if(!userPostsResponse.ok) {
+            let errorDetail = `Failed to fetch user posts. Status: ${userPostsResponse.status}`;
+            try {
+                const errorData = await userPostsResponse.json();
+                errorDetail = errorData.message || errorData.rawSupabaseError?.message || `Server error: ${userPostsResponse.statusText}`;
+            } catch(e) {/* ignore */}
+            throw new Error(errorDetail);
+        }
+        const postsData: UserPost[] = await userPostsResponse.json();
+        setUserPosts(postsData.slice(0,4));
+    } catch (err) {
+        toast({ title: "Error Loading User Posts", description: (err as Error).message, variant: "destructive" });
+    } finally {
+        setIsLoadingUserPosts(false);
+    }
+
+    try {
+      const collabsResponse = await fetch('/api/design-collaborations');
+      if (!collabsResponse.ok) throw new Error('Failed to fetch collaborations');
+      const collabsData: DesignCollaborationGallery[] = await collabsResponse.json();
+      setFeaturedCollaborations(collabsData.slice(0,3));
+    } catch(err) {
+      toast({ title: "Error Loading Collaborations", description: (err as Error).message, variant: "destructive" });
+    } finally {
       setIsLoadingCollaborations(false);
     }
-  }, [toast]);
 
+  }, [toast]);
 
   useEffect(() => {
     loadPageData();
   }, [loadPageData]);
+  
+  const activeHeroSlides = content.heroSlides?.length ? content.heroSlides : [fallbackHeroSlide];
+  const activeArtisanalSlides = content.artisanalRoots?.slides?.length ? content.artisanalRoots.slides : [];
 
-  // Hero Carousel Logic
   const nextHeroSlide = useCallback(() => {
     if (activeHeroSlides.length > 0) {
       setCurrentHeroSlide((prev) => (prev === activeHeroSlides.length - 1 ? 0 : prev + 1));
@@ -153,8 +215,7 @@ function HomePageContent() {
     }
     return () => { if (slideInterval) { clearInterval(slideInterval); } };
   }, [isHeroPlaying, nextHeroSlide, activeHeroSlides.length]);
-
-  // Artisanal Roots Carousel Logic
+  
   const nextArtisanalSlide = useCallback(() => {
     if (activeArtisanalSlides.length > 0) {
       setCurrentArtisanalSlide((prev) => (prev === activeArtisanalSlides.length - 1 ? 0 : prev + 1));
@@ -163,8 +224,8 @@ function HomePageContent() {
 
   useEffect(() => {
     let artisanalSlideInterval: NodeJS.Timeout | undefined;
-    if (isArtisanalPlaying && activeArtisanalSlides.length > 1) { // Only run if playing and more than one slide
-      artisanalSlideInterval = setInterval(nextArtisanalSlide, 5000); // Change slide every 5 seconds
+    if (isArtisanalPlaying && activeArtisanalSlides.length > 1) { 
+      artisanalSlideInterval = setInterval(nextArtisanalSlide, 5000); 
     }
     return () => {
       if (artisanalSlideInterval) {
@@ -172,7 +233,6 @@ function HomePageContent() {
       }
     };
   }, [isArtisanalPlaying, nextArtisanalSlide, activeArtisanalSlides.length]);
-
 
   if (isLoadingContent) { 
     return (
@@ -186,14 +246,15 @@ function HomePageContent() {
   }
   
   const currentDisplayedHeroSlide = activeHeroSlides[currentHeroSlide];
-  const heroVideoId = currentDisplayedHeroSlide?.videoId || content.heroVideoId; // Fallback to global if slide specific is missing
-  const heroImageUrl = currentDisplayedHeroSlide?.imageUrl || content.heroImageUrl; // Fallback to global
+  const heroVideoId = currentDisplayedHeroSlide?.videoId || content.heroVideoId; 
+  const heroImageUrl = currentDisplayedHeroSlide?.imageUrl || content.heroImageUrl;
+
 
   return (
     <>
       {/* Hero Section */}
       <section style={{ backgroundColor: 'black' }} className="relative h-screen w-full overflow-hidden">
-        <div className="absolute inset-0 z-0 pointer-events-none"> {/* Removed bg-black from here */}
+        <div className="absolute inset-0 z-0 pointer-events-none bg-black">
           {activeHeroSlides.map((slide, index) => (
             <div
               key={slide.id || `hero-bg-${index}`}
@@ -228,11 +289,11 @@ function HomePageContent() {
                   <div className="absolute inset-0 bg-black/30 z-[1]" />
                 </>
               ) : (
-                <div className="absolute inset-0 bg-black" /> // Fallback if no video/image for slide
+                <div className="absolute inset-0 bg-black" /> 
               )}
             </div>
           ))}
-           {/* Fallback if no slides define video/image, OR if using global heroVideoId/heroImageUrl from content root */}
+           {/* Fallback if no slides define video/image */}
            {activeHeroSlides.length === 0 && heroVideoId && (
              <>
                 <iframe
@@ -271,7 +332,7 @@ function HomePageContent() {
             )}
             style={{ pointerEvents: index === currentHeroSlide ? 'auto' : 'none' }}
           >
-            <div className="relative z-10 flex flex-col items-center justify-center h-full pt-[calc(theme(spacing.20)_+_theme(spacing.6))] pb-12 px-6 md:px-8 text-center text-white max-w-3xl mx-auto">
+            <div className="relative z-20 flex flex-col items-center justify-center h-full pt-[calc(theme(spacing.20)_+_theme(spacing.6))] pb-12 px-6 md:px-8 text-center text-white max-w-3xl mx-auto">
                 <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-6 text-shadow-lg">
                     {slide.title}
                 </h1>
@@ -279,11 +340,9 @@ function HomePageContent() {
                     {slide.description}
                 </p>
                 {slide.ctaText && slide.ctaLink && (
-                    <Button size="lg" asChild className="text-base md:text-lg py-3 px-8">
-                    <Link href={slide.ctaLink}>
-                        {slide.ctaText} <ShoppingBag className="ml-2 h-5 w-5" />
-                    </Link>
-                    </Button>
+                  <Link href={slide.ctaLink} className={cn(buttonVariants({ size: "lg", className: "text-base md:text-lg py-3 px-8" }))}>
+                    {slide.ctaText} <ShoppingBag className="ml-2 h-5 w-5" />
+                  </Link>
                 )}
             </div>
           </div>
@@ -293,15 +352,15 @@ function HomePageContent() {
           <>
             <Button
               variant="ghost" size="icon"
-              className="absolute left-2 md:left-4 top-1/2 -translate-y-1/2 z-20 h-10 w-10 md:h-14 md:w-14 rounded-full bg-black/25 text-white/80 hover:bg-black/50 hover:text-white focus-visible:bg-black/50 focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent transition-all duration-200 flex items-center justify-center"
+              className="absolute left-2 md:left-4 top-1/2 -translate-y-1/2 z-30 h-10 w-10 md:h-14 md:w-14 rounded-full bg-black/25 text-white/80 hover:bg-black/50 hover:text-white focus-visible:bg-black/50 focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent transition-all duration-200 flex items-center justify-center"
               onClick={prevHeroSlide} aria-label="Previous slide"
             > <ChevronLeft className="h-6 w-6 md:h-7 md:w-7" /> </Button>
             <Button
               variant="ghost" size="icon"
-              className="absolute right-2 md:right-4 top-1/2 -translate-y-1/2 z-20 h-10 w-10 md:h-14 md:w-14 rounded-full bg-black/25 text-white/80 hover:bg-black/50 hover:text-white focus-visible:bg-black/50 focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent transition-all duration-200 flex items-center justify-center"
+              className="absolute right-2 md:right-4 top-1/2 -translate-y-1/2 z-30 h-10 w-10 md:h-14 md:w-14 rounded-full bg-black/25 text-white/80 hover:bg-black/50 hover:text-white focus-visible:bg-black/50 focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent transition-all duration-200 flex items-center justify-center"
               onClick={nextHeroSlide} aria-label="Next slide"
             > <ChevronRight className="h-6 w-6 md:h-7 md:w-7" /> </Button>
-            <div className="absolute bottom-6 md:bottom-8 left-1/2 -translate-x-1/2 z-20 flex items-center space-x-3 bg-black/20 p-1.5 rounded-full backdrop-blur-sm">
+            <div className="absolute bottom-6 md:bottom-8 left-1/2 -translate-x-1/2 z-30 flex items-center space-x-3 bg-black/20 p-1.5 rounded-full backdrop-blur-sm">
                <Button variant="ghost" size="icon" onClick={toggleHeroPlayPause} className="h-7 w-7 text-white/70 hover:text-white p-1" aria-label={isHeroPlaying ? "Pause slides" : "Play slides"} >
                 {isHeroPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />} </Button>
               {activeHeroSlides.map((_, index) => (
@@ -327,9 +386,9 @@ function HomePageContent() {
           <p className="text-center text-muted-foreground">No featured products available at the moment. Check back soon!</p>
         )}
         <div className="text-center mt-12">
-          <Button variant="outline" size="lg" asChild className="text-base">
-            <Link href="/products">View All Products <ArrowRight className="ml-2 h-5 w-5" /></Link>
-          </Button>
+          <Link href="/products" className={cn(buttonVariants({ variant: "outline", size: "lg", className: "text-base" }))}>
+            View All Products <ArrowRight className="ml-2 h-5 w-5" />
+          </Link>
         </div>
       </section>
 
@@ -351,19 +410,19 @@ function HomePageContent() {
                         className="object-cover"
                         data-ai-hint={slide.dataAiHint || "nepal craft texture"}
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-card via-card/80 to-card/50 md:bg-gradient-to-r md:from-card md:via-card/70 md:to-transparent z-[1]"></div> {/* Gradient overlay */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-card via-card/80 to-card/50 md:bg-gradient-to-r md:from-card md:via-card/70 md:to-transparent z-[1]"></div>
                  </div>
             ))}
-            {activeArtisanalSlides.length === 0 && <div className="absolute inset-0 bg-primary/5"></div>} {/* Fallback plain bg */}
+            {activeArtisanalSlides.length === 0 && <div className="absolute inset-0 bg-primary/5"></div>}
         </div>
         <div className="container-slim text-center md:text-left relative z-10">
             <div className="md:w-1/2 lg:w-3/5">
                 <Sprout className="h-10 w-10 text-primary mb-4 mx-auto md:mx-0"/>
                 <h2 className="text-3xl font-bold mb-6 text-foreground">{content.artisanalRoots?.title || "Our Artisanal Roots"}</h2>
                 <p className="text-lg text-muted-foreground mb-8 leading-relaxed">{content.artisanalRoots?.description || "Details loading..."}</p>
-                <Button variant="default" size="lg" asChild className="text-base">
-                    <Link href="/our-story">Discover Our Story <ArrowRight className="ml-2 h-5 w-5" /></Link>
-                </Button>
+                <Link href="/our-story" className={cn(buttonVariants({ variant: "default", size: "lg", className: "text-base" }))}>
+                    Discover Our Story <ArrowRight className="ml-2 h-5 w-5" />
+                </Link>
             </div>
         </div>
       </section>
@@ -394,7 +453,11 @@ function HomePageContent() {
             ))}
           </div>
           {categories.length > 4 && (
-            <div className="text-center mt-12"> <Button variant="outline" size="lg" asChild className="text-base"> <Link href="/categories">View All Categories <ArrowRight className="ml-2 h-5 w-5" /></Link> </Button> </div>
+            <div className="text-center mt-12">
+                <Link href="/categories" className={cn(buttonVariants({ variant: "outline", size: "lg", className: "text-base" }))}>
+                    View All Categories <ArrowRight className="ml-2 h-5 w-5" />
+                </Link>
+            </div>
           )}
         </section>
       )}
@@ -427,7 +490,11 @@ function HomePageContent() {
               </Link>
             ))}
           </div>
-          <div className="text-center mt-12"> <Button variant="outline" size="lg" asChild className="text-base"> <Link href="/collaborations">View All Collaborations <ArrowRight className="ml-2 h-5 w-5" /></Link> </Button> </div>
+          <div className="text-center mt-12">
+            <Link href="/collaborations" className={cn(buttonVariants({ variant: "outline", size: "lg", className: "text-base" }))}>
+                View All Collaborations <ArrowRight className="ml-2 h-5 w-5" />
+            </Link>
+          </div>
         </section>
       )}
 
@@ -479,7 +546,11 @@ function HomePageContent() {
             ))}
           </div>
         ) : ( <p className="text-center text-muted-foreground py-8">No community posts yet. Be the first to share your style!</p> )}
-        <div className="text-center mt-12"> <Button size="lg" asChild> <Link href="/community/create-post"> <ImagePlus className="mr-2 h-5 w-5" /> Share Your Style </Link> </Button> </div>
+        <div className="text-center mt-12">
+            <Link href="/community/create-post" className={cn(buttonVariants({ size: "lg"}))}>
+                <ImagePlus className="mr-2 h-5 w-5" /> Share Your Style
+            </Link>
+        </div>
       </section>
 
       <section className="bg-card section-padding relative z-[1]">
@@ -501,3 +572,5 @@ export default function RootPage() {
     </MainLayout>
   );
 }
+
+    
