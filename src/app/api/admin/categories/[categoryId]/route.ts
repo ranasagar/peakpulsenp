@@ -2,12 +2,12 @@
 // /src/app/api/admin/categories/[categoryId]/route.ts
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { supabaseAdmin, supabase as fallbackSupabase } from '../../../../../lib/supabaseClient.ts'; // Ensure this path is correct
+import { supabaseAdmin, supabase as fallbackSupabase } from '../../../../../lib/supabaseClient.ts'; // Adjusted path
 import type { AdminCategory } from '@/types';
 
 export const dynamic = 'force-dynamic';
 
-const NO_PARENT_ID_VALUE = "__NONE__"; // Ensure this matches client-side constant if used for 'None' option
+const NO_PARENT_ID_VALUE = "__NONE__"; // Matches client-side constant
 
 function isValidUUID(str: string | undefined | null): boolean {
   if (!str) return false;
@@ -15,7 +15,7 @@ function isValidUUID(str: string | undefined | null): boolean {
   return uuidRegex.test(str);
 }
 
-// GET a single category (Admin) - Assumed to be working, no changes here for now.
+// GET a single category (Admin)
 export async function GET(
   request: NextRequest,
   { params }: { params: { categoryId: string } }
@@ -27,11 +27,8 @@ export async function GET(
     console.error(`[API ADMIN CATEGORY GET /${categoryId}] Supabase client not configured.`);
     return NextResponse.json({ message: 'Database client not configured.' }, { status: 503 });
   }
-  if (!categoryId) {
-    return NextResponse.json({ message: 'Category ID is required' }, { status: 400 });
-  }
-  if (!isValidUUID(categoryId)) {
-    return NextResponse.json({ message: 'Invalid Category ID format.' }, { status: 400 });
+  if (!categoryId || !isValidUUID(categoryId)) {
+    return NextResponse.json({ message: 'Valid Category ID is required.' }, { status: 400 });
   }
   console.log(`[API ADMIN CATEGORY GET /${categoryId}] Fetching category. Using ${clientForRead === supabaseAdmin ? "ADMIN client" : "PUBLIC client"}.`);
   try {
@@ -75,19 +72,18 @@ export async function GET(
   }
 }
 
-
 // PUT (Update) an existing category (Admin)
 export async function PUT(
   request: NextRequest,
   { params }: { params: { categoryId: string } }
 ) {
   const { categoryId } = params;
-  const clientToUse = supabaseAdmin; // Strictly use admin client for updates
+  const clientToUse = supabaseAdmin;
 
   if (!clientToUse) {
-    console.error(`[API ADMIN CATEGORY PUT /${categoryId}] CRITICAL: Supabase ADMIN client (service_role) is not initialized. Update operation cannot proceed. Check SUPABASE_SERVICE_ROLE_KEY environment variable and server restart.`);
+    console.error(`[API ADMIN CATEGORY PUT /${categoryId}] CRITICAL: Supabase ADMIN client (service_role) is not initialized. Update cannot proceed.`);
     return NextResponse.json({
-      message: 'Database admin client not configured for write operations. Service role key might be missing.',
+      message: 'Database admin client not configured. Service role key might be missing.',
       rawSupabaseError: { message: `Admin database client (service_role) not available for updating category ${categoryId}.` }
     }, { status: 503 });
   }
@@ -109,52 +105,42 @@ export async function PUT(
 
   if (body.name !== undefined) {
     const trimmedName = body.name.trim();
-    if (!trimmedName) return NextResponse.json({ message: "Category name cannot be empty." }, { status: 400 });
+    if (!trimmedName) return NextResponse.json({ message: "Category name cannot be empty if provided for update." }, { status: 400 });
     categoryToUpdate.name = trimmedName;
   }
 
   if (body.slug !== undefined) {
-    if (body.slug.trim() === '') { // If slug is explicitly emptied
-      if (categoryToUpdate.name) { // And name is being changed, generate from new name
+    if (body.slug.trim() === '') {
+      if (categoryToUpdate.name) {
         categoryToUpdate.slug = categoryToUpdate.name.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, '');
-      } else {
-        // If name is not being changed but slug is emptied, this is problematic.
-        // We might need to fetch the current name to regenerate or disallow emptying slug without changing name.
-        // For now, if slug is empty and name not changed, we don't update slug.
-        // If this behavior is desired, the client should send the current slug or not send the slug field.
       }
     } else {
       categoryToUpdate.slug = body.slug.trim().toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, '');
     }
-  } else if (categoryToUpdate.name) { // If name is changed and slug is not provided, regenerate slug
+  } else if (categoryToUpdate.name) {
       categoryToUpdate.slug = categoryToUpdate.name.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, '');
   }
 
-
   if (body.hasOwnProperty('description')) categoryToUpdate.description = body.description || null;
-  if (body.hasOwnProperty('imageUrl')) categoryToUpdate.image_url = body.imageUrl || null; // column name is image_url
-  if (body.hasOwnProperty('aiImagePrompt')) categoryToUpdate.ai_image_prompt = body.aiImagePrompt || null; // column name is ai_image_prompt
+  if (body.hasOwnProperty('imageUrl')) categoryToUpdate.image_url = body.imageUrl || null;
+  if (body.hasOwnProperty('aiImagePrompt')) categoryToUpdate.ai_image_prompt = body.aiImagePrompt || null;
   
   if (body.hasOwnProperty('parentId')) {
-    // Client should send `null` if "None" is selected, or the actual parent UUID string.
-    // The special value like NO_PARENT_ID_VALUE should be handled client-side before sending.
     categoryToUpdate.parent_id = body.parentId === NO_PARENT_ID_VALUE || body.parentId === '' ? null : body.parentId;
     if (categoryToUpdate.parent_id !== null && !isValidUUID(categoryToUpdate.parent_id)) {
-        return NextResponse.json({ message: 'Invalid Parent ID format provided.' }, { status: 400 });
+        return NextResponse.json({ message: 'Invalid Parent ID format provided for update.' }, { status: 400 });
     }
   }
   if (body.displayOrder !== undefined) {
-    categoryToUpdate["displayOrder"] = Number(body.displayOrder) || 0;
+    categoryToUpdate["displayOrder"] = Number(body.displayOrder);
+    if(isNaN(categoryToUpdate["displayOrder"])) categoryToUpdate["displayOrder"] = 0;
   }
   
-  // The database trigger should handle "updatedAt" automatically.
-  // We don't need to set it explicitly here.
+  // Rely on database trigger for "updatedAt"
+  // Do NOT set "updatedAt" or "updated_at" here
 
   if (Object.keys(categoryToUpdate).length === 0) {
-    console.log(`[API ADMIN CATEGORY PUT /${categoryId}] No valid fields to update.`);
-    // Optionally, fetch and return current record if no changes, or return a specific message.
-    // For now, returning a 304 might be confusing if the client expects updated data.
-    // Let's return the current data to signify no effective change.
+    console.log(`[API ADMIN CATEGORY PUT /${categoryId}] No valid fields to update. Fetching current record.`);
     try {
         const { data: currentData, error: fetchError } = await clientToUse
             .from('categories')
@@ -163,10 +149,11 @@ export async function PUT(
             .single();
         if (fetchError) throw fetchError;
         if (!currentData) return NextResponse.json({ message: 'Category not found for no-op update.'}, { status: 404 });
-        const responseCat = { ...currentData, parentId: currentData.parent_id, imageUrl: currentData.image_url, aiImagePrompt: currentData.ai_image_prompt, displayOrder: currentData.displayOrder };
+        const responseCat: AdminCategory = { ...currentData, parentId: currentData.parent_id, imageUrl: currentData.image_url, aiImagePrompt: currentData.ai_image_prompt, displayOrder: currentData.displayOrder, createdAt: currentData.createdAt || currentData.created_at, updatedAt: currentData.updatedAt || currentData.updated_at };
         return NextResponse.json(responseCat);
-    } catch (e) {
-        return NextResponse.json({ message: "No fields to update and failed to fetch current data." }, { status: 400 });
+    } catch (e: any) {
+        console.error(`[API ADMIN CATEGORY PUT /${categoryId}] Error fetching current data for no-op:`, e);
+        return NextResponse.json({ message: "No fields to update and failed to fetch current data.", rawSupabaseError: {message: e.message} }, { status: 400 });
     }
   }
   console.log(`[API ADMIN CATEGORY PUT /${categoryId}] Attempting to update with payload:`, JSON.stringify(categoryToUpdate));
@@ -176,24 +163,21 @@ export async function PUT(
       .from('categories')
       .update(categoryToUpdate)
       .eq('id', categoryId)
-      .select('*, parent_id, "displayOrder"') // Select all fields to return the updated record
+      .select('*, parent_id, "displayOrder"')
       .single();
 
     if (error) {
       console.error(`[API ADMIN CATEGORY PUT /${categoryId}] Supabase error updating category:`, error);
-      let errorMessage = `Database error: ${error.message}`;
-      if (error.code === 'PGRST116') { // Row not found
-        return NextResponse.json({ message: 'Category not found for update.', rawSupabaseError: error }, { status: 404 });
-      }
-      if (error.code === '23505') { // Unique constraint violation (e.g. slug or name)
-        errorMessage = `Failed to update category: A category with that name or slug already exists. ${error.details || ''}`;
-      }
+      const status = error.code === 'PGRST116' ? 404 : error.code === '23505' ? 409 : 500;
+      const message = error.code === 'PGRST116' ? 'Category not found for update.' : 
+                      error.code === '23505' ? `Failed to update category: A category with that name or slug already exists. ${error.details || ''}` :
+                      `Database error updating category: ${error.message}`;
       return NextResponse.json({ 
-        message: errorMessage, 
+        message: message, 
         rawSupabaseError: { message: error.message, details: error.details, hint: error.hint, code: error.code }
-      }, { status: error.code === '23505' ? 409 : 500 }); // 409 for conflict
+      }, { status });
     }
-    if (!updatedData) { // Should be caught by PGRST116, but as a fallback
+    if (!updatedData) {
         return NextResponse.json({ message: 'Category not found after update attempt (no data returned).' }, { status: 404 });
     }
     
@@ -213,7 +197,7 @@ export async function PUT(
     return NextResponse.json(responseCategory);
   } catch (e: any) {
     console.error(`[API ADMIN CATEGORY PUT /${categoryId}] Unhandled error during category update:`, e);
-    return NextResponse.json({ message: e.message || "An unexpected error occurred during category update." }, { status: 500 });
+    return NextResponse.json({ message: e.message || "An unexpected error occurred during category update.", rawSupabaseError: {message: e.message} }, { status: 500 });
   }
 }
 
@@ -223,7 +207,7 @@ export async function DELETE(
   { params }: { params: { categoryId: string } }
 ) {
   const { categoryId } = params;
-  const clientForWrite = supabaseAdmin; // Strictly use admin client
+  const clientForWrite = supabaseAdmin;
 
   if (!clientForWrite) {
     console.error(`[API ADMIN CATEGORY DELETE /${categoryId}] CRITICAL: Supabase ADMIN client (service_role) is not initialized.`);
@@ -252,9 +236,9 @@ export async function DELETE(
     }
 
     if (rpcData === true) {
-      console.warn(`[API ADMIN CATEGORY DELETE /${categoryId}] Attempt to delete category that is in use.`);
+      console.warn(`[API ADMIN CATEGORY DELETE /${categoryId}] Attempt to delete category that is in use by products.`);
       return NextResponse.json({ 
-        message: 'Cannot delete category: It is currently associated with one or more products. Please remove it from products first.',
+        message: 'Cannot delete category: It is currently associated with one or more products. Please remove it from all products first.',
       }, { status: 409 }); // 409 Conflict
     }
 
@@ -278,3 +262,5 @@ export async function DELETE(
     return NextResponse.json({ message: `Failed to delete category: ${e.message}` }, { status: 500 });
   }
 }
+
+    
