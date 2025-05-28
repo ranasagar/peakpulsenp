@@ -1,9 +1,10 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { BookOpenText, ShoppingBag, BarChart3, ListOrdered, Landmark, Tags, Users, Settings, AlertTriangle, FileText, Home as HomeIcon, ListChecks, DollarSign, FileSpreadsheet, MessageSquare, Palette, ImageIcon as ImageIconLucide, Printer, Package } from 'lucide-react'; // Added Package
+import { BookOpenText, ShoppingBag, BarChart3, ListOrdered, Landmark, Tags, Users, Settings, AlertTriangle, FileText, Home as HomeIcon, ListChecks, DollarSign, FileSpreadsheet, MessageSquare, Palette, Image as ImageIconLucide, Printer, Package } from 'lucide-react';
 import Link from 'next/link';
 import { supabaseAdmin, supabase as fallbackSupabase } from '@/lib/supabaseClient';
 import { Button } from '@/components/ui/button';
+import type { Order, OrderItem } from '@/types'; // Ensure OrderItem or similar is typed for items array
 
 async function getSupabaseCount(tableName: string): Promise<string | number> {
   const client = supabaseAdmin || fallbackSupabase;
@@ -52,113 +53,154 @@ async function getSiteConfigurationStatus(configKey: string): Promise<string | '
   }
 }
 
+interface SalesMetrics {
+  totalRevenue: number;
+  totalCOGS: number;
+  grossProfit: number;
+  grossProfitMargin: number;
+  averageOrderValue: number;
+  orderCountForMetrics: number;
+}
 
-export default async function AdminDashboardPage() {
-  let productCount: string | number = 'N/A';
-  let orderCount: string | number = 'N/A';
-  let userCount: string | number = 'N/A';
-  let categoryCount: string | number = 'N/A';
-  let loanCount: string | number = 'N/A';
-  let collabCategoryCount: string | number = 'N/A';
-  let galleryCount: string | number = 'N/A';
-  let printDesignCount: string | number = 'N/A';
-  let reviewCount: string | number = 'N/A';
-
-  let homepageContentStatus: string | 'Okay' | 'Not Found' | 'Error' = 'Error';
-  let ourStoryContentStatus: string | 'Okay' | 'Not Found' | 'Error' = 'Error';
-  let generalSettingsStatus: string | 'Okay' | 'Not Found' | 'Error' = 'Error';
-  let footerContentStatus: string | 'Okay' | 'Not Found' | 'Error' = 'Error';
-  
+async function getSalesMetrics(): Promise<{ metrics: SalesMetrics; error: string | null }> {
   const client = supabaseAdmin || fallbackSupabase;
-
-  if (client) {
-    productCount = await getSupabaseCount('products');
-    orderCount = await getSupabaseCount('orders');
-    userCount = await getSupabaseCount('users');
-    categoryCount = await getSupabaseCount('categories');
-    loanCount = await getSupabaseCount('loans');
-    collabCategoryCount = await getSupabaseCount('design_collaboration_categories');
-    galleryCount = await getSupabaseCount('design_collaborations');
-    printDesignCount = await getSupabaseCount('print_on_demand_designs');
-    reviewCount = await getSupabaseCount('reviews');
-    
-    homepageContentStatus = await getSiteConfigurationStatus('homepageContent');
-    ourStoryContentStatus = await getSiteConfigurationStatus('ourStoryContent');
-    generalSettingsStatus = await getSiteConfigurationStatus('siteGeneralSettings');
-    footerContentStatus = await getSiteConfigurationStatus('footerContent');
-  } else {
-    console.warn("[AdminDashboard] Supabase client not available for fetching counts and statuses.");
-    const dbClientErrorMsg = "N/A (DB Client Error)";
-    productCount = dbClientErrorMsg;
-    orderCount = dbClientErrorMsg;
-    userCount = dbClientErrorMsg;
-    categoryCount = dbClientErrorMsg;
-    loanCount = dbClientErrorMsg;
-    collabCategoryCount = dbClientErrorMsg;
-    galleryCount = dbClientErrorMsg;
-    printDesignCount = dbClientErrorMsg;
-    reviewCount = dbClientErrorMsg;
-    homepageContentStatus = dbClientErrorMsg;
-    ourStoryContentStatus = dbClientErrorMsg;
-    generalSettingsStatus = dbClientErrorMsg;
-    footerContentStatus = dbClientErrorMsg;
+  if (!client) {
+    const errorMsg = supabaseAdmin === null ? '[AdminDashboard] Supabase ADMIN client (service_role) not available for sales metrics.' : '[AdminDashboard] Supabase PUBLIC client (fallback) not available for sales metrics.';
+    console.warn(errorMsg + ' Check .env variables and server restart.');
+    return { 
+      metrics: { totalRevenue: 0, totalCOGS: 0, grossProfit: 0, grossProfitMargin: 0, averageOrderValue: 0, orderCountForMetrics: 0 },
+      error: "Database client not configured for sales metrics." 
+    };
   }
-
 
   let totalRevenue = 0;
   let totalCOGS = 0;
   let completedOrderCount = 0;
   let salesMetricsError: string | null = null;
 
+  try {
+    const { data: ordersData, error: ordersError } = await client
+      .from('orders')
+      .select('totalAmount, items') // Ensure 'items' includes costPrice for each item
+      .in('status', ['Shipped', 'Delivered']); 
 
-  if (client) {
-    try {
-      const { data: ordersData, error: ordersError } = await client
-        .from('orders')
-        .select('totalAmount, items') 
-        .in('status', ['Shipped', 'Delivered']); 
-
-      if (ordersError) {
-        console.error("[AdminDashboard] Error fetching orders for metrics from Supabase:", ordersError);
-        salesMetricsError = `Error fetching sales data: ${ordersError.message}`;
-      } else if (ordersData) {
-        completedOrderCount = ordersData.length;
-        ordersData.forEach(order => {
-          totalRevenue += order.totalAmount || 0;
-          if (Array.isArray(order.items)) {
-            order.items.forEach((item: any) => { 
-              totalCOGS += (item.costPrice || 0) * (item.quantity || 0);
-            });
-          }
-        });
-      }
-    } catch (e: any) {
-        console.error("[AdminDashboard] Exception fetching orders for metrics from Supabase:", e);
-        salesMetricsError = `Exception fetching sales data: ${e.message}`;
+    if (ordersError) {
+      console.error("[AdminDashboard] Error fetching orders for metrics from Supabase:", ordersError);
+      salesMetricsError = `Error fetching sales data: ${ordersError.message}`;
+    } else if (ordersData) {
+      completedOrderCount = ordersData.length;
+      ordersData.forEach(order => {
+        totalRevenue += order.totalAmount || 0;
+        if (Array.isArray(order.items)) {
+          order.items.forEach((item: OrderItem | any) => { // Use OrderItem or any if structure varies
+            // Ensure item.costPrice and item.quantity are numbers
+            const cost = Number(item.costPrice) || 0;
+            const quantity = Number(item.quantity) || 0;
+            totalCOGS += cost * quantity;
+          });
+        }
+      });
     }
-  } else {
-    salesMetricsError = "Database client not configured for sales metrics.";
+  } catch (e: any) {
+      console.error("[AdminDashboard] Exception fetching orders for metrics from Supabase:", e);
+      salesMetricsError = `Exception fetching sales data: ${e.message}`;
   }
 
   const grossProfit = totalRevenue - totalCOGS;
   const grossProfitMargin = totalRevenue > 0 ? (grossProfit / totalRevenue) * 100 : 0;
   const averageOrderValue = completedOrderCount > 0 ? totalRevenue / completedOrderCount : 0;
 
-  const salesMetrics = {
-    totalRevenue,
-    totalCOGS,
-    grossProfit,
-    grossProfitMargin,
-    averageOrderValue,
-    orderCountForMetrics: completedOrderCount,
+  return {
+    metrics: {
+      totalRevenue,
+      totalCOGS,
+      grossProfit,
+      grossProfitMargin,
+      averageOrderValue,
+      orderCountForMetrics: completedOrderCount,
+    },
+    error: salesMetricsError
   };
+}
+
+
+export default async function AdminDashboardPage() {
+  const client = supabaseAdmin || fallbackSupabase;
+  let dataFetchError: string | null = null;
+
+  let productCount: string | number = 'N/A (DB Temp. Disabled)';
+  let orderCount: string | number = 'N/A (DB Temp. Disabled)';
+  let userCount: string | number = 'N/A (DB Temp. Disabled)';
+  let categoryCount: string | number = 'N/A (DB Temp. Disabled)';
+  let loanCount: string | number = 'N/A (DB Temp. Disabled)';
+  let collabCategoryCount: string | number = 'N/A (DB Temp. Disabled)';
+  let galleryCount: string | number = 'N/A (DB Temp. Disabled)';
+  let printDesignCount: string | number = 'N/A (DB Temp. Disabled)';
+  let reviewCount: string | number = 'N/A (DB Temp. Disabled)';
+  
+  let homepageContentStatus: string | 'Okay' | 'Not Found' | 'Error' = 'Error';
+  let ourStoryContentStatus: string | 'Okay' | 'Not Found' | 'Error' = 'Error';
+  let generalSettingsStatus: string | 'Okay' | 'Not Found' | 'Error' = 'Error';
+  let footerContentStatus: string | 'Okay' | 'Not Found' | 'Error' = 'Error';
+
+  if (client) {
+    try {
+      [
+        productCount, orderCount, userCount, categoryCount, loanCount,
+        collabCategoryCount, galleryCount, printDesignCount, reviewCount,
+        homepageContentStatus, ourStoryContentStatus, generalSettingsStatus, footerContentStatus
+      ] = await Promise.all([
+        getSupabaseCount('products'),
+        getSupabaseCount('orders'),
+        getSupabaseCount('users'),
+        getSupabaseCount('categories'),
+        getSupabaseCount('loans'),
+        getSupabaseCount('design_collaboration_categories'),
+        getSupabaseCount('design_collaborations'),
+        getSupabaseCount('print_on_demand_designs'),
+        getSupabaseCount('reviews'),
+        getSiteConfigurationStatus('homepageContent'),
+        getSiteConfigurationStatus('ourStoryContent'),
+        getSiteConfigurationStatus('siteGeneralSettings'),
+        getSiteConfigurationStatus('footerContent')
+      ]);
+    } catch (e: any) {
+      console.error("[AdminDashboard] Error fetching initial counts/statuses:", e);
+      dataFetchError = `Failed to load some dashboard data: ${e.message}`;
+    }
+  } else {
+    dataFetchError = "Database client is not available. Check server logs and .env configuration.";
+    const dbClientErrorMsg = "N/A (DB Client Error)";
+    productCount = dbClientErrorMsg; orderCount = dbClientErrorMsg; userCount = dbClientErrorMsg;
+    categoryCount = dbClientErrorMsg; loanCount = dbClientErrorMsg; reviewCount = dbClientErrorMsg;
+    collabCategoryCount = dbClientErrorMsg; galleryCount = dbClientErrorMsg; printDesignCount = dbClientErrorMsg;
+    homepageContentStatus = dbClientErrorMsg; ourStoryContentStatus = dbClientErrorMsg;
+    generalSettingsStatus = dbClientErrorMsg; footerContentStatus = dbClientErrorMsg;
+  }
+
+  const { metrics: salesMetrics, error: salesMetricsFetchError } = await getSalesMetrics();
+  if (salesMetricsFetchError && !dataFetchError) {
+    dataFetchError = salesMetricsFetchError;
+  }
+
 
   return (
     <div className="space-y-8">
+      {dataFetchError && (
+        <Card className="bg-destructive/10 border-destructive/30 p-4 mb-6">
+          <div className="flex items-start">
+            <AlertTriangle className="h-5 w-5 text-destructive mr-3 mt-0.5 shrink-0" />
+            <div>
+                <p className="font-semibold text-destructive">Dashboard Data Error</p>
+                <p className="text-xs text-destructive/80">{dataFetchError}</p>
+            </div>
+          </div>
+        </Card>
+      )}
       <Card className="shadow-lg">
         <CardHeader>
           <CardTitle className="text-2xl">Welcome to the Peak Pulse Admin Dashboard</CardTitle>
-          <CardDescription>Manage your application data and site content. Products, Orders, Users, Loans, and Site Configurations are now managed via Supabase.</CardDescription>
+          <CardDescription>Manage your application data and site content. Most data is now managed via Supabase.</CardDescription>
         </CardHeader>
         <CardContent>
           <h3 className="text-lg font-semibold mb-4 text-primary">Store Data Overview (from Supabase)</h3>
@@ -190,14 +232,14 @@ export default async function AdminDashboardPage() {
             <CardDescription>Sales and profitability summary for 'Shipped' or 'Delivered' orders. COGS based on item costPrice at time of sale.</CardDescription>
         </CardHeader>
         <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {salesMetricsError ? (
+            {salesMetricsFetchError ? (
               <div className="sm:col-span-2 lg:col-span-3 p-4 text-destructive-foreground bg-destructive rounded-md">
-                <AlertTriangle className="inline-block mr-2 h-5 w-5" />{salesMetricsError}
+                <AlertTriangle className="inline-block mr-2 h-5 w-5" />{salesMetricsFetchError}
               </div>
             ) : (
               <>
-                <AccountingStatCard title="Total Revenue" value={`रू${salesMetrics.totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} description={`${salesMetrics.orderCountForMetrics} Orders`} icon={ListOrdered} variant="green" />
-                <AccountingStatCard title="Total COGS" value={`रू${salesMetrics.totalCOGS.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} description="from completed orders" icon={ShoppingBag} variant="amber" />
+                <AccountingStatCard title="Total Revenue" value={`रू${salesMetrics.totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} description={`${salesMetrics.orderCountForMetrics} Completed Orders`} icon={ListOrdered} variant="green" />
+                <AccountingStatCard title="Total COGS" value={`रू${salesMetrics.totalCOGS.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} description="From completed orders" icon={ShoppingBag} variant="amber" />
                 <AccountingStatCard title="Gross Profit" value={`रू${salesMetrics.grossProfit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} description={`Margin: ${salesMetrics.grossProfitMargin.toFixed(1)}%`} icon={BarChart3} variant="blue" />
               </>
             )}
@@ -231,7 +273,7 @@ export default async function AdminDashboardPage() {
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground mb-2">
-            This admin panel utilizes Supabase for Products, Categories, Orders, User Profiles (roles, wishlists), Loans, Site Configurations, Design Hub entities, and Product Reviews. Firebase is used for Authentication.
+            This admin panel utilizes Supabase for Products, Categories, Orders, User Profiles (roles, wishlists), Loans, Site Configurations (for Homepage, Our Story, Footer, General Settings, Site Pages), Design Hub entities, and Product Reviews. Firebase is used for Authentication.
           </p>
           <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
             <li>**Supabase & Firebase Config:** Ensure your <code>.env</code> file has correct Supabase (URL, Anon Key, Service Role Key) and Firebase credentials. The server must be restarted after <code>.env</code> changes.</li>
@@ -321,3 +363,6 @@ const AccountingStatCard: React.FC<AccountingStatCardProps> = ({ title, value, d
         </Card>
     );
 };
+
+
+    
