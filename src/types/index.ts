@@ -17,6 +17,7 @@ export interface AdminCategory {
   imageUrl?: string;
   aiImagePrompt?: string;
   parentId?: string | null;
+  displayOrder?: number; // Added for sorting
   createdAt?: string; // ISO string
   updatedAt?: string; // ISO string
 }
@@ -101,7 +102,7 @@ export interface Product {
   costPrice?: number | null;
   images: ProductImage[];
   variants?: ProductVariant[];
-  categories: Pick<AdminCategory, 'id' | 'name' | 'slug'>[];
+  categories: Pick<AdminCategory, 'id' | 'name' | 'slug'>[]; // Product stores a simplified version for linking
   collections?: Pick<Collection, 'id' | 'name' | 'slug'>[];
   tags?: string[];
   fabricDetails?: string;
@@ -138,7 +139,7 @@ export interface CartItem {
   variantId?: string;
   name: string;
   price: number;
-  costPrice?: number | null; // Store cost at time of adding to cart
+  costPrice?: number | null;
   quantity: number;
   imageUrl?: string;
   dataAiHint?: string;
@@ -230,6 +231,7 @@ export interface SocialCommerceItem {
   linkUrl: string;
   altText?: string;
   dataAiHint?: string;
+  displayOrder?: number; // Added for sorting
 }
 
 export interface HomepageContent {
@@ -398,4 +400,18 @@ export interface PrintOnDemandDesign {
   collaboration_title?: string;
   createdAt?: string;
   updatedAt?: string;
+}
+
+export interface CollaborationApplication {
+  id?: string; // UUID from Supabase, optional on create
+  user_id?: string | null; // Firebase UID if submitted by logged-in user
+  name: string;
+  email: string;
+  portfolio_link?: string | null;
+  concept_description: string;
+  collaboration_category_id?: string | null; // Foreign key to design_collaboration_categories
+  status?: 'pending' | 'reviewed' | 'contacted' | 'approved' | 'rejected'; // Default 'pending'
+  admin_notes?: string | null;
+  submitted_at?: string; // ISO string, default now()
+  updated_at?: string; // ISO string, default/trigger now()
 }

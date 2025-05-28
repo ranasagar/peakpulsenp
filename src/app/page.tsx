@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { ProductCard } from '@/components/product/product-card';
 import { Icons } from '@/components/icons';
-import { ChevronLeft, ChevronRight, ShoppingBag, ArrowRight, Instagram, Send, Users, ImagePlus, Loader2, Play, Pause, LayoutGrid, Palette as PaletteIcon, Handshake } from 'lucide-react'; // Added Handshake
+import { ChevronLeft, ChevronRight, ShoppingBag, ArrowRight, Instagram, Send, Users, ImagePlus, Loader2, Play, Pause, LayoutGrid, Palette as PaletteIcon, Handshake, ArrowUpDown } from 'lucide-react';
 import { NewsletterSignupForm } from '@/components/forms/newsletter-signup-form';
 import type { HomepageContent, Product, HeroSlide, UserPost, AdminCategory as CategoryType, DesignCollaborationGallery } from '@/types';
 import { useToast } from '@/hooks/use-toast';
@@ -15,15 +15,15 @@ import { Card, CardContent } from '@/components/ui/card';
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { InteractiveExternalLink } from '@/components/interactive-external-link';
 import MainLayout from '@/components/layout/main-layout';
-import { formatDisplayDate } from '@/lib/dateUtils'; // For formatting collaboration date
+import { formatDisplayDate } from '@/lib/dateUtils';
 
 const fallbackHeroSlide: HeroSlide = {
   id: 'fallback-hero-main-public',
   title: "Peak Pulse",
   description: "Experience the fusion of ancient Nepali artistry and modern streetwear. (Default content)",
-  imageUrl: "https://images.unsplash.com/photo-1500917293891-ef795e70e1f6?q=80&w=1920&h=1080&fit=crop&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+  imageUrl: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1920&h=1080&q=80",
   altText: "Default Peak Pulse Hero Image",
-  dataAiHint: "mountain abstract texture",
+  dataAiHint: "fashion abstract modern",
   ctaText: "Explore Collections",
   ctaLink: "/products",
   videoId: undefined,
@@ -47,33 +47,16 @@ async function getHomepageApiContent(): Promise<HomepageContent> {
     const res = await fetch(fetchUrl, { cache: 'no-store' });
 
     if (!res.ok) {
-      let errorBody = "Could not read error response body from API.";
-      let errorJson: any = null;
+      let errorBody = `Failed to fetch homepage content. Status: ${res.status} ${res.statusText}`;
       try {
-        errorJson = await res.json();
-        if (errorJson && errorJson.message) {
-          errorBody = errorJson.message;
-        } else if (errorJson && errorJson.rawSupabaseError && errorJson.rawSupabaseError.message) {
-          errorBody = `Supabase Error: ${errorJson.rawSupabaseError.message}`;
-           if(errorJson.rawSupabaseError.details) errorBody += ` Details: ${errorJson.rawSupabaseError.details}`;
-           if(errorJson.rawSupabaseError.hint) errorBody += ` Hint: ${errorJson.rawSupabaseError.hint}`;
-           if(errorJson.rawSupabaseError.code) errorBody += ` Code: ${errorJson.rawSupabaseError.code}`;
-        } else {
-           const textError = await res.text();
-           errorBody = textError.substring(0, 500) || errorBody;
-        }
-      } catch (e) { 
-          try {
-              const textError = await res.text();
-              errorBody = textError.substring(0,500) || `Failed to parse error response: ${res.statusText}`;
-          } catch (textFallbackError){
-              errorBody = `Failed to parse error response and response body not readable: ${res.statusText}`;
-          }
-      }
-      console.error(`[Client Fetch] Failed to fetch content. Status: ${res.status} ${res.statusText}. Body:`, errorBody);
+        const errorData = await res.json();
+        if (errorData.message) errorBody += ` API Message: ${errorData.message}`;
+        if (errorData.rawSupabaseError?.message) errorBody += ` Supabase Error: ${errorData.rawSupabaseError.message}`;
+      } catch (e) { /* ignore if not json */ }
+      console.error(errorBody);
       return {
         ...defaultHomepageContent,
-        error: `API Error fetching homepage content: ${res.status} ${res.statusText}. Details: ${errorBody.substring(0, 200)}`
+        error: errorBody
       };
     }
     const jsonData = await res.json() as Partial<HomepageContent>;
@@ -81,7 +64,7 @@ async function getHomepageApiContent(): Promise<HomepageContent> {
     
     const processedHeroSlides = (Array.isArray(jsonData.heroSlides) && jsonData.heroSlides.length > 0)
       ? jsonData.heroSlides.map((slide: Partial<HeroSlide>, index: number) => ({
-          id: slide.id || `slide-client-${Date.now()}-${index}`,
+          id: slide.id || `hs-client-${Date.now()}-${index}`,
           title: slide.title || fallbackHeroSlide.title,
           description: slide.description || fallbackHeroSlide.description,
           imageUrl: slide.imageUrl || undefined,
@@ -92,10 +75,6 @@ async function getHomepageApiContent(): Promise<HomepageContent> {
           ctaLink: slide.ctaLink || fallbackHeroSlide.ctaLink,
         }))
       : [fallbackHeroSlide];
-
-    if (processedHeroSlides.length === 0) {
-        processedHeroSlides.push(fallbackHeroSlide);
-    }
     
     const result: HomepageContent = {
       heroSlides: processedHeroSlides,
@@ -109,12 +88,13 @@ async function getHomepageApiContent(): Promise<HomepageContent> {
             linkUrl: item.linkUrl || "#",
             altText: item.altText || "Social media post",
             dataAiHint: item.dataAiHint || "social fashion",
+            displayOrder: Number(item.displayOrder) || 0,
         }))
         : defaultHomepageContent.socialCommerceItems!,
       heroVideoId: jsonData.heroVideoId === null ? undefined : jsonData.heroVideoId,
       heroImageUrl: jsonData.heroImageUrl === null ? undefined : jsonData.heroImageUrl,
     };
-    // console.log("[Client Fetch] Processed content to be set:", result);
+    console.log("[Client Fetch] Processed content to be set:", result);
     return result;
   } catch (error) {
     console.error('[Client Fetch] CRITICAL ERROR in getHomepageApiContent:', error);
@@ -126,15 +106,12 @@ async function getCategoriesForHomepage(): Promise<CategoryType[]> {
   try {
     const res = await fetch('/api/categories', { cache: 'no-store' });
     if (!res.ok) {
-      let errorDetail = 'Failed to fetch categories';
-       try {
-          const errorData = await res.json();
-          errorDetail = errorData.message || errorData.rawSupabaseError?.message || `Server responded with ${res.status}: ${res.statusText}`;
-        } catch (e) { /* ignore if not json */ }
-      console.error("Failed to fetch categories for homepage:", errorDetail);
-      return [];
+      const errorData = await res.json().catch(() => ({}));
+      throw new Error(errorData.message || errorData.rawSupabaseError?.message || `Failed to fetch categories: ${res.statusText}`);
     }
-    return res.json();
+    const categories: CategoryType[] = await res.json();
+    // API now sorts by displayOrder, then name.
+    return categories;
   } catch (error) {
     console.error("Error fetching categories for homepage:", error);
     return [];
@@ -146,19 +123,19 @@ async function getDynamicFeaturedProducts(): Promise<Product[]> {
     const response = await fetch('/api/products', { cache: 'no-store' });
     if (!response.ok) {
       let errorDetail = `Failed to fetch products: ${response.status} "${response.statusText || 'Unknown error'}"`;
-      try {
-        const errorData = await response.json();
-        errorDetail = errorData.message || errorData.error || errorDetail;
-        if (errorData.rawSupabaseError) {
-          errorDetail += ` Supabase: ${errorData.rawSupabaseError.message || ''} ${errorData.rawSupabaseError.hint || ''}`;
-        }
-      } catch (e) { /* ignore if not json */ }
+       try {
+          const errorData = await response.json();
+          errorDetail = errorData.message || errorData.error || errorDetail;
+          if (errorData.rawSupabaseError) {
+            errorDetail += ` Supabase: ${errorData.rawSupabaseError.message || ''} ${errorData.rawSupabaseError.hint || ''}`;
+          }
+        } catch (e) { /* ignore if not json */ }
       console.error("[Client Fetch] getDynamicFeaturedProducts error:", errorDetail);
-      throw new Error(errorDetail);
+      throw new Error(`Failed to fetch products for featured section: ${errorDetail}`);
     }
     const allProducts: Product[] = await response.json();
+    // Products are already sorted by createdAt descending from API
     const featured = allProducts.filter(p => p.isFeatured === true).slice(0, 3);
-    console.log("[Client Fetch] Fetched dynamic featured products:", featured.length);
     return featured;
   } catch (error) {
     console.error("Error fetching dynamic featured products:", error);
@@ -170,21 +147,29 @@ async function getFeaturedCollaborations(): Promise<DesignCollaborationGallery[]
   try {
     const response = await fetch('/api/design-collaborations', { cache: 'no-store' });
     if (!response.ok) {
-      let errorDetail = `Failed to fetch collaborations: ${response.status} "${response.statusText || 'Unknown error'}"`;
-      try {
-        const errorData = await response.json();
-        errorDetail = errorData.message || errorData.rawSupabaseError?.message || errorDetail;
-      } catch (e) { /* ignore */ }
-      console.error("[Client Fetch] getFeaturedCollaborations error:", errorDetail);
-      throw new Error(errorDetail);
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || errorData.rawSupabaseError?.message || `Failed to fetch collaborations: ${response.statusText}`);
     }
     const allCollaborations: DesignCollaborationGallery[] = await response.json();
-    // Assuming they are already sorted by date or relevance from the API, take the first few
-    console.log("[Client Fetch] Fetched featured collaborations:", allCollaborations.slice(0, 3).length);
-    return allCollaborations.slice(0, 3); // Show up to 3 featured collaborations
+    return allCollaborations.slice(0, 3);
   } catch (error) {
     console.error("Error fetching featured collaborations:", error);
-    throw error;
+    return [];
+  }
+}
+
+async function getApprovedUserPosts(): Promise<UserPost[]> {
+  try {
+    const response = await fetch('/api/user-posts', { cache: 'no-store' });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || errorData.rawSupabaseError?.message || 'Failed to fetch user posts');
+    }
+    const posts: UserPost[] = await response.json();
+    return posts.slice(0, 4); // Display up to 4 user posts
+  } catch (error) {
+    console.error("Error fetching user posts:", error);
+    return [];
   }
 }
 
@@ -193,52 +178,50 @@ function HomePageContent() {
   const [isLoadingContent, setIsLoadingContent] = useState(true);
   const [content, setContent] = useState<HomepageContent>(defaultHomepageContent);
   const [categories, setCategories] = useState<CategoryType[]>([]);
+  const [isLoadingCategories, setIsLoadingCategories] = useState(true);
   const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
   const [featuredCollaborations, setFeaturedCollaborations] = useState<DesignCollaborationGallery[]>([]);
   const [isLoadingCollaborations, setIsLoadingCollaborations] = useState(true);
+  const [userPosts, setUserPosts] = useState<UserPost[]>([]);
+  const [isLoadingUserPosts, setIsLoadingUserPosts] = useState(true);
+
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isPlaying, setIsPlaying] = useState(true);
   const { toast } = useToast();
-  const [userPosts, setUserPosts] = useState<UserPost[]>([]);
-  const [isLoadingUserPosts, setIsLoadingUserPosts] = useState(true);
   
   const activeHeroSlides = content.heroSlides?.length ? content.heroSlides : [fallbackHeroSlide];
 
   const loadPageData = useCallback(async () => {
     setIsLoadingContent(true);
     setIsLoadingProducts(true);
+    setIsLoadingCategories(true);
     setIsLoadingUserPosts(true);
     setIsLoadingCollaborations(true);
+
     try {
-      const [fetchedContent, fetchedCategories, fetchedFeatured, fetchedUserPosts, fetchedCollabs] = await Promise.all([
+      const [
+        fetchedContent, 
+        fetchedCategories, 
+        fetchedFeatured, 
+        fetchedUserPosts,
+        fetchedCollabs
+      ] = await Promise.all([
         getHomepageApiContent(),
-        getCategoriesForHomepage(),
-        getDynamicFeaturedProducts().catch(err => { 
-          toast({ title: "Featured Products Error", description: err.message, variant: "destructive" });
+        getCategoriesForHomepage().catch(err => {
+          toast({ title: "Error Loading Categories", description: err.message, variant: "destructive" });
           return [];
         }),
-        fetch('/api/user-posts', { cache: 'no-store' })
-          .then(res => {
-            if (!res.ok) {
-              let errorDetail = `Failed to fetch user posts: ${res.status} ${res.statusText}`;
-              return res.json().catch(() => ({})).then(errorData => {
-                errorDetail = errorData.message || errorData.error || errorDetail;
-                 if (errorData.rawSupabaseError) {
-                    errorDetail += ` Supabase: ${errorData.rawSupabaseError.message || ''} ${errorData.rawSupabaseError.hint || ''}`;
-                  }
-                throw new Error(errorDetail);
-              });
-            }
-            return res.json();
-          })
-          .then((posts: UserPost[]) => posts.slice(0, 4))
-          .catch(err => {
-            toast({ title: "User Posts Error", description: (err as Error).message, variant: "destructive" });
-            return [];
-          }),
+        getDynamicFeaturedProducts().catch(err => { 
+          toast({ title: "Error Loading Featured Products", description: err.message, variant: "destructive" });
+          return [];
+        }),
+        getApprovedUserPosts().catch(err => {
+          toast({ title: "Error Loading User Posts", description: err.message, variant: "destructive" });
+          return [];
+        }),
         getFeaturedCollaborations().catch(err => {
-          toast({ title: "Featured Collaborations Error", description: err.message, variant: "destructive"});
+          toast({ title: "Error Loading Collaborations", description: err.message, variant: "destructive"});
           return [];
         })
       ]);
@@ -249,26 +232,24 @@ function HomePageContent() {
       setUserPosts(fetchedUserPosts);
       setFeaturedCollaborations(fetchedCollabs);
 
-      if (fetchedContent.error) {
+      if (fetchedContent.error && fetchedContent.error !== "Database client not configured.") { // Don't toast for DB client not ready during initial load
         toast({
-          title: "Homepage Load Warning",
-          description: `Could not load all homepage data: ${fetchedContent.error}. Displaying fallbacks.`,
-          variant: "default"
+          title: "Homepage Content Issue",
+          description: fetchedContent.error,
+          variant: "default" 
         });
       }
     } catch (error) {
       toast({
-        title: "Homepage Load Error",
-        description: (error as Error).message || "Could not load all homepage data. Displaying fallbacks.",
+        title: "Error Loading Homepage Data",
+        description: (error as Error).message || "Could not load all homepage data.",
         variant: "destructive"
       });
-      setContent(defaultHomepageContent);
-      setFeaturedProducts([]);
-      setUserPosts([]);
-      setFeaturedCollaborations([]);
+      setContent(defaultHomepageContent); // Ensure content is always set
     } finally {
       setIsLoadingContent(false);
       setIsLoadingProducts(false);
+      setIsLoadingCategories(false);
       setIsLoadingUserPosts(false);
       setIsLoadingCollaborations(false);
     }
@@ -333,7 +314,7 @@ function HomePageContent() {
     <>
       {/* Hero Section */}
       <section style={{ backgroundColor: 'black' }} className="relative h-screen w-full overflow-hidden">
-        <div className="absolute inset-0 z-0 pointer-events-none"> {/* Removed bg-black from here */}
+        <div className="absolute inset-0 z-0 pointer-events-none">
             {heroVideoId ? (
             <>
                 <iframe
@@ -344,7 +325,7 @@ function HomePageContent() {
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                 allowFullScreen={false}
                 />
-                <div className="absolute inset-0 bg-black/60 z-[1]" />
+                <div className="absolute inset-0 bg-black/30 z-[1]" />
             </>
             ) : heroImageUrl ? (
             <>
@@ -357,14 +338,13 @@ function HomePageContent() {
                 className="absolute inset-0 w-full h-full object-cover"
                 data-ai-hint={currentHeroSlide?.dataAiHint || "fashion mountains nepal"}
                 />
-                <div className="absolute inset-0 bg-black/60 z-[1]" />
+                <div className="absolute inset-0 bg-black/30 z-[1]" />
             </>
             ) : (
-              <div className="absolute inset-0 bg-black" /> // Ultimate fallback
+              <div className="absolute inset-0 bg-black" /> // Ultimate black fallback
             )}
         </div>
 
-        {/* Carousel Slides Text Content Overlay */}
         {activeHeroSlides.map((slide, index) => (
           <div
             key={slide.id || index}
@@ -427,7 +407,7 @@ function HomePageContent() {
                   key={`dot-${index}`}
                   onClick={() => goToSlide(index)}
                   className={`h-2 w-2 md:h-2.5 md:w-2.5 rounded-full cursor-pointer transition-all duration-300 ease-in-out hover:bg-white/90 
-                    ${currentSlide === index ? 'bg-white scale-125 ring-2 ring-white/30 ring-offset-1 ring-offset-transparent p-1 w-5 md:w-6' : 'bg-white/40 hover:bg-white/70'}`}
+                    ${currentSlide === index ? 'bg-white scale-125 ring-2 ring-white/30 ring-offset-1 ring-offset-transparent p-0.5 w-5 md:w-6' : 'bg-white/40 hover:bg-white/70'}`}
                   aria-label={`Go to slide ${index + 1}`}
                 />
               ))}
@@ -471,7 +451,9 @@ function HomePageContent() {
       </section>
 
       {/* Categories Section */}
-      {categories && categories.length > 0 && (
+      {isLoadingCategories ? (
+         <section className="section-padding container-wide relative z-[1] bg-background"> <div className="flex justify-center items-center py-10"><Loader2 className="h-10 w-10 animate-spin text-primary" /></div></section>
+      ) : categories && categories.length > 0 && (
         <section className="section-padding container-wide relative z-[1] bg-background">
           <div className="text-center mb-12">
             <LayoutGrid className="h-10 w-10 text-primary mx-auto mb-3" />
@@ -519,15 +501,15 @@ function HomePageContent() {
       )}
 
       {/* Featured Collaborations Section */}
-      <section className="section-padding container-wide relative z-[1] bg-muted/30">
-        <div className="text-center mb-12">
-          <Handshake className="h-10 w-10 text-primary mx-auto mb-3" />
-          <h2 className="text-3xl font-bold text-foreground">Featured Collaborations</h2>
-          <p className="text-muted-foreground mt-1 max-w-xl mx-auto">Discover unique artistic visions and creative partnerships.</p>
-        </div>
-        {isLoadingCollaborations ? (
-          <div className="flex justify-center items-center py-10"><Loader2 className="h-10 w-10 animate-spin text-primary" /></div>
-        ) : featuredCollaborations.length > 0 ? (
+      {isLoadingCollaborations ? (
+         <section className="section-padding container-wide relative z-[1] bg-muted/30"><div className="flex justify-center items-center py-10"><Loader2 className="h-10 w-10 animate-spin text-primary" /></div></section>
+      ): featuredCollaborations.length > 0 && (
+        <section className="section-padding container-wide relative z-[1] bg-muted/30">
+          <div className="text-center mb-12">
+            <Handshake className="h-10 w-10 text-primary mx-auto mb-3" />
+            <h2 className="text-3xl font-bold text-foreground">Featured Collaborations</h2>
+            <p className="text-muted-foreground mt-1 max-w-xl mx-auto">Discover unique artistic visions and creative partnerships.</p>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {featuredCollaborations.map(collab => (
               <Link key={collab.id} href={`/collaborations/${collab.slug}`} className="block group">
@@ -560,15 +542,13 @@ function HomePageContent() {
               </Link>
             ))}
           </div>
-        ) : (
-          <p className="text-center text-muted-foreground py-8">No featured collaborations yet. Check back soon!</p>
-        )}
-        <div className="text-center mt-12">
-          <Button variant="outline" size="lg" asChild className="text-base">
-            <Link href="/collaborations">View All Collaborations <ArrowRight className="ml-2 h-5 w-5" /></Link>
-          </Button>
-        </div>
-      </section>
+          <div className="text-center mt-12">
+            <Button variant="outline" size="lg" asChild className="text-base">
+              <Link href="/collaborations">View All Collaborations <ArrowRight className="ml-2 h-5 w-5" /></Link>
+            </Button>
+          </div>
+        </section>
+      )}
 
 
       {/* Social Commerce Section (#PeakPulseStyle) */}
@@ -691,4 +671,3 @@ export default function RootPage() {
     </MainLayout>
   );
 }
-

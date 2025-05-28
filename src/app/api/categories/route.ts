@@ -1,13 +1,12 @@
 
 // /src/app/api/categories/route.ts
 import { NextResponse } from 'next/server';
-import { supabase } from '../../../lib/supabaseClient'; 
+import { supabase } from '../../../lib/supabaseClient.ts'; 
 import type { AdminCategory as Category } from '@/types';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
-  console.log("[API /api/categories] GET request received for frontend categories.");
   if (!supabase) {
     console.error('[API /api/categories] Supabase client is not initialized.');
     return NextResponse.json({ message: 'Database client not configured.' }, { status: 503 });
@@ -16,7 +15,8 @@ export async function GET() {
   try {
     const { data, error } = await supabase
       .from('categories')
-      .select('id, name, slug, description, image_url, ai_image_prompt, parent_id') 
+      .select('id, name, slug, description, image_url, ai_image_prompt, parent_id, "displayOrder"') 
+      .order('"displayOrder"', { ascending: true, nullsLast: true })
       .order('name', { ascending: true });
 
     if (error) {
@@ -35,11 +35,11 @@ export async function GET() {
         imageUrl: c.image_url,
         aiImagePrompt: c.ai_image_prompt,
         parentId: c.parent_id,
+        displayOrder: c.displayOrder,
         createdAt: c.createdAt || c.created_at,
         updatedAt: c.updatedAt || c.updated_at,
     }));
 
-    console.log(`[API /api/categories] Successfully fetched ${categories.length} categories.`);
     return NextResponse.json(categories);
   } catch (e: any) {
     console.error('[API /api/categories] Unhandled error fetching categories:', e);

@@ -11,28 +11,17 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Save, PlusCircle, Trash2, Edit, Tags, Image as ImageIconLucide, Network } from 'lucide-react';
+import { Loader2, Save, PlusCircle, Trash2, Edit, Tags, Image as ImageIconLucide, Network, ArrowUpDown } from 'lucide-react';
 import type { AdminCategory } from '@/types';
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription as DialogFormDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogClose
+  Dialog, DialogContent, DialogDescription as DialogFormDescription, DialogFooter, DialogHeader, DialogTitle, DialogClose
 } from "@/components/ui/dialog";
 import { ScrollArea } from '@/components/ui/scroll-area';
 import Image from 'next/image';
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent as AlertDialogDeleteContent,
-  AlertDialogDescription as AlertDialogDeleteDescription,
-  AlertDialogFooter as AlertDialogDeleteFooter,
-  AlertDialogHeader as AlertDialogDeleteHeader,
-  AlertDialogTitle as AlertDialogDeleteTitle,
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent as AlertDialogDeleteContent,
+  AlertDialogDescription as AlertDialogDeleteDescription, AlertDialogFooter as AlertDialogDeleteFooter,
+  AlertDialogHeader as AlertDialogDeleteHeader, AlertDialogTitle as AlertDialogDeleteTitle
 } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
@@ -40,12 +29,13 @@ const NO_PARENT_ID_VALUE = "__NONE__";
 
 const categoryFormSchema = z.object({
   id: z.string().optional(),
-  name: z.string().min(2, "Category name must be at least 2 characters."),
-  slug: z.string().min(2, "Slug must be at least 2 characters.").regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Slug must be lowercase alphanumeric with hyphens.").optional().or(z.literal('')),
+  name: z.string().min(1, "Category name cannot be empty.").default(`Untitled Category ${Date.now()}`),
+  slug: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Slug must be lowercase alphanumeric with hyphens.").optional().or(z.literal('')),
   description: z.string().optional(),
   imageUrl: z.string().url({ message: "Please enter a valid image URL." }).optional().or(z.literal('')),
   aiImagePrompt: z.string().optional(),
   parentId: z.string().nullable().optional(),
+  displayOrder: z.coerce.number().int().optional().default(0),
 });
 
 type CategoryFormValues = z.infer<typeof categoryFormSchema>;
@@ -63,12 +53,7 @@ export default function AdminCategoriesPage() {
   const form = useForm<CategoryFormValues>({
     resolver: zodResolver(categoryFormSchema),
     defaultValues: {
-      name: '',
-      slug: '',
-      description: '',
-      imageUrl: '',
-      aiImagePrompt: '',
-      parentId: null,
+      name: '', slug: '', description: '', imageUrl: '', aiImagePrompt: '', parentId: null, displayOrder: 0,
     },
   });
 
@@ -81,6 +66,8 @@ export default function AdminCategoriesPage() {
         throw new Error(errorData.message || errorData.rawSupabaseError?.message ||'Failed to fetch categories');
       }
       const data: AdminCategory[] = await response.json();
+      // Sort by displayOrder, then by name for consistent listing
+      data.sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0) || a.name.localeCompare(b.name));
       setCategories(data);
     } catch (error) {
       toast({ title: "Error Fetching Categories", description: (error as Error).message, variant: "destructive" });
@@ -103,6 +90,7 @@ export default function AdminCategoriesPage() {
       imageUrl: category.imageUrl || '',
       aiImagePrompt: category.aiImagePrompt || '',
       parentId: category.parentId || null,
+      displayOrder: category.displayOrder || 0,
     });
     setIsFormOpen(true);
   };
@@ -111,12 +99,13 @@ export default function AdminCategoriesPage() {
     setEditingCategory(null);
     form.reset({
       id: undefined,
-      name: '',
+      name: `Untitled Category ${Date.now()}`,
       slug: '',
       description: '',
       imageUrl: '',
       aiImagePrompt: '',
       parentId: null,
+      displayOrder: Math.max(0, ...categories.map(c => c.displayOrder || 0)) + 10, // Default to end of list
     });
     setIsFormOpen(true);
   };
@@ -130,6 +119,7 @@ export default function AdminCategoriesPage() {
       ...data,
       slug: data.slug?.trim() || data.name.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, ''),
       parentId: data.parentId === NO_PARENT_ID_VALUE ? null : data.parentId,
+      displayOrder: data.displayOrder === undefined ? 0 : Number(data.displayOrder),
     };
 
     try {
@@ -143,16 +133,8 @@ export default function AdminCategoriesPage() {
         let errorDetail = `Failed to ${editingCategory ? 'update' : 'create'} category.`;
         try {
             const errorData = await response.json();
-             if (errorData.rawSupabaseError && errorData.rawSupabaseError.message) {
-                errorDetail = `Database error: ${errorData.rawSupabaseError.message}${errorData.rawSupabaseError.hint ? ` Hint: ${errorData.rawSupabaseError.hint}` : ''}`;
-            } else if (errorData.message) {
-                errorDetail = errorData.message;
-            } else {
-                 errorDetail = `${response.status}: ${response.statusText || errorDetail}`;
-            }
-        } catch (e) {
-             errorDetail = `${response.status}: ${response.statusText || 'Failed to process error response.'}`;
-        }
+            errorDetail = errorData.message || errorData.rawSupabaseError?.message || `Server responded with ${response.status}`;
+        } catch (e) { /* ignore */ }
         throw new Error(errorDetail);
       }
       toast({ title: "Success!", description: `Category "${payload.name}" ${editingCategory ? 'updated' : 'created'}.` });
@@ -196,20 +178,20 @@ export default function AdminCategoriesPage() {
 
   if (isLoading) {
     return (
-      <Card className="shadow-lg flex flex-col h-full">
+      <Card className="shadow-xl flex flex-col h-full">
         <CardHeader><CardTitle className="text-2xl flex items-center"><Tags className="mr-3 h-6 w-6 text-primary" />Manage Product Categories</CardTitle><CardDescription>Loading categories...</CardDescription></CardHeader>
-        <CardContent className="flex-grow flex justify-center items-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></CardContent>
+        <CardContent className="flex-1 flex justify-center items-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></CardContent>
       </Card>
     );
   }
 
   return (
     <>
-      <Card className="shadow-lg flex flex-col h-full">
+      <Card className="shadow-xl flex flex-col h-full">
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
             <CardTitle className="text-2xl flex items-center"><Tags className="mr-3 h-6 w-6 text-primary" />Manage Product Categories</CardTitle>
-            <CardDescription>Add, edit, or delete product categories. You can create subcategories by assigning a parent.</CardDescription>
+            <CardDescription>Add, edit, or delete product categories. Use Display Order to sort them on the frontend.</CardDescription>
           </div>
           <Button onClick={handleAddNew}><PlusCircle className="mr-2 h-4 w-4" /> Add New Category</Button>
         </CardHeader>
@@ -238,6 +220,9 @@ export default function AdminCategoriesPage() {
                           </p>
                         )}
                         {category.aiImagePrompt && <p className="text-xs text-accent mt-1 flex items-center"><ImageIconLucide size={12} className="mr-1"/> Prompt: <span className="italic line-clamp-1">{category.aiImagePrompt}</span></p>}
+                         <p className="text-xs text-muted-foreground mt-1 flex items-center">
+                            <ArrowUpDown size={12} className="mr-1"/> Order: {category.displayOrder ?? 0}
+                          </p>
                       </div>
                     </div>
                     <div className="flex space-x-2 flex-shrink-0 pt-2 sm:pt-0">
@@ -297,7 +282,7 @@ export default function AdminCategoriesPage() {
                           <SelectContent>
                             <SelectItem value={NO_PARENT_ID_VALUE}>None (Top-Level Category)</SelectItem>
                             {categories
-                              .filter(cat => cat.id !== editingCategory?.id)
+                              .filter(cat => cat.id !== editingCategory?.id) // Prevent self-parenting
                               .map(cat => (
                                 <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
                             ))}
@@ -308,6 +293,14 @@ export default function AdminCategoriesPage() {
                       </FormItem>
                     )}
                   />
+                  <FormField control={form.control} name="displayOrder" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Display Order</FormLabel>
+                      <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value, 10) || 0)} /></FormControl>
+                      <FormDescription>Lower numbers appear first. Used for sorting on frontend.</FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
                   <FormField control={form.control} name="description" render={({ field }) => (
                     <FormItem><FormLabel>Description (Optional)</FormLabel><FormControl><Textarea {...field} rows={3} /></FormControl><FormMessage /></FormItem>
                   )} />
@@ -353,7 +346,7 @@ export default function AdminCategoriesPage() {
             <AlertDialogDeleteTitle>Are you sure you want to delete this category?</AlertDialogDeleteTitle>
             <AlertDialogDeleteDescription>
               This action cannot be undone. This will permanently delete the category: "{categoryToDelete?.name}".
-              Any subcategories under this category will become top-level categories (their `parentId` will be set to NULL in Supabase due to the ON DELETE SET NULL constraint). Products associated with this category will need to be manually reassigned.
+              If this category is a parent, its children will become top-level categories (their `parentId` will be set to NULL due to the ON DELETE SET NULL constraint in Supabase). Products associated with this category will need to be manually reassigned.
             </AlertDialogDeleteDescription>
           </AlertDialogDeleteHeader>
           <AlertDialogDeleteFooter>

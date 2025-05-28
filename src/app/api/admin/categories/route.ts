@@ -2,27 +2,28 @@
 // /src/app/api/admin/categories/route.ts
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { supabase, supabaseAdmin } from '../../../../lib/supabaseClient';
+import { supabaseAdmin, supabase as fallbackSupabase } from '../../../../lib/supabaseClient';
 import type { AdminCategory } from '@/types';
 
 export const dynamic = 'force-dynamic';
 
 // GET all categories for admin
 export async function GET() {
-  console.log("[API /api/admin/categories GET] Request received for admin.");
-  const clientForRead = supabaseAdmin || supabase;
+  const clientForRead = supabaseAdmin || fallbackSupabase;
   if (!clientForRead) {
-    return NextResponse.json({ message: 'Database client not configured for read.' }, { status: 503 });
+    console.error('[API ADMIN CATEGORIES GET] Supabase client not configured.');
+    return NextResponse.json({ message: 'Database client not configured.', rawSupabaseError: { message: 'Database client not configured.'} }, { status: 503 });
   }
-  console.log(`[API /api/admin/categories GET] Using ${clientForRead === supabaseAdmin ? "ADMIN client" : "PUBLIC client"}.`);
+
   try {
     const { data, error } = await clientForRead
       .from('categories')
-      .select('*, parent_id')
+      .select('*, parent_id, "displayOrder"') // Ensure displayOrder is selected
+      .order('"displayOrder"', { ascending: true, nullsLast: true })
       .order('name', { ascending: true });
 
     if (error) {
-      console.error('[API /api/admin/categories GET] Supabase error fetching categories:', error);
+      console.error('[API ADMIN CATEGORIES GET] Supabase error fetching categories:', error);
       return NextResponse.json({
         message: error.message,
         rawSupabaseError: { message: error.message, details: error.details, hint: error.hint, code: error.code }
@@ -37,60 +38,60 @@ export async function GET() {
       imageUrl: cat.image_url,
       aiImagePrompt: cat.ai_image_prompt,
       parentId: cat.parent_id,
-      createdAt: cat.createdAt || cat.created_at, // Handle potential casing differences
+      displayOrder: cat.displayOrder,
+      createdAt: cat.createdAt || cat.created_at,
       updatedAt: cat.updatedAt || cat.updated_at,
     })) || [];
     
-    console.log(`[API /api/admin/categories GET] Successfully fetched ${categories.length} categories for admin.`);
     return NextResponse.json(categories);
   } catch (e: any) {
-    console.error('[API /api/admin/categories GET] Unhandled error fetching categories:', e);
+    console.error('[API ADMIN CATEGORIES GET] Unhandled error fetching categories:', e);
     return NextResponse.json({ message: e.message }, { status: 500 });
   }
 }
 
 // POST a new category (Admin)
 export async function POST(request: NextRequest) {
-  console.log("[API /api/admin/categories POST] Request received to create category.");
-  const clientForWrite = supabaseAdmin;
+  const supabaseService = supabaseAdmin;
 
-  if (!clientForWrite) {
-    console.error('[API /api/admin/categories POST] CRITICAL: Admin Supabase client (service_role) is not initialized. Check SUPABASE_SERVICE_ROLE_KEY.');
-    return NextResponse.json({ message: 'Database admin client not configured for write operations.' }, { status: 503 });
+  if (!supabaseService) {
+    console.error('[API ADMIN CATEGORIES POST] CRITICAL: Admin Supabase client (service_role) is not initialized.');
+    return NextResponse.json({ message: 'Database admin client not configured. Cannot create category.', rawSupabaseError: { message: 'Admin Supabase client not available.' } }, { status: 503 });
   }
-  console.log(`[API /api/admin/categories POST] Using ADMIN client (service_role).`);
 
   try {
     const body = await request.json() as Omit<AdminCategory, 'id' | 'createdAt' | 'updatedAt'>;
-    console.log("[API /api/admin/categories POST] Received body for new category:", JSON.stringify(body, null, 2));
     
+    const categoryNameToUse = body.name?.trim() || `Untitled Category ${Date.now()}`;
+
     const categoryToInsert = {
-      name: body.name,
-      slug: body.slug || body.name.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, ''),
+      name: categoryNameToUse,
+      slug: body.slug?.trim() || categoryNameToUse.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, ''),
       description: body.description || null,
       image_url: body.imageUrl || null,
       ai_image_prompt: body.aiImagePrompt || null,
       parent_id: body.parentId || null,
-      // Let database handle createdAt and updatedAt via defaults/triggers
+      "displayOrder": body.displayOrder === undefined ? 0 : Number(body.displayOrder),
+      // "createdAt" and "updatedAt" will be handled by database defaults/triggers
     };
-    console.log("[API /api/admin/categories POST] Attempting to insert category with payload:", categoryToInsert);
+    console.log("[API ADMIN CATEGORIES POST] Attempting to insert category with payload:", categoryToInsert);
 
-    const { data: insertedData, error } = await clientForWrite
+    const { data: insertedData, error } = await supabaseService
       .from('categories')
       .insert(categoryToInsert)
-      .select('*, parent_id')
+      .select('*, parent_id, "displayOrder"')
       .single();
 
     if (error) {
-      console.error('[API /api/admin/categories POST] Supabase error creating category:', error);
+      console.error('[API ADMIN CATEGORIES POST] Supabase error creating category:', error);
       return NextResponse.json({
         message: `Database error creating category: ${error.message}`,
         rawSupabaseError: { message: error.message, details: error.details, hint: error.hint, code: error.code }
-      }, { status: 400 });
+      }, { status: error.code === '23505' ? 409 : 400 }); // 409 for unique constraint violation
     }
 
     if (!insertedData) {
-      console.error('[API /api/admin/categories POST] Supabase insert succeeded but returned no data.');
+      console.error('[API ADMIN CATEGORIES POST] Supabase insert succeeded but returned no data.');
       return NextResponse.json({ message: 'Category creation succeeded but no data returned from database.' }, { status: 500 });
     }
 
@@ -102,14 +103,13 @@ export async function POST(request: NextRequest) {
       imageUrl: insertedData.image_url,
       aiImagePrompt: insertedData.ai_image_prompt,
       parentId: insertedData.parent_id,
+      displayOrder: insertedData.displayOrder,
       createdAt: insertedData.createdAt || insertedData.created_at,
       updatedAt: insertedData.updatedAt || insertedData.updated_at,
     };
-
-    console.log("[API /api/admin/categories POST] Category created successfully:", responseCategory.name);
     return NextResponse.json(responseCategory, { status: 201 });
   } catch (e: any) {
-    console.error('[API /api/admin/categories POST] Unhandled error creating category:', e);
+    console.error('[API ADMIN CATEGORIES POST] Unhandled error creating category:', e);
     if (e instanceof SyntaxError && e.message.toLowerCase().includes("json")) {
       return NextResponse.json({ message: "Invalid JSON in request body.", errorDetails: e.message }, { status: 400 });
     }
