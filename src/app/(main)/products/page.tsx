@@ -1,3 +1,3 @@
-// This file is obsolete and its content has been moved to /src/app/products/page.tsx
-// It should be deleted from the repository.
+// This file is obsolete and should be deleted.
+// Its functionality has been moved to /src/app/products/page.tsx
 export {};
