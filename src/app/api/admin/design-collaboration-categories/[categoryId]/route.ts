@@ -1,12 +1,12 @@
 
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { supabaseAdmin, supabase as fallbackSupabase } from '../../../../../../lib/supabaseClient'; // Adjusted path
+import { supabaseAdmin, supabase as fallbackSupabase } from '../../../../../lib/supabaseClient.ts'; // Corrected path
 import type { DesignCollaborationCategory } from '@/types';
 
 export const dynamic = 'force-dynamic';
 
-// GET a single design collaboration category (not typically needed if admin page fetches all)
+// GET a single design collaboration category
 export async function GET(
   request: NextRequest,
   { params }: { params: { categoryId: string } }
@@ -45,7 +45,7 @@ export async function PUT(
   { params }: { params: { categoryId: string } }
 ) {
   const { categoryId } = params;
-  const supabaseService = supabaseAdmin; // Admin writes MUST use service_role
+  const supabaseService = supabaseAdmin; 
 
   if (!supabaseService) {
     console.error(`[API ADMIN DCC PUT /${categoryId}] CRITICAL: Supabase Service Role Client (supabaseAdmin) is not initialized. Update will fail. Check SUPABASE_SERVICE_ROLE_KEY.`);
@@ -58,31 +58,44 @@ export async function PUT(
 
   console.log(`[API ADMIN DCC PUT /${categoryId}] Attempting to update category. Using ADMIN client (service_role).`);
 
+  let body;
   try {
-    const body = await request.json() as Partial<Omit<DesignCollaborationCategory, 'id' | 'createdAt' | 'updatedAt'>>;
-    console.log(`[API ADMIN DCC PUT /${categoryId}] Received body:`, body);
+    body = await request.json() as Partial<Omit<DesignCollaborationCategory, 'id' | 'createdAt' | 'updatedAt'>>;
+  } catch (jsonError: any) {
+    console.error(`[API ADMIN DCC PUT /${categoryId}] Error parsing request JSON:`, jsonError);
+    return NextResponse.json({ message: "Invalid JSON in request body.", errorDetails: jsonError.message }, { status: 400 });
+  }
+  console.log(`[API ADMIN DCC PUT /${categoryId}] Received body:`, body);
 
-    const categoryToUpdate: { [key: string]: any } = {};
-    if (body.name !== undefined) categoryToUpdate.name = body.name;
-    
-    if (body.slug !== undefined && body.slug.trim() !== '') {
-        categoryToUpdate.slug = body.slug.trim();
-    } else if (body.name !== undefined) {
-        categoryToUpdate.slug = body.name.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, '');
+  const categoryToUpdate: { [key: string]: any } = {};
+  if (body.name !== undefined) categoryToUpdate.name = body.name;
+  
+  if (body.slug !== undefined && body.slug.trim() !== '') {
+      categoryToUpdate.slug = body.slug.trim();
+  } else if (body.name !== undefined) { // Only generate slug from name if name is being updated and slug is not explicitly set
+      categoryToUpdate.slug = body.name.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, '');
+  }
+
+  if (body.hasOwnProperty('description')) categoryToUpdate.description = body.description || null;
+  if (body.hasOwnProperty('image_url')) categoryToUpdate.image_url = body.image_url || null;
+  if (body.hasOwnProperty('ai_image_prompt')) categoryToUpdate.ai_image_prompt = body.ai_image_prompt || null;
+  
+  // "updatedAt" will be handled by the database trigger
+  // categoryToUpdate."updatedAt" = new Date().toISOString(); 
+
+  if (Object.keys(categoryToUpdate).length === 0) {
+    // Fetch current data if nothing to update, to ensure consistent response format
+    try {
+        const { data: currentData, error: fetchError } = await supabaseService.from('design_collaboration_categories').select('*').eq('id', categoryId).single();
+        if (fetchError) throw fetchError;
+        return NextResponse.json(currentData || {});
+    } catch(e) {
+        return NextResponse.json({ message: "No fields to update and failed to fetch current data." }, { status: 400 });
     }
+  }
+  console.log(`[API ADMIN DCC PUT /${categoryId}] Payload to Supabase:`, categoryToUpdate);
 
-    if (body.hasOwnProperty('description')) categoryToUpdate.description = body.description || null;
-    if (body.hasOwnProperty('image_url')) categoryToUpdate.image_url = body.image_url || null;
-    if (body.hasOwnProperty('ai_image_prompt')) categoryToUpdate.ai_image_prompt = body.ai_image_prompt || null;
-    
-    // Let the database trigger handle "updatedAt"
-    // categoryToUpdate["updatedAt"] = new Date().toISOString(); // Not needed if trigger is reliable
-
-    if (Object.keys(categoryToUpdate).length === 0) {
-      return NextResponse.json({ message: "No fields to update." }, { status: 400 });
-    }
-    console.log(`[API ADMIN DCC PUT /${categoryId}] Payload to Supabase:`, categoryToUpdate);
-
+  try {
     const { data, error } = await supabaseService
       .from('design_collaboration_categories')
       .update(categoryToUpdate)
@@ -101,9 +114,6 @@ export async function PUT(
     return NextResponse.json(data);
   } catch (e: any) {
     console.error(`[API ADMIN DCC PUT /${categoryId}] Unhandled error:`, e);
-    if (e instanceof SyntaxError) {
-        return NextResponse.json({ message: "Invalid JSON in request body.", errorDetails: e.message }, { status: 400 });
-    }
     return NextResponse.json({ message: e.message || "An unexpected error occurred." }, { status: 500 });
   }
 }
@@ -114,7 +124,7 @@ export async function DELETE(
   { params }: { params: { categoryId: string } }
 ) {
   const { categoryId } = params;
-  const supabaseService = supabaseAdmin; // Admin writes MUST use service_role
+  const supabaseService = supabaseAdmin;
 
   if (!supabaseService) {
     console.error(`[API ADMIN DCC DELETE /${categoryId}] CRITICAL: Supabase Service Role Client (supabaseAdmin) is not initialized. Delete will fail. Check SUPABASE_SERVICE_ROLE_KEY.`);
@@ -127,7 +137,6 @@ export async function DELETE(
 
   console.log(`[API ADMIN DCC DELETE /${categoryId}] Attempting to delete category. Using ADMIN client (service_role).`);
   try {
-    // The FK on design_collaborations.category_id is ON DELETE SET NULL, so this should be safe.
     const { error } = await supabaseService
       .from('design_collaboration_categories')
       .delete()
@@ -144,4 +153,3 @@ export async function DELETE(
     return NextResponse.json({ message: e.message || "An unexpected error occurred." }, { status: 500 });
   }
 }
-    
