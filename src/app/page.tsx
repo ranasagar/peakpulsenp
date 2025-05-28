@@ -17,11 +17,11 @@ import { InteractiveExternalLink } from '@/components/interactive-external-link'
 import MainLayout from '@/components/layout/main-layout';
 
 const fallbackHeroSlide: HeroSlide = {
-  id: 'fallback-hero-main',
+  id: 'fallback-hero-main-public',
   title: "Peak Pulse",
-  description: "Experience the fusion of ancient Nepali artistry and modern streetwear. Content may be loading or using defaults.",
+  description: "Experience the fusion of ancient Nepali artistry and modern streetwear. (Content failed to load, displaying fallback)",
   imageUrl: "https://images.unsplash.com/photo-1500917293891-ef795e70e1f6?q=80&w=1920&h=1080&fit=crop&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
-  altText: "Abstract mountain range placeholder",
+  altText: "Default Peak Pulse Hero Image",
   dataAiHint: "mountain abstract texture",
   ctaText: "Explore Collections",
   ctaLink: "/products",
@@ -41,37 +41,59 @@ const defaultHomepageContent: HomepageContent = {
 
 async function getHomepageApiContent(): Promise<HomepageContent> {
   const fetchUrl = `/api/content/homepage`;
-  console.log(`[Client Fetch] Attempting to fetch homepage content from: ${fetchUrl}`);
+  console.log(`[Client Fetch] Attempting to fetch from: ${fetchUrl}`);
   try {
     const res = await fetch(fetchUrl, { cache: 'no-store' });
+
     if (!res.ok) {
       let errorBody = "Could not read error response body from API.";
+      let errorJson = null;
       try {
-        const errorJson = await res.json();
-        errorBody = errorJson.error || errorJson.message || errorBody;
-      } catch (e) { /* ignore if response is not json */ }
-      console.error(`[Client Fetch] Failed to fetch homepage content. Status: ${res.status} ${res.statusText}. Body:`, errorBody.substring(0, 500));
-      throw new Error(`API Error fetching homepage content: ${res.status} ${res.statusText}. Details: ${errorBody.substring(0, 200)}`);
+        errorJson = await res.json();
+        if (errorJson && errorJson.error) {
+          errorBody = errorJson.error;
+        } else if (errorJson && errorJson.message) {
+          errorBody = errorJson.message;
+        } else {
+           const textError = await res.text(); // Try to get text if json parsing failed initially
+           errorBody = textError.substring(0, 500) || errorBody;
+        }
+      } catch (e) {
+          try {
+              const textError = await res.text();
+              errorBody = textError.substring(0,500) || `Failed to parse error response: ${res.statusText}`;
+          } catch (textFallbackError){
+              errorBody = `Failed to parse error response and response body not readable: ${res.statusText}`;
+          }
+      }
+      console.error(`[Client Fetch] Failed to fetch content. Status: ${res.status} ${res.statusText}. Body:`, errorBody);
+      return {
+        ...defaultHomepageContent,
+        error: `API Error fetching homepage content: ${res.status} ${res.statusText}. Details: ${errorBody.substring(0, 200)}`
+      };
     }
     const jsonData = await res.json() as Partial<HomepageContent>;
     console.log("[Client Fetch] Successfully fetched homepage content:", jsonData);
+    
     const processedHeroSlides = (Array.isArray(jsonData.heroSlides) && jsonData.heroSlides.length > 0)
       ? jsonData.heroSlides.map((slide: Partial<HeroSlide>, index: number) => ({
           id: slide.id || `slide-client-${Date.now()}-${index}`,
           title: slide.title || fallbackHeroSlide.title,
           description: slide.description || fallbackHeroSlide.description,
           imageUrl: slide.imageUrl || undefined,
-          videoId: slide.videoId === null ? undefined : slide.videoId,
-          altText: slide.altText || "Hero image",
-          dataAiHint: slide.dataAiHint || "fashion background",
-          ctaText: slide.ctaText || "Shop Now",
-          ctaLink: slide.ctaLink || "/products",
+          videoId: slide.videoId === null ? undefined : slide.videoId, // Ensure null from DB becomes undefined
+          altText: slide.altText || fallbackHeroSlide.altText,
+          dataAiHint: slide.dataAiHint || fallbackHeroSlide.dataAiHint,
+          ctaText: slide.ctaText || fallbackHeroSlide.ctaText,
+          ctaLink: slide.ctaLink || fallbackHeroSlide.ctaLink,
         }))
-      : [fallbackHeroSlide];
-    if (processedHeroSlides.length === 0) { 
+      : [fallbackHeroSlide]; // Ensure there's always at least one slide for the carousel
+
+    if (processedHeroSlides.length === 0) {
         processedHeroSlides.push(fallbackHeroSlide);
     }
-    return {
+    
+    const result: HomepageContent = {
       heroSlides: processedHeroSlides,
       artisanalRoots: (jsonData.artisanalRoots && jsonData.artisanalRoots.title && jsonData.artisanalRoots.description)
         ? jsonData.artisanalRoots
@@ -81,13 +103,15 @@ async function getHomepageApiContent(): Promise<HomepageContent> {
             id: item.id || `social-client-${Date.now()}-${index}`,
             imageUrl: item.imageUrl || "https://placehold.co/400x400.png",
             linkUrl: item.linkUrl || "#",
-            altText: item.altText || "Social post",
+            altText: item.altText || "Social media post",
             dataAiHint: item.dataAiHint || "social fashion",
         }))
         : defaultHomepageContent.socialCommerceItems!,
       heroVideoId: jsonData.heroVideoId === null ? undefined : jsonData.heroVideoId,
       heroImageUrl: jsonData.heroImageUrl === null ? undefined : jsonData.heroImageUrl,
     };
+    console.log("[Client Fetch] Processed content to be set:", result);
+    return result;
   } catch (error) {
     console.error('[Client Fetch] CRITICAL ERROR in getHomepageApiContent:', error);
     return { ...defaultHomepageContent, error: (error as Error).message };
@@ -110,18 +134,22 @@ async function getCategoriesForHomepage(): Promise<CategoryType[]> {
 
 async function getDynamicFeaturedProducts(): Promise<Product[]> {
   try {
-    const res = await fetch('/api/products', { cache: 'no-store' }); // Fetches all products, sorted by newest
-    if (!res.ok) {
-      console.error("Failed to fetch products for featured section:", res.status, res.statusText);
-      return [];
+    const response = await fetch('/api/products', { cache: 'no-store' });
+    if (!response.ok) {
+      let errorDetail = `${response.status} "${response.statusText || 'Failed to fetch'}"`;
+      try {
+        const errorData = await response.json();
+        errorDetail = errorData.message || errorData.error || errorDetail;
+      } catch (e) { /* ignore if not json */ }
+      throw new Error(`Failed to fetch products for featured section: ${errorDetail}`);
     }
-    const allProducts: Product[] = await res.json();
-    const featured = allProducts.filter(p => p.isFeatured === true).slice(0, 3); // Take first 3 featured
-    console.log("[Client Fetch] Fetched featured products:", featured.length);
+    const allProducts: Product[] = await response.json();
+    const featured = allProducts.filter(p => p.isFeatured === true).slice(0, 3);
+    console.log("[Client Fetch] Fetched dynamic featured products:", featured.length);
     return featured;
   } catch (error) {
-    console.error("Error fetching products for featured section:", error);
-    return [];
+    console.error("Error fetching dynamic featured products:", error);
+    throw error; // Re-throw to be caught by loadPageData
   }
 }
 
@@ -145,70 +173,65 @@ function HomePageContent() {
   const loadPageData = useCallback(async () => {
     setIsLoadingContent(true);
     setIsLoadingFeaturedProducts(true);
+    setIsLoadingUserPosts(true); // Also set user posts loading
     try {
-      const [fetchedContent, fetchedCategories, fetchedFeaturedProducts] = await Promise.all([
+      const [fetchedContent, fetchedCategories, fetchedFeatured, fetchedUserPosts] = await Promise.all([
         getHomepageApiContent(),
         getCategoriesForHomepage(),
-        getDynamicFeaturedProducts()
+        getDynamicFeaturedProducts().catch(err => { 
+          toast({ title: "Featured Products Error", description: err.message, variant: "destructive" });
+          return []; // Return empty array on error
+        }),
+        fetch('/api/user-posts', { cache: 'no-store' })
+          .then(res => {
+            if (!res.ok) {
+              let errorDetail = `Failed to fetch user posts: ${res.status} ${res.statusText}`;
+              return res.json().catch(() => ({})).then(errorData => {
+                errorDetail = errorData.message || errorData.error || errorDetail;
+                throw new Error(errorDetail);
+              });
+            }
+            return res.json();
+          })
+          .then((posts: UserPost[]) => posts.slice(0, 4))
+          .catch(err => {
+            toast({ title: "User Posts Error", description: err.message, variant: "destructive" });
+            return []; // Return empty array on error
+          })
       ]);
+      
       setContent(fetchedContent);
       setCategories(fetchedCategories);
-      setFeaturedProducts(fetchedFeaturedProducts);
+      setFeaturedProducts(fetchedFeatured);
+      setUserPosts(fetchedUserPosts);
 
       if (fetchedContent.error) {
         toast({
           title: "Homepage Load Warning",
           description: `Could not load all homepage data: ${fetchedContent.error}. Displaying fallbacks.`,
-          variant: "default" 
+          variant: "default"
         });
       }
-    } catch (error) {
+    } catch (error) { // Catch errors from Promise.all itself (e.g., if one of the non-caught promises rejects)
       toast({
         title: "Homepage Load Error",
-        description: (error as Error).message || "Could not load homepage data. Displaying fallbacks.",
+        description: (error as Error).message || "Could not load all homepage data. Displaying fallbacks.",
         variant: "destructive"
       });
-      setContent(defaultHomepageContent); 
+      setContent(defaultHomepageContent);
+      setFeaturedProducts([]);
+      setUserPosts([]);
     } finally {
       setIsLoadingContent(false);
       setIsLoadingFeaturedProducts(false);
-    }
-  }, [toast]);
-
-  const loadUserPosts = useCallback(async () => {
-    setIsLoadingUserPosts(true);
-    try {
-      const response = await fetch('/api/user-posts'); 
-      if (!response.ok) {
-        let errorDetail = 'Failed to fetch user posts.';
-        try {
-            const errorData = await response.json();
-            if (errorData.rawSupabaseError && errorData.rawSupabaseError.message) {
-                 errorDetail = `Database error: ${errorData.rawSupabaseError.message}${errorData.rawSupabaseError.hint ? ` Hint: ${errorData.rawSupabaseError.hint}` : ''}`;
-            } else if (errorData.message) {
-                errorDetail = errorData.message;
-            } else {
-                 errorDetail = `${response.status}: ${response.statusText || errorDetail}`;
-            }
-        } catch (e) {
-             errorDetail = `${response.status}: ${response.statusText || 'Failed to fetch user posts. Server returned an unexpected response.'}`;
-        }
-        throw new Error(errorDetail);
-      }
-      const postsData: UserPost[] = await response.json();
-      setUserPosts(postsData.slice(0, 4)); 
-    } catch (error) {
-      console.error("Error fetching user posts:", error);
-      toast({ title: "Error Loading Community Posts", description: (error as Error).message, variant: "destructive" });
-    } finally {
       setIsLoadingUserPosts(false);
     }
   }, [toast]);
 
+
   useEffect(() => {
     loadPageData();
-    loadUserPosts();
-  }, [loadPageData, loadUserPosts]);
+  }, [loadPageData]);
 
   const nextSlide = useCallback(() => {
     if (activeHeroSlides.length > 0) {
@@ -245,7 +268,7 @@ function HomePageContent() {
   }, [isPlaying, nextSlide, activeHeroSlides.length]);
 
 
-  if (isLoadingContent || isLoadingFeaturedProducts) { // Check both loading states
+  if (isLoadingContent) { 
     return (
         <div className="flex items-center justify-center min-h-screen bg-background">
             <div className="flex flex-col items-center">
@@ -258,40 +281,40 @@ function HomePageContent() {
   
   return (
     <>
+      {/* Hero Section */}
       <section style={{ backgroundColor: 'black' }} className="relative h-screen w-full overflow-hidden">
-        {/* Main Background Layer (Video or Image from content, or final black fallback) */}
-        <div className="absolute inset-0 z-0 pointer-events-none">
-            {heroVideoId ? (
+        <div className="absolute inset-0 z-0 pointer-events-none"> {/* Removed bg-black from here */}
+            {activeHeroSlides[currentSlide]?.videoId ? (
             <>
                 <iframe
                 className="absolute top-1/2 left-1/2 w-full h-full min-w-[177.77vh] min-h-[56.25vw] transform -translate-x-1/2 -translate-y-1/2"
-                src={`https://www.youtube.com/embed/${heroVideoId}?autoplay=1&mute=1&loop=1&playlist=${heroVideoId}&controls=0&showinfo=0&autohide=1&modestbranding=1&playsinline=1&enablejsapi=1`}
-                title="Peak Pulse Background Video"
+                src={`https://www.youtube.com/embed/${activeHeroSlides[currentSlide].videoId}?autoplay=1&mute=1&loop=1&playlist=${activeHeroSlides[currentSlide].videoId}&controls=0&showinfo=0&autohide=1&modestbranding=1&playsinline=1&enablejsapi=1`}
+                title={activeHeroSlides[currentSlide].altText || "Peak Pulse Background Video"}
                 frameBorder="0"
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                 allowFullScreen={false}
                 />
-                <div className="absolute inset-0 bg-black/60 z-[1]" /> {/* Overlay for video */}
+                <div className="absolute inset-0 bg-black/60 z-[1]" />
             </>
-            ) : heroImageUrl ? (
+            ) : activeHeroSlides[currentSlide]?.imageUrl ? (
             <>
                 <Image
-                src={heroImageUrl}
-                alt="Peak Pulse Hero Background"
+                src={activeHeroSlides[currentSlide].imageUrl!}
+                alt={activeHeroSlides[currentSlide].altText || "Peak Pulse Hero Background"}
                 fill
                 sizes="100vw"
                 priority
                 className="absolute inset-0 w-full h-full object-cover"
-                data-ai-hint="fashion mountains nepal"
+                data-ai-hint={activeHeroSlides[currentSlide].dataAiHint || "fashion mountains nepal"}
                 />
-                <div className="absolute inset-0 bg-black/60 z-[1]" /> {/* Overlay for image */}
+                <div className="absolute inset-0 bg-black/60 z-[1]" />
             </>
             ) : (
-                <div className="absolute inset-0 bg-black" /> // Fallback solid black if no video/image URL
+              <div className="absolute inset-0 bg-black" /> // Ultimate fallback if slide has no video/image
             )}
         </div>
 
-        {/* Carousel Slides - Rendered on top of the main background if activeHeroSlides exist */}
+        {/* Carousel Slides Text Content Overlay */}
         {activeHeroSlides.map((slide, index) => (
           <div
             key={slide.id || index}
@@ -299,38 +322,7 @@ function HomePageContent() {
               index === currentSlide ? 'opacity-100' : 'opacity-0 pointer-events-none'
             }`}
           >
-            {/* Slide-specific Background (if different from main heroVideoId/heroImageUrl) */}
-            {/* This assumes slide.videoId or slide.imageUrl are for the slide's *own* background if different from main hero */}
-            <div className="absolute inset-0 z-0 pointer-events-none">
-              {slide.videoId ? (
-                <>
-                  <iframe
-                    className="absolute top-1/2 left-1/2 w-full h-full min-w-[177.77vh] min-h-[56.25vw] transform -translate-x-1/2 -translate-y-1/2"
-                    src={`https://www.youtube.com/embed/${slide.videoId}?autoplay=1&mute=1&loop=1&playlist=${slide.videoId}&controls=0&showinfo=0&autohide=1&modestbranding=1&playsinline=1&enablejsapi=1`}
-                    title={slide.altText || "Peak Pulse Slide Video"}
-                    frameBorder="0"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowFullScreen={false}
-                  />
-                   <div className="absolute inset-0 bg-black/60 z-[1]" /> {/* Overlay for video */}
-                </>
-              ) : slide.imageUrl ? (
-                <>
-                  <Image
-                    src={slide.imageUrl}
-                    alt={slide.altText || "Peak Pulse Hero Slide"}
-                    fill
-                    sizes="100vw"
-                    className="absolute inset-0 w-full h-full object-cover"
-                    priority={index === 0} 
-                    data-ai-hint={slide.dataAiHint || "fashion background"}
-                  />
-                  <div className="absolute inset-0 bg-black/60 z-[1]" /> {/* Overlay for image */}
-                </>
-              ) : null /* No background for this slide if neither videoId nor imageUrl is on the slide object */}
-            </div>
-            
-            {/* Text Content Overlay for this specific slide */}
+            {/* This div is only for the text content, background is handled by the shared outer div */}
             {index === currentSlide && (
                 <div className="relative z-20 flex flex-col items-center justify-center h-full pt-[calc(theme(spacing.20)_+_theme(spacing.6))] pb-12 px-6 md:px-8 text-center text-white max-w-3xl mx-auto">
                 <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-6 text-shadow-lg">
@@ -599,5 +591,3 @@ export default function RootPage() {
     </MainLayout>
   );
 }
-
-    
