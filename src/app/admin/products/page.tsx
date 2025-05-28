@@ -11,8 +11,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Save, PlusCircle, Trash2, Edit, XCircle, Paintbrush, Package as PackageIcon } from 'lucide-react';
-import type { Product, ProductImage, Category as ProductCategoryType, ProductVariant, PrintDesign, ProductCustomizationConfig } from '@/types';
+import { Loader2, Save, PlusCircle, Trash2, Edit, XCircle, Paintbrush, Package, Tags } from 'lucide-react'; // Added Tags
+import type { Product, ProductImage, Category as ProductCategoryType, ProductVariant, PrintDesign, ProductCustomizationConfig, AdminCategory } from '@/types';
 import {
   Dialog,
   DialogContent,
@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/dialog";
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Checkbox } from '@/components/ui/checkbox';
-import Image from 'next/image'; // For displaying image previews
+import Image from 'next/image';
 
 const imageSchema = z.object({
   id: z.string().optional(),
@@ -33,7 +33,7 @@ const imageSchema = z.object({
   dataAiHint: z.string().optional(),
 });
 
-const categorySchema = z.object({
+const categorySchemaForProduct = z.object({ // Used within product schema
   id: z.string().min(1, "Category ID is required."),
   name: z.string().min(1, "Category name is required."),
   slug: z.string().min(1, "Category slug is required."),
@@ -70,16 +70,16 @@ const productCustomizationConfigSchema = z.object({
 
 const productFormSchema = z.object({
   id: z.string().optional(),
-  name: z.string().min(3, "Product name must be at least 3 characters."),
-  slug: z.string().min(3, "Slug must be at least 3 characters.").regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Slug must be lowercase alphanumeric with hyphens.").optional().or(z.literal('')),
+  name: z.string().min(1, "Product name is required.").default("Untitled Product " + Date.now()),
+  slug: z.string().min(1, "Slug is required.").regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Slug must be lowercase alphanumeric with hyphens.").optional().or(z.literal('')),
   price: z.coerce.number().min(0, "Price must be a positive number."),
   compareAtPrice: z.coerce.number().min(0, "Compare at price must be non-negative.").optional().nullable(),
   costPrice: z.coerce.number().min(0, "Cost price must be non-negative.").optional().nullable(),
   stock: z.coerce.number().int().min(0, "Base stock must be a non-negative integer.").optional().nullable(),
   shortDescription: z.string().max(200, "Short description must be under 200 characters.").optional(),
-  description: z.string().min(10, "Description must be at least 10 characters."),
+  description: z.string().min(1, "Description is required."),
   images: z.array(imageSchema).min(1, "At least one image is required."),
-  categories: z.array(categorySchema).min(1, "At least one category is required."),
+  categories: z.array(categorySchemaForProduct).min(1, "At least one category is required."),
   isFeatured: z.boolean().default(false).optional(),
   fabricDetails: z.string().optional(),
   careInstructions: z.string().optional(),
@@ -93,7 +93,6 @@ const productFormSchema = z.object({
 type ProductFormValues = z.infer<typeof productFormSchema>;
 
 const defaultImage: ProductImage = { id: '', url: '', altText: '', dataAiHint: '' };
-const defaultCategory: ProductCategoryType = { id: '', name: '', slug: '' };
 const defaultVariant: ProductVariant = { id: '', name: 'Size', value: '', sku: '', price: 0, costPrice: 0, stock: 0, imageId: '' };
 const defaultPrintDesign: PrintDesign = { id: '', name: '', imageUrl: '', dataAiHint: '' };
 const defaultCustomizationConfig: ProductCustomizationConfig = {
@@ -115,12 +114,16 @@ export default function AdminProductsPage() {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
 
+  const [availableCategories, setAvailableCategories] = useState<AdminCategory[]>([]);
+  const [isLoadingCategories, setIsLoadingCategories] = useState(false);
+
+
   const form = useForm<ProductFormValues>({
     resolver: zodResolver(productFormSchema),
     defaultValues: {
       name: '', slug: '', price: 0, compareAtPrice: undefined, costPrice: undefined, stock: 0, shortDescription: '', description: '',
       images: [{...defaultImage, id: `img-${Date.now()}`}],
-      categories: [{...defaultCategory, id: `cat-${Date.now()}`}],
+      categories: [], // Will be populated from selection
       isFeatured: false,
       fabricDetails: '', careInstructions: '', sustainabilityMetrics: '', fitGuide: '',
       variants: [],
@@ -130,17 +133,15 @@ export default function AdminProductsPage() {
   });
 
   const { fields: imagesFields, append: appendImage, remove: removeImage } = useFieldArray({ control: form.control, name: "images" });
-  const { fields: categoriesFields, append: appendCategory, remove: removeCategory } = useFieldArray({ control: form.control, name: "categories" });
   const { fields: variantsFields, append: appendVariant, remove: removeVariant } = useFieldArray({ control: form.control, name: "variants" });
   const { fields: printDesignsFields, append: appendPrintDesign, remove: removePrintDesign } = useFieldArray({ control: form.control, name: "availablePrintDesigns" });
-
 
   const fetchProducts = useCallback(async () => {
     setIsLoading(true);
     try {
-      const response = await fetch('/api/admin/products');
+      const response = await fetch('/api/admin/products'); // Uses Supabase
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({message: "Failed to fetch products and parse error."}));
+        const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.message || errorData.rawSupabaseError?.message || `Failed to fetch products: ${response.statusText}`);
       }
       const data: Product[] = await response.json();
@@ -152,12 +153,40 @@ export default function AdminProductsPage() {
     }
   }, [toast]);
 
+  const fetchAvailableCategories = useCallback(async () => {
+    setIsLoadingCategories(true);
+    try {
+      const response = await fetch('/api/categories'); // Public API, fetches from Supabase
+      if (!response.ok) {
+        throw new Error("Failed to fetch available categories");
+      }
+      const data: AdminCategory[] = await response.json();
+      setAvailableCategories(data);
+    } catch (error) {
+      toast({ title: "Error Fetching Categories", description: (error as Error).message, variant: "destructive" });
+      setAvailableCategories([]);
+    } finally {
+      setIsLoadingCategories(false);
+    }
+  }, [toast]);
+
+
   useEffect(() => {
     fetchProducts();
   }, [fetchProducts]);
 
+  const handleOpenFormDialog = async () => {
+    await fetchAvailableCategories(); // Fetch categories when dialog is about to open
+    setIsFormOpen(true);
+  };
+
   const handleEdit = (product: Product) => {
     setEditingProduct(product);
+    const productCategoriesForForm = product.categories.map(cat => ({
+        id: cat.id,
+        name: cat.name,
+        slug: cat.slug
+    }));
     form.reset({
       id: product.id,
       name: product.name,
@@ -169,7 +198,7 @@ export default function AdminProductsPage() {
       shortDescription: product.shortDescription || '',
       description: product.description,
       images: product.images.length > 0 ? product.images.map(img => ({ ...defaultImage, ...img })) : [{...defaultImage, id: `img-${Date.now()}`}],
-      categories: product.categories.length > 0 ? product.categories.map(cat => ({ ...defaultCategory, ...cat })) : [{...defaultCategory, id: `cat-${Date.now()}`}],
+      categories: productCategoriesForForm,
       isFeatured: product.isFeatured || false,
       fabricDetails: product.fabricDetails || '',
       careInstructions: product.careInstructions || '',
@@ -179,30 +208,30 @@ export default function AdminProductsPage() {
       availablePrintDesigns: product.availablePrintDesigns ? product.availablePrintDesigns.map(d => ({...defaultPrintDesign, ...d, id: d.id || `design-${Date.now()}`})) : [],
       customizationConfig: product.customizationConfig ? {...defaultCustomizationConfig, ...product.customizationConfig} : {...defaultCustomizationConfig},
     });
-    setIsFormOpen(true);
+    handleOpenFormDialog();
   };
 
   const handleAddNew = () => {
     setEditingProduct(null);
     form.reset({
-      name: '', slug: '', price: 0, compareAtPrice: null, costPrice: null, stock: 0, shortDescription: '', description: '',
+      name: "Untitled Product " + Date.now(), // Default name
+      slug: '', price: 0, compareAtPrice: null, costPrice: null, stock: 0, shortDescription: '', description: '',
       images: [{...defaultImage, id: `img-${Date.now()}`}],
-      categories: [{...defaultCategory, id: `cat-${Date.now()}`}],
+      categories: [],
       isFeatured: false,
       fabricDetails: '', careInstructions: '', sustainabilityMetrics: '', fitGuide: '',
       variants: [],
       availablePrintDesigns: [],
       customizationConfig: {...defaultCustomizationConfig},
     });
-    setIsFormOpen(true);
+    handleOpenFormDialog();
   };
 
   const onSubmit = async (data: ProductFormValues) => {
     setIsSaving(true);
     try {
       const payload = { ...data, id: editingProduct?.id };
-
-      const response = await fetch('/api/admin/products', {
+      const response = await fetch('/api/admin/products', { // Uses Supabase
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -235,19 +264,35 @@ export default function AdminProductsPage() {
     }
   };
 
+  const handleCategorySelection = (categoryId: string, categoryName: string, categorySlug: string, checked: boolean) => {
+    const currentCategories = form.getValues('categories') || [];
+    let newCategories: ProductCategoryType[];
+    if (checked) {
+      newCategories = [...currentCategories, { id: categoryId, name: categoryName, slug: categorySlug }];
+    } else {
+      newCategories = currentCategories.filter(cat => cat.id !== categoryId);
+    }
+    form.setValue('categories', newCategories, { shouldValidate: true, shouldDirty: true });
+  };
+
+  const selectedCategoryIds = useMemo(() => {
+    return (form.watch('categories') || []).map(cat => cat.id);
+  }, [form.watch('categories')]);
+
+
   const hasVariants = (form.watch('variants') || []).length > 0;
   const customizationEnabled = form.watch('customizationConfig.enabled');
 
   if (isLoading) {
     return (
-      <Card className="shadow-lg">
+      <Card className="shadow-lg flex flex-col h-full">
         <CardHeader className="flex flex-row items-center justify-between">
           <div className="flex items-center">
-             <PackageIcon className="mr-3 h-6 w-6 text-primary"/>
+             <Package className="mr-3 h-6 w-6 text-primary"/>
             <CardTitle className="text-2xl">Manage Products</CardTitle>
           </div>
         </CardHeader>
-        <CardContent className="flex justify-center py-10"><Loader2 className="h-8 w-8 animate-spin text-primary" /></CardContent>
+        <CardContent className="flex-grow flex justify-center items-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></CardContent>
       </Card>
     );
   }
@@ -257,7 +302,7 @@ export default function AdminProductsPage() {
       <Card className="shadow-lg">
         <CardHeader className="flex flex-row items-center justify-between">
           <div className="flex items-center">
-            <PackageIcon className="mr-3 h-6 w-6 text-primary"/>
+            <Package className="mr-3 h-6 w-6 text-primary"/>
             <CardTitle className="text-2xl">Manage Products</CardTitle>
           </div>
           <Button onClick={handleAddNew}><PlusCircle className="mr-2 h-4 w-4"/> Add New Product</Button>
@@ -285,7 +330,11 @@ export default function AdminProductsPage() {
                         <div className="text-xs text-muted-foreground">{product.slug}</div>
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap text-sm text-foreground">रू{product.price.toLocaleString()}</td>
-                      <td className="px-4 py-3 whitespace-nowrap text-sm text-muted-foreground hidden md:table-cell">{product.stock ?? 'N/A'}</td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-muted-foreground hidden md:table-cell">
+                        {product.variants && product.variants.length > 0 
+                           ? product.variants.reduce((sum, v) => sum + (v.stock || 0), 0) 
+                           : (product.stock ?? 'N/A')}
+                      </td>
                       <td className="px-4 py-3 whitespace-nowrap text-sm text-muted-foreground hidden lg:table-cell">{product.isFeatured ? 'Yes' : 'No'}</td>
                       <td className="px-4 py-3 whitespace-nowrap text-center text-sm font-medium">
                         <Button variant="outline" size="sm" onClick={() => handleEdit(product)} className="h-8 text-xs"><Edit className="mr-1.5 h-3 w-3"/> Edit</Button>
@@ -302,9 +351,9 @@ export default function AdminProductsPage() {
       <Dialog open={isFormOpen} onOpenChange={(open) => {setIsFormOpen(open); if(!open) form.reset();}}>
         <DialogContent className="max-w-3xl">
           <DialogHeader>
-            <DialogTitle>{editingProduct ? `Edit: ${editingProduct.name}` : 'Add New Product'}</DialogTitle>
+            <DialogTitle>{editingProduct ? `Edit: ${form.getValues('name') || editingProduct.name}` : 'Add New Product'}</DialogTitle>
             <DialogFormDescription>
-              {editingProduct ? `Modifying details for ${editingProduct.name}.` : 'Fill in the details for the new product.'}
+              {editingProduct ? `Modifying details for ${form.getValues('name') || editingProduct.name}.` : 'Fill in the details for the new product.'}
             </DialogFormDescription>
           </DialogHeader>
           <ScrollArea className="max-h-[70vh] p-1 -mx-1">
@@ -365,7 +414,7 @@ export default function AdminProductsPage() {
                         <FormItem>
                             <FormLabel className="text-xs">Image URL*</FormLabel>
                             <FormControl><Input {...field} placeholder="https://example.com/image.jpg" /></FormControl>
-                            <FormDescription>Use services like ImgBB.com or Postimages.org for free uploads. Paste the "Direct link" (ending in .jpg, .png, etc.).</FormDescription>
+                            <FormDescription>Tip: Use ImgBB.com or Postimages.org for free uploads. Paste the "Direct link".</FormDescription>
                             <FormMessage />
                         </FormItem>
                       )} />
@@ -384,25 +433,38 @@ export default function AdminProductsPage() {
                 </fieldset>
 
                 <fieldset className="space-y-3 p-4 border rounded-md">
-                    <legend className="text-lg font-semibold px-1 -mt-7 bg-background">Categories</legend>
-                    {categoriesFields.map((field, index) => (
-                        <Card key={field.id} className="p-3 space-y-2 bg-muted/30">
-                            <FormLabel className="text-sm">Category {index + 1}</FormLabel>
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 items-end">
-                                <FormField control={form.control} name={`categories.${index}.id`} render={({ field }) => (
-                                    <FormItem><FormLabel className="text-xs">ID*</FormLabel><FormControl><Input {...field} placeholder="e.g. cat-outerwear or UUID" /></FormControl><FormMessage /></FormItem>
-                                )} />
-                                <FormField control={form.control} name={`categories.${index}.name`} render={({ field }) => (
-                                    <FormItem><FormLabel className="text-xs">Name*</FormLabel><FormControl><Input {...field} placeholder="e.g. Outerwear" /></FormControl><FormMessage /></FormItem>
-                                )} />
-                                <FormField control={form.control} name={`categories.${index}.slug`} render={({ field }) => (
-                                    <FormItem><FormLabel className="text-xs">Slug*</FormLabel><FormControl><Input {...field} placeholder="e.g. outerwear" /></FormControl><FormMessage /></FormItem>
-                                )} />
-                            </div>
-                             <Button type="button" variant="destructive" size="xs" onClick={() => removeCategory(index)} disabled={categoriesFields.length <=1}><Trash2 className="mr-1 h-3 w-3"/>Remove Category</Button>
-                        </Card>
-                    ))}
-                    <Button type="button" variant="outline" size="sm" onClick={() => appendCategory({...defaultCategory, id: `cat-${Date.now()}-${Math.random()}`})}><PlusCircle className="mr-2 h-4 w-4"/>Add Category</Button>
+                    <legend className="text-lg font-semibold px-1 -mt-7 bg-background flex items-center"><Tags className="mr-2 h-5 w-5 text-primary" />Select Product Categories*</legend>
+                    {isLoadingCategories ? <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /> :
+                      availableCategories.length > 0 ? (
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 max-h-48 overflow-y-auto p-1 border rounded-md">
+                          {availableCategories.map(category => (
+                            <FormField
+                              key={category.id}
+                              control={form.control}
+                              name="categories"
+                              render={() => ( // We handle value via form.setValue, so field isn't directly used here
+                                <FormItem className="flex flex-row items-center space-x-2 space-y-0">
+                                  <FormControl>
+                                    <Checkbox
+                                      checked={selectedCategoryIds.includes(category.id)}
+                                      onCheckedChange={(checked) => {
+                                        handleCategorySelection(category.id, category.name, category.slug, !!checked);
+                                      }}
+                                      id={`category-select-${category.id}`}
+                                    />
+                                  </FormControl>
+                                  <Label htmlFor={`category-select-${category.id}`} className="text-sm font-normal cursor-pointer">
+                                    {category.name}
+                                  </Label>
+                                </FormItem>
+                              )}
+                            />
+                          ))}
+                        </div>
+                      ) : <p className="text-sm text-muted-foreground">No categories available. Please <Link href="/admin/categories" className="text-primary hover:underline">create categories</Link> first.</p>
+                    }
+                     <FormMessage>{form.formState.errors.categories?.message || form.formState.errors.categories?.root?.message}</FormMessage>
+                     <FormDescription>Select at least one category for this product.</FormDescription>
                 </fieldset>
 
                 <fieldset className="space-y-4 p-4 border rounded-md">
@@ -544,7 +606,7 @@ export default function AdminProductsPage() {
                                   <FormItem>
                                     <FormLabel className="text-xs">Design Image URL*</FormLabel>
                                     <FormControl><Input {...field} placeholder="https://example.com/design.png" /></FormControl>
-                                    <FormDescription>Use services like ImgBB.com or Postimages.org for free uploads. Paste the "Direct link" (ending in .jpg, .png, etc.).</FormDescription>
+                                    <FormDescription>Tip: Use ImgBB.com or Postimages.org for free uploads. Paste the "Direct link".</FormDescription>
                                     <FormMessage />
                                   </FormItem>
                               )} />
@@ -576,3 +638,6 @@ export default function AdminProductsPage() {
     </div>
   );
 }
+
+
+    
