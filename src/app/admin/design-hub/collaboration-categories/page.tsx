@@ -27,7 +27,7 @@ import {
 const categorySchema = z.object({
   id: z.string().optional(),
   name: z.string().min(2, "Category name must be at least 2 characters."),
-  slug: z.string().min(2, "Slug must be at least 2 characters.").regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Slug must be lowercase alphanumeric with hyphens."),
+  slug: z.string().min(2, "Slug must be at least 2 characters.").regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Slug must be lowercase alphanumeric with hyphens.").optional().or(z.literal('')),
   description: z.string().optional(),
   image_url: z.string().url({ message: "Please enter a valid image URL." }).optional().or(z.literal('')),
   ai_image_prompt: z.string().optional(),
@@ -54,11 +54,14 @@ export default function AdminDesignCollaborationCategoriesPage() {
     setIsLoading(true);
     try {
       const response = await fetch('/api/admin/design-collaboration-categories');
-      if (!response.ok) throw new Error('Failed to fetch collaboration categories');
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: "Failed to fetch categories and parse error."}));
+        throw new Error(errorData.message || `Failed to fetch collaboration categories: ${response.statusText}`);
+      }
       const data: DesignCollaborationCategory[] = await response.json();
       setCategories(data);
     } catch (error) {
-      toast({ title: "Error", description: (error as Error).message, variant: "destructive" });
+      toast({ title: "Error Fetching Categories", description: (error as Error).message, variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
@@ -70,7 +73,14 @@ export default function AdminDesignCollaborationCategoriesPage() {
 
   const handleEdit = (category: DesignCollaborationCategory) => {
     setEditingCategory(category);
-    form.reset(category);
+    form.reset({
+        id: category.id,
+        name: category.name,
+        slug: category.slug,
+        description: category.description || '',
+        image_url: category.image_url || '',
+        ai_image_prompt: category.ai_image_prompt || '',
+    });
     setIsFormOpen(true);
   };
 
@@ -84,9 +94,10 @@ export default function AdminDesignCollaborationCategoriesPage() {
     setIsSaving(true);
     const method = editingCategory ? 'PUT' : 'POST';
     const url = editingCategory ? `/api/admin/design-collaboration-categories/${editingCategory.id}` : '/api/admin/design-collaboration-categories';
+    
     const payload = {
       ...data,
-      slug: data.slug || data.name.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, ''),
+      slug: data.slug?.trim() || data.name.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, ''),
     };
 
     try {
@@ -96,12 +107,28 @@ export default function AdminDesignCollaborationCategoriesPage() {
         body: JSON.stringify(payload),
       });
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || `Failed to ${editingCategory ? 'update' : 'create'} category`);
+        let errorDetail = `Failed to ${editingCategory ? 'update' : 'create'} category. Server responded with ${response.status}.`;
+        try {
+            const errorText = await response.text();
+            if (errorText.trim().startsWith('{') || errorText.trim().startsWith('[')) { // Basic check for JSON
+                const errorData = JSON.parse(errorText);
+                errorDetail = errorData.message || errorData.rawSupabaseError?.message || errorDetail;
+                if (errorData.rawSupabaseError?.hint) errorDetail += ` Hint: ${errorData.rawSupabaseError.hint}`;
+            } else {
+                // Likely HTML error page
+                console.error("Server returned non-JSON error:", errorText.substring(0, 500)); // Log part of HTML for dev
+                errorDetail = `Server error. Please check server logs. Status: ${response.status}`;
+            }
+        } catch (e) {
+            // Failed to parse error response body
+            console.error("Failed to parse error response body:", e);
+        }
+        throw new Error(errorDetail);
       }
       toast({ title: "Success!", description: `Category "${payload.name}" ${editingCategory ? 'updated' : 'created'}.` });
       fetchCategories();
       setIsFormOpen(false);
+      setEditingCategory(null);
     } catch (error) {
       toast({ title: "Save Failed", description: (error as Error).message, variant: "destructive" });
     } finally {
@@ -115,8 +142,8 @@ export default function AdminDesignCollaborationCategoriesPage() {
     try {
       const response = await fetch(`/api/admin/design-collaboration-categories/${categoryToDelete.id}`, { method: 'DELETE' });
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to delete category');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || errorData.rawSupabaseError?.message || 'Failed to delete category');
       }
       toast({ title: "Category Deleted", description: `Category "${categoryToDelete.name}" has been deleted.` });
       fetchCategories();
@@ -125,6 +152,7 @@ export default function AdminDesignCollaborationCategoriesPage() {
     } finally {
       setIsSaving(false);
       setIsDeleteAlertOpen(false);
+      setCategoryToDelete(null);
     }
   };
   
@@ -168,7 +196,7 @@ export default function AdminDesignCollaborationCategoriesPage() {
                         <p className="text-sm text-muted-foreground line-clamp-2">{category.description || "No description."}</p>
                       </div>
                     </div>
-                    <div className="flex space-x-2 flex-shrink-0 pt-2 sm:pt-0">
+                     <div className="flex space-x-2 flex-shrink-0 pt-2 sm:pt-0">
                       <Button variant="outline" size="sm" onClick={() => handleEdit(category)}><Edit className="mr-1.5 h-3 w-3" /> Edit</Button>
                       <Button variant="destructive" size="sm" onClick={() => { setCategoryToDelete(category); setIsDeleteAlertOpen(true); }}>
                         <Trash2 className="mr-1.5 h-3 w-3" /> Delete
@@ -182,7 +210,7 @@ export default function AdminDesignCollaborationCategoriesPage() {
         </CardContent>
       </Card>
 
-      <Dialog open={isFormOpen} onOpenChange={(open) => { setIsFormOpen(open); if (!open) form.reset(); }}>
+      <Dialog open={isFormOpen} onOpenChange={(open) => { setIsFormOpen(open); if (!open) { setEditingCategory(null); form.reset(); } }}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>{editingCategory ? 'Edit Category' : 'Add New Category'}</DialogTitle>
@@ -194,7 +222,7 @@ export default function AdminDesignCollaborationCategoriesPage() {
                   <FormItem><FormLabel>Name*</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="slug" render={({ field }) => (
-                  <FormItem><FormLabel>Slug*</FormLabel><FormControl><Input {...field} placeholder="auto-generated if empty" /></FormControl><FormMessage /></FormItem>
+                  <FormItem><FormLabel>Slug</FormLabel><FormControl><Input {...field} placeholder="auto-generated if empty" /></FormControl><FormDescription>Lowercase, hyphens only. Auto-generated from name if empty.</FormDescription><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="description" render={({ field }) => (
                   <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea {...field} rows={3} /></FormControl><FormMessage /></FormItem>
@@ -204,10 +232,10 @@ export default function AdminDesignCollaborationCategoriesPage() {
                 )} />
                 <FormField control={form.control} name="image_url" render={({ field }) => (
                   <FormItem><FormLabel>Image URL</FormLabel><FormControl><Input {...field} placeholder="https://example.com/image.jpg" /></FormControl>
-                  <FormDescription>Upload image to a host (e.g., ImgBB) and paste the direct link.</FormDescription><FormMessage /></FormItem>
+                  <FormDescription>Tip: For quick uploads, try free sites like ImgBB.com or Postimages.org. Upload your image, then copy and paste the "Direct link" here.</FormDescription><FormMessage /></FormItem>
                 )} />
                 <DialogFooter>
-                  <DialogClose asChild><Button type="button" variant="outline">Cancel</Button></DialogClose>
+                  <DialogClose asChild><Button type="button" variant="outline" onClick={() => { setIsFormOpen(false); setEditingCategory(null); form.reset(); }}>Cancel</Button></DialogClose>
                   <Button type="submit" disabled={isSaving}>
                     {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                     {editingCategory ? 'Save Changes' : 'Create Category'}
@@ -219,7 +247,7 @@ export default function AdminDesignCollaborationCategoriesPage() {
         </DialogContent>
       </Dialog>
 
-      <AlertDialog open={isDeleteAlertOpen} onOpenChange={setIsDeleteAlertOpen}>
+      <AlertDialog open={isDeleteAlertOpen} onOpenChange={(open) => { setIsDeleteAlertOpen(open); if (!open) setCategoryToDelete(null); }}>
         <AlertDialogDeleteContent>
           <AlertDialogDeleteHeader>
             <AlertDialogDeleteTitle>Are you sure?</AlertDialogDeleteTitle>
@@ -228,7 +256,7 @@ export default function AdminDesignCollaborationCategoriesPage() {
             </AlertDialogDeleteDescription>
           </AlertDialogDeleteHeader>
           <AlertDialogDeleteFooter>
-            <AlertDialogCancel onClick={() => setCategoryToDelete(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel onClick={() => { setIsDeleteAlertOpen(false); setCategoryToDelete(null); }}>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleDelete} disabled={isSaving} className="bg-destructive hover:bg-destructive/90">
               {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null} Delete
             </AlertDialogAction>
@@ -238,5 +266,3 @@ export default function AdminDesignCollaborationCategoriesPage() {
     </>
   );
 }
-
-    
