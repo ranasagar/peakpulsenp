@@ -11,9 +11,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Save, Youtube, Image as ImageIcon, PlusCircle, Trash2, Package, Tv, BookOpen, ExternalLink, ListChecks } from 'lucide-react';
+import { Loader2, Save, Youtube, Image as ImageIcon, PlusCircle, Trash2, Package, Tv, BookOpen, ExternalLink, ListChecks, ListCollapse } from 'lucide-react';
 import type { HomepageContent, HeroSlide, SocialCommerceItem } from '@/types';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { ScrollArea } from '@/components/ui/scroll-area'; // Keep for nested lists if re-introduced, but not for main form.
 
 const heroSlideSchema = z.object({
   id: z.string().optional(),
@@ -95,7 +95,7 @@ export default function AdminHomepageContentPage() {
       try {
         const response = await fetch('/api/admin/content/homepage');
         if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
+          const errorData = await response.json().catch(() => ({ message: 'Failed to fetch homepage content and parse error.'}));
           throw new Error(errorData.message || errorData.rawSupabaseError?.message || 'Failed to fetch homepage content');
         }
         const data: HomepageContent = await response.json();
@@ -159,12 +159,8 @@ export default function AdminHomepageContentPage() {
         let errorDetail = 'Failed to save homepage content';
         try {
             const errorData = await response.json();
-            if (errorData.message && errorData.message.includes("HTML")) { // Check if error message indicates HTML response
-                 errorDetail = `Server error: Received HTML instead of JSON. Please check server logs. Status: ${response.status}`;
-            } else {
-                errorDetail = errorData.message || errorData.rawSupabaseError?.message || `Server responded with ${response.status}: ${response.statusText}`;
-            }
-        } catch (jsonError) {
+            errorDetail = errorData.message || errorData.rawSupabaseError?.message || `Server responded with ${response.status}: ${response.statusText}`;
+        } catch (e) {
             try {
                 const textError = await response.text();
                 errorDetail = `Server responded with ${response.status}: ${textError.substring(0,200)}`;
@@ -196,86 +192,85 @@ export default function AdminHomepageContentPage() {
     <Card className="shadow-xl flex flex-col h-full">
       <CardHeader>
         <CardTitle className="text-2xl flex items-center"><Tv className="mr-3 h-6 w-6 text-primary"/>Edit Homepage Content</CardTitle>
-        <CardDescription>Modify text, media, and links for various sections of your homepage. Content is saved to Supabase.</CardDescription>
+        <CardDescription>Modify text, media, and links for various sections. Content is saved to Supabase.</CardDescription>
       </CardHeader>
-      <CardContent className="flex-1 overflow-hidden p-0">
-        <ScrollArea className="h-full p-6">
+      <CardContent className="flex-1 overflow-y-auto p-6"> {/* Changed: overflow-y-auto and p-6 here */}
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-10">
 
-              <div className="space-y-6 p-4 border border-border rounded-lg shadow-sm">
+              {/* Hero Section Carousel Slides */}
+              <div className="space-y-6 p-4 border border-border rounded-lg shadow-sm bg-muted/20">
                 <h3 className="text-xl font-semibold text-foreground flex items-center">
-                  <ListChecks className="mr-3 h-5 w-5 text-primary" /> Hero Section Carousel Slides
+                  <ListCollapse className="mr-3 h-5 w-5 text-primary" /> Hero Section Carousel Slides
                 </h3>
-                <ScrollArea className="max-h-[60vh]">
-                  <div className="space-y-4 p-1">
-                      {heroSlidesFields.map((field, index) => (
-                        <Card key={field.id} className="p-4 space-y-3 bg-muted/30">
-                          <div className="flex justify-between items-center mb-2">
-                            <h4 className="font-medium text-lg text-foreground">Slide {index + 1}</h4>
-                            <Button type="button" variant="destructive" size="sm" onClick={() => removeHeroSlide(index)} disabled={heroSlidesFields.length <= 0 && !(form.getValues('heroVideoId') || form.getValues('heroImageUrl'))}>
-                              <Trash2 className="mr-1 h-4 w-4" /> Remove Slide
-                            </Button>
-                          </div>
-                          <FormField control={form.control} name={`heroSlides.${index}.title`} render={({ field }) => (
-                            <FormItem><FormLabel>Title</FormLabel><FormControl><Input {...field} placeholder="e.g., New Collection Arrived" value={field.value || ''} /></FormControl><FormMessage /></FormItem>
-                          )} />
-                          <FormField control={form.control} name={`heroSlides.${index}.description`} render={({ field }) => (
-                            <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea {...field} rows={2} placeholder="e.g., Discover fresh styles..." value={field.value || ''}/></FormControl><FormMessage /></FormItem>
-                          )} />
-                          <FormField control={form.control} name={`heroSlides.${index}.imageUrl`} render={({ field }) => (
-                            <FormItem>
-                              <FormLabel className="flex items-center"><ImageIcon className="mr-2 h-4 w-4 text-muted-foreground"/> Background Image URL</FormLabel>
-                              <FormControl><Input {...field} placeholder="e.g. https://example.com/hero-image.jpg" value={field.value || ''} /></FormControl>
-                              <FormDescription>Tip: For quick uploads, use services like ImgBB.com or Postimages.org. Paste the "Direct link" (ending in .jpg, .png, etc.).</FormDescription>
-                              <FormMessage />
-                            </FormItem>
-                          )} />
-                          <FormField control={form.control} name={`heroSlides.${index}.altText`} render={({ field }) => (
-                            <FormItem><FormLabel>Image Alt Text</FormLabel><FormControl><Input {...field} placeholder="Describe the image for accessibility" value={field.value || ''}/></FormControl><FormMessage /></FormItem>
-                          )} />
-                          <FormField control={form.control} name={`heroSlides.${index}.dataAiHint`} render={({ field }) => (
-                            <FormItem><FormLabel>Image AI Hint (for placeholder)</FormLabel><FormControl><Input {...field} placeholder="e.g., fashion model mountains" value={field.value || ''}/></FormControl><FormMessage /></FormItem>
-                          )} />
-                          <FormField control={form.control} name={`heroSlides.${index}.videoId`} render={({ field }) => (
-                            <FormItem>
-                              <FormLabel className="flex items-center"><Youtube className="mr-2 h-4 w-4 text-muted-foreground"/> YouTube Video ID (Overrides Image)</FormLabel>
-                              <FormControl><Input {...field} placeholder="e.g. gCRNEJxDJKM (11 characters)" value={field.value || ''} /></FormControl>
-                              <FormDescription>The 11-character ID from a YouTube video URL (e.g., the XXXXXXXXXXX in youtu.be/XXXXXXXXXXX).</FormDescription>
-                              <FormMessage />
-                            </FormItem>
-                          )} />
-                          <FormField control={form.control} name={`heroSlides.${index}.ctaText`} render={({ field }) => (
-                            <FormItem><FormLabel>CTA Button Text</FormLabel><FormControl><Input {...field} placeholder="e.g., Shop Now" value={field.value || ''}/></FormControl><FormMessage /></FormItem>
-                          )} />
-                          <FormField control={form.control} name={`heroSlides.${index}.ctaLink`} render={({ field }) => (
-                            <FormItem><FormLabel>CTA Button Link</FormLabel><FormControl><Input {...field} placeholder="/products or https://example.com" value={field.value || ''} /></FormControl><FormMessage /></FormItem>
-                          )} />
-                        </Card>
-                      ))}
-                    </div>
-                  </ScrollArea>
-                  <Button type="button" variant="outline" size="sm" onClick={() => appendHeroSlide({ ...defaultHeroSlide, id: `slide-${Date.now()}-${Math.random().toString(36).substr(2, 5)}` })} className="mt-4">
-                    <PlusCircle className="mr-2 h-4 w-4" /> Add Hero Slide
-                  </Button>
+                <div className="space-y-4 p-1">
+                  {heroSlidesFields.map((field, index) => (
+                    <Card key={field.id} className="p-4 space-y-3 bg-card">
+                      <div className="flex justify-between items-center mb-2">
+                        <h4 className="font-medium text-lg text-foreground">Slide {index + 1}</h4>
+                        <Button type="button" variant="destructive" size="sm" onClick={() => removeHeroSlide(index)} disabled={heroSlidesFields.length <= 0 && !(form.getValues('heroVideoId') || form.getValues('heroImageUrl'))}>
+                          <Trash2 className="mr-1 h-4 w-4" /> Remove Slide
+                        </Button>
+                      </div>
+                      <FormField control={form.control} name={`heroSlides.${index}.title`} render={({ field }) => (
+                        <FormItem><FormLabel>Title</FormLabel><FormControl><Input {...field} placeholder="e.g., New Collection Arrived" value={field.value || ''} /></FormControl><FormMessage /></FormItem>
+                      )} />
+                      <FormField control={form.control} name={`heroSlides.${index}.description`} render={({ field }) => (
+                        <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea {...field} rows={2} placeholder="e.g., Discover fresh styles..." value={field.value || ''}/></FormControl><FormMessage /></FormItem>
+                      )} />
+                      <FormField control={form.control} name={`heroSlides.${index}.imageUrl`} render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="flex items-center"><ImageIcon className="mr-2 h-4 w-4 text-muted-foreground"/> Background Image URL</FormLabel>
+                          <FormControl><Input {...field} placeholder="e.g. https://example.com/hero-image.jpg" value={field.value || ''} /></FormControl>
+                          <FormDescription>Tip: Use ImgBB.com or Postimages.org for free uploads. Paste the "Direct link".</FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )} />
+                      <FormField control={form.control} name={`heroSlides.${index}.altText`} render={({ field }) => (
+                        <FormItem><FormLabel>Image Alt Text</FormLabel><FormControl><Input {...field} placeholder="Describe the image for accessibility" value={field.value || ''}/></FormControl><FormMessage /></FormItem>
+                      )} />
+                      <FormField control={form.control} name={`heroSlides.${index}.dataAiHint`} render={({ field }) => (
+                        <FormItem><FormLabel>Image AI Hint (for placeholder)</FormLabel><FormControl><Input {...field} placeholder="e.g., fashion model mountains" value={field.value || ''}/></FormControl><FormMessage /></FormItem>
+                      )} />
+                      <FormField control={form.control} name={`heroSlides.${index}.videoId`} render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="flex items-center"><Youtube className="mr-2 h-4 w-4 text-muted-foreground"/> YouTube Video ID (Overrides Image)</FormLabel>
+                          <FormControl><Input {...field} placeholder="e.g. gCRNEJxDJKM (11 characters)" value={field.value || ''} /></FormControl>
+                          <FormDescription>The 11-character ID from a YouTube video URL (e.g., XXXXXXXXXXX in youtu.be/XXXXXXXXXXX).</FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )} />
+                      <FormField control={form.control} name={`heroSlides.${index}.ctaText`} render={({ field }) => (
+                        <FormItem><FormLabel>CTA Button Text</FormLabel><FormControl><Input {...field} placeholder="e.g., Shop Now" value={field.value || ''}/></FormControl><FormMessage /></FormItem>
+                      )} />
+                      <FormField control={form.control} name={`heroSlides.${index}.ctaLink`} render={({ field }) => (
+                        <FormItem><FormLabel>CTA Button Link</FormLabel><FormControl><Input {...field} placeholder="/products or https://example.com" value={field.value || ''} /></FormControl><FormMessage /></FormItem>
+                      )} />
+                    </Card>
+                  ))}
+                </div>
+                <Button type="button" variant="outline" size="sm" onClick={() => appendHeroSlide({ ...defaultHeroSlide, id: `slide-${Date.now()}-${Math.random().toString(36).substr(2, 5)}` })} className="mt-4">
+                  <PlusCircle className="mr-2 h-4 w-4" /> Add Hero Slide
+                </Button>
               </div>
 
-              <div className="space-y-6 p-4 border border-border rounded-lg shadow-sm">
+              {/* Standalone Hero Background */}
+              <div className="space-y-6 p-4 border border-border rounded-lg shadow-sm bg-muted/20">
                 <h3 className="text-xl font-semibold text-foreground flex items-center">
-                   <ImageIcon className="mr-3 h-5 w-5 text-primary" /> Standalone Hero Background (Fallback)
+                   <ImageIcon className="mr-3 h-5 w-5 text-primary" /> Standalone Hero Background (Fallback/Alternative)
                 </h3>
-                <p className="text-sm text-muted-foreground">Used if no carousel slides are active/defined, or as an ultimate fallback if the carousel fails. Video ID takes precedence over Image URL.</p>
+                <p className="text-sm text-muted-foreground">Used if no carousel slides are active/defined, or as an ultimate fallback. Video ID takes precedence over Image URL.</p>
                 <FormField control={form.control} name="heroImageUrl" render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="flex items-center"><ImageIcon className="mr-2 h-4 w-4 text-muted-foreground"/> Standalone Hero Background Image URL</FormLabel>
+                    <FormLabel className="flex items-center"><ImageIcon className="mr-2 h-4 w-4 text-muted-foreground"/> Image URL</FormLabel>
                     <FormControl><Input {...field} placeholder="e.g. https://example.com/main-hero-image.jpg" value={field.value || ''} /></FormControl>
-                    <FormDescription>Tip: For quick uploads, use services like ImgBB.com or Postimages.org. Paste the "Direct link" (ending in .jpg, .png, etc.).</FormDescription>
+                    <FormDescription>Tip: Use ImgBB.com or Postimages.org for free uploads. Paste the "Direct link".</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )} />
                 <FormField control={form.control} name="heroVideoId" render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="flex items-center"><Youtube className="mr-2 h-4 w-4 text-muted-foreground"/> Standalone Hero YouTube Video ID (Overrides Image)</FormLabel>
+                    <FormLabel className="flex items-center"><Youtube className="mr-2 h-4 w-4 text-muted-foreground"/> YouTube Video ID</FormLabel>
                     <FormControl><Input {...field} placeholder="e.g. gCRNEJxDJKM (11 characters)" value={field.value || ''} /></FormControl>
                     <FormDescription>The 11-character ID from a YouTube video URL.</FormDescription>
                     <FormMessage />
@@ -283,7 +278,8 @@ export default function AdminHomepageContentPage() {
                 )} />
               </div>
 
-              <div className="space-y-6 p-4 border border-border rounded-lg shadow-sm">
+              {/* Artisanal Roots Section */}
+              <div className="space-y-6 p-4 border border-border rounded-lg shadow-sm bg-muted/20">
                 <h3 className="text-xl font-semibold text-foreground flex items-center">
                   <BookOpen className="mr-3 h-5 w-5 text-primary" /> Artisanal Roots Section
                 </h3>
@@ -295,41 +291,40 @@ export default function AdminHomepageContentPage() {
                 )} />
               </div>
 
-              <div className="space-y-6 p-4 border border-border rounded-lg shadow-sm">
+              {/* Social Commerce Section */}
+              <div className="space-y-6 p-4 border border-border rounded-lg shadow-sm bg-muted/20">
                 <h3 className="text-xl font-semibold text-foreground flex items-center">
                   <Package className="mr-3 h-5 w-5 text-primary" /> Social Commerce Section (#PeakPulseStyle)
                 </h3>
-                <ScrollArea className="max-h-[60vh]">
                   <div className="space-y-4 p-1">
-                      {socialCommerceFields.map((field, index) => (
-                        <Card key={field.id} className="p-4 space-y-3 bg-muted/30">
-                          <div className="flex justify-between items-center mb-2">
-                            <h4 className="font-medium text-lg text-foreground">Instagram Post {index + 1}</h4>
-                            <Button type="button" variant="destructive" size="sm" onClick={() => removeSocialCommerceItem(index)}>
-                              <Trash2 className="mr-1 h-4 w-4" /> Remove Post
-                            </Button>
-                          </div>
-                          <FormField control={form.control} name={`socialCommerceItems.${index}.imageUrl`} render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Image URL*</FormLabel>
-                              <FormControl><Input {...field} placeholder="https://example.com/insta-image.jpg" value={field.value || ''} /></FormControl>
-                              <FormDescription>Tip: For quick uploads, use services like ImgBB.com or Postimages.org. Paste the "Direct link" (ending in .jpg, .png, etc.).</FormDescription>
-                              <FormMessage />
-                            </FormItem>
-                          )} />
-                          <FormField control={form.control} name={`socialCommerceItems.${index}.linkUrl`} render={({ field }) => (
-                            <FormItem><FormLabel>Link to Instagram Post* <ExternalLink className="inline h-3 w-3 ml-1 text-muted-foreground"/></FormLabel><FormControl><Input {...field} placeholder="https://instagram.com/p/yourpostid" value={field.value || ''} /></FormControl><FormMessage /></FormItem>
-                          )} />
-                          <FormField control={form.control} name={`socialCommerceItems.${index}.altText`} render={({ field }) => (
-                            <FormItem><FormLabel>Image Alt Text</FormLabel><FormControl><Input {...field} placeholder="Describe the image" value={field.value || ''} /></FormControl><FormMessage /></FormItem>
-                          )} />
-                          <FormField control={form.control} name={`socialCommerceItems.${index}.dataAiHint`} render={({ field }) => (
-                            <FormItem><FormLabel>Image AI Hint (for placeholder)</FormLabel><FormControl><Input {...field} placeholder="e.g. instagram fashion user" value={field.value || ''} /></FormControl><FormMessage /></FormItem>
-                          )} />
-                        </Card>
-                      ))}
-                    </div>
-                </ScrollArea>
+                    {socialCommerceFields.map((field, index) => (
+                      <Card key={field.id} className="p-4 space-y-3 bg-card">
+                        <div className="flex justify-between items-center mb-2">
+                          <h4 className="font-medium text-lg text-foreground">Instagram Post {index + 1}</h4>
+                          <Button type="button" variant="destructive" size="sm" onClick={() => removeSocialCommerceItem(index)}>
+                            <Trash2 className="mr-1 h-4 w-4" /> Remove Post
+                          </Button>
+                        </div>
+                        <FormField control={form.control} name={`socialCommerceItems.${index}.imageUrl`} render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Image URL*</FormLabel>
+                            <FormControl><Input {...field} placeholder="https://example.com/insta-image.jpg" value={field.value || ''} /></FormControl>
+                            <FormDescription>Tip: Use ImgBB.com or Postimages.org. Paste the "Direct link".</FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )} />
+                        <FormField control={form.control} name={`socialCommerceItems.${index}.linkUrl`} render={({ field }) => (
+                          <FormItem><FormLabel>Link to Instagram Post* <ExternalLink className="inline h-3 w-3 ml-1 text-muted-foreground"/></FormLabel><FormControl><Input {...field} placeholder="https://instagram.com/p/yourpostid" value={field.value || ''} /></FormControl><FormMessage /></FormItem>
+                        )} />
+                        <FormField control={form.control} name={`socialCommerceItems.${index}.altText`} render={({ field }) => (
+                          <FormItem><FormLabel>Image Alt Text</FormLabel><FormControl><Input {...field} placeholder="Describe the image" value={field.value || ''} /></FormControl><FormMessage /></FormItem>
+                        )} />
+                        <FormField control={form.control} name={`socialCommerceItems.${index}.dataAiHint`} render={({ field }) => (
+                          <FormItem><FormLabel>Image AI Hint (for placeholder)</FormLabel><FormControl><Input {...field} placeholder="e.g. instagram fashion user" value={field.value || ''} /></FormControl><FormMessage /></FormItem>
+                        )} />
+                      </Card>
+                    ))}
+                  </div>
                 <Button type="button" variant="outline" size="sm" onClick={() => appendSocialCommerceItem({ ...defaultSocialCommerceItem, id: `social-${Date.now()}-${Math.random().toString(36).substr(2,5)}`})} className="mt-4">
                   <PlusCircle className="mr-2 h-4 w-4" /> Add Instagram Post Item
                 </Button>
@@ -341,8 +336,9 @@ export default function AdminHomepageContentPage() {
               </Button>
             </form>
           </Form>
-        </ScrollArea>
       </CardContent>
     </Card>
   );
 }
+
+    
