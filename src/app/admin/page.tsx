@@ -54,20 +54,55 @@ async function getSiteConfigurationStatus(configKey: string): Promise<string | '
 
 
 export default async function AdminDashboardPage() {
-  const productCount = await getSupabaseCount('products');
-  const orderCount = await getSupabaseCount('orders');
-  const userCount = await getSupabaseCount('users');
-  const categoryCount = await getSupabaseCount('categories');
-  const loanCount = await getSupabaseCount('loans');
-  const collabCategoryCount = await getSupabaseCount('design_collaboration_categories');
-  const galleryCount = await getSupabaseCount('design_collaborations');
-  const printDesignCount = await getSupabaseCount('print_on_demand_designs');
-  const reviewCount = await getSupabaseCount('reviews');
+  let productCount: string | number = 'N/A';
+  let orderCount: string | number = 'N/A';
+  let userCount: string | number = 'N/A';
+  let categoryCount: string | number = 'N/A';
+  let loanCount: string | number = 'N/A';
+  let collabCategoryCount: string | number = 'N/A';
+  let galleryCount: string | number = 'N/A';
+  let printDesignCount: string | number = 'N/A';
+  let reviewCount: string | number = 'N/A';
 
-  const homepageContentStatus = await getSiteConfigurationStatus('homepageContent');
-  const ourStoryContentStatus = await getSiteConfigurationStatus('ourStoryContent');
-  const generalSettingsStatus = await getSiteConfigurationStatus('siteGeneralSettings');
-  const footerContentStatus = await getSiteConfigurationStatus('footerContent');
+  let homepageContentStatus: string | 'Okay' | 'Not Found' | 'Error' = 'Error';
+  let ourStoryContentStatus: string | 'Okay' | 'Not Found' | 'Error' = 'Error';
+  let generalSettingsStatus: string | 'Okay' | 'Not Found' | 'Error' = 'Error';
+  let footerContentStatus: string | 'Okay' | 'Not Found' | 'Error' = 'Error';
+  
+  const client = supabaseAdmin || fallbackSupabase;
+
+  if (client) {
+    productCount = await getSupabaseCount('products');
+    orderCount = await getSupabaseCount('orders');
+    userCount = await getSupabaseCount('users');
+    categoryCount = await getSupabaseCount('categories');
+    loanCount = await getSupabaseCount('loans');
+    collabCategoryCount = await getSupabaseCount('design_collaboration_categories');
+    galleryCount = await getSupabaseCount('design_collaborations');
+    printDesignCount = await getSupabaseCount('print_on_demand_designs');
+    reviewCount = await getSupabaseCount('reviews');
+    
+    homepageContentStatus = await getSiteConfigurationStatus('homepageContent');
+    ourStoryContentStatus = await getSiteConfigurationStatus('ourStoryContent');
+    generalSettingsStatus = await getSiteConfigurationStatus('siteGeneralSettings');
+    footerContentStatus = await getSiteConfigurationStatus('footerContent');
+  } else {
+    console.warn("[AdminDashboard] Supabase client not available for fetching counts and statuses.");
+    const dbClientErrorMsg = "N/A (DB Client Error)";
+    productCount = dbClientErrorMsg;
+    orderCount = dbClientErrorMsg;
+    userCount = dbClientErrorMsg;
+    categoryCount = dbClientErrorMsg;
+    loanCount = dbClientErrorMsg;
+    collabCategoryCount = dbClientErrorMsg;
+    galleryCount = dbClientErrorMsg;
+    printDesignCount = dbClientErrorMsg;
+    reviewCount = dbClientErrorMsg;
+    homepageContentStatus = dbClientErrorMsg;
+    ourStoryContentStatus = dbClientErrorMsg;
+    generalSettingsStatus = dbClientErrorMsg;
+    footerContentStatus = dbClientErrorMsg;
+  }
 
 
   let totalRevenue = 0;
@@ -75,7 +110,6 @@ export default async function AdminDashboardPage() {
   let completedOrderCount = 0;
   let salesMetricsError: string | null = null;
 
-  const client = supabaseAdmin || fallbackSupabase;
 
   if (client) {
     try {
@@ -124,7 +158,7 @@ export default async function AdminDashboardPage() {
       <Card className="shadow-lg">
         <CardHeader>
           <CardTitle className="text-2xl">Welcome to the Peak Pulse Admin Dashboard</CardTitle>
-          <CardDescription>Manage your application data and site content. Products, Orders, Users, and most configurations are now managed via Supabase.</CardDescription>
+          <CardDescription>Manage your application data and site content. Products, Orders, Users, Loans, and Site Configurations are now managed via Supabase.</CardDescription>
         </CardHeader>
         <CardContent>
           <h3 className="text-lg font-semibold mb-4 text-primary">Store Data Overview (from Supabase)</h3>
@@ -134,8 +168,8 @@ export default async function AdminDashboardPage() {
             <DashboardStatCard title="Orders" count={orderCount} link="/admin/orders" icon={ListOrdered} />
             <DashboardStatCard title="Users" count={userCount} link="#" icon={Users} note="User management UI pending" />
             <DashboardStatCard title="Reviews" count={reviewCount} link="/admin/reviews" icon={MessageSquare} />
-            <DashboardStatCard title="Collaboration Categories" count={collabCategoryCount} link="/admin/design-hub/collaboration-categories" icon={Tags} />
-            <DashboardStatCard title="Collaboration Galleries" count={galleryCount} link="/admin/design-hub/galleries" icon={ImageIconLucide} />
+            <DashboardStatCard title="Collab Categories" count={collabCategoryCount} link="/admin/design-hub/collaboration-categories" icon={Tags} />
+            <DashboardStatCard title="Collab Galleries" count={galleryCount} link="/admin/design-hub/galleries" icon={ImageIconLucide} />
             <DashboardStatCard title="Print Designs" count={printDesignCount} link="/admin/design-hub/print-designs" icon={Printer} />
           </div>
           
@@ -197,11 +231,11 @@ export default async function AdminDashboardPage() {
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground mb-2">
-            This admin panel primarily uses Supabase for Products, Categories, Orders, User Profiles (roles, wishlists), Loans, Site Configurations (Footer, Homepage, Our Story, General Settings, Page Content), Design Hub entities, and Product Reviews.
+            This admin panel utilizes Supabase for Products, Categories, Orders, User Profiles (roles, wishlists), Loans, Site Configurations, Design Hub entities, and Product Reviews. Firebase is used for Authentication.
           </p>
           <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
             <li>**Supabase & Firebase Config:** Ensure your <code>.env</code> file has correct Supabase (URL, Anon Key, Service Role Key) and Firebase credentials. The server must be restarted after <code>.env</code> changes.</li>
-            <li>**Security:** Admin section access is role-based (requires 'admin' role in user's Supabase profile). Supabase RLS policies are critical for production security. Admin API routes should ideally use the Supabase service_role key.</li>
+            <li>**Security:** Admin section access is role-based (requires 'admin' role in user's Supabase profile). Supabase RLS policies are critical for production security. Admin API routes should use the Supabase service_role key where appropriate.</li>
           </ul>
         </CardContent>
       </Card>
