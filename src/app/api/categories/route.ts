@@ -2,7 +2,7 @@
 // /src/app/api/categories/route.ts
 import { NextResponse } from 'next/server';
 import { supabase } from '../../../lib/supabaseClient'; 
-import type { AdminCategory as Category } from '@/types'; // Use AdminCategory as it includes parentId
+import type { AdminCategory as Category } from '@/types';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,8 +20,11 @@ export async function GET() {
       .order('name', { ascending: true });
 
     if (error) {
-      console.error('[API /api/categories] Supabase error fetching categories:', JSON.stringify(error, null, 2));
-      return NextResponse.json({ message: 'Failed to fetch categories from database.', rawSupabaseError: error }, { status: 500 });
+      console.error('[API /api/categories] Supabase error fetching categories:', error);
+      return NextResponse.json({ 
+        message: 'Failed to fetch categories from database.', 
+        rawSupabaseError: { message: error.message, details: error.details, hint: error.hint, code: error.code }
+      }, { status: 500 });
     }
 
     const categories: Category[] = (data || []).map(c => ({
@@ -32,14 +35,14 @@ export async function GET() {
         imageUrl: c.image_url,
         aiImagePrompt: c.ai_image_prompt,
         parentId: c.parent_id,
-        createdAt: c.createdAt || c.created_at, // Handle potential case difference
-        updatedAt: c.updatedAt || c.updated_at, // Handle potential case difference
+        createdAt: c.createdAt || c.created_at,
+        updatedAt: c.updatedAt || c.updated_at,
     }));
 
     console.log(`[API /api/categories] Successfully fetched ${categories.length} categories.`);
     return NextResponse.json(categories);
   } catch (e: any) {
     console.error('[API /api/categories] Unhandled error fetching categories:', e);
-    return NextResponse.json({ message: 'Error fetching categories.', error: (e as Error).message }, { status: 500 });
+    return NextResponse.json({ message: 'Error fetching categories.', errorDetails: e.message }, { status: 500 });
   }
 }
