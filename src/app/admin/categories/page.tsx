@@ -20,6 +20,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogClose
 } from "@/components/ui/dialog";
 import { ScrollArea } from '@/components/ui/scroll-area';
 import Image from 'next/image';
@@ -35,7 +36,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
-const NO_PARENT_ID_VALUE = "__NONE__"; // Special value for the "None" option
+const NO_PARENT_ID_VALUE = "__NONE__";
 
 const categoryFormSchema = z.object({
   id: z.string().optional(),
@@ -109,7 +110,7 @@ export default function AdminCategoriesPage() {
   const handleAddNew = () => {
     setEditingCategory(null);
     form.reset({
-      id: undefined, 
+      id: undefined,
       name: '',
       slug: '',
       description: '',
@@ -127,10 +128,10 @@ export default function AdminCategoriesPage() {
 
     const payload = {
       ...data,
-      slug: data.slug || data.name.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, ''),
+      slug: data.slug?.trim() || data.name.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, ''),
       parentId: data.parentId === NO_PARENT_ID_VALUE ? null : data.parentId,
     };
-    
+
     try {
       const response = await fetch(url, {
         method: method,
@@ -142,7 +143,7 @@ export default function AdminCategoriesPage() {
         let errorDetail = `Failed to ${editingCategory ? 'update' : 'create'} category.`;
         try {
             const errorData = await response.json();
-            if (errorData.rawSupabaseError && errorData.rawSupabaseError.message) {
+             if (errorData.rawSupabaseError && errorData.rawSupabaseError.message) {
                 errorDetail = `Database error: ${errorData.rawSupabaseError.message}${errorData.rawSupabaseError.hint ? ` Hint: ${errorData.rawSupabaseError.hint}` : ''}`;
             } else if (errorData.message) {
                 errorDetail = errorData.message;
@@ -159,7 +160,7 @@ export default function AdminCategoriesPage() {
       setIsFormOpen(false);
       setEditingCategory(null);
     } catch (error) {
-      toast({ title: `${editingCategory ? 'Update' : 'Creation'} Failed`, description: (error as Error).message, variant: "destructive" });
+      toast({ title: "Save Failed", description: (error as Error).message, variant: "destructive" });
     } finally {
       setIsSaving(false);
     }
@@ -195,21 +196,16 @@ export default function AdminCategoriesPage() {
 
   if (isLoading) {
     return (
-      <Card className="shadow-lg">
-        <CardHeader>
-          <CardTitle className="text-2xl flex items-center"><Tags className="mr-3 h-6 w-6 text-primary" />Manage Product Categories</CardTitle>
-          <CardDescription>Loading categories...</CardDescription>
-        </CardHeader>
-        <CardContent className="flex justify-center items-center py-10">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </CardContent>
+      <Card className="shadow-lg flex flex-col h-full">
+        <CardHeader><CardTitle className="text-2xl flex items-center"><Tags className="mr-3 h-6 w-6 text-primary" />Manage Product Categories</CardTitle><CardDescription>Loading categories...</CardDescription></CardHeader>
+        <CardContent className="flex-grow flex justify-center items-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></CardContent>
       </Card>
     );
   }
 
   return (
     <>
-      <Card className="shadow-lg">
+      <Card className="shadow-lg flex flex-col h-full">
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
             <CardTitle className="text-2xl flex items-center"><Tags className="mr-3 h-6 w-6 text-primary" />Manage Product Categories</CardTitle>
@@ -217,49 +213,51 @@ export default function AdminCategoriesPage() {
           </div>
           <Button onClick={handleAddNew}><PlusCircle className="mr-2 h-4 w-4" /> Add New Category</Button>
         </CardHeader>
-        <CardContent>
-          {categories.length === 0 ? (
-            <p className="text-muted-foreground text-center py-8">No categories found. Add a new category to get started.</p>
-          ) : (
-            <div className="space-y-4">
-              {categories.map(category => (
-                <Card key={category.id} className="p-4 flex flex-col sm:flex-row justify-between items-start gap-4 hover:shadow-md transition-shadow">
-                  <div className="flex items-start gap-4 flex-grow">
-                    {category.imageUrl ? (
-                      <Image src={category.imageUrl} alt={category.name} width={80} height={80} className="rounded-md object-cover aspect-square bg-muted" data-ai-hint={category.aiImagePrompt || 'category image'} />
-                    ) : (
-                      <div className="w-20 h-20 bg-muted rounded-md flex items-center justify-center">
-                        <ImageIconLucide className="w-10 h-10 text-muted-foreground" />
-                      </div>
-                    )}
-                    <div className="flex-grow">
-                      <h3 className="font-semibold text-lg text-foreground">{category.name} <span className="text-xs text-muted-foreground">({category.slug})</span></h3>
-                      <p className="text-sm text-muted-foreground line-clamp-2">{category.description || "No description."}</p>
-                      {category.parentId !== undefined && (
-                        <p className="text-xs text-accent mt-1 flex items-center">
-                          <Network size={12} className="mr-1"/> Parent: {getParentCategoryName(category.parentId)}
-                        </p>
+        <CardContent className="flex-1 overflow-hidden p-0">
+          <ScrollArea className="h-full p-6">
+            {categories.length === 0 ? (
+              <p className="text-muted-foreground text-center py-8">No categories found. Add a new category to get started.</p>
+            ) : (
+              <div className="space-y-4">
+                {categories.map(category => (
+                  <Card key={category.id} className="p-4 flex flex-col sm:flex-row justify-between items-start gap-4 hover:shadow-md transition-shadow">
+                    <div className="flex items-start gap-4 flex-grow">
+                      {category.imageUrl ? (
+                        <Image src={category.imageUrl} alt={category.name} width={80} height={80} className="rounded-md object-cover aspect-square bg-muted" data-ai-hint={category.aiImagePrompt || 'category image'} />
+                      ) : (
+                        <div className="w-20 h-20 bg-muted rounded-md flex items-center justify-center">
+                          <ImageIconLucide className="w-10 h-10 text-muted-foreground" />
+                        </div>
                       )}
-                      {category.aiImagePrompt && <p className="text-xs text-accent mt-1 flex items-center"><ImageIconLucide size={12} className="mr-1"/> Prompt: <span className="italic line-clamp-1">{category.aiImagePrompt}</span></p>}
+                      <div className="flex-grow">
+                        <h3 className="font-semibold text-lg text-foreground">{category.name} <span className="text-xs text-muted-foreground">({category.slug})</span></h3>
+                        <p className="text-sm text-muted-foreground line-clamp-2">{category.description || "No description."}</p>
+                        {category.parentId !== undefined && (
+                          <p className="text-xs text-accent mt-1 flex items-center">
+                            <Network size={12} className="mr-1"/> Parent: {getParentCategoryName(category.parentId)}
+                          </p>
+                        )}
+                        {category.aiImagePrompt && <p className="text-xs text-accent mt-1 flex items-center"><ImageIconLucide size={12} className="mr-1"/> Prompt: <span className="italic line-clamp-1">{category.aiImagePrompt}</span></p>}
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex space-x-2 flex-shrink-0 pt-2 sm:pt-0">
-                    <Button variant="outline" size="sm" onClick={() => handleEdit(category)}><Edit className="mr-1.5 h-3 w-3" /> Edit</Button>
-                    <Button 
-                      variant="destructive" 
-                      size="sm" 
-                      onClick={() => { 
-                        setCategoryToDelete(category); 
-                        setIsDeleteAlertOpen(true); 
-                      }}
-                    >
-                      <Trash2 className="mr-1.5 h-3 w-3" /> Delete
-                    </Button>
-                  </div>
-                </Card>
-              ))}
-            </div>
-          )}
+                    <div className="flex space-x-2 flex-shrink-0 pt-2 sm:pt-0">
+                      <Button variant="outline" size="sm" onClick={() => handleEdit(category)}><Edit className="mr-1.5 h-3 w-3" /> Edit</Button>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => {
+                          setCategoryToDelete(category);
+                          setIsDeleteAlertOpen(true);
+                        }}
+                      >
+                        <Trash2 className="mr-1.5 h-3 w-3" /> Delete
+                      </Button>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </ScrollArea>
         </CardContent>
       </Card>
 
@@ -299,7 +297,7 @@ export default function AdminCategoriesPage() {
                           <SelectContent>
                             <SelectItem value={NO_PARENT_ID_VALUE}>None (Top-Level Category)</SelectItem>
                             {categories
-                              .filter(cat => cat.id !== editingCategory?.id) 
+                              .filter(cat => cat.id !== editingCategory?.id)
                               .map(cat => (
                                 <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
                             ))}
@@ -325,12 +323,12 @@ export default function AdminCategoriesPage() {
                     <FormItem>
                       <FormLabel>Image URL (Optional)</FormLabel>
                       <FormControl><Input {...field} placeholder="https://example.com/category-image.jpg" /></FormControl>
-                      <FormDescription>Tip: For quick uploads, try free sites like ImgBB.com or Postimages.org. Upload your image, then copy and paste the "Direct link" here.</FormDescription>
+                      <FormDescription>Tip: For quick uploads, use services like ImgBB.com or Postimages.org. Paste the "Direct link" (ending in .jpg, .png, etc.).</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )} />
                   <DialogFooter className="pt-4">
-                    <Button type="button" variant="outline" onClick={() => {setIsFormOpen(false); form.reset();}}>Cancel</Button>
+                    <DialogClose asChild><Button type="button" variant="outline" onClick={() => {setIsFormOpen(false); form.reset();}}>Cancel</Button></DialogClose>
                     <Button type="submit" disabled={isSaving}>
                       {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                       {editingCategory ? 'Save Changes' : 'Create Category'}
@@ -343,18 +341,18 @@ export default function AdminCategoriesPage() {
         </DialogContent>
       </Dialog>
 
-      <AlertDialog 
-        open={isDeleteAlertOpen} 
-        onOpenChange={(open) => { 
-          setIsDeleteAlertOpen(open); 
-          if (!open) setCategoryToDelete(null); 
+      <AlertDialog
+        open={isDeleteAlertOpen}
+        onOpenChange={(open) => {
+          setIsDeleteAlertOpen(open);
+          if (!open) setCategoryToDelete(null);
         }}
       >
         <AlertDialogDeleteContent>
           <AlertDialogDeleteHeader>
             <AlertDialogDeleteTitle>Are you sure you want to delete this category?</AlertDialogDeleteTitle>
             <AlertDialogDeleteDescription>
-              This action cannot be undone. This will permanently delete the category: "{categoryToDelete?.name}". 
+              This action cannot be undone. This will permanently delete the category: "{categoryToDelete?.name}".
               Any subcategories under this category will become top-level categories (their `parentId` will be set to NULL in Supabase due to the ON DELETE SET NULL constraint). Products associated with this category will need to be manually reassigned.
             </AlertDialogDeleteDescription>
           </AlertDialogDeleteHeader>

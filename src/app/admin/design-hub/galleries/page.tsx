@@ -27,7 +27,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { formatInputDate, formatDisplayDate } from '@/lib/dateUtils';
 
-const NO_COLLAB_CATEGORY_ID_VALUE = "__NONE_CATEGORY__"; // Unique value for "None" option
+const NO_COLLAB_CATEGORY_ID_VALUE = "__NONE_CATEGORY__";
 
 const galleryImageItemSchema = z.object({
   id: z.string().optional(),
@@ -49,7 +49,7 @@ const gallerySchema = z.object({
   artist_statement: z.string().optional(),
   gallery_images: z.array(galleryImageItemSchema).min(0).optional(),
   is_published: z.boolean().default(false),
-  collaboration_date: z.string().optional().or(z.literal('')), // Allow empty string from date input, will convert to null
+  collaboration_date: z.string().optional().or(z.literal('')),
 });
 
 type GalleryFormValues = z.infer<typeof gallerySchema>;
@@ -95,10 +95,10 @@ export default function AdminDesignCollaborationsPage() {
         const errorData = await categoriesRes.json().catch(() => ({}));
         throw new Error(errorData.message || errorData.rawSupabaseError?.message || 'Failed to fetch collaboration categories');
       }
-      
+
       const galleriesData: DesignCollaborationGallery[] = await galleriesRes.json();
       const categoriesData: DesignCollaborationCategory[] = await categoriesRes.json();
-      
+
       setGalleries(galleriesData);
       setCategories(categoriesData);
     } catch (error) {
@@ -119,9 +119,9 @@ export default function AdminDesignCollaborationsPage() {
       category_id: gallery.category_id || null,
       collaboration_date: gallery.collaboration_date ? formatInputDate(new Date(gallery.collaboration_date)) : '',
       gallery_images: (gallery.gallery_images || []).map((img, index) => ({
-        ...img, 
-        id: img.id || `img-client-${Date.now()}-${index}`, // Ensure client-side key for useFieldArray
-        displayOrder: img.displayOrder === undefined ? index : img.displayOrder 
+        ...img,
+        id: img.id || `img-client-${Date.now()}-${index}`,
+        displayOrder: img.displayOrder === undefined ? index : img.displayOrder
       })),
     });
     setIsFormOpen(true);
@@ -133,7 +133,7 @@ export default function AdminDesignCollaborationsPage() {
       title: '', slug: '', description: '', category_id: null, cover_image_url: '', ai_cover_image_prompt: '',
       artist_name: '', artist_statement: '', gallery_images: [], is_published: false, collaboration_date: formatInputDate(new Date()),
     });
-    replaceGalleryImages([]); // Ensure field array is reset
+    replaceGalleryImages([]);
     setIsFormOpen(true);
   };
 
@@ -141,15 +141,15 @@ export default function AdminDesignCollaborationsPage() {
     setIsSaving(true);
     const method = editingGallery ? 'PUT' : 'POST';
     const url = editingGallery ? `/api/admin/design-collaborations/${editingGallery.id}` : '/api/admin/design-collaborations';
-    
+
     const payload = {
       ...data,
       slug: data.slug || data.title.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, ''),
       category_id: data.category_id === NO_COLLAB_CATEGORY_ID_VALUE ? null : data.category_id,
       collaboration_date: data.collaboration_date || null,
       gallery_images: (data.gallery_images || []).map(({id, ...img}, index) => ({
-        ...img, 
-        displayOrder: img.displayOrder === undefined ? index : img.displayOrder // Ensure displayOrder is set
+        ...img,
+        displayOrder: img.displayOrder === undefined ? index : img.displayOrder
       })),
     };
 
@@ -276,8 +276,8 @@ export default function AdminDesignCollaborationsPage() {
                   )} />
                   <FormField control={form.control} name="category_id" render={({ field }) => (
                     <FormItem><FormLabel>Category</FormLabel>
-                      <Select 
-                        onValueChange={(value) => field.onChange(value === NO_COLLAB_CATEGORY_ID_VALUE ? null : value)} 
+                      <Select
+                        onValueChange={(value) => field.onChange(value === NO_COLLAB_CATEGORY_ID_VALUE ? null : value)}
                         value={field.value === null || field.value === undefined || field.value === '' ? NO_COLLAB_CATEGORY_ID_VALUE : field.value}
                       >
                         <FormControl><SelectTrigger><SelectValue placeholder="Select a category" /></SelectTrigger></FormControl>
@@ -297,7 +297,7 @@ export default function AdminDesignCollaborationsPage() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <FormField control={form.control} name="cover_image_url" render={({ field }) => (
                       <FormItem><FormLabel>Cover Image URL</FormLabel><FormControl><Input {...field} placeholder="https://example.com/cover.jpg" /></FormControl>
-                      <FormDescription>Direct link to the main image for this gallery.</FormDescription><FormMessage /></FormItem>
+                      <FormDescription>Use services like ImgBB.com or Postimages.org for free uploads. Paste the "Direct link" (ending in .jpg, .png, etc.).</FormDescription><FormMessage /></FormItem>
                     )} />
                     <FormField control={form.control} name="ai_cover_image_prompt" render={({ field }) => (
                       <FormItem><FormLabel>AI Cover Image Prompt</FormLabel><FormControl><Input {...field} placeholder="Prompt for cover image" /></FormControl><FormMessage /></FormItem>
@@ -323,7 +323,7 @@ export default function AdminDesignCollaborationsPage() {
                         <Card key={item.id} className="p-3 space-y-2 bg-muted/50">
                             <FormLabel className="text-sm">Image {index + 1}</FormLabel>
                             <FormField control={form.control} name={`gallery_images.${index}.url`} render={({ field }) => (
-                            <FormItem><FormLabel className="text-xs">URL*</FormLabel><FormControl><Input {...field} placeholder="https://example.com/gallery_img.jpg" /></FormControl><FormMessage /></FormItem>
+                            <FormItem><FormLabel className="text-xs">URL*</FormLabel><FormControl><Input {...field} placeholder="https://example.com/gallery_img.jpg" /></FormControl><FormDescription>Use "Direct link" from ImgBB/Postimages.</FormDescription><FormMessage /></FormItem>
                             )} />
                             <div className="grid grid-cols-2 gap-2">
                             <FormField control={form.control} name={`gallery_images.${index}.altText`} render={({ field }) => (
@@ -377,5 +377,3 @@ export default function AdminDesignCollaborationsPage() {
     </>
   );
 }
-
-    

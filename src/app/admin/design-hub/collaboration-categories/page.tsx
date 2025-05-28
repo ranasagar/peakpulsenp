@@ -56,7 +56,7 @@ export default function AdminDesignCollaborationCategoriesPage() {
       const response = await fetch('/api/admin/design-collaboration-categories');
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ message: "Failed to fetch categories and parse error."}));
-        throw new Error(errorData.message || `Failed to fetch collaboration categories: ${response.statusText}`);
+        throw new Error(errorData.message || errorData.rawSupabaseError?.message || `Failed to fetch collaboration categories: ${response.statusText}`);
       }
       const data: DesignCollaborationCategory[] = await response.json();
       setCategories(data);
@@ -94,7 +94,7 @@ export default function AdminDesignCollaborationCategoriesPage() {
     setIsSaving(true);
     const method = editingCategory ? 'PUT' : 'POST';
     const url = editingCategory ? `/api/admin/design-collaboration-categories/${editingCategory.id}` : '/api/admin/design-collaboration-categories';
-    
+
     const payload = {
       ...data,
       slug: data.slug?.trim() || data.name.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, ''),
@@ -110,17 +110,15 @@ export default function AdminDesignCollaborationCategoriesPage() {
         let errorDetail = `Failed to ${editingCategory ? 'update' : 'create'} category. Server responded with ${response.status}.`;
         try {
             const errorText = await response.text();
-            if (errorText.trim().startsWith('{') || errorText.trim().startsWith('[')) { // Basic check for JSON
+            if (errorText.trim().startsWith('{') || errorText.trim().startsWith('[')) {
                 const errorData = JSON.parse(errorText);
                 errorDetail = errorData.message || errorData.rawSupabaseError?.message || errorDetail;
                 if (errorData.rawSupabaseError?.hint) errorDetail += ` Hint: ${errorData.rawSupabaseError.hint}`;
             } else {
-                // Likely HTML error page
-                console.error("Server returned non-JSON error:", errorText.substring(0, 500)); // Log part of HTML for dev
+                console.error("Server returned non-JSON error:", errorText.substring(0, 500));
                 errorDetail = `Server error. Please check server logs. Status: ${response.status}`;
             }
         } catch (e) {
-            // Failed to parse error response body
             console.error("Failed to parse error response body:", e);
         }
         throw new Error(errorDetail);
@@ -155,7 +153,7 @@ export default function AdminDesignCollaborationCategoriesPage() {
       setCategoryToDelete(null);
     }
   };
-  
+
   if (isLoading) {
     return (
       <Card className="shadow-lg flex flex-col h-full">
@@ -232,7 +230,7 @@ export default function AdminDesignCollaborationCategoriesPage() {
                 )} />
                 <FormField control={form.control} name="image_url" render={({ field }) => (
                   <FormItem><FormLabel>Image URL</FormLabel><FormControl><Input {...field} placeholder="https://example.com/image.jpg" /></FormControl>
-                  <FormDescription>Tip: For quick uploads, try free sites like ImgBB.com or Postimages.org. Upload your image, then copy and paste the "Direct link" here.</FormDescription><FormMessage /></FormItem>
+                  <FormDescription>Tip: Use services like ImgBB.com or Postimages.org for free uploads. Paste the "Direct link" (ending in .jpg, .png, etc.).</FormDescription><FormMessage /></FormItem>
                 )} />
                 <DialogFooter>
                   <DialogClose asChild><Button type="button" variant="outline" onClick={() => { setIsFormOpen(false); setEditingCategory(null); form.reset(); }}>Cancel</Button></DialogClose>

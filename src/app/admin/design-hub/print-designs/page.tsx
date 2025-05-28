@@ -65,14 +65,14 @@ export default function AdminPrintOnDemandDesignsPage() {
     try {
       const [designsRes, collabsRes] = await Promise.all([
         fetch('/api/admin/print-on-demand-designs'),
-        fetch('/api/admin/design-collaborations') // Fetch collaborations for dropdown
+        fetch('/api/admin/design-collaborations')
       ]);
       if (!designsRes.ok) throw new Error('Failed to fetch print designs');
       if (!collabsRes.ok) throw new Error('Failed to fetch design collaborations');
-      
+
       const designsData: PrintOnDemandDesign[] = await designsRes.json();
       const collabsData: DesignCollaborationGallery[] = await collabsRes.json();
-      
+
       setDesigns(designsData);
       setCollaborations(collabsData);
     } catch (error) {
@@ -120,7 +120,7 @@ export default function AdminPrintOnDemandDesignsPage() {
       });
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || `Failed to ${editingDesign ? 'update' : 'create'} print design`);
+        throw new Error(errorData.message || errorData.rawSupabaseError?.message || `Failed to ${editingDesign ? 'update' : 'create'} print design`);
       }
       toast({ title: "Success!", description: `Print design "${payload.title}" ${editingDesign ? 'updated' : 'created'}.` });
       fetchData();
@@ -139,7 +139,7 @@ export default function AdminPrintOnDemandDesignsPage() {
       const response = await fetch(`/api/admin/print-on-demand-designs/${designToDelete.id}`, { method: 'DELETE' });
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to delete print design');
+        throw new Error(errorData.message || errorData.rawSupabaseError?.message || 'Failed to delete print design');
       }
       toast({ title: "Print Design Deleted", description: `"${designToDelete.title}" deleted.` });
       fetchData();
@@ -150,7 +150,7 @@ export default function AdminPrintOnDemandDesignsPage() {
       setIsDeleteAlertOpen(false);
     }
   };
-  
+
   const getCollaborationTitle = (collabId?: string | null) => {
     if (!collabId) return 'N/A';
     return collaborations.find(c => c.id === collabId)?.title || 'Unknown';
@@ -227,7 +227,7 @@ export default function AdminPrintOnDemandDesignsPage() {
                 )} />
                 <FormField control={form.control} name="image_url" render={({ field }) => (
                     <FormItem><FormLabel>Image URL*</FormLabel><FormControl><Input {...field} placeholder="https://example.com/design.png" /></FormControl>
-                    <FormDescription>Upload design image to a host and paste the direct link.</FormDescription><FormMessage /></FormItem>
+                    <FormDescription>Use services like ImgBB.com or Postimages.org for free uploads. Paste the "Direct link" (ending in .jpg, .png, etc.).</FormDescription><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="ai_image_prompt" render={({ field }) => (
                     <FormItem><FormLabel>AI Image Prompt</FormLabel><FormControl><Textarea {...field} rows={2} placeholder="Prompt for image generation" /></FormControl><FormMessage /></FormItem>
@@ -290,5 +290,3 @@ export default function AdminPrintOnDemandDesignsPage() {
     </>
   );
 }
-
-    
