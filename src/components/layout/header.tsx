@@ -19,15 +19,15 @@ import { Icons } from '@/components/icons';
 import { useAuth } from '@/hooks/use-auth';
 import { cn } from '@/lib/utils';
 import type { NavItem } from '@/types';
-import { ShoppingCart, Search, LogOut, UserCircle, LayoutDashboard, Settings, Star, ShoppingBag, Briefcase, LayoutGrid, Home as HomeIcon, Store, BookOpenText, Mail, Handshake } from 'lucide-react'; // Added Handshake
+import { ShoppingCart, Search, LogOut, UserCircle, LayoutDashboard, Settings, Star, ShoppingBag, Briefcase, LayoutGrid, Home as HomeIcon, BookOpenText, Mail, Handshake, Users, Palette as PaletteIcon, Printer, FileText as PageIcon, MessageSquare, Landmark, FileSpreadsheet, DollarSign, ListChecks } from 'lucide-react';
 import { ModeToggle } from './mode-toggle';
 import { useCart } from '@/context/cart-context';
 
 const mainNavItems: NavItem[] = [
   { title: 'Home', href: '/', icon: HomeIcon },
-  { title: 'Shop', href: '/products', icon: Store },
+  { title: 'Shop', href: '/products', icon: ShoppingBag },
   { title: 'Categories', href: '/categories', icon: LayoutGrid },
-  { title: 'Collaborations', href: '/collaborations', icon: Handshake }, // New Link Added
+  { title: 'Collaborations', href: '/collaborations', icon: Handshake },
   { title: 'Our Story', href: '/our-story', icon: BookOpenText },
   { title: 'Contact', href: '/contact', icon: Mail },
 ];
@@ -51,7 +51,7 @@ export function Header() {
 
   const navLinks = mainNavItems.map((item) => {
     const isVipLink = item.href === '/vip-collection';
-    if (isVipLink && !isAuthenticated) return null; 
+    if (isVipLink && !isAuthenticated) return null;
     return (
       <Link
         key={item.href}
@@ -86,6 +86,14 @@ export function Header() {
           </Link>
         </DropdownMenuItem>
       )}
+      {user?.roles?.includes('admin') && (
+        <DropdownMenuItem asChild>
+          <Link href="/admin" className="flex items-center font-semibold text-primary">
+            <LayoutDashboard className="mr-2 h-4 w-4" />
+            Admin Panel
+          </Link>
+        </DropdownMenuItem>
+      )}
       <DropdownMenuSeparator />
       <DropdownMenuItem onClick={logout}>
         <LogOut className="mr-2 h-4 w-4" />
@@ -96,80 +104,92 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/60 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container-wide flex h-20 items-center">
-        {/* Mobile Menu Trigger */}
-        <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
-          <SheetTrigger asChild>
-            <Button variant="ghost" size="icon" className="md:hidden mr-2 h-16 w-16">
-              <Icons.AnimatedMenuIcon className="h-8 w-8" />
-              <span className="sr-only">Toggle Menu</span>
-            </Button>
-          </SheetTrigger>
-          <SheetContent side="left" className="w-full max-w-xs sm:max-w-sm bg-background p-0">
-             <SheetHeader className="p-6 pb-0 border-b">
-                <SheetTitle className="sr-only">Main Menu</SheetTitle> 
-                 <Link href="/" className="mb-4 flex items-center gap-2 self-start" onClick={() => setIsMobileMenuOpen(false)}>
-                    <Icons.Logo className="h-7 w-7 text-primary" />
-                    <span className="font-bold text-lg text-foreground">Peak Pulse</span>
-                </Link>
-            </SheetHeader>
-            <div className="p-6">
-              <nav className="flex flex-col space-y-5">
-                {navLinks}
-                {isAuthenticated && (
-                  <div className="pt-4 border-t border-border/60">
-                    <p className="text-sm font-medium text-muted-foreground mb-2">My Account</p>
-                    {userNavItems.map(item => (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        className="flex items-center py-2 text-sm font-medium text-foreground/80 hover:text-primary header-link-pulse"
-                        onClick={() => setIsMobileMenuOpen(false)}
-                      >
-                        {item.icon && <item.icon className="mr-2 h-4 w-4" />}
-                        {item.title}
-                      </Link>
-                    ))}
-                    {user?.roles?.includes('affiliate') && (
-                      <Link
-                        href="/account/affiliate-portal"
-                        className="flex items-center py-2 text-sm font-medium text-foreground/80 hover:text-primary header-link-pulse"
-                        onClick={() => setIsMobileMenuOpen(false)}
-                      >
-                         <Briefcase className="mr-2 h-4 w-4" />
-                         Affiliate Portal
-                      </Link>
-                    )}
-                    <Button variant="ghost" onClick={() => { logout(); setIsMobileMenuOpen(false); }} className="w-full justify-start mt-2 px-0">
-                      <LogOut className="mr-2 h-4 w-4" /> Log out
+      <div className="container-wide flex h-20 items-center justify-between"> {/* Changed to justify-between */}
+        {/* Left Group: Mobile Menu Trigger & Desktop Logo */}
+        <div className="flex items-center">
+          <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
+            <SheetTrigger asChild>
+              <Button variant="ghost" size="icon" className="md:hidden mr-2 h-16 w-16">
+                <Icons.AnimatedMenuIcon className="h-8 w-8" />
+                <span className="sr-only">Toggle Menu</span>
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="left" className="w-full max-w-xs sm:max-w-sm bg-background p-0">
+              <SheetHeader className="p-6 pb-2 border-b mb-2">
+                  <SheetTitle className="sr-only">Main Navigation Menu</SheetTitle>
+                  <Link href="/" className="mb-4 flex items-center gap-2 self-start" onClick={() => setIsMobileMenuOpen(false)}>
+                      <Icons.Logo className="h-7 w-7 text-primary" />
+                      <span className="font-bold text-lg text-foreground">Peak Pulse</span>
+                  </Link>
+              </SheetHeader>
+              <div className="p-6">
+                <nav className="flex flex-col space-y-5">
+                  {navLinks}
+                  {isAuthenticated && (
+                    <div className="pt-4 border-t border-border/60">
+                      <p className="text-sm font-medium text-muted-foreground mb-2">My Account</p>
+                      {userNavItems.map(item => (
+                        <Link
+                          key={item.href}
+                          href={item.href}
+                          className="flex items-center py-2 text-sm font-medium text-foreground/80 hover:text-primary header-link-pulse"
+                          onClick={() => setIsMobileMenuOpen(false)}
+                        >
+                          {item.icon && <item.icon className="mr-2 h-4 w-4" />}
+                          {item.title}
+                        </Link>
+                      ))}
+                      {user?.roles?.includes('affiliate') && (
+                        <Link
+                          href="/account/affiliate-portal"
+                          className="flex items-center py-2 text-sm font-medium text-foreground/80 hover:text-primary header-link-pulse"
+                          onClick={() => setIsMobileMenuOpen(false)}
+                        >
+                           <Briefcase className="mr-2 h-4 w-4" />
+                           Affiliate Portal
+                        </Link>
+                      )}
+                       {user?.roles?.includes('admin') && (
+                        <Link
+                          href="/admin"
+                          className="flex items-center py-2 text-sm font-medium text-primary hover:text-primary/80 header-link-pulse font-semibold"
+                          onClick={() => setIsMobileMenuOpen(false)}
+                        >
+                          <LayoutDashboard className="mr-2 h-4 w-4" />
+                          Admin Panel
+                        </Link>
+                      )}
+                      <Button variant="ghost" onClick={() => { logout(); setIsMobileMenuOpen(false); }} className="w-full justify-start mt-2 px-0 text-foreground/80 hover:text-primary">
+                        <LogOut className="mr-2 h-4 w-4" /> Log out
+                      </Button>
+                    </div>
+                  )}
+                  {!isAuthenticated && (
+                    <Button asChild className="mt-6 w-full" onClick={() => setIsMobileMenuOpen(false)}>
+                      <Link href="/login">Sign In</Link>
                     </Button>
-                  </div>
-                )}
-                {!isAuthenticated && (
-                  <Button asChild className="mt-6 w-full" onClick={() => setIsMobileMenuOpen(false)}>
-                    <Link href="/login">Sign In</Link>
-                  </Button>
-                )}
-              </nav>
-            </div>
-          </SheetContent>
-        </Sheet>
+                  )}
+                </nav>
+              </div>
+            </SheetContent>
+          </Sheet>
 
-        {/* Desktop Logo */}
-        <Link href="/" className="mr-6 lg:mr-8 flex items-center space-x-2">
-          <Icons.Logo className="h-8 w-8 text-primary" />
-          <span className="hidden lg:inline-block font-semibold text-xl text-foreground">
-            Peak Pulse
-          </span>
-        </Link>
+          <Link href="/" className="flex items-center space-x-2"> {/* Removed mr-6 lg:mr-8 for better balance with justify-between */}
+            <Icons.Logo className="h-8 w-8 text-primary" />
+            <span className="hidden lg:inline-block font-semibold text-xl text-foreground">
+              Peak Pulse
+            </span>
+          </Link>
+        </div>
 
-        {/* Desktop Navigation */}
+        {/* Center Group: Desktop Navigation */}
         <nav className="hidden md:flex items-center space-x-4 lg:space-x-6 text-sm font-medium">
           {navLinks}
         </nav>
 
-        <div className="flex flex-1 items-center justify-end space-x-2 md:space-x-3">
-          <Button variant="ghost" size="icon" className="hidden md:inline-flex">
+        {/* Right Group: Actions */}
+        <div className="flex items-center space-x-2 md:space-x-3"> {/* Removed flex-1 */}
+          <Button variant="ghost" size="icon" className="hidden md:inline-flex"> {/* Kept hidden md:inline-flex for search */}
             <Search className="h-5 w-5" />
             <span className="sr-only">Search</span>
           </Button>
@@ -221,3 +241,5 @@ export function Header() {
     </header>
   );
 }
+
+    
