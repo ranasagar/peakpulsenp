@@ -17,7 +17,7 @@ export interface AdminCategory {
   imageUrl?: string;
   aiImagePrompt?: string;
   parentId?: string | null;
-  displayOrder?: number; // Added for sorting
+  displayOrder?: number;
   createdAt?: string; // ISO string
   updatedAt?: string; // ISO string
 }
@@ -66,29 +66,27 @@ export interface ProductCustomizationConfig {
   instructionsLabel?: string;
 }
 
-// Represents a review image uploaded by a user
 export interface ReviewImageItem {
-  id: string; // Could be a generated ID or filename
+  id: string;
   url: string;
-  altText?: string; // Optional alt text provided by user
+  altText?: string;
 }
 
-// Represents a product review
 export interface Review {
-  id: string; // UUID from Supabase
-  product_id: string; // Foreign key to products table
-  product_name?: string; // Joined from products table for display in admin
-  user_id: string; // Firebase UID, foreign key to users table
-  user_name?: string; // Joined from users table for display
-  user_avatar_url?: string; // Joined from users table for display
-  rating: number; // 1-5
+  id: string;
+  product_id: string;
+  product_name?: string;
+  user_id: string;
+  user_name?: string;
+  user_avatar_url?: string;
+  rating: number;
   title?: string | null;
   comment: string;
-  images?: ReviewImageItem[] | null; // Array of image objects (JSONB in Supabase)
+  images?: ReviewImageItem[] | null;
   status: 'pending' | 'approved' | 'rejected';
   verified_purchase?: boolean;
-  createdAt: string; // ISO string (timestamptz)
-  updatedAt: string; // ISO string (timestamptz)
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface Product {
@@ -102,7 +100,7 @@ export interface Product {
   costPrice?: number | null;
   images: ProductImage[];
   variants?: ProductVariant[];
-  categories: Pick<AdminCategory, 'id' | 'name' | 'slug'>[]; // Product stores a simplified version for linking
+  categories: Pick<AdminCategory, 'id' | 'name' | 'slug'>[];
   collections?: Pick<Collection, 'id' | 'name' | 'slug'>[];
   tags?: string[];
   fabricDetails?: string;
@@ -110,15 +108,15 @@ export interface Product {
   sustainabilityMetrics?: string;
   fitGuide?: string;
   sku?: string;
-  stock?: number | null; // Base stock if no variants, otherwise sum of variant stocks
+  stock?: number | null;
   averageRating?: number;
   reviewCount?: number;
   isFeatured?: boolean;
   availablePrintDesigns?: PrintDesign[];
   customizationConfig?: ProductCustomizationConfig;
-  reviews?: Review[]; // For frontend display, fetched separately
-  createdAt: string; // ISO string
-  updatedAt: string; // ISO string
+  reviews?: Review[];
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface CartItemCustomization {
@@ -133,7 +131,7 @@ export interface CartItemCustomization {
 }
 
 export interface CartItem {
-  id: string; // Unique ID for the cart item (product.id + variant.id + customizationHash)
+  id: string;
   productId: string;
   slug?: string;
   variantId?: string;
@@ -149,7 +147,7 @@ export interface CartItem {
 export interface OrderAddress {
   street: string;
   city: string;
-  state?: string; // Or region/province
+  state?: string;
   postalCode: string;
   country: string;
   fullName: string;
@@ -164,33 +162,33 @@ export const ALL_PAYMENT_STATUSES = ['Pending', 'Paid', 'Failed', 'Refunded'] as
 export type PaymentStatus = typeof ALL_PAYMENT_STATUSES[number];
 
 export interface Order {
-  id: string; // Supabase UUID
-  userId: string; // Firebase UID, TEXT in Supabase users table
-  items: CartItem[]; // Stored as JSONB, each item should include its costPrice at time of sale
-  totalAmount: number; // Numeric
-  currency: string; // Text
-  status: OrderStatus; // Text
-  shippingAddress: OrderAddress; // Stored as JSONB
-  paymentMethod?: string; // Text
-  paymentStatus: PaymentStatus; // Text
-  shippingMethod?: string; // Text
-  trackingNumber?: string; // Text
-  createdAt: string; // Timestamptz
-  updatedAt: string; // Timestamptz
+  id: string;
+  userId: string;
+  items: CartItem[];
+  totalAmount: number;
+  currency: string;
+  status: OrderStatus;
+  shippingAddress: OrderAddress;
+  paymentMethod?: string;
+  paymentStatus: PaymentStatus;
+  shippingMethod?: string;
+  trackingNumber?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface Loan {
-  id: string; // Supabase UUID
+  id: string;
   loan_name: string;
   lender_name: string;
   principal_amount: number;
   interest_rate: number;
   loan_term_months: number;
-  start_date: string; // YYYY-MM-DD
-  status: string; // e.g., 'Active', 'Paid Off', 'Pending', 'Defaulted', 'Restructured'
+  start_date: string;
+  status: string;
   notes?: string;
-  createdAt?: string; // ISO string from Supabase
-  updatedAt?: string; // ISO string from Supabase
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface NavItem {
@@ -231,7 +229,14 @@ export interface SocialCommerceItem {
   linkUrl: string;
   altText?: string;
   dataAiHint?: string;
-  displayOrder?: number; // Added for sorting
+  displayOrder?: number;
+}
+
+export interface ArtisanalRootsSlide {
+  id: string;
+  imageUrl: string;
+  altText?: string;
+  dataAiHint?: string;
 }
 
 export interface HomepageContent {
@@ -241,6 +246,7 @@ export interface HomepageContent {
   artisanalRoots?: {
     title: string;
     description: string;
+    slides?: ArtisanalRootsSlide[]; // Added slides for artisanal roots
   };
   socialCommerceItems?: SocialCommerceItem[];
   error?: string;
@@ -264,7 +270,6 @@ export interface OurStoryContentData {
   joinJourneySection?: OurStorySection;
   error?: string;
 }
-
 
 export interface UserPost {
   id: string;
@@ -332,7 +337,6 @@ export interface FilterOption {
   step?: number;
 }
 
-
 export interface CartContextType {
   cartItems: CartItem[];
   cartItemCount: number;
@@ -361,7 +365,7 @@ export interface DesignCollaborationCategory {
 }
 
 export interface GalleryImageItem {
-  id: string; // Can be a temporary client-side ID or a persistent one if stored separately
+  id: string;
   url: string;
   altText?: string;
   dataAiHint?: string;
@@ -403,15 +407,15 @@ export interface PrintOnDemandDesign {
 }
 
 export interface CollaborationApplication {
-  id?: string; // UUID from Supabase, optional on create
-  user_id?: string | null; // Firebase UID if submitted by logged-in user
+  id?: string;
+  user_id?: string | null;
   name: string;
   email: string;
   portfolio_link?: string | null;
   concept_description: string;
-  collaboration_category_id?: string | null; // Foreign key to design_collaboration_categories
-  status?: 'pending' | 'reviewed' | 'contacted' | 'approved' | 'rejected'; // Default 'pending'
+  collaboration_category_id?: string | null;
+  status?: 'pending' | 'reviewed' | 'contacted' | 'approved' | 'rejected';
   admin_notes?: string | null;
-  submitted_at?: string; // ISO string, default now()
-  updated_at?: string; // ISO string, default/trigger now()
+  submitted_at?: string;
+  updated_at?: string;
 }
