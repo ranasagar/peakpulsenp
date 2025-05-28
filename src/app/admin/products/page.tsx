@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react'; // Added useMemo
 import { useForm, useFieldArray, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Save, PlusCircle, Trash2, Edit, XCircle, Paintbrush, Package, Tags } from 'lucide-react'; // Added Tags
+import { Loader2, Save, PlusCircle, Trash2, Edit, XCircle, Paintbrush, Package, Tags } from 'lucide-react';
 import type { Product, ProductImage, Category as ProductCategoryType, ProductVariant, PrintDesign, ProductCustomizationConfig, AdminCategory } from '@/types';
 import {
   Dialog,
@@ -25,6 +25,8 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Checkbox } from '@/components/ui/checkbox';
 import Image from 'next/image';
+import Link from 'next/link';
+
 
 const imageSchema = z.object({
   id: z.string().optional(),
@@ -33,7 +35,7 @@ const imageSchema = z.object({
   dataAiHint: z.string().optional(),
 });
 
-const categorySchemaForProduct = z.object({ // Used within product schema
+const categorySchemaForProduct = z.object({
   id: z.string().min(1, "Category ID is required."),
   name: z.string().min(1, "Category name is required."),
   slug: z.string().min(1, "Category slug is required."),
@@ -51,7 +53,7 @@ const variantSchema = z.object({
 });
 
 const printDesignSchema = z.object({
-  id: z.string().optional(),
+  id: z.string().optional(), // Should be UUID if coming from DB, or generated
   name: z.string().min(1, "Design name is required."),
   imageUrl: z.string().url("Invalid image URL for design.").min(1, "Design image URL is required."),
   dataAiHint: z.string().optional(),
@@ -70,7 +72,7 @@ const productCustomizationConfigSchema = z.object({
 
 const productFormSchema = z.object({
   id: z.string().optional(),
-  name: z.string().min(1, "Product name is required.").default("Untitled Product " + Date.now()),
+  name: z.string().min(1, "Product name is required.").default("Untitled Product"),
   slug: z.string().min(1, "Slug is required.").regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Slug must be lowercase alphanumeric with hyphens.").optional().or(z.literal('')),
   price: z.coerce.number().min(0, "Price must be a positive number."),
   compareAtPrice: z.coerce.number().min(0, "Compare at price must be non-negative.").optional().nullable(),
@@ -105,7 +107,6 @@ const defaultCustomizationConfig: ProductCustomizationConfig = {
   instructionsLabel: 'Specific Instructions (Placement, Colors, etc.)',
 };
 
-
 export default function AdminProductsPage() {
   const { toast } = useToast();
   const [products, setProducts] = useState<Product[]>([]);
@@ -113,17 +114,15 @@ export default function AdminProductsPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
-
   const [availableCategories, setAvailableCategories] = useState<AdminCategory[]>([]);
   const [isLoadingCategories, setIsLoadingCategories] = useState(false);
-
 
   const form = useForm<ProductFormValues>({
     resolver: zodResolver(productFormSchema),
     defaultValues: {
       name: '', slug: '', price: 0, compareAtPrice: undefined, costPrice: undefined, stock: 0, shortDescription: '', description: '',
       images: [{...defaultImage, id: `img-${Date.now()}`}],
-      categories: [], // Will be populated from selection
+      categories: [],
       isFeatured: false,
       fabricDetails: '', careInstructions: '', sustainabilityMetrics: '', fitGuide: '',
       variants: [],
@@ -139,7 +138,7 @@ export default function AdminProductsPage() {
   const fetchProducts = useCallback(async () => {
     setIsLoading(true);
     try {
-      const response = await fetch('/api/admin/products'); // Uses Supabase
+      const response = await fetch('/api/admin/products');
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.message || errorData.rawSupabaseError?.message || `Failed to fetch products: ${response.statusText}`);
@@ -156,10 +155,8 @@ export default function AdminProductsPage() {
   const fetchAvailableCategories = useCallback(async () => {
     setIsLoadingCategories(true);
     try {
-      const response = await fetch('/api/categories'); // Public API, fetches from Supabase
-      if (!response.ok) {
-        throw new Error("Failed to fetch available categories");
-      }
+      const response = await fetch('/api/categories');
+      if (!response.ok) throw new Error("Failed to fetch available categories");
       const data: AdminCategory[] = await response.json();
       setAvailableCategories(data);
     } catch (error) {
@@ -170,22 +167,19 @@ export default function AdminProductsPage() {
     }
   }, [toast]);
 
-
   useEffect(() => {
     fetchProducts();
   }, [fetchProducts]);
 
   const handleOpenFormDialog = async () => {
-    await fetchAvailableCategories(); // Fetch categories when dialog is about to open
+    await fetchAvailableCategories();
     setIsFormOpen(true);
   };
 
   const handleEdit = (product: Product) => {
     setEditingProduct(product);
     const productCategoriesForForm = product.categories.map(cat => ({
-        id: cat.id,
-        name: cat.name,
-        slug: cat.slug
+        id: cat.id, name: cat.name, slug: cat.slug
     }));
     form.reset({
       id: product.id,
@@ -197,15 +191,15 @@ export default function AdminProductsPage() {
       stock: product.variants && product.variants.length > 0 ? null : (product.stock === undefined ? null : product.stock),
       shortDescription: product.shortDescription || '',
       description: product.description,
-      images: product.images.length > 0 ? product.images.map(img => ({ ...defaultImage, ...img })) : [{...defaultImage, id: `img-${Date.now()}`}],
+      images: product.images.length > 0 ? product.images.map(img => ({ ...defaultImage, ...img, id: img.id || `img-loaded-${Date.now()}` })) : [{...defaultImage, id: `img-${Date.now()}`}],
       categories: productCategoriesForForm,
       isFeatured: product.isFeatured || false,
       fabricDetails: product.fabricDetails || '',
       careInstructions: product.careInstructions || '',
       sustainabilityMetrics: product.sustainabilityMetrics || '',
       fitGuide: product.fitGuide || '',
-      variants: product.variants ? product.variants.map(v => ({...defaultVariant, ...v, costPrice: v.costPrice === undefined ? null : v.costPrice })) : [],
-      availablePrintDesigns: product.availablePrintDesigns ? product.availablePrintDesigns.map(d => ({...defaultPrintDesign, ...d, id: d.id || `design-${Date.now()}`})) : [],
+      variants: product.variants ? product.variants.map(v => ({...defaultVariant, ...v, id: v.id || `var-loaded-${Date.now()}`, costPrice: v.costPrice === undefined ? null : v.costPrice })) : [],
+      availablePrintDesigns: product.availablePrintDesigns ? product.availablePrintDesigns.map(d => ({...defaultPrintDesign, ...d, id: d.id || `design-loaded-${Date.now()}`})) : [],
       customizationConfig: product.customizationConfig ? {...defaultCustomizationConfig, ...product.customizationConfig} : {...defaultCustomizationConfig},
     });
     handleOpenFormDialog();
@@ -213,9 +207,11 @@ export default function AdminProductsPage() {
 
   const handleAddNew = () => {
     setEditingProduct(null);
+    const newProductName = `Untitled Product ${Date.now()}`;
     form.reset({
-      name: "Untitled Product " + Date.now(), // Default name
-      slug: '', price: 0, compareAtPrice: null, costPrice: null, stock: 0, shortDescription: '', description: '',
+      name: newProductName,
+      slug: '', // Let API generate slug
+      price: 0, compareAtPrice: null, costPrice: null, stock: 0, shortDescription: '', description: '',
       images: [{...defaultImage, id: `img-${Date.now()}`}],
       categories: [],
       isFeatured: false,
@@ -231,7 +227,7 @@ export default function AdminProductsPage() {
     setIsSaving(true);
     try {
       const payload = { ...data, id: editingProduct?.id };
-      const response = await fetch('/api/admin/products', { // Uses Supabase
+      const response = await fetch('/api/admin/products', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -331,8 +327,8 @@ export default function AdminProductsPage() {
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap text-sm text-foreground">रू{product.price.toLocaleString()}</td>
                       <td className="px-4 py-3 whitespace-nowrap text-sm text-muted-foreground hidden md:table-cell">
-                        {product.variants && product.variants.length > 0 
-                           ? product.variants.reduce((sum, v) => sum + (v.stock || 0), 0) 
+                        {product.variants && product.variants.length > 0
+                           ? product.variants.reduce((sum, v) => sum + (v.stock || 0), 0)
                            : (product.stock ?? 'N/A')}
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap text-sm text-muted-foreground hidden lg:table-cell">{product.isFeatured ? 'Yes' : 'No'}</td>
@@ -361,7 +357,7 @@ export default function AdminProductsPage() {
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                 <fieldset className="space-y-4 p-4 border rounded-md">
-                  <legend className="text-lg font-semibold px-1 -mt-7 bg-background">Basic Information</legend>
+                  <legend className="text-lg font-semibold px-1 -mt-7 bg-card">Basic Information</legend>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <FormField control={form.control} name="name" render={({ field }) => (
                       <FormItem><FormLabel>Name*</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
@@ -384,19 +380,19 @@ export default function AdminProductsPage() {
 
                   {!hasVariants && (
                        <FormField control={form.control} name="stock" render={({ field }) => (
-                          <FormItem><FormLabel>Base Stock (if no variants)</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? 0} onChange={e => field.onChange(e.target.value === '' ? 0 : parseInt(e.target.value, 10))} /></FormControl><FormMessage /></FormItem>
+                          <FormItem><FormLabel>Base Stock (if no variants)</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? 0} onChange={e => field.onChange(e.target.value === '' ? null : parseInt(e.target.value, 10))} /></FormControl><FormMessage /></FormItem>
                       )} />
                   )}
                    <FormField control={form.control} name="isFeatured" render={({ field }) => (
                       <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-3 shadow-sm">
-                          <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                          <FormControl><Checkbox checked={!!field.value} onCheckedChange={field.onChange} /></FormControl>
                           <FormLabel className="font-normal mb-0! pt-0!">Mark as Featured Product</FormLabel>
                       </FormItem>
                     )} />
                 </fieldset>
 
                 <fieldset className="space-y-4 p-4 border rounded-md">
-                  <legend className="text-lg font-semibold px-1 -mt-7 bg-background">Descriptions</legend>
+                  <legend className="text-lg font-semibold px-1 -mt-7 bg-card">Descriptions</legend>
                   <FormField control={form.control} name="shortDescription" render={({ field }) => (
                     <FormItem><FormLabel>Short Description</FormLabel><FormControl><Textarea {...field} rows={2} /></FormControl><FormMessage /></FormItem>
                   )} />
@@ -406,7 +402,7 @@ export default function AdminProductsPage() {
                 </fieldset>
 
                 <fieldset className="space-y-3 p-4 border rounded-md">
-                  <legend className="text-lg font-semibold px-1 -mt-7 bg-background">Images (First image is main)</legend>
+                  <legend className="text-lg font-semibold px-1 -mt-7 bg-card">Images (First image is main)</legend>
                   {imagesFields.map((field, index) => (
                     <Card key={field.id} className="p-3 space-y-2 bg-muted/30">
                       <FormLabel className="text-sm">Image {index + 1}</FormLabel>
@@ -433,7 +429,7 @@ export default function AdminProductsPage() {
                 </fieldset>
 
                 <fieldset className="space-y-3 p-4 border rounded-md">
-                    <legend className="text-lg font-semibold px-1 -mt-7 bg-background flex items-center"><Tags className="mr-2 h-5 w-5 text-primary" />Select Product Categories*</legend>
+                    <legend className="text-lg font-semibold px-1 -mt-7 bg-card flex items-center"><Tags className="mr-2 h-5 w-5 text-primary" />Select Product Categories*</legend>
                     {isLoadingCategories ? <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /> :
                       availableCategories.length > 0 ? (
                         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 max-h-48 overflow-y-auto p-1 border rounded-md">
@@ -441,8 +437,8 @@ export default function AdminProductsPage() {
                             <FormField
                               key={category.id}
                               control={form.control}
-                              name="categories"
-                              render={() => ( // We handle value via form.setValue, so field isn't directly used here
+                              name="categories" // This name needs to be handled correctly
+                              render={() => (
                                 <FormItem className="flex flex-row items-center space-x-2 space-y-0">
                                   <FormControl>
                                     <Checkbox
@@ -468,7 +464,7 @@ export default function AdminProductsPage() {
                 </fieldset>
 
                 <fieldset className="space-y-4 p-4 border rounded-md">
-                  <legend className="text-lg font-semibold px-1 -mt-7 bg-background">Additional Details</legend>
+                  <legend className="text-lg font-semibold px-1 -mt-7 bg-card">Additional Details</legend>
                   <FormField control={form.control} name="fabricDetails" render={({ field }) => (
                     <FormItem><FormLabel>Fabric Details</FormLabel><FormControl><Textarea {...field} rows={2} /></FormControl><FormMessage /></FormItem>
                   )} />
@@ -484,7 +480,7 @@ export default function AdminProductsPage() {
                 </fieldset>
 
                 <fieldset className="space-y-3 p-4 border rounded-md">
-                  <legend className="text-lg font-semibold px-1 -mt-7 bg-background">Variants (Optional)</legend>
+                  <legend className="text-lg font-semibold px-1 -mt-7 bg-card">Variants (Optional)</legend>
                   {variantsFields.map((field, index) => (
                     <Card key={field.id} className="p-3 space-y-2 bg-muted/30">
                       <FormLabel className="text-sm">Variant {index + 1}</FormLabel>
@@ -519,7 +515,7 @@ export default function AdminProductsPage() {
                 </fieldset>
 
                 <fieldset className="space-y-4 p-4 border rounded-md">
-                    <legend className="text-lg font-semibold px-1 -mt-7 bg-background flex items-center"><Paintbrush className="mr-2 h-5 w-5 text-primary"/>Product Customization Options</legend>
+                    <legend className="text-lg font-semibold px-1 -mt-7 bg-card flex items-center"><Paintbrush className="mr-2 h-5 w-5 text-primary"/>Product Customization Options</legend>
                      <FormField
                         control={form.control}
                         name="customizationConfig.enabled"
@@ -550,7 +546,7 @@ export default function AdminProductsPage() {
                             {form.watch("customizationConfig.allowPredefinedDesigns") && (
                                 <FormField control={form.control} name="customizationConfig.predefinedDesignsLabel" render={({ field }) => (
                                     <FormItem className="ml-6">
-                                        <FormLabel>Label for &apos;Signature Peak Design&apos; Section</FormLabel>
+                                        <FormLabel>Label for 'Signature Peak Design' Section</FormLabel>
                                         <FormControl><Input {...field} /></FormControl>
                                         <FormDescription>This is the title shown above the selectable predefined designs on the product page (e.g., &quot;Choose a Signature Peak Design&quot;).</FormDescription>
                                         <FormMessage />
@@ -595,7 +591,7 @@ export default function AdminProductsPage() {
 
                 {customizationEnabled && form.watch("customizationConfig.allowPredefinedDesigns") && (
                     <fieldset className="space-y-3 p-4 border rounded-md">
-                        <legend className="text-lg font-semibold px-1 -mt-7 bg-background">Available Predefined Print Designs</legend>
+                        <legend className="text-lg font-semibold px-1 -mt-7 bg-card">Available Predefined Print Designs</legend>
                         {printDesignsFields.map((field, index) => (
                             <Card key={field.id} className="p-3 space-y-2 bg-muted/30">
                               <FormLabel className="text-sm">Design {index + 1}</FormLabel>
@@ -638,6 +634,5 @@ export default function AdminProductsPage() {
     </div>
   );
 }
-
 
     
