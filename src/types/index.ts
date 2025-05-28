@@ -1,4 +1,3 @@
-
 import type { LucideIcon } from 'lucide-react';
 
 export interface User {
@@ -77,14 +76,14 @@ export interface ReviewImageItem {
 export interface Review {
   id: string; // UUID from Supabase
   product_id: string; // Foreign key to products table
-  product_name?: string; // Joined from products table for display
+  product_name?: string; // Joined from products table for display in admin
   user_id: string; // Firebase UID, foreign key to users table
   user_name?: string; // Joined from users table for display
   user_avatar_url?: string; // Joined from users table for display
   rating: number; // 1-5
-  title?: string;
+  title?: string | null;
   comment: string;
-  images?: ReviewImageItem[]; // Array of image objects (JSONB in Supabase)
+  images?: ReviewImageItem[] | null; // Array of image objects (JSONB in Supabase)
   status: 'pending' | 'approved' | 'rejected';
   verified_purchase?: boolean;
   createdAt: string; // ISO string (timestamptz)
@@ -235,21 +234,21 @@ export interface SocialCommerceItem {
 
 export interface HomepageContent {
   heroSlides?: HeroSlide[];
-  heroVideoId?: string; // Standalone fallback
-  heroImageUrl?: string; // Standalone fallback
+  heroVideoId?: string;
+  heroImageUrl?: string;
   artisanalRoots?: {
     title: string;
     description: string;
   };
   socialCommerceItems?: SocialCommerceItem[];
-  error?: string; // For client-side error reporting if API fails
+  error?: string;
 }
 
 export interface OurStorySection {
   title?: string;
-  description?: string; // For Hero, Join Journey
-  paragraph1?: string; // For Mission, Craftsmanship
-  paragraph2?: string; // For Mission, Craftsmanship
+  description?: string;
+  paragraph1?: string;
+  paragraph2?: string;
   imageUrl?: string;
   imageAltText?: string;
   imageAiHint?: string;
@@ -259,23 +258,23 @@ export interface OurStoryContentData {
   hero?: OurStorySection;
   mission?: OurStorySection;
   craftsmanship?: OurStorySection;
-  valuesSection?: OurStorySection; // Might just be a title for a list of values
+  valuesSection?: OurStorySection;
   joinJourneySection?: OurStorySection;
-  error?: string; // For client-side error reporting if API fails
+  error?: string;
 }
 
 
 export interface UserPost {
-  id: string; // Supabase UUID
-  user_id: string; // Firebase UID (TEXT in Supabase)
-  user_name?: string; // Joined from users table
-  user_avatar_url?: string; // Joined from users table
+  id: string;
+  user_id: string;
+  user_name?: string;
+  user_avatar_url?: string;
   image_url: string;
   caption?: string;
   product_tags?: string[];
   status: 'pending' | 'approved' | 'rejected';
-  created_at: string; // Timestamptz
-  updated_at: string; // Timestamptz
+  created_at: string;
+  updated_at: string;
 }
 
 export interface SocialLink {
@@ -307,28 +306,28 @@ export interface SiteSettings {
   storeEmail: string;
   storePhone?: string;
   storeAddress?: string;
-  socialLinks?: SocialLink[]; // Managed via footerContent now, but type retained for consistency
+  socialLinks?: SocialLink[];
 }
 
-export interface PageContent { // For generic static pages like Privacy Policy, Terms, etc.
+export interface PageContent {
   content: string;
-  error?: string; // For client-side error reporting
+  error?: string;
 }
 
 export interface FilterOptionValue {
   value: string;
   label: string;
-  color?: string; // For color swatches
+  color?: string;
 }
 
 export interface FilterOption {
-  id: string; // e.g., 'category', 'size', 'color', 'price'
+  id: string;
   label: string;
   type: 'checkbox' | 'radio' | 'range' | 'color';
-  options?: FilterOptionValue[]; // For checkbox, radio, color
-  min?: number; // For range
-  max?: number; // For range
-  step?: number; // For range
+  options?: FilterOptionValue[];
+  min?: number;
+  max?: number;
+  step?: number;
 }
 
 
@@ -348,7 +347,6 @@ export interface BreadcrumbItem {
   href?: string;
 }
 
-// New Types for Design Collaborations
 export interface DesignCollaborationCategory {
   id: string;
   name: string;
@@ -374,14 +372,14 @@ export interface DesignCollaborationGallery {
   slug: string;
   description?: string;
   category_id?: string | null;
-  category_name?: string; // For display, joined in API
+  category_name?: string;
   cover_image_url?: string;
   ai_cover_image_prompt?: string;
   artist_name?: string;
   artist_statement?: string;
-  gallery_images?: GalleryImageItem[]; // Stored as JSONB
+  gallery_images?: GalleryImageItem[];
   is_published?: boolean;
-  collaboration_date?: string; // YYYY-MM-DD
+  collaboration_date?: string;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -396,10 +394,8 @@ export interface PrintOnDemandDesign {
   price: number;
   is_for_sale?: boolean;
   sku?: string;
-  collaboration_id?: string | null; // Optional link to a DesignCollaborationGallery
-  collaboration_title?: string; // For display
+  collaboration_id?: string | null;
+  collaboration_title?: string;
   createdAt?: string;
   updatedAt?: string;
 }
-
-    
