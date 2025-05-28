@@ -1,3 +1,4 @@
+
 // /src/app/collaborations/[slug]/page.tsx
 "use client";
 
@@ -14,13 +15,16 @@ import { formatDisplayDate } from '@/lib/dateUtils';
 import { Breadcrumbs } from '@/components/navigation/breadcrumbs';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface CollaborationDetailPageProps {
-  params: { slug: string };
+  params: { slug: string } | Promise<{ slug: string }>;
 }
 
-export default function CollaborationDetailPage({ params }: CollaborationDetailPageProps) {
+export default function CollaborationDetailPage({ params: paramsPromise }: CollaborationDetailPageProps) {
+  const params = React.use(paramsPromise as Promise<{ slug: string }>); // Resolve the params promise
   const { slug } = params;
+  
   const [gallery, setGallery] = useState<DesignCollaborationGallery | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
