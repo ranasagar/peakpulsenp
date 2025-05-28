@@ -6,7 +6,7 @@ import type { DesignCollaborationGallery } from '@/types';
 
 export const dynamic = 'force-dynamic';
 
-// GET a single design collaboration (for admin editing or detailed view if needed)
+// GET a single design collaboration
 export async function GET(
   request: NextRequest,
   { params }: { params: { collaborationId: string } }
@@ -27,10 +27,7 @@ export async function GET(
   try {
     const { data, error } = await clientToUse
       .from('design_collaborations')
-      .select(`
-        *,
-        category:design_collaboration_categories (id, name, slug)
-      `)
+      .select('*, category:design_collaboration_categories (id, name, slug)')
       .eq('id', collaborationId)
       .single();
 
@@ -129,8 +126,7 @@ export async function PUT(
   if (body.hasOwnProperty('is_published')) galleryToUpdate.is_published = body.is_published === undefined ? false : body.is_published;
   if (body.hasOwnProperty('collaboration_date')) galleryToUpdate.collaboration_date = body.collaboration_date?.trim() || null;
   
-  // Rely on database trigger for "updatedAt"
-  // The problematic line galleryToUpdate."updatedAt" = ... has been removed.
+  // The database trigger handles "updatedAt"
 
   if (Object.keys(galleryToUpdate).length === 0) {
     return NextResponse.json({ message: 'No valid fields provided for update.' }, { status: 400 });
@@ -142,7 +138,7 @@ export async function PUT(
       .from('design_collaborations')
       .update(galleryToUpdate)
       .eq('id', collaborationId)
-      .select(`*, category:design_collaboration_categories (id, name, slug)`)
+      .select('*, category:design_collaboration_categories (id, name, slug)')
       .single();
 
     if (error) {
