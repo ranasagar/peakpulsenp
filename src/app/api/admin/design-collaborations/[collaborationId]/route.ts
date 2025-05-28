@@ -1,7 +1,7 @@
 
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { supabaseAdmin, supabase as fallbackSupabase } from '../../../../../lib/supabaseClient';
+import { supabaseAdmin, supabase as fallbackSupabase } from '../../../../../lib/supabaseClient.ts';
 import type { DesignCollaborationGallery } from '@/types';
 
 export const dynamic = 'force-dynamic';
@@ -53,7 +53,6 @@ export async function GET(
         ...data,
         category_name: data.category?.name || null,
         category_slug: data.category?.slug || null,
-        // Ensure gallery_images is always an array, even if null/undefined from DB
         gallery_images: Array.isArray(data.gallery_images) ? data.gallery_images.map((img: any, index: number) => ({
             id: img.id || `img-loaded-${data.id}-${index}`,
             url: img.url || '',
@@ -77,8 +76,7 @@ export async function PUT(
   { params }: { params: { collaborationId: string } }
 ) {
   const { collaborationId } = params;
-  const clientToUse = supabaseAdmin; // Strictly use admin client for writes
-  const clientTypeForLog = supabaseAdmin ? "ADMIN client (service_role)" : "FALLBACK public client (WARNING: RLS will apply without service_role)";
+  const clientToUse = supabaseAdmin; 
 
   if (!clientToUse) {
     console.error(`[API ADMIN DC PUT /${collaborationId}] CRITICAL: Supabase ADMIN client (service_role) is not initialized. Cannot update. Check SUPABASE_SERVICE_ROLE_KEY.`);
@@ -99,19 +97,16 @@ export async function PUT(
     return NextResponse.json({ message: "Invalid JSON in request body.", errorDetails: jsonError.message }, { status: 400 });
   }
   console.log(`[API ADMIN DC PUT /${collaborationId}] Received body for update:`, JSON.stringify(body).substring(0, 500) + "...");
-  console.log(`[API ADMIN DC PUT /${collaborationId}] Using ${clientTypeForLog}.`);
-
 
   const galleryToUpdate: { [key: string]: any } = {};
   if (body.title !== undefined) galleryToUpdate.title = body.title.trim();
   
   if (body.slug !== undefined && body.slug.trim() !== '') {
     galleryToUpdate.slug = body.slug.trim().toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, '');
-  } else if (body.title !== undefined && body.title.trim() !== '') { // Auto-generate slug from title if slug is empty or not provided
+  } else if (body.title !== undefined && body.title.trim() !== '') { 
     galleryToUpdate.slug = body.title.trim().toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, '');
   }
   
-  // Handle optional fields by setting to null if empty or not provided, to clear them in DB
   if (body.hasOwnProperty('description')) galleryToUpdate.description = body.description?.trim() || null;
   if (body.hasOwnProperty('category_id')) galleryToUpdate.category_id = body.category_id === "__NONE_CATEGORY__" || body.category_id === '' ? null : body.category_id;
   if (body.hasOwnProperty('cover_image_url')) galleryToUpdate.cover_image_url = body.cover_image_url?.trim() || null;
@@ -127,14 +122,15 @@ export async function PUT(
             altText: img.altText?.trim() || null,
             dataAiHint: img.dataAiHint?.trim() || null,
             displayOrder: img.displayOrder === undefined || img.displayOrder === null ? index : Number(img.displayOrder)
-          })).filter(img => img.url) // Filter out images without a URL
+          })).filter(img => img.url) 
         : [];
   }
 
   if (body.hasOwnProperty('is_published')) galleryToUpdate.is_published = body.is_published === undefined ? false : body.is_published;
   if (body.hasOwnProperty('collaboration_date')) galleryToUpdate.collaboration_date = body.collaboration_date?.trim() || null;
   
-  // "updatedAt" will be handled by the database trigger, so no need to set it here.
+  // Rely on database trigger for "updatedAt"
+  // The problematic line galleryToUpdate."updatedAt" = ... has been removed.
 
   if (Object.keys(galleryToUpdate).length === 0) {
     return NextResponse.json({ message: 'No valid fields provided for update.' }, { status: 400 });
@@ -146,12 +142,12 @@ export async function PUT(
       .from('design_collaborations')
       .update(galleryToUpdate)
       .eq('id', collaborationId)
-      .select(`*, category:design_collaboration_categories (id, name, slug)`) // Re-fetch with category details
+      .select(`*, category:design_collaboration_categories (id, name, slug)`)
       .single();
 
     if (error) {
       console.error(`[API ADMIN DC PUT /${collaborationId}] Supabase error updating collaboration:`, error);
-      const status = error.code === 'PGRST116' ? 404 : error.code === '23505' ? 409 : 500; // 23505 is unique_violation
+      const status = error.code === 'PGRST116' ? 404 : error.code === '23505' ? 409 : 500;
       const message = error.code === 'PGRST116' ? 'Collaboration not found for update.' : 
                       error.code === '23505' ? `Update failed: A collaboration with that title or slug may already exist. (${error.details || error.message})` :
                       `Database error updating collaboration: ${error.message}`;
@@ -190,7 +186,7 @@ export async function DELETE(
   { params }: { params: { collaborationId: string } }
 ) {
   const { collaborationId } = params;
-  const clientToDeleteWith = supabaseAdmin; // Strictly use admin client for deletes
+  const clientToDeleteWith = supabaseAdmin; 
 
   if (!clientToDeleteWith) {
     console.error(`[API ADMIN DC DELETE /${collaborationId}] CRITICAL: Supabase ADMIN client (service_role) is not initialized. Cannot delete. Check SUPABASE_SERVICE_ROLE_KEY.`);
@@ -207,7 +203,7 @@ export async function DELETE(
   try {
     const { error, count } = await clientToDeleteWith
       .from('design_collaborations')
-      .delete({ count: 'exact' }) // Request count of deleted rows
+      .delete({ count: 'exact' }) 
       .eq('id', collaborationId);
 
     if (error) {
