@@ -1,20 +1,19 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { BookOpenText, ShoppingBag, BarChart3, ListOrdered, Landmark, Tags, Users, Settings, AlertTriangle, FileText, Palette, ImageIcon as ImageIconLucide, Printer, Home as HomeIcon, ListChecks, DollarSign, FileSpreadsheet, MessageSquare } from 'lucide-react';
+import { BookOpenText, ShoppingBag, BarChart3, ListOrdered, Landmark, Tags, Users, Settings, AlertTriangle, FileText, Home as HomeIcon, ListChecks, DollarSign, FileSpreadsheet, MessageSquare, Palette, ImageIcon as ImageIconLucide, Printer, Package } from 'lucide-react'; // Added Package
 import Link from 'next/link';
-import { supabaseAdmin, supabase as fallbackSupabase } from '@/lib/supabaseClient'; // Use admin client for counts
+import { supabaseAdmin, supabase as fallbackSupabase } from '@/lib/supabaseClient';
 import { Button } from '@/components/ui/button';
 
 async function getSupabaseCount(tableName: string): Promise<string | number> {
-  const client = supabaseAdmin || fallbackSupabase; // Prefer admin client
+  const client = supabaseAdmin || fallbackSupabase;
   if (!client) {
-    const message = supabaseAdmin === null ? 'Supabase ADMIN client (service_role) not available for counting.' : 'Supabase client (public fallback) not available for counting.';
-    console.warn(`[AdminDashboard] ${message} Check .env variables and server restart for table: ${tableName}.`);
+    const message = supabaseAdmin === null ? '[AdminDashboard] Supabase ADMIN client (service_role) not available for counting.' : '[AdminDashboard] Supabase PUBLIC client (fallback) not available for counting.';
+    console.warn(`${message} Check .env variables and server restart for table: ${tableName}.`);
     return 'N/A (DB Client Error)';
   }
   
   try {
-    // console.log(`[AdminDashboard] Counting table: ${tableName} using ${client === supabaseAdmin ? 'ADMIN' : 'PUBLIC'} client.`);
     const { count, error } = await client.from(tableName).select('*', { count: 'exact', head: true });
     if (error) {
       console.error(`[AdminDashboard] Error counting ${tableName} in Supabase:`, error);
@@ -125,12 +124,12 @@ export default async function AdminDashboardPage() {
       <Card className="shadow-lg">
         <CardHeader>
           <CardTitle className="text-2xl">Welcome to the Peak Pulse Admin Dashboard</CardTitle>
-          <CardDescription>Manage your application data and site content configurations from Supabase.</CardDescription>
+          <CardDescription>Manage your application data and site content. Products, Orders, Users, and most configurations are now managed via Supabase.</CardDescription>
         </CardHeader>
         <CardContent>
           <h3 className="text-lg font-semibold mb-4 text-primary">Store Data Overview (from Supabase)</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            <DashboardStatCard title="Products" count={productCount} link="/admin/products" icon={PackageIcon} />
+            <DashboardStatCard title="Products" count={productCount} link="/admin/products" icon={Package} />
             <DashboardStatCard title="Categories" count={categoryCount} link="/admin/categories" icon={Tags} />
             <DashboardStatCard title="Orders" count={orderCount} link="/admin/orders" icon={ListOrdered} />
             <DashboardStatCard title="Users" count={userCount} link="#" icon={Users} note="User management UI pending" />
@@ -146,7 +145,7 @@ export default async function AdminDashboardPage() {
             <ContentStatusCard title="Our Story Content" status={ourStoryContentStatus} link="/admin/content/our-story" icon={BookOpenText}/>
             <ContentStatusCard title="Footer Content" status={footerContentStatus} link="/admin/content/footer" icon={ListChecks}/>
             <ContentStatusCard title="General Settings" status={generalSettingsStatus} link="/admin/settings" icon={Settings}/>
-            <ContentStatusCard title="Site Pages (Privacy, Terms etc.)" status={"Okay"} link="/admin/content/site-pages" icon={FileText} note="Manage multiple pages"/>
+            <ContentStatusCard title="Site Pages (Privacy, Terms etc.)" status={"Okay"} link="/admin/content/site-pages" icon={FileText} note="Manage multiple pages via Supabase"/>
           </div>
         </CardContent>
       </Card>
@@ -288,5 +287,3 @@ const AccountingStatCard: React.FC<AccountingStatCardProps> = ({ title, value, d
         </Card>
     );
 };
-
-    
