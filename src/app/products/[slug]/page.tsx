@@ -9,7 +9,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Star, Plus, Minus, ShoppingCart, ShieldCheck, Package, Zap, Loader2, Paintbrush, Edit2, Info, Heart as HeartIcon } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Label } from "@/components/ui/label";
+import { Label } from "@/components/ui/label"; // Basic Label
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import type { Product, ProductImage, BreadcrumbItem, ProductVariant, CartItemCustomization, PrintDesign, Review } from '@/types';
 import { useToast } from '@/hooks/use-toast';
@@ -23,9 +23,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RatingStars } from '@/components/ui/rating-stars';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
-import { Form, FormControl, FormField, FormItem as RHFFormItem, FormLabel as RHFFormLabel, FormMessage } from "@/components/ui/form"; // Keep if review form uses it
-import { Input } from '@/components/ui/input'; // Keep if review form uses it
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'; // Keep if review uses it
+import { Input } from '@/components/ui/input';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import MainLayout from '@/components/layout/main-layout';
 
 
@@ -68,26 +67,26 @@ export default function ProductDetailPage({ params: paramsPromise }: { params: P
     }
     setIsLoading(true);
     setError(null);
-    setProduct(null);
+    setProduct(null); // Reset product state before fetching
 
     console.log(`[ProductDetail] Fetching product with slug: ${slug}`);
     try {
       const response = await fetch(`/api/products/${slug}`);
-      let errorMsg = `Product with slug '${slug}' not found.`;
       if (!response.ok) {
+        let errorMsg = `Product with slug '${slug}' not found.`;
         if (response.status !== 404) {
           try {
             const errorData = await response.json();
             errorMsg = errorData.message || errorData.rawSupabaseError?.message || `Error ${response.status}: ${response.statusText}`;
           } catch (e) {
-            errorMsg = `Error ${response.status}: ${response.statusText}. Failed to parse error response.`;
+            errorMsg = `Error ${response.status}: ${response.statusText}. Could not parse error response.`;
           }
         }
         console.error("[ProductDetail] Error from API:", errorMsg);
         setError(errorMsg);
         setProduct(null);
-        setIsLoading(false); 
-        return; 
+        setIsLoading(false); // Stop loading
+        return; // Important to return here to stop execution
       }
       const currentProduct: Product = await response.json();
 
@@ -108,6 +107,7 @@ export default function ProductDetailPage({ params: paramsPromise }: { params: P
           }
         }
       } else {
+        // This case should ideally be covered by response.ok check, but as a fallback
         setError(`Product with slug '${slug}' not found or data is invalid.`);
         setProduct(null);
       }
@@ -119,7 +119,7 @@ export default function ProductDetailPage({ params: paramsPromise }: { params: P
     } finally {
       setIsLoading(false);
     }
-  }, [slug]); 
+  }, [slug]); // Removed toast from dependencies as it's stable
 
   useEffect(() => {
     fetchProductData();
@@ -312,6 +312,7 @@ export default function ProductDetailPage({ params: paramsPromise }: { params: P
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-start">
+          {/* Image Gallery - Ensure it's sticky only on larger screens */}
           <div className="lg:sticky lg:top-24 p-1 rounded-lg bg-background z-10">
             <div className="mb-4">
               <AspectRatio ratio={4/5} className="bg-muted rounded-lg overflow-hidden shadow-lg">
@@ -453,7 +454,7 @@ export default function ProductDetailPage({ params: paramsPromise }: { params: P
                     
                     {product.customizationConfig.allowCustomDescription && (
                       <TabsContent value="custom">
-                          <FormFieldItem>
+                          <div className="space-y-1.5">
                               <Label className="text-md font-semibold text-foreground mb-2 block">
                                   {product.customizationConfig.customDescriptionLabel || 'Describe Your Design Idea'}
                               </Label>
@@ -463,14 +464,14 @@ export default function ProductDetailPage({ params: paramsPromise }: { params: P
                                   onChange={(e) => setCustomDesignDescription(e.target.value)}
                                   rows={3}
                               />
-                          </FormFieldItem>
+                          </div>
                       </TabsContent>
                     )}
                   </Tabs>
                   
                   {product.customizationConfig.allowInstructions && (customizationType === 'predefined' || customizationType === 'custom') && (
                       <div className="mt-4">
-                          <FormFieldItem>
+                          <div className="space-y-1.5">
                               <Label className="text-md font-semibold text-foreground mb-2 block">
                                   {product.customizationConfig.instructionsLabel || 'Specific Instructions (Placement, Colors, etc.)'}
                               </Label>
@@ -480,7 +481,7 @@ export default function ProductDetailPage({ params: paramsPromise }: { params: P
                                   onChange={(e) => setCustomInstructions(e.target.value)}
                                   rows={3} 
                               />
-                          </FormFieldItem>
+                          </div>
                       </div>
                   )}
                   {customizationType && <p className="text-xs text-muted-foreground mt-3 flex items-center"><Info className="h-3 w-3 mr-1.5"/>Customized items may have longer processing times and might be non-returnable. Check policy.</p>}
@@ -627,19 +628,19 @@ export default function ProductDetailPage({ params: paramsPromise }: { params: P
                       ))}
                     </div>
                   </div>
-                  <RHFFormItem>
-                    <RHFFormLabel htmlFor="reviewTitle">Review Title (Optional)</RHFFormLabel>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="reviewTitle">Review Title (Optional)</Label>
                     <Input id="reviewTitle" value={reviewTitle} onChange={e => setReviewTitle(e.target.value)} placeholder="e.g., Amazing Quality!"/>
-                  </RHFFormItem>
-                  <RHFFormItem>
-                    <RHFFormLabel htmlFor="reviewComment">Your Comment*</RHFFormLabel>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="reviewComment">Your Comment*</Label>
                     <Textarea id="reviewComment" value={reviewComment} onChange={e => setReviewComment(e.target.value)} placeholder="Tell us more about your experience..." rows={4} required minLength={10}/>
-                  </RHFFormItem>
-                  <RHFFormItem>
-                      <RHFFormLabel htmlFor="reviewImages">Add Photos (Optional - UI Only)</RHFFormLabel>
+                  </div>
+                  <div className="space-y-1.5">
+                      <Label htmlFor="reviewImages">Add Photos (Optional - UI Only)</Label>
                       <Input id="reviewImages" type="file" multiple disabled className="cursor-not-allowed opacity-70"/>
                       <p className="text-xs text-muted-foreground mt-1">Image upload functionality is not yet implemented.</p>
-                  </RHFFormItem>
+                  </div>
                   <Button type="submit" disabled={isSubmittingReview}>
                     {isSubmittingReview && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
                     Submit Review
@@ -667,7 +668,3 @@ export default function ProductDetailPage({ params: paramsPromise }: { params: P
     </MainLayout>
   );
 }
-
-// FormFieldItem is a simple wrapper, ensure it doesn't cause context issues
-const FormFieldItem = ({ children }: { children: React.ReactNode }) => <div className="space-y-1.5">{children}</div>;
-    
