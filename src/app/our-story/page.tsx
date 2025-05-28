@@ -4,65 +4,78 @@
 import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { Card, CardContent } from '@/components/ui/card';
-import { Mountain, Users, Handshake, Sparkles, Facebook, Instagram, Twitter } from 'lucide-react';
+import { Mountain, Users, Handshake, Sparkles, Facebook, Instagram, Twitter, ImageIcon } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { AspectRatio } from '@/components/ui/aspect-ratio';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
-import type { OurStoryContentData } from '@/types';
+import type { OurStoryContentData, OurStorySection } from '@/types';
 import { InteractiveExternalLink } from '@/components/interactive-external-link'; 
 import { Skeleton } from '@/components/ui/skeleton'; 
 import MainLayout from '@/components/layout/main-layout';
 
+const defaultSectionStructure: OurStorySection = { 
+    title: 'Loading...', description: 'Please wait while we fetch the details.', paragraph1: '', paragraph2: '', imageUrl: '', imageAltText: '', imageAiHint: '' 
+};
+
 const fallbackContent: OurStoryContentData = {
-  hero: { title: "Our Story (Loading...)", description: "Weaving together heritage and vision." },
-  mission: { title: "Our Mission", paragraph1: "Elevating craftsmanship.", paragraph2: "Connecting cultures." },
-  craftsmanship: { title: "The Art of Creation", paragraph1: "Honoring traditions.", paragraph2: "Sourcing quality." },
-  valuesSection: { title: "Our Values: Beyond the Seams" },
-  joinJourneySection: { title: "Join Our Journey", description: "Follow us for updates." }
+  hero: { ...defaultSectionStructure, title: "Our Story", description: "Weaving together heritage and vision." },
+  mission: { ...defaultSectionStructure, title: "Our Mission", paragraph1: "Elevating craftsmanship and connecting cultures through unique apparel.", paragraph2: "Every piece tells a story of tradition and modernity." },
+  craftsmanship: { ...defaultSectionStructure, title: "The Art of Creation", paragraph1: "Honoring ancient techniques with a commitment to quality.", paragraph2: "Sustainably sourced materials form the heart of our designs." },
+  valuesSection: { ...defaultSectionStructure, title: "Our Values: Beyond the Seams" },
+  joinJourneySection: { ...defaultSectionStructure, title: "Join Our Journey", description: "Follow us for updates and be part of the Peak Pulse story." }
 };
 
 async function getOurStoryContent(): Promise<OurStoryContentData> {
   const fetchUrl = `/api/content/our-story`; 
-  console.log(`[OurStory Page Server Fetch] Attempting to fetch from: ${fetchUrl}`);
-  const res = await fetch(fetchUrl, { cache: 'no-store' });
+  // console.log(`[OurStory Page Client Fetch] Attempting to fetch from: ${fetchUrl}`);
+  try {
+    const res = await fetch(fetchUrl, { cache: 'no-store' });
 
-  if (!res.ok) {
-    let errorBody = "Could not read error response body.";
-    let errorJson = null;
-    try {
-      errorJson = await res.json();
-      if (errorJson && errorJson.error) {
-        errorBody = errorJson.error;
-      } else if (errorJson && errorJson.message) {
-        errorBody = errorJson.message;
-      } else {
-         errorBody = await res.text(); 
-      }
-    } catch (e) { 
-        try {
-            errorBody = await res.text();
-        } catch (textErr) {
-            // ignore if response is not text either
+    if (!res.ok) {
+      let errorBody = "Could not read error response body from API.";
+      let errorJson: any = null;
+      try {
+        errorJson = await res.json();
+        if (errorJson && errorJson.error) {
+          errorBody = typeof errorJson.error === 'string' ? errorJson.error : JSON.stringify(errorJson.error);
+        } else if (errorJson && errorJson.message) {
+          errorBody = errorJson.message;
+        } else {
+           const textError = await res.text();
+           errorBody = textError.substring(0, 500) || errorBody;
         }
+      } catch (e) { 
+          try {
+              const textError = await res.text();
+              errorBody = textError.substring(0,500) || `Failed to parse error response: ${res.statusText}`;
+          } catch (textFallbackError){
+              errorBody = `Failed to parse error response and response body not readable: ${res.statusText}`;
+          }
+      }
+      // console.error(`[OurStory Page Client Fetch] Failed to fetch content. Status: ${res.status} ${res.statusText}. Body:`, errorBody);
+      return {
+          ...fallbackContent,
+          hero: {...fallbackContent.hero, title: "Error Loading Story", description: `Failed: ${res.statusText}`},
+          error: `API Error fetching Our Story content: ${res.status} ${res.statusText}. Details: ${errorBody.substring(0, 200)}`
+      };
     }
-    console.error(`[OurStory Page Server Fetch] Failed to fetch content. Status: ${res.status} ${res.statusText}. Body:`, errorBody.substring(0, 500));
-    return {
-        ...fallbackContent,
-        hero: {...fallbackContent.hero, title: "Error Loading Story", description: `Failed: ${res.statusText}`},
-        error: `API Error fetching Our Story content: ${res.status} ${res.statusText}. Details: ${errorBody.substring(0, 200)}`
+    const jsonData = await res.json();
+    // console.log("[OurStory Page Client Fetch] Successfully fetched Our Story content:", jsonData);
+    // Merge with defaults to ensure all parts of the structure are present
+    const responseData: OurStoryContentData = {
+      hero: { ...defaultSectionStructure, ...fallbackContent.hero, ...jsonData.hero },
+      mission: { ...defaultSectionStructure, ...fallbackContent.mission, ...jsonData.mission },
+      craftsmanship: { ...defaultSectionStructure, ...fallbackContent.craftsmanship, ...jsonData.craftsmanship },
+      valuesSection: { ...defaultSectionStructure, ...fallbackContent.valuesSection, ...jsonData.valuesSection },
+      joinJourneySection: { ...defaultSectionStructure, ...fallbackContent.joinJourneySection, ...jsonData.joinJourneySection },
     };
+    return responseData;
+  } catch (error) {
+    console.error('[OurStory Page Client Fetch] CRITICAL ERROR in getOurStoryContent:', error);
+    return { ...fallbackContent, error: (error as Error).message };
   }
-  const jsonData = await res.json();
-  const responseData: OurStoryContentData = {
-    hero: { ...fallbackContent.hero, ...jsonData.hero },
-    mission: { ...fallbackContent.mission, ...jsonData.mission },
-    craftsmanship: { ...fallbackContent.craftsmanship, ...jsonData.craftsmanship },
-    valuesSection: { ...fallbackContent.valuesSection, ...jsonData.valuesSection },
-    joinJourneySection: { ...fallbackContent.joinJourneySection, ...jsonData.joinJourneySection },
-  };
-  return responseData;
 }
 
 export default function OurStoryPage() {
@@ -97,6 +110,25 @@ export default function OurStoryPage() {
     loadContent();
   }, [toast]);
 
+  const renderSectionImage = (section?: OurStorySection, defaultHint?: string) => {
+    if (!section?.imageUrl) return null;
+    return (
+      <div className="rounded-xl overflow-hidden shadow-2xl">
+        <AspectRatio ratio={16 / 10}>
+          <Image
+            src={section.imageUrl}
+            alt={section.imageAltText || section.title || "Peak Pulse Our Story Image"}
+            fill
+            sizes="(max-width: 768px) 100vw, 50vw"
+            className="object-cover transition-transform duration-500 hover:scale-105"
+            data-ai-hint={section.imageAiHint || defaultHint || "story image"}
+          />
+        </AspectRatio>
+      </div>
+    );
+  };
+
+
   if (isLoading) {
     return (
       <MainLayout>
@@ -110,11 +142,11 @@ export default function OurStoryPage() {
               <Skeleton className="h-6 w-5/6 mb-4" />
               <Skeleton className="h-6 w-full" />
             </div>
-            <AspectRatio ratio={4/3}><Skeleton className="w-full h-full rounded-xl" /></AspectRatio>
+            <AspectRatio ratio={16/10}><Skeleton className="w-full h-full rounded-xl" /></AspectRatio>
           </div>
           <Separator className="my-16 md:my-24" />
           <div className="grid md:grid-cols-2 gap-12 items-center mb-16">
-            <AspectRatio ratio={4/3} className="md:order-1"><Skeleton className="w-full h-full rounded-xl" /></AspectRatio>
+            <AspectRatio ratio={16/10} className="md:order-1"><Skeleton className="w-full h-full rounded-xl" /></AspectRatio>
             <div className="md:order-2">
               <Skeleton className="h-10 w-1/3 mb-6" />
               <Skeleton className="h-6 w-full mb-4" />
@@ -131,7 +163,22 @@ export default function OurStoryPage() {
   return (
     <MainLayout> 
       <section className="relative py-16 md:py-24 bg-gradient-to-b from-primary/5 to-transparent">
-        <div className="container-wide text-center">
+        {content.hero?.imageUrl ? (
+            <div className="absolute inset-0 z-[-1] opacity-30">
+                <Image 
+                    src={content.hero.imageUrl} 
+                    alt={content.hero.imageAltText || "Our Story Hero Background"} 
+                    fill 
+                    className="object-cover" 
+                    data-ai-hint={content.hero.imageAiHint || "abstract texture"}
+                    priority
+                />
+                 <div className="absolute inset-0 bg-background/70"></div>
+            </div>
+        ) : (
+          <Mountain className="absolute inset-0 w-full h-full text-primary/5 z-[-1]" />
+        )}
+        <div className="container-wide text-center relative z-10">
           <Mountain className="h-16 w-16 text-primary mx-auto mb-6" />
           <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-foreground mb-6">
             {content.hero?.title || "The Heart of Peak Pulse"}
@@ -154,18 +201,7 @@ export default function OurStoryPage() {
                     {content.mission?.paragraph2 || "Connecting cultures."}
                     </p>
                 </div>
-                 <div className="rounded-xl overflow-hidden shadow-2xl">
-                    <AspectRatio ratio={4/3}>
-                    <Image 
-                        src="https://placehold.co/800x600.png"
-                        alt="Nepali artisans crafting traditional textiles" 
-                        fill
-                        sizes="(max-width: 768px) 100vw, 50vw"
-                        className="object-cover transition-transform duration-500 hover:scale-105"
-                        data-ai-hint="artisans nepal craft"
-                    />
-                    </AspectRatio>
-                 </div>
+                 {renderSectionImage(content.mission, "artisans nepal craft")}
             </div>
         </section>
         
@@ -182,17 +218,8 @@ export default function OurStoryPage() {
                     {content.craftsmanship?.paragraph2 || "Sourcing quality."}
                     </p>
                 </div>
-                <div className="rounded-xl overflow-hidden shadow-2xl md:order-1">
-                    <AspectRatio ratio={4/3}>
-                    <Image 
-                        src="https://placehold.co/800x600.png"
-                        alt="Detailed view of hand-woven fabric or intricate embroidery" 
-                        fill
-                        sizes="(max-width: 768px) 100vw, 50vw"
-                        className="object-cover transition-transform duration-500 hover:scale-105"
-                        data-ai-hint="textile fabric detail"
-                    />
-                    </AspectRatio>
+                <div className="md:order-1">
+                 {renderSectionImage(content.craftsmanship, "textile fabric detail")}
                 </div>
             </div>
         </section>
@@ -220,21 +247,33 @@ export default function OurStoryPage() {
             </div>
         </section>
         
-         <section className="bg-primary/5 rounded-xl p-10 md:p-16">
-            <div className="text-center">
+         <section className="bg-primary/5 rounded-xl p-10 md:p-16 relative overflow-hidden">
+            {content.joinJourneySection?.imageUrl && (
+                <div className="absolute inset-0 z-0 opacity-10">
+                    <Image 
+                        src={content.joinJourneySection.imageUrl} 
+                        alt={content.joinJourneySection.imageAltText || "Join our journey background"} 
+                        fill 
+                        className="object-cover"
+                        data-ai-hint={content.joinJourneySection.imageAiHint || "community fashion modern"}
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-background via-background/80 to-transparent"></div>
+                </div>
+            )}
+            <div className="text-center relative z-10">
                 <h2 className="text-3xl font-semibold text-foreground mb-6">{content.joinJourneySection?.title || "Join Our Journey"}</h2>
                 <p className="text-lg text-muted-foreground mb-8 max-w-2xl mx-auto">
                 {content.joinJourneySection?.description || "Follow us for updates."}
                 </p>
                 <div className="flex justify-center space-x-4">
                     <InteractiveExternalLink href="https://instagram.com/peakpulsenp" showDialog={true}>
-                        <Button variant="outline"><Instagram className="mr-2 h-5 w-5" /> Instagram</Button>
+                        <Button variant="outline" className="bg-background/80 hover:bg-card"><Instagram className="mr-2 h-5 w-5" /> Instagram</Button>
                     </InteractiveExternalLink>
                      <InteractiveExternalLink href="https://facebook.com/peakpulse" showDialog={true}>
-                        <Button variant="outline"><Facebook className="mr-2 h-5 w-5" /> Facebook</Button>
+                        <Button variant="outline" className="bg-background/80 hover:bg-card"><Facebook className="mr-2 h-5 w-5" /> Facebook</Button>
                     </InteractiveExternalLink>
                      <InteractiveExternalLink href="https://twitter.com/peakpulse" showDialog={true}>
-                       <Button variant="outline"><Twitter className="mr-2 h-5 w-5" /> Twitter</Button>
+                       <Button variant="outline" className="bg-background/80 hover:bg-card"><Twitter className="mr-2 h-5 w-5" /> Twitter</Button>
                     </InteractiveExternalLink>
                 </div>
             </div>
@@ -243,4 +282,5 @@ export default function OurStoryPage() {
     </MainLayout>
   );
 }
+
     

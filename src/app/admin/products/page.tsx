@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useForm, useFieldArray, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Save, PlusCircle, Trash2, Edit, XCircle, Paintbrush } from 'lucide-react';
+import { Loader2, Save, PlusCircle, Trash2, Edit, XCircle, Paintbrush, Package as PackageIcon } from 'lucide-react';
 import type { Product, ProductImage, Category as ProductCategoryType, ProductVariant, PrintDesign, ProductCustomizationConfig } from '@/types';
 import {
   Dialog,
@@ -20,11 +20,11 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
   DialogClose,
 } from "@/components/ui/dialog";
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Checkbox } from '@/components/ui/checkbox'; 
+import Image from 'next/image'; // For displaying image previews
 
 const imageSchema = z.object({
   id: z.string().optional(),
@@ -34,7 +34,7 @@ const imageSchema = z.object({
 });
 
 const categorySchema = z.object({
-  id: z.string().min(1, "Category ID is required."),
+  id: z.string().min(1, "Category ID is required."), // This might be a slug or a UUID depending on how categories are managed
   name: z.string().min(1, "Category name is required."),
   slug: z.string().min(1, "Category slug is required."),
 });
@@ -47,23 +47,23 @@ const variantSchema = z.object({
   price: z.coerce.number().min(0, "Price must be non-negative."),
   costPrice: z.coerce.number().min(0, "Cost price must be non-negative.").optional().nullable(),
   stock: z.coerce.number().int().min(0, "Stock must be a non-negative integer."),
-  imageId: z.string().optional(),
+  imageId: z.string().optional(), // ID of one of the product.images
 });
 
 const printDesignSchema = z.object({
-  id: z.string().optional(),
+  id: z.string().optional(), // Auto-generated or predefined
   name: z.string().min(1, "Design name is required."),
   imageUrl: z.string().url("Invalid image URL for design.").min(1, "Design image URL is required."),
   dataAiHint: z.string().optional(),
 });
 
 const productCustomizationConfigSchema = z.object({
-  enabled: z.boolean().optional(),
-  allowPredefinedDesigns: z.boolean().optional(),
+  enabled: z.boolean().default(false).optional(),
+  allowPredefinedDesigns: z.boolean().default(false).optional(),
   predefinedDesignsLabel: z.string().optional(),
-  allowCustomDescription: z.boolean().optional(),
+  allowCustomDescription: z.boolean().default(false).optional(),
   customDescriptionLabel: z.string().optional(),
-  allowInstructions: z.boolean().optional(),
+  allowInstructions: z.boolean().default(false).optional(),
   instructionsLabel: z.string().optional(),
 }).optional();
 
@@ -71,7 +71,7 @@ const productCustomizationConfigSchema = z.object({
 const productFormSchema = z.object({
   id: z.string().optional(),
   name: z.string().min(3, "Product name must be at least 3 characters."),
-  slug: z.string().min(3, "Slug must be at least 3 characters.").regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Slug must be lowercase alphanumeric with hyphens."),
+  slug: z.string().min(3, "Slug must be at least 3 characters.").regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Slug must be lowercase alphanumeric with hyphens.").optional().or(z.literal('')),
   price: z.coerce.number().min(0, "Price must be a positive number."),
   compareAtPrice: z.coerce.number().min(0, "Compare at price must be non-negative.").optional().nullable(),
   costPrice: z.coerce.number().min(0, "Cost price must be non-negative.").optional().nullable(),
@@ -80,6 +80,7 @@ const productFormSchema = z.object({
   description: z.string().min(10, "Description must be at least 10 characters."),
   images: z.array(imageSchema).min(1, "At least one image is required."),
   categories: z.array(categorySchema).min(1, "At least one category is required."),
+  isFeatured: z.boolean().default(false).optional(),
   fabricDetails: z.string().optional(),
   careInstructions: z.string().optional(),
   sustainabilityMetrics: z.string().optional(),
@@ -92,7 +93,7 @@ const productFormSchema = z.object({
 type ProductFormValues = z.infer<typeof productFormSchema>;
 
 const defaultImage: ProductImage = { id: '', url: '', altText: '', dataAiHint: '' };
-const defaultCategory: ProductCategoryType = { id: '', name: '', slug: '' };
+const defaultCategory: ProductCategoryType = { id: '', name: '', slug: '' }; // Using AdminCategory as base
 const defaultVariant: ProductVariant = { id: '', name: 'Size', value: '', sku: '', price: 0, costPrice: 0, stock: 0, imageId: '' };
 const defaultPrintDesign: PrintDesign = { id: '', name: '', imageUrl: '', dataAiHint: '' };
 const defaultCustomizationConfig: ProductCustomizationConfig = {
@@ -102,7 +103,7 @@ const defaultCustomizationConfig: ProductCustomizationConfig = {
   allowCustomDescription: false,
   customDescriptionLabel: 'Describe Your Custom Idea',
   allowInstructions: false,
-  instructionsLabel: 'Specific Instructions',
+  instructionsLabel: 'Specific Instructions (Placement, Colors, etc.)',
 };
 
 
@@ -118,8 +119,9 @@ export default function AdminProductsPage() {
     resolver: zodResolver(productFormSchema),
     defaultValues: {
       name: '', slug: '', price: 0, compareAtPrice: undefined, costPrice: undefined, stock: 0, shortDescription: '', description: '',
-      images: [{...defaultImage}],
-      categories: [{...defaultCategory}],
+      images: [{...defaultImage, id: `img-${Date.now()}`}], // Ensure unique ID for initial item
+      categories: [{...defaultCategory, id: `cat-${Date.now()}`}], // Ensure unique ID for initial item
+      isFeatured: false,
       fabricDetails: '', careInstructions: '', sustainabilityMetrics: '', fitGuide: '',
       variants: [],
       availablePrintDesigns: [],
@@ -133,23 +135,26 @@ export default function AdminProductsPage() {
   const { fields: printDesignsFields, append: appendPrintDesign, remove: removePrintDesign } = useFieldArray({ control: form.control, name: "availablePrintDesigns" });
 
 
-  const fetchProducts = async () => {
+  const fetchProducts = useCallback(async () => {
     setIsLoading(true);
     try {
-      const response = await fetch('/api/admin/products');
-      if (!response.ok) throw new Error('Failed to fetch products');
+      const response = await fetch('/api/admin/products'); // This should now hit Supabase via your API
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({message: "Failed to fetch products and parse error."}));
+        throw new Error(errorData.message || `Failed to fetch products: ${response.statusText}`);
+      }
       const data: Product[] = await response.json();
       setProducts(data);
     } catch (error) {
-      toast({ title: "Error", description: (error as Error).message, variant: "destructive" });
+      toast({ title: "Error Fetching Products", description: (error as Error).message, variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [toast]);
 
   useEffect(() => {
     fetchProducts();
-  }, []); 
+  }, [fetchProducts]); 
 
   const handleEdit = (product: Product) => {
     setEditingProduct(product);
@@ -163,14 +168,15 @@ export default function AdminProductsPage() {
       stock: product.variants && product.variants.length > 0 ? null : (product.stock === undefined ? null : product.stock),
       shortDescription: product.shortDescription || '',
       description: product.description,
-      images: product.images.length > 0 ? product.images.map(img => ({ ...defaultImage, ...img })) : [{...defaultImage}],
-      categories: product.categories.length > 0 ? product.categories.map(cat => ({ ...defaultCategory, ...cat })) : [{...defaultCategory}],
+      images: product.images.length > 0 ? product.images.map(img => ({ ...defaultImage, ...img })) : [{...defaultImage, id: `img-${Date.now()}`}],
+      categories: product.categories.length > 0 ? product.categories.map(cat => ({ ...defaultCategory, ...cat })) : [{...defaultCategory, id: `cat-${Date.now()}`}],
+      isFeatured: product.isFeatured || false,
       fabricDetails: product.fabricDetails || '',
       careInstructions: product.careInstructions || '',
       sustainabilityMetrics: product.sustainabilityMetrics || '',
       fitGuide: product.fitGuide || '',
-      variants: product.variants ? product.variants.map(v => ({...defaultVariant, ...v, costPrice: v.costPrice === undefined ? undefined : v.costPrice })) : [],
-      availablePrintDesigns: product.availablePrintDesigns ? product.availablePrintDesigns.map(d => ({...defaultPrintDesign, ...d})) : [],
+      variants: product.variants ? product.variants.map(v => ({...defaultVariant, ...v, costPrice: v.costPrice === undefined ? null : v.costPrice })) : [],
+      availablePrintDesigns: product.availablePrintDesigns ? product.availablePrintDesigns.map(d => ({...defaultPrintDesign, ...d, id: d.id || `design-${Date.now()}`})) : [],
       customizationConfig: product.customizationConfig ? {...defaultCustomizationConfig, ...product.customizationConfig} : {...defaultCustomizationConfig},
     });
     setIsFormOpen(true);
@@ -179,10 +185,11 @@ export default function AdminProductsPage() {
   const handleAddNew = () => {
     setEditingProduct(null);
     form.reset({
-      id: `prod-${Date.now()}`, 
+      // id will be generated by Supabase
       name: '', slug: '', price: 0, compareAtPrice: null, costPrice: null, stock: 0, shortDescription: '', description: '',
-      images: [{...defaultImage}],
-      categories: [{...defaultCategory}],
+      images: [{...defaultImage, id: `img-${Date.now()}`}],
+      categories: [{...defaultCategory, id: `cat-${Date.now()}`}],
+      isFeatured: false,
       fabricDetails: '', careInstructions: '', sustainabilityMetrics: '', fitGuide: '',
       variants: [],
       availablePrintDesigns: [],
@@ -194,35 +201,34 @@ export default function AdminProductsPage() {
   const onSubmit = async (data: ProductFormValues) => {
     setIsSaving(true);
     try {
-      const productToSave: Product = {
-        ...(editingProduct || {}), 
-        ...data,
-        id: editingProduct?.id || data.id || `prod-${Date.now()}`,
-        slug: data.slug || data.name.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, ''),
-        createdAt: editingProduct?.createdAt || new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        images: data.images.map(img => ({ ...img, id: img.id || `img-${Date.now()}-${Math.random().toString(36).substr(2, 5)}` })),
-        categories: data.categories.map(cat => ({ ...cat, id: cat.id || `cat-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`})),
-        variants: data.variants?.map(v => ({ ...v, id: v.id || `var-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`})),
-        availablePrintDesigns: data.availablePrintDesigns?.map(d => ({...d, id: d.id || `print-${Date.now()}-${Math.random().toString(36).substr(2,5)}`})),
-        customizationConfig: data.customizationConfig,
-        stock: (data.variants && data.variants.length > 0) ? data.variants.reduce((sum, v) => sum + v.stock, 0) : data.stock || 0,
-        averageRating: editingProduct?.averageRating || 0,
-        reviewCount: editingProduct?.reviewCount || 0,
-        isFeatured: editingProduct?.isFeatured || false,
-      };
+      // The productToSave structure will be built in the API route from 'data'
+      // The API route will handle ID generation for new products
+      // and ensuring proper structure for Supabase.
+      const payload = { ...data, id: editingProduct?.id }; 
 
       const response = await fetch('/api/admin/products', {
-        method: 'POST',
+        method: 'POST', // API route handles if it's an insert or update based on ID
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(productToSave),
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to save product');
+        let errorDetail = `Failed to ${editingProduct ? 'update' : 'create'} product.`;
+        try {
+            const errorData = await response.json();
+            if (errorData.rawSupabaseError && errorData.rawSupabaseError.message) {
+                errorDetail = `Database error: ${errorData.rawSupabaseError.message}${errorData.rawSupabaseError.hint ? ` Hint: ${errorData.rawSupabaseError.hint}` : ''}`;
+            } else if (errorData.message) {
+                errorDetail = errorData.message;
+            } else {
+                 errorDetail = `${response.status}: ${response.statusText || errorDetail}`;
+            }
+        } catch (e) {
+             errorDetail = `${response.status}: ${response.statusText || 'Failed to process error response.'}`;
+        }
+        throw new Error(errorDetail);
       }
-      toast({ title: "Success!", description: `Product "${data.name}" saved.` });
+      toast({ title: "Success!", description: `Product "${data.name}" ${editingProduct ? 'updated' : 'created'} successfully.` });
       fetchProducts(); 
       setIsFormOpen(false);
       setEditingProduct(null);
@@ -233,184 +239,237 @@ export default function AdminProductsPage() {
     }
   };
 
-  const hasVariants = form.watch('variants', []).length > 0;
+  const hasVariants = (form.watch('variants') || []).length > 0;
   const customizationEnabled = form.watch('customizationConfig.enabled');
 
   if (isLoading) {
-    return <Card><CardHeader><CardTitle>Loading Products...</CardTitle></CardHeader><CardContent className="flex justify-center py-10"><Loader2 className="h-8 w-8 animate-spin text-primary" /></CardContent></Card>;
+    return (
+      <Card className="shadow-lg">
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div className="flex items-center">
+             <PackageIcon className="mr-3 h-6 w-6 text-primary"/>
+            <CardTitle className="text-2xl">Manage Products</CardTitle>
+          </div>
+        </CardHeader>
+        <CardContent className="flex justify-center py-10"><Loader2 className="h-8 w-8 animate-spin text-primary" /></CardContent>
+      </Card>
+    );
   }
 
   return (
     <div className="space-y-6">
-      <Card>
+      <Card className="shadow-lg">
         <CardHeader className="flex flex-row items-center justify-between">
-          <div>
+          <div className="flex items-center">
+            <PackageIcon className="mr-3 h-6 w-6 text-primary"/>
             <CardTitle className="text-2xl">Manage Products</CardTitle>
-            <CardDescription>Add, edit, or view product details.</CardDescription>
           </div>
           <Button onClick={handleAddNew}><PlusCircle className="mr-2 h-4 w-4"/> Add New Product</Button>
         </CardHeader>
         <CardContent>
           {products.length === 0 ? (
-            <p className="text-muted-foreground">No products found. Add a new product to get started.</p>
+            <p className="text-muted-foreground text-center py-8">No products found. Add a new product to get started.</p>
           ) : (
-            <ul className="space-y-3">
-              {products.map(product => (
-                <li key={product.id} className="p-3 border rounded-md flex justify-between items-center bg-card hover:bg-muted/50">
-                  <div>
-                    <h3 className="font-semibold">{product.name}</h3>
-                    <p className="text-xs text-muted-foreground">ID: {product.id} | Slug: {product.slug} | Price: रू{product.price} | Cost: रू{product.costPrice ?? 'N/A'} | Stock: {product.stock ?? 'N/A'}</p>
-                  </div>
-                  <Button variant="outline" size="sm" onClick={() => handleEdit(product)}><Edit className="mr-2 h-3 w-3"/> Edit</Button>
-                </li>
-              ))}
-            </ul>
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-border">
+                <thead className="bg-muted/50">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Name</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Price (NPR)</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider hidden md:table-cell">Stock</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider hidden lg:table-cell">Featured</th>
+                    <th className="px-4 py-3 text-center text-xs font-medium text-muted-foreground uppercase tracking-wider">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-background divide-y divide-border">
+                  {products.map(product => (
+                    <tr key={product.id} className="hover:bg-muted/30">
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <div className="text-sm font-medium text-foreground">{product.name}</div>
+                        <div className="text-xs text-muted-foreground">{product.slug}</div>
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-foreground">रू{product.price.toLocaleString()}</td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-muted-foreground hidden md:table-cell">{product.stock ?? 'N/A'}</td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-muted-foreground hidden lg:table-cell">{product.isFeatured ? 'Yes' : 'No'}</td>
+                      <td className="px-4 py-3 whitespace-nowrap text-center text-sm font-medium">
+                        <Button variant="outline" size="sm" onClick={() => handleEdit(product)} className="h-8 text-xs"><Edit className="mr-1.5 h-3 w-3"/> Edit</Button>
+                        {/* Delete button would go here if implemented */}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </CardContent>
       </Card>
 
-      <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
+      <Dialog open={isFormOpen} onOpenChange={(open) => {setIsFormOpen(open); if(!open) form.reset();}}>
         <DialogContent className="max-w-3xl">
           <DialogHeader>
-            <DialogTitle>{editingProduct ? 'Edit Product' : 'Add New Product'}</DialogTitle>
+            <DialogTitle>{editingProduct ? `Edit: ${editingProduct.name}` : 'Add New Product'}</DialogTitle>
             <DialogFormDescription>
-              {editingProduct ? `Editing details for ${editingProduct.name}.` : 'Fill in the details for the new product.'}
+              {editingProduct ? `Modifying details for ${editingProduct.name}.` : 'Fill in the details for the new product.'}
             </DialogFormDescription>
           </DialogHeader>
-          <ScrollArea className="max-h-[70vh] p-1">
-            <div className="p-5">
+          <ScrollArea className="max-h-[70vh] p-1 -mx-1"> {/* Scroll for the entire dialog content if it overflows */}
+            <div className="p-5"> {/* Padding for content within scroll area */}
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <FormField control={form.control} name="name" render={({ field }) => (
-                    <FormItem><FormLabel>Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                {/* Basic Info */}
+                <fieldset className="space-y-4 p-4 border rounded-md">
+                  <legend className="text-lg font-semibold px-1 -mt-7 bg-background">Basic Information</legend>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField control={form.control} name="name" render={({ field }) => (
+                      <FormItem><FormLabel>Name*</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                    )} />
+                    <FormField control={form.control} name="slug" render={({ field }) => (
+                      <FormItem><FormLabel>Slug</FormLabel><FormControl><Input {...field} placeholder="auto-generated if empty" /></FormControl><FormDescription>Lowercase, hyphens only.</FormDescription><FormMessage /></FormItem>
+                    )} />
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <FormField control={form.control} name="price" render={({ field }) => (
+                          <FormItem><FormLabel>Price (NPR)*</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
+                      )} />
+                      <FormField control={form.control} name="compareAtPrice" render={({ field }) => (
+                          <FormItem><FormLabel>Compare At Price (Optional)</FormLabel><FormControl><Input type="number" step="0.01" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? null : parseFloat(e.target.value))} /></FormControl><FormMessage /></FormItem>
+                      )} />
+                       <FormField control={form.control} name="costPrice" render={({ field }) => (
+                          <FormItem><FormLabel>Cost Price (NPR)</FormLabel><FormControl><Input type="number" step="0.01" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? null : parseFloat(e.target.value))}/></FormControl><FormMessage /></FormItem>
+                      )} />
+                  </div>
+
+                  {!hasVariants && (
+                       <FormField control={form.control} name="stock" render={({ field }) => (
+                          <FormItem><FormLabel>Base Stock (if no variants)</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? 0} onChange={e => field.onChange(e.target.value === '' ? 0 : parseInt(e.target.value, 10))} /></FormControl><FormMessage /></FormItem>
+                      )} />
+                  )}
+                   <FormField control={form.control} name="isFeatured" render={({ field }) => (
+                      <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-3 shadow-sm">
+                          <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                          <FormLabel className="font-normal mb-0! pt-0!">Mark as Featured Product</FormLabel>
+                      </FormItem>
+                    )} />
+                </fieldset>
+
+                {/* Descriptions */}
+                <fieldset className="space-y-4 p-4 border rounded-md">
+                  <legend className="text-lg font-semibold px-1 -mt-7 bg-background">Descriptions</legend>
+                  <FormField control={form.control} name="shortDescription" render={({ field }) => (
+                    <FormItem><FormLabel>Short Description</FormLabel><FormControl><Textarea {...field} rows={2} /></FormControl><FormMessage /></FormItem>
                   )} />
-                  <FormField control={form.control} name="slug" render={({ field }) => (
-                    <FormItem><FormLabel>Slug</FormLabel><FormControl><Input {...field} placeholder="auto-generated if empty" /></FormControl><FormMessage /></FormItem>
+                  <FormField control={form.control} name="description" render={({ field }) => (
+                    <FormItem><FormLabel>Full Description (HTML allowed)</FormLabel><FormControl><Textarea {...field} rows={5} /></FormControl><FormMessage /></FormItem>
                   )} />
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <FormField control={form.control} name="price" render={({ field }) => (
-                        <FormItem><FormLabel>Price (NPR)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
-                    )} />
-                    <FormField control={form.control} name="compareAtPrice" render={({ field }) => (
-                        <FormItem><FormLabel>Compare At Price (Optional)</FormLabel><FormControl><Input type="number" step="0.01" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? null : parseFloat(e.target.value))} /></FormControl><FormMessage /></FormItem>
-                    )} />
-                     <FormField control={form.control} name="costPrice" render={({ field }) => (
-                        <FormItem><FormLabel>Cost Price (NPR)</FormLabel><FormControl><Input type="number" step="0.01" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? null : parseFloat(e.target.value))}/></FormControl><FormMessage /></FormItem>
-                    )} />
-                </div>
+                </fieldset>
 
-                {!hasVariants && (
-                     <FormField control={form.control} name="stock" render={({ field }) => (
-                        <FormItem><FormLabel>Base Stock (if no variants)</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? null : parseInt(e.target.value, 10))} /></FormControl><FormMessage /></FormItem>
-                    )} />
-                )}
-
-
-                <FormField control={form.control} name="shortDescription" render={({ field }) => (
-                  <FormItem><FormLabel>Short Description</FormLabel><FormControl><Textarea {...field} rows={2} /></FormControl><FormMessage /></FormItem>
-                )} />
-                <FormField control={form.control} name="description" render={({ field }) => (
-                  <FormItem><FormLabel>Full Description (HTML allowed)</FormLabel><FormControl><Textarea {...field} rows={5} /></FormControl><FormMessage /></FormItem>
-                )} />
-
-                <fieldset className="space-y-3 p-3 border rounded-md">
-                  <legend className="text-md font-medium px-1">Images</legend>
+                {/* Images */}
+                <fieldset className="space-y-3 p-4 border rounded-md">
+                  <legend className="text-lg font-semibold px-1 -mt-7 bg-background">Images (First image is main)</legend>
                   {imagesFields.map((field, index) => (
-                    <div key={field.id} className="space-y-2 p-2 border rounded bg-muted/30">
+                    <Card key={field.id} className="p-3 space-y-2 bg-muted/30">
+                      <FormLabel className="text-sm">Image {index + 1}</FormLabel>
                       <FormField control={form.control} name={`images.${index}.url`} render={({ field }) => (
                         <FormItem>
-                            <FormLabel>Image URL {index + 1}</FormLabel>
+                            <FormLabel className="text-xs">Image URL*</FormLabel>
                             <FormControl><Input {...field} placeholder="https://example.com/image.jpg" /></FormControl>
-                            <FormDescription>Tip: For quick uploads, try free sites like ImgBB.com or Postimages.org. Upload your image, then copy and paste the "Direct link" (ending in .jpg, .png, .gif, etc.) here.</FormDescription>
+                            <FormDescription>Paste direct link. Use ImgBB or Postimages for free uploads.</FormDescription>
                             <FormMessage />
                         </FormItem>
                       )} />
                       <div className="grid grid-cols-2 gap-2">
                         <FormField control={form.control} name={`images.${index}.altText`} render={({ field }) => (
-                            <FormItem><FormLabel>Alt Text</FormLabel><FormControl><Input {...field} placeholder="Descriptive alt text" /></FormControl></FormItem>
+                            <FormItem><FormLabel className="text-xs">Alt Text</FormLabel><FormControl><Input {...field} placeholder="Descriptive alt text" /></FormControl></FormItem>
                         )} />
                         <FormField control={form.control} name={`images.${index}.dataAiHint`} render={({ field }) => (
-                            <FormItem><FormLabel>AI Hint</FormLabel><FormControl><Input {...field} placeholder="e.g. jacket fashion" /></FormControl></FormItem>
+                            <FormItem><FormLabel className="text-xs">AI Hint</FormLabel><FormControl><Input {...field} placeholder="e.g. jacket fashion" /></FormControl></FormItem>
                         )} />
                       </div>
-                      <Button type="button" variant="destructive" size="sm" onClick={() => removeImage(index)} disabled={imagesFields.length <= 1}><Trash2 className="mr-1 h-3 w-3"/>Remove Image</Button>
-                    </div>
+                      <Button type="button" variant="destructive" size="xs" onClick={() => removeImage(index)} disabled={imagesFields.length <= 1}><Trash2 className="mr-1 h-3 w-3"/>Remove Image</Button>
+                    </Card>
                   ))}
-                  <Button type="button" variant="outline" size="sm" onClick={() => appendImage({...defaultImage})}><PlusCircle className="mr-2 h-4 w-4"/>Add Image</Button>
+                  <Button type="button" variant="outline" size="sm" onClick={() => appendImage({...defaultImage, id: `img-${Date.now()}-${Math.random()}`})}><PlusCircle className="mr-2 h-4 w-4"/>Add Image</Button>
                 </fieldset>
 
-                <fieldset className="space-y-3 p-3 border rounded-md">
-                    <legend className="text-md font-medium px-1">Categories</legend>
+                {/* Categories */}
+                <fieldset className="space-y-3 p-4 border rounded-md">
+                    <legend className="text-lg font-semibold px-1 -mt-7 bg-background">Categories</legend>
                     {categoriesFields.map((field, index) => (
-                        <div key={field.id} className="space-y-2 p-2 border rounded bg-muted/30">
+                        <Card key={field.id} className="p-3 space-y-2 bg-muted/30">
+                            <FormLabel className="text-sm">Category {index + 1}</FormLabel>
                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 items-end">
                                 <FormField control={form.control} name={`categories.${index}.id`} render={({ field }) => (
-                                    <FormItem><FormLabel>Category ID</FormLabel><FormControl><Input {...field} placeholder="e.g. cat-outerwear" /></FormControl><FormMessage /></FormItem>
+                                    <FormItem><FormLabel className="text-xs">ID*</FormLabel><FormControl><Input {...field} placeholder="e.g. cat-outerwear or UUID" /></FormControl><FormMessage /></FormItem>
                                 )} />
                                 <FormField control={form.control} name={`categories.${index}.name`} render={({ field }) => (
-                                    <FormItem><FormLabel>Category Name</FormLabel><FormControl><Input {...field} placeholder="e.g. Outerwear" /></FormControl><FormMessage /></FormItem>
+                                    <FormItem><FormLabel className="text-xs">Name*</FormLabel><FormControl><Input {...field} placeholder="e.g. Outerwear" /></FormControl><FormMessage /></FormItem>
                                 )} />
                                 <FormField control={form.control} name={`categories.${index}.slug`} render={({ field }) => (
-                                    <FormItem><FormLabel>Category Slug</FormLabel><FormControl><Input {...field} placeholder="e.g. outerwear" /></FormControl><FormMessage /></FormItem>
+                                    <FormItem><FormLabel className="text-xs">Slug*</FormLabel><FormControl><Input {...field} placeholder="e.g. outerwear" /></FormControl><FormMessage /></FormItem>
                                 )} />
                             </div>
-                             <Button type="button" variant="destructive" size="sm" onClick={() => removeCategory(index)} disabled={categoriesFields.length <=1}><Trash2 className="mr-1 h-3 w-3"/>Remove Category</Button>
-                        </div>
+                             <Button type="button" variant="destructive" size="xs" onClick={() => removeCategory(index)} disabled={categoriesFields.length <=1}><Trash2 className="mr-1 h-3 w-3"/>Remove Category</Button>
+                        </Card>
                     ))}
-                    <Button type="button" variant="outline" size="sm" onClick={() => appendCategory({...defaultCategory})}><PlusCircle className="mr-2 h-4 w-4"/>Add Category</Button>
+                    <Button type="button" variant="outline" size="sm" onClick={() => appendCategory({...defaultCategory, id: `cat-${Date.now()}-${Math.random()}`})}><PlusCircle className="mr-2 h-4 w-4"/>Add Category</Button>
                 </fieldset>
 
-                <FormField control={form.control} name="fabricDetails" render={({ field }) => (
-                  <FormItem><FormLabel>Fabric Details</FormLabel><FormControl><Textarea {...field} rows={2} /></FormControl><FormMessage /></FormItem>
-                )} />
-                <FormField control={form.control} name="careInstructions" render={({ field }) => (
-                  <FormItem><FormLabel>Care Instructions</FormLabel><FormControl><Textarea {...field} rows={2} /></FormControl><FormMessage /></FormItem>
-                )} />
-                <FormField control={form.control} name="sustainabilityMetrics" render={({ field }) => (
-                  <FormItem><FormLabel>Sustainability Metrics</FormLabel><FormControl><Textarea {...field} rows={2} /></FormControl><FormMessage /></FormItem>
-                )} />
-                <FormField control={form.control} name="fitGuide" render={({ field }) => (
-                  <FormItem><FormLabel>Fit Guide</FormLabel><FormControl><Textarea {...field} rows={2} /></FormControl><FormMessage /></FormItem>
-                )} />
+                {/* Additional Details */}
+                <fieldset className="space-y-4 p-4 border rounded-md">
+                  <legend className="text-lg font-semibold px-1 -mt-7 bg-background">Additional Details</legend>
+                  <FormField control={form.control} name="fabricDetails" render={({ field }) => (
+                    <FormItem><FormLabel>Fabric Details</FormLabel><FormControl><Textarea {...field} rows={2} /></FormControl><FormMessage /></FormItem>
+                  )} />
+                  <FormField control={form.control} name="careInstructions" render={({ field }) => (
+                    <FormItem><FormLabel>Care Instructions</FormLabel><FormControl><Textarea {...field} rows={2} /></FormControl><FormMessage /></FormItem>
+                  )} />
+                  <FormField control={form.control} name="sustainabilityMetrics" render={({ field }) => (
+                    <FormItem><FormLabel>Sustainability Metrics</FormLabel><FormControl><Textarea {...field} rows={2} /></FormControl><FormMessage /></FormItem>
+                  )} />
+                  <FormField control={form.control} name="fitGuide" render={({ field }) => (
+                    <FormItem><FormLabel>Fit Guide</FormLabel><FormControl><Textarea {...field} rows={2} /></FormControl><FormMessage /></FormItem>
+                  )} />
+                </fieldset>
 
-                <fieldset className="space-y-3 p-3 border rounded-md">
-                  <legend className="text-md font-medium px-1">Variants (Optional)</legend>
+                {/* Variants */}
+                <fieldset className="space-y-3 p-4 border rounded-md">
+                  <legend className="text-lg font-semibold px-1 -mt-7 bg-background">Variants (Optional)</legend>
                   {variantsFields.map((field, index) => (
-                    <div key={field.id} className="space-y-2 p-3 border rounded bg-muted/30">
+                    <Card key={field.id} className="p-3 space-y-2 bg-muted/30">
+                      <FormLabel className="text-sm">Variant {index + 1}</FormLabel>
                       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                         <FormField control={form.control} name={`variants.${index}.name`} render={({ field }) => (
-                          <FormItem><FormLabel>Type (e.g. Size)</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                          <FormItem><FormLabel className="text-xs">Type (e.g. Size)*</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                         )} />
                         <FormField control={form.control} name={`variants.${index}.value`} render={({ field }) => (
-                          <FormItem><FormLabel>Value (e.g. M)</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                          <FormItem><FormLabel className="text-xs">Value (e.g. M)*</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                         )} />
                         <FormField control={form.control} name={`variants.${index}.sku`} render={({ field }) => (
-                          <FormItem><FormLabel>SKU</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                          <FormItem><FormLabel className="text-xs">SKU</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                         )} />
                         <FormField control={form.control} name={`variants.${index}.price`} render={({ field }) => (
-                          <FormItem><FormLabel>Variant Price</FormLabel><FormControl><Input type="number" step="0.01" {...field} value={field.value ?? 0} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} placeholder="Overrides base price if set" /></FormControl><FormMessage /></FormItem>
+                          <FormItem><FormLabel className="text-xs">Variant Price*</FormLabel><FormControl><Input type="number" step="0.01" {...field} value={field.value ?? 0} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} placeholder="Overrides base price if set" /></FormControl><FormMessage /></FormItem>
                         )} />
                         <FormField control={form.control} name={`variants.${index}.costPrice`} render={({ field }) => (
-                          <FormItem><FormLabel>Variant Cost Price</FormLabel><FormControl><Input type="number" step="0.01" {...field} value={field.value ?? ''}  onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))} /></FormControl><FormMessage /></FormItem>
+                          <FormItem><FormLabel className="text-xs">Variant Cost Price</FormLabel><FormControl><Input type="number" step="0.01" {...field} value={field.value ?? ''}  onChange={e => field.onChange(e.target.value === '' ? null : parseFloat(e.target.value))} /></FormControl><FormMessage /></FormItem>
                         )} />
                         <FormField control={form.control} name={`variants.${index}.stock`} render={({ field }) => (
-                          <FormItem><FormLabel>Stock</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? 0} onChange={e => field.onChange(parseInt(e.target.value, 10) || 0)} /></FormControl><FormMessage /></FormItem>
+                          <FormItem><FormLabel className="text-xs">Stock*</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? 0} onChange={e => field.onChange(parseInt(e.target.value, 10) || 0)} /></FormControl><FormMessage /></FormItem>
                         )} />
                         <FormField control={form.control} name={`variants.${index}.imageId`} render={({ field }) => (
-                          <FormItem><FormLabel>Image ID (Optional)</FormLabel><FormControl><Input {...field} placeholder="img-variant-id" /></FormControl><FormMessage /></FormItem>
+                          <FormItem><FormLabel className="text-xs">Image ID (Optional)</FormLabel><FormControl><Input {...field} placeholder="img-variant-id" /></FormControl><FormDescription>ID of an image from the main list above.</FormDescription><FormMessage /></FormItem>
                         )} />
                       </div>
-                      <Button type="button" variant="destructive" size="sm" onClick={() => removeVariant(index)}><Trash2 className="mr-1 h-3 w-3"/>Remove Variant</Button>
-                    </div>
+                      <Button type="button" variant="destructive" size="xs" onClick={() => removeVariant(index)}><Trash2 className="mr-1 h-3 w-3"/>Remove Variant</Button>
+                    </Card>
                   ))}
-                  <Button type="button" variant="outline" size="sm" onClick={() => appendVariant({...defaultVariant})}><PlusCircle className="mr-2 h-4 w-4"/>Add Variant</Button>
-                   {hasVariants && <p className="text-xs text-muted-foreground p-1">If variants are used, their prices override the base product price. Variant stock is summed for total product stock.</p>}
+                  <Button type="button" variant="outline" size="sm" onClick={() => appendVariant({...defaultVariant, id: `var-${Date.now()}-${Math.random()}`})}><PlusCircle className="mr-2 h-4 w-4"/>Add Variant</Button>
+                   {hasVariants && <p className="text-xs text-muted-foreground p-1">If variants are used, their prices override the base product price. Variant stock is summed for total product stock. Base stock field will be ignored.</p>}
                 </fieldset>
 
+                {/* Product Customization */}
                 <fieldset className="space-y-4 p-4 border rounded-md">
-                    <legend className="text-lg font-semibold px-1 flex items-center"><Paintbrush className="mr-2 h-5 w-5 text-primary"/>Product Customization Options</legend>
+                    <legend className="text-lg font-semibold px-1 -mt-7 bg-background flex items-center"><Paintbrush className="mr-2 h-5 w-5 text-primary"/>Product Customization Options</legend>
                      <FormField
                         control={form.control}
                         name="customizationConfig.enabled"
@@ -484,40 +543,41 @@ export default function AdminProductsPage() {
                     )}
                 </fieldset>
 
+                {/* Available Print Designs (if customization & predefined designs enabled) */}
                 {customizationEnabled && form.watch("customizationConfig.allowPredefinedDesigns") && (
-                    <fieldset className="space-y-3 p-3 border rounded-md">
-                        <legend className="text-md font-medium px-1">Available Predefined Print Designs</legend>
+                    <fieldset className="space-y-3 p-4 border rounded-md">
+                        <legend className="text-lg font-semibold px-1 -mt-7 bg-background">Available Predefined Print Designs</legend>
                         {printDesignsFields.map((field, index) => (
-                            <div key={field.id} className="space-y-2 p-2 border rounded bg-muted/30">
-                            <FormField control={form.control} name={`availablePrintDesigns.${index}.name`} render={({ field }) => (
-                                <FormItem><FormLabel>Design Name {index + 1}</FormLabel><FormControl><Input {...field} placeholder="e.g. Everest Peak Outline" /></FormControl><FormMessage /></FormItem>
-                            )} />
-                            <FormField control={form.control} name={`availablePrintDesigns.${index}.imageUrl`} render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Design Image URL</FormLabel>
-                                  <FormControl><Input {...field} placeholder="https://example.com/design.png" /></FormControl>
-                                  <FormDescription>Tip: For quick uploads, try free sites like ImgBB.com or Postimages.org. Upload your image, then copy and paste the "Direct link" here.</FormDescription>
-                                  <FormMessage />
-                                </FormItem>
-                            )} />
-                            <FormField control={form.control} name={`availablePrintDesigns.${index}.dataAiHint`} render={({ field }) => (
-                                <FormItem><FormLabel>AI Hint for Design Image</FormLabel><FormControl><Input {...field} placeholder="e.g. mountain lineart" /></FormControl><FormMessage /></FormItem>
-                            )} />
-                            <Button type="button" variant="destructive" size="sm" onClick={() => removePrintDesign(index)}><Trash2 className="mr-1 h-3 w-3"/>Remove Design</Button>
-                            </div>
+                            <Card key={field.id} className="p-3 space-y-2 bg-muted/30">
+                              <FormLabel className="text-sm">Design {index + 1}</FormLabel>
+                              <FormField control={form.control} name={`availablePrintDesigns.${index}.name`} render={({ field }) => (
+                                  <FormItem><FormLabel className="text-xs">Design Name*</FormLabel><FormControl><Input {...field} placeholder="e.g. Everest Peak Outline" /></FormControl><FormMessage /></FormItem>
+                              )} />
+                              <FormField control={form.control} name={`availablePrintDesigns.${index}.imageUrl`} render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel className="text-xs">Design Image URL*</FormLabel>
+                                    <FormControl><Input {...field} placeholder="https://example.com/design.png" /></FormControl>
+                                    <FormDescription>Tip: For quick uploads, try free sites like ImgBB.com or Postimages.org. Upload your image, then copy and paste the "Direct link" here.</FormDescription>
+                                    <FormMessage />
+                                  </FormItem>
+                              )} />
+                              <FormField control={form.control} name={`availablePrintDesigns.${index}.dataAiHint`} render={({ field }) => (
+                                  <FormItem><FormLabel className="text-xs">AI Hint for Design Image</FormLabel><FormControl><Input {...field} placeholder="e.g. mountain lineart" /></FormControl><FormMessage /></FormItem>
+                              )} />
+                              <Button type="button" variant="destructive" size="xs" onClick={() => removePrintDesign(index)}><Trash2 className="mr-1 h-3 w-3"/>Remove Design</Button>
+                            </Card>
                         ))}
-                        <Button type="button" variant="outline" size="sm" onClick={() => appendPrintDesign({...defaultPrintDesign})}><PlusCircle className="mr-2 h-4 w-4"/>Add Predefined Design</Button>
+                        <Button type="button" variant="outline" size="sm" onClick={() => appendPrintDesign({...defaultPrintDesign, id: `print-${Date.now()}-${Math.random()}`})}><PlusCircle className="mr-2 h-4 w-4"/>Add Predefined Design</Button>
                     </fieldset>
                 )}
 
-
                 <DialogFooter className="pt-4">
                   <DialogClose asChild>
-                     <Button type="button" variant="outline">Cancel</Button>
+                     <Button type="button" variant="outline" onClick={() => {setIsFormOpen(false); form.reset();}}>Cancel</Button>
                   </DialogClose>
                   <Button type="submit" disabled={isSaving}>
                     {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                    Save Product
+                    {editingProduct ? 'Save Changes' : 'Create Product'}
                   </Button>
                 </DialogFooter>
               </form>
@@ -530,3 +590,4 @@ export default function AdminProductsPage() {
   );
 }
 
+    

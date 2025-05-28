@@ -14,11 +14,11 @@ async function getProductsFromSupabase() {
     console.error('[API /api/admin/products GET] Supabase client for read is not initialized.');
     throw new Error('Database client not configured for product reads.');
   }
-  console.log(`[API /api/admin/products GET] Fetching products using ${clientForRead === supabaseAdmin ? "ADMIN client" : "PUBLIC client"}.`);
+  // console.log(`[API /api/admin/products GET] Fetching products using ${clientForRead === supabaseAdmin ? "ADMIN client" : "PUBLIC client"}.`);
   const { data, error } = await clientForRead
     .from('products')
     .select('*')
-    .order('"createdAt"', { ascending: false }); // Ensure quoted if camelCase
+    .order('"createdAt"', { ascending: false });
 
   if (error) {
     console.error('[API /api/admin/products GET] Supabase error fetching products:', error);
@@ -28,14 +28,14 @@ async function getProductsFromSupabase() {
 }
 
 export async function GET() {
-  console.log("[API /api/admin/products] GET request received for admin.");
+  // console.log("[API /api/admin/products] GET request received for admin.");
   try {
     if (!fallbackSupabase && !supabaseAdmin) {
       console.error('[API /api/admin/products GET] Both Supabase clients are null. Check environment variables and server restart.');
       return NextResponse.json({ message: 'Database client not configured. Please check server logs and .env file.' }, { status: 503 });
     }
     const products = await getProductsFromSupabase();
-    console.log(`[API /api/admin/products] Fetched ${products.length} products for admin.`);
+    // console.log(`[API /api/admin/products] Fetched ${products.length} products for admin.`);
     return NextResponse.json(products);
   } catch (error: any) {
     console.error('[API /api/admin/products GET] Error in GET handler:', error);
@@ -54,7 +54,7 @@ function isValidUUID(str: string | undefined | null): boolean {
 }
 
 export async function POST(request: NextRequest) {
-  console.log("[API /api/admin/products] POST request received to save product.");
+  console.log("[API /api/admin/products POST] Request received to save product.");
   const clientForWrite = supabaseAdmin || fallbackSupabase;
 
   if (!clientForWrite) {
@@ -65,17 +65,16 @@ export async function POST(request: NextRequest) {
         rawSupabaseError: { message: 'Supabase client for write operations not initialized.' }
     }, { status: 503 });
   }
-  if (!supabaseAdmin) {
+  if (clientForWrite === fallbackSupabase) {
       console.warn("[API /api/admin/products POST] WARNING: Using public anon key for product save/update because SUPABASE_SERVICE_ROLE_KEY is likely not set. RLS policies for 'anon' role on 'products' table will apply if RLS is enabled.");
   } else {
       console.log(`[API /api/admin/products POST] Using ADMIN client (service_role) for write operation.`);
   }
 
-
   let productDataFromRequest: Partial<Product>;
   try {
     productDataFromRequest = (await request.json()) as Partial<Product>;
-    console.log("[API /api/admin/products POST] Received product data for save/update:", JSON.stringify(productDataFromRequest, null, 2));
+    console.log("[API /api/admin/products POST] Received product data for save/update:", JSON.stringify(productDataFromRequest).substring(0, 500) + "...");
   } catch (e: any) {
     console.error('[API /api/admin/products POST] Error parsing request JSON:', e);
     return NextResponse.json({ message: 'Invalid request body. Expected JSON.', errorDetails: e.message }, { status: 400 });
@@ -89,7 +88,7 @@ export async function POST(request: NextRequest) {
   
   const finalSlug = slug?.trim() ? slug.trim() : name.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, '');
 
-  const supabaseDataPayload: Omit<Product, 'id' | 'createdAt' | 'updatedAt' | 'reviews'> & { slug: string } = {
+  const supabaseDataPayload = {
     name,
     slug: finalSlug,
     price: Number(productDataFromRequest.price) || 0,
@@ -110,6 +109,7 @@ export async function POST(request: NextRequest) {
     stock: (productDataFromRequest.variants && productDataFromRequest.variants.length > 0)
            ? productDataFromRequest.variants.reduce((sum, v) => sum + (Number(v.stock) || 0), 0)
            : (Number(productDataFromRequest.stock) || 0),
+    isFeatured: productDataFromRequest.isFeatured === undefined ? false : productDataFromRequest.isFeatured, // Default to false
     availablePrintDesigns: Array.isArray(productDataFromRequest.availablePrintDesigns) ? productDataFromRequest.availablePrintDesigns.map(d => ({...d, id: d.id || uuidv4()})) : [],
     customizationConfig: productDataFromRequest.customizationConfig || null,
     collections: productDataFromRequest.collections || null,
@@ -121,37 +121,33 @@ export async function POST(request: NextRequest) {
     sku: productDataFromRequest.sku || null,
     averageRating: Number(productDataFromRequest.averageRating) || 0,
     reviewCount: Number(productDataFromRequest.reviewCount) || 0,
-    isFeatured: productDataFromRequest.isFeatured || false,
-    // reviews field removed from here
+    // 'reviews' field should not be directly saved to the products table
   };
 
-  // Explicitly set optional fields to null if they are empty strings or undefined, to avoid database errors
-  // This loop might be too aggressive, ensure it doesn't nullify intended empty arrays for jsonb
-  for (const key in supabaseDataPayload) {
-    if (supabaseDataPayload[key as keyof typeof supabaseDataPayload] === undefined) {
+  // Explicitly set optional fields to null if they are empty strings or undefined for Supabase
+  (Object.keys(supabaseDataPayload) as Array<keyof typeof supabaseDataPayload>).forEach(key => {
+    if (supabaseDataPayload[key] === undefined) {
       (supabaseDataPayload as any)[key] = null;
     }
-  }
-  // Ensure array fields are empty arrays if null/undefined, not null itself if DB expects array
-  if (supabaseDataPayload.variants === null) supabaseDataPayload.variants = [];
-  if (supabaseDataPayload.images === null) supabaseDataPayload.images = []; // Should have default in DB
-  if (supabaseDataPayload.categories === null) supabaseDataPayload.categories = []; // Should have default in DB
-  if (supabaseDataPayload.availablePrintDesigns === null) supabaseDataPayload.availablePrintDesigns = [];
-  if (supabaseDataPayload.tags === null) supabaseDataPayload.tags = [];
-
+  });
+   if (supabaseDataPayload.variants === null) supabaseDataPayload.variants = [];
+   if (supabaseDataPayload.images === null) supabaseDataPayload.images = []; 
+   if (supabaseDataPayload.categories === null) supabaseDataPayload.categories = []; 
+   if (supabaseDataPayload.availablePrintDesigns === null) supabaseDataPayload.availablePrintDesigns = [];
+   if (supabaseDataPayload.tags === null) supabaseDataPayload.tags = [];
 
   try {
     let savedProduct;
     let operationError = null;
     let operationType = '';
 
-    // Explicitly set updatedAt for updates, rely on DB default for inserts
-    const updateTimestamp = new Date().toISOString();
+    // The database trigger will handle createdAt and updatedAt.
+    // No need to set them explicitly here anymore.
 
     if (id && isValidUUID(id)) {
       operationType = 'UPDATE';
-      const updatePayload = { ...supabaseDataPayload, updatedAt: updateTimestamp };
-      console.log(`[API /api/admin/products POST] Attempting to UPDATE product with ID: ${id}. Data:`, JSON.stringify(updatePayload, null, 2));
+      const updatePayload = { ...supabaseDataPayload }; // updatedAt will be handled by trigger
+      console.log(`[API /api/admin/products POST] Attempting to UPDATE product with ID: ${id}. Data:`, JSON.stringify(updatePayload).substring(0, 500) + "...");
       const { data, error } = await clientForWrite
         .from('products')
         .update(updatePayload)
@@ -162,10 +158,8 @@ export async function POST(request: NextRequest) {
       operationError = error;
     } else {
       operationType = 'INSERT';
-      // For insert, Supabase will generate 'id', 'createdAt', 'updatedAt'.
-      // Do not send client-generated 'id' if it's not a valid UUID
-      const insertPayload = { ...supabaseDataPayload, createdAt: updateTimestamp, updatedAt: updateTimestamp };
-      console.log(`[API /api/admin/products POST] Attempting to INSERT new product. Data:`, JSON.stringify(insertPayload, null, 2));
+      const insertPayload = { ...supabaseDataPayload }; // createdAt and updatedAt by trigger/default
+      console.log(`[API /api/admin/products POST] Attempting to INSERT new product. Data:`, JSON.stringify(insertPayload).substring(0, 500) + "...");
       const { data, error } = await clientForWrite
         .from('products')
         .insert(insertPayload)
@@ -177,15 +171,11 @@ export async function POST(request: NextRequest) {
 
     if (operationError) {
       console.error(`[API /api/admin/products POST] Supabase error during ${operationType}:`, operationError);
-      // Try to extract more specific error message
       const message = operationError.message || `Failed to ${operationType.toLowerCase()} product.`;
-      const details = operationError.details || null;
-      const hint = operationError.hint || null;
-      const code = operationError.code || null;
       return NextResponse.json({
         message: `Database error: ${message}`,
-        rawSupabaseError: { message, details, hint, code }
-      }, { status: code === 'PGRST116' ? 404 : 500 });
+        rawSupabaseError: { message: operationError.message, details: operationError.details, hint: operationError.hint, code: operationError.code }
+      }, { status: operationError.code === 'PGRST116' ? 404 : 500 }); // PGRST116 for "0 rows"
     }
 
     if (!savedProduct) {
@@ -205,3 +195,5 @@ export async function POST(request: NextRequest) {
     }, { status: 500 });
   }
 }
+
+    

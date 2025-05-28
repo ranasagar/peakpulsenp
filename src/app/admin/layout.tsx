@@ -2,7 +2,7 @@
 "use client"; 
 
 import Link from 'next/link';
-import { Shield, LayoutDashboard, Settings, ArrowLeft, BookOpenText, ShoppingBag, BarChart3, ListOrdered, Landmark, Tags, Users, ListChecks, FileText, Package, Home as HomeIcon, PenSquare, DollarSign, FileSpreadsheet, Palette, ImageIcon as ImageIconLucide, Printer } from 'lucide-react';
+import { Shield, LayoutDashboard, Settings, ArrowLeft, BookOpenText, ShoppingBag, BarChart3, ListOrdered, Landmark, Tags, Users, ListChecks, FileText, Package as PackageIcon, Home as HomeIcon, PenSquare, DollarSign, FileSpreadsheet, Palette, ImageIcon as ImageIconLucide, Printer, MessageSquare } from 'lucide-react';
 import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
 import { Button } from '@/components/ui/button';
@@ -10,7 +10,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { useAuth } from '@/hooks/use-auth';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card } from '@/components/ui/card';
-// ScrollArea import is removed as it's no longer used in the sidebar
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 export default function AdminLayout({
   children,
@@ -67,10 +67,9 @@ export default function AdminLayout({
             </Button>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 items-start"> {/* Added items-start */}
             <aside className="w-full md:col-span-1 md:sticky md:top-28 bg-card p-4 rounded-lg shadow-sm">
-              {/* Removed ScrollArea from here */}
-              <nav className="space-y-1">
+              <nav className="space-y-1"> {/* Removed ScrollArea and fixed height from here */}
                 <Button variant="ghost" className="w-full justify-start pl-2 pr-3 py-2" asChild>
                   <Link href="/admin">
                     <LayoutDashboard className="mr-2 h-4 w-4" /> Dashboard
@@ -86,13 +85,16 @@ export default function AdminLayout({
                     </AccordionTrigger>
                     <AccordionContent className="pt-1 pl-4 space-y-0.5">
                       <Button variant="ghost" className="w-full justify-start text-sm font-normal h-9 pl-2 pr-3 py-2" asChild>
-                          <Link href="/admin/products"><Package className="mr-2 h-4 w-4" />Manage Products</Link>
+                          <Link href="/admin/products"><PackageIcon className="mr-2 h-4 w-4" />Manage Products</Link>
                         </Button>
                         <Button variant="ghost" className="w-full justify-start text-sm font-normal h-9 pl-2 pr-3 py-2" asChild>
                           <Link href="/admin/categories"><Tags className="mr-2 h-4 w-4" /> Manage Categories</Link>
                         </Button>
                         <Button variant="ghost" className="w-full justify-start text-sm font-normal h-9 pl-2 pr-3 py-2" asChild>
                           <Link href="/admin/orders"><ListOrdered className="mr-2 h-4 w-4" /> View Orders</Link>
+                        </Button>
+                        <Button variant="ghost" className="w-full justify-start text-sm font-normal h-9 pl-2 pr-3 py-2" asChild>
+                          <Link href="/admin/reviews"><MessageSquare className="mr-2 h-4 w-4" /> Manage Reviews</Link>
                         </Button>
                     </AccordionContent>
                   </AccordionItem>
@@ -177,3 +179,5 @@ export default function AdminLayout({
     </div>
   );
 }
+
+    

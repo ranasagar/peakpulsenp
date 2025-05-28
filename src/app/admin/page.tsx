@@ -1,16 +1,21 @@
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { BookOpenText, ShoppingBag, BarChart3, ListOrdered, Landmark, Tags, Users, Settings, AlertTriangle, FileText, Palette, ImageIcon as ImageIconLucide, Printer, Home as HomeIcon, ListChecks, DollarSign, FileSpreadsheet } from 'lucide-react';
+import { BookOpenText, ShoppingBag, BarChart3, ListOrdered, Landmark, Tags, Users, Settings, AlertTriangle, FileText, Palette, ImageIcon as ImageIconLucide, Printer, Home as HomeIcon, ListChecks, DollarSign, FileSpreadsheet, MessageSquare } from 'lucide-react';
 import Link from 'next/link';
-import { supabase } from '@/lib/supabaseClient';
+import { supabaseAdmin, supabase as fallbackSupabase } from '@/lib/supabaseClient'; // Use admin client for counts
 import { Button } from '@/components/ui/button';
 
 async function getSupabaseCount(tableName: string): Promise<string | number> {
-  if (!supabase) {
-    console.warn(`[AdminDashboard] Supabase client not available for counting ${tableName}. Check .env variables and server restart.`);
+  const client = supabaseAdmin || fallbackSupabase; // Prefer admin client
+  if (!client) {
+    const message = supabaseAdmin === null ? 'Supabase ADMIN client (service_role) not available for counting.' : 'Supabase client (public fallback) not available for counting.';
+    console.warn(`[AdminDashboard] ${message} Check .env variables and server restart for table: ${tableName}.`);
     return 'N/A (DB Client Error)';
   }
+  
   try {
-    const { count, error } = await supabase.from(tableName).select('*', { count: 'exact', head: true });
+    // console.log(`[AdminDashboard] Counting table: ${tableName} using ${client === supabaseAdmin ? 'ADMIN' : 'PUBLIC'} client.`);
+    const { count, error } = await client.from(tableName).select('*', { count: 'exact', head: true });
     if (error) {
       console.error(`[AdminDashboard] Error counting ${tableName} in Supabase:`, error);
       let detail = error.message;
@@ -26,11 +31,12 @@ async function getSupabaseCount(tableName: string): Promise<string | number> {
 }
 
 async function getSiteConfigurationStatus(configKey: string): Promise<string | 'Okay' | 'Not Found' | 'Error'> {
-  if (!supabase) {
+  const client = supabaseAdmin || fallbackSupabase;
+  if (!client) {
     return 'Error (DB Client)';
   }
   try {
-    const { data, error } = await supabase
+    const { data, error } = await client
       .from('site_configurations')
       .select('config_key')
       .eq('config_key', configKey)
@@ -57,6 +63,7 @@ export default async function AdminDashboardPage() {
   const collabCategoryCount = await getSupabaseCount('design_collaboration_categories');
   const galleryCount = await getSupabaseCount('design_collaborations');
   const printDesignCount = await getSupabaseCount('print_on_demand_designs');
+  const reviewCount = await getSupabaseCount('reviews');
 
   const homepageContentStatus = await getSiteConfigurationStatus('homepageContent');
   const ourStoryContentStatus = await getSiteConfigurationStatus('ourStoryContent');
@@ -69,12 +76,14 @@ export default async function AdminDashboardPage() {
   let completedOrderCount = 0;
   let salesMetricsError: string | null = null;
 
-  if (supabase) {
+  const client = supabaseAdmin || fallbackSupabase;
+
+  if (client) {
     try {
-      const { data: ordersData, error: ordersError } = await supabase
+      const { data: ordersData, error: ordersError } = await client
         .from('orders')
-        .select('totalAmount, items') // Assuming items is JSONB and contains costPrice & quantity
-        .in('status', ['Shipped', 'Delivered']); // Consider only completed orders
+        .select('totalAmount, items') 
+        .in('status', ['Shipped', 'Delivered']); 
 
       if (ordersError) {
         console.error("[AdminDashboard] Error fetching orders for metrics from Supabase:", ordersError);
@@ -84,7 +93,7 @@ export default async function AdminDashboardPage() {
         ordersData.forEach(order => {
           totalRevenue += order.totalAmount || 0;
           if (Array.isArray(order.items)) {
-            order.items.forEach((item: any) => { // item from jsonb, so 'any'
+            order.items.forEach((item: any) => { 
               totalCOGS += (item.costPrice || 0) * (item.quantity || 0);
             });
           }
@@ -116,15 +125,16 @@ export default async function AdminDashboardPage() {
       <Card className="shadow-lg">
         <CardHeader>
           <CardTitle className="text-2xl">Welcome to the Peak Pulse Admin Dashboard</CardTitle>
-          <CardDescription>Manage your application data and site content configurations, primarily stored in Supabase.</CardDescription>
+          <CardDescription>Manage your application data and site content configurations from Supabase.</CardDescription>
         </CardHeader>
         <CardContent>
           <h3 className="text-lg font-semibold mb-4 text-primary">Store Data Overview (from Supabase)</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            <DashboardStatCard title="Products" count={productCount} link="/admin/products" icon={ShoppingBag} />
+            <DashboardStatCard title="Products" count={productCount} link="/admin/products" icon={PackageIcon} />
             <DashboardStatCard title="Categories" count={categoryCount} link="/admin/categories" icon={Tags} />
             <DashboardStatCard title="Orders" count={orderCount} link="/admin/orders" icon={ListOrdered} />
             <DashboardStatCard title="Users" count={userCount} link="#" icon={Users} note="User management UI pending" />
+            <DashboardStatCard title="Reviews" count={reviewCount} link="/admin/reviews" icon={MessageSquare} />
             <DashboardStatCard title="Collaboration Categories" count={collabCategoryCount} link="/admin/design-hub/collaboration-categories" icon={Tags} />
             <DashboardStatCard title="Collaboration Galleries" count={galleryCount} link="/admin/design-hub/galleries" icon={ImageIconLucide} />
             <DashboardStatCard title="Print Designs" count={printDesignCount} link="/admin/design-hub/print-designs" icon={Printer} />
@@ -136,7 +146,7 @@ export default async function AdminDashboardPage() {
             <ContentStatusCard title="Our Story Content" status={ourStoryContentStatus} link="/admin/content/our-story" icon={BookOpenText}/>
             <ContentStatusCard title="Footer Content" status={footerContentStatus} link="/admin/content/footer" icon={ListChecks}/>
             <ContentStatusCard title="General Settings" status={generalSettingsStatus} link="/admin/settings" icon={Settings}/>
-            <ContentStatusCard title="Site Pages" status="Okay" link="/admin/content/site-pages" icon={FileText} note="Manage multiple pages"/>
+            <ContentStatusCard title="Site Pages (Privacy, Terms etc.)" status={"Okay"} link="/admin/content/site-pages" icon={FileText} note="Manage multiple pages"/>
           </div>
         </CardContent>
       </Card>
@@ -144,7 +154,7 @@ export default async function AdminDashboardPage() {
       <Card className="shadow-lg">
         <CardHeader>
             <CardTitle className="text-xl flex items-center"><Landmark className="mr-2 h-6 w-6 text-primary"/>Accounting Overview</CardTitle>
-            <CardDescription>Sales and profitability summary for 'Shipped' or 'Delivered' orders. COGS calculated from item costPrice at time of sale.</CardDescription>
+            <CardDescription>Sales and profitability summary for 'Shipped' or 'Delivered' orders. COGS based on item costPrice at time of sale.</CardDescription>
         </CardHeader>
         <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {salesMetricsError ? (
@@ -188,13 +198,11 @@ export default async function AdminDashboardPage() {
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground mb-2">
-            This admin panel primarily uses Supabase for Products, Categories, Orders, User Profiles (including roles and wishlists), Loans, and dynamic site content (Homepage, Our Story, Footer, General Settings, Other Static Pages via `site_configurations` table).
+            This admin panel primarily uses Supabase for Products, Categories, Orders, User Profiles (roles, wishlists), Loans, Site Configurations (Footer, Homepage, Our Story, General Settings, Page Content), Design Hub entities, and Product Reviews.
           </p>
           <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
-            <li>**Supabase & Firebase Config:** Ensure your <code>.env</code> file has correct Supabase and Firebase credentials. The server must be restarted after <code>.env</code> changes.</li>
-            <li>**Security:** Admin section access is role-based (requires 'admin' role in user's Supabase profile). Firestore rules (for Firebase Auth users if separate from Supabase users) and Supabase RLS policies for all tables are critical for production security.</li>
-            <li>**Accounting Features:** Sales summary and tax data export are for reference. Full accounting needs specialized systems.</li>
-            <li>**File-based content (Obsolete):** Any remaining JSON files in `src/data` for content are likely no longer used; data is fetched from Supabase.</li>
+            <li>**Supabase & Firebase Config:** Ensure your <code>.env</code> file has correct Supabase (URL, Anon Key, Service Role Key) and Firebase credentials. The server must be restarted after <code>.env</code> changes.</li>
+            <li>**Security:** Admin section access is role-based (requires 'admin' role in user's Supabase profile). Supabase RLS policies are critical for production security. Admin API routes should ideally use the Supabase service_role key.</li>
           </ul>
         </CardContent>
       </Card>
@@ -280,3 +288,5 @@ const AccountingStatCard: React.FC<AccountingStatCardProps> = ({ title, value, d
         </Card>
     );
 };
+
+    
