@@ -1,4 +1,4 @@
-
+// src/app/page.tsx
 "use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -18,10 +18,11 @@ import { formatDisplayDate } from '@/lib/dateUtils';
 import { cn } from '@/lib/utils';
 import { ProductCard } from '@/components/product/product-card';
 
+
 const fallbackHeroSlide: HeroSlide = {
   id: 'fallback-hero-main-public-page-ts',
   title: "Peak Pulse (Fallback)",
-  description: "Experience the fusion of ancient Nepali artistry and modern streetwear. (Default content loaded)",
+  description: "Experience the fusion of ancient Nepali artistry and modern streetwear. (Content failed to load, displaying fallback)",
   imageUrl: "https://images.unsplash.com/photo-1502823403499-6ccfcf4fb453?ixlib=rb-1.2.1&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1920&h=1080&q=80",
   altText: "Fallback Peak Pulse Hero Image",
   dataAiHint: "fashion model fallback",
@@ -42,6 +43,7 @@ const defaultHomepageContent: HomepageContent = {
   heroImageUrl: undefined,
 };
 
+
 async function getHomepageContent(): Promise<HomepageContent> {
   const fetchUrl = `/api/content/homepage`;
   console.log(`[Client Fetch] Attempting to fetch from: ${fetchUrl}`);
@@ -51,46 +53,48 @@ async function getHomepageContent(): Promise<HomepageContent> {
     if (!res.ok) {
       let errorDetail = `Failed to fetch homepage content. Status: ${res.status} ${res.statusText || '(No status text)'}`;
       let rawBodyForLog = "";
+      let errorData = null;
       try {
-        // Try to get raw text first, then attempt JSON parse for structured error
-        rawBodyForLog = await res.text(); // Get raw response first
-        const errorData = JSON.parse(rawBodyForLog); // Then try to parse
-        errorDetail = errorData.error || errorData.message || errorData.rawSupabaseError?.message || errorDetail;
-        if (errorData.rawSupabaseError) {
-          errorDetail += ` Supabase Error: ${errorData.rawSupabaseError.message} Code: ${errorData.rawSupabaseError.code}`;
+        rawBodyForLog = await res.text();
+        errorData = JSON.parse(rawBodyForLog);
+        if (errorData && (errorData.error || errorData.message || errorData.rawSupabaseError)) {
+          errorDetail = errorData.error || errorData.message || errorData.rawSupabaseError?.message || errorDetail;
+          if (errorData.rawSupabaseError) {
+            errorDetail += ` Supabase Error: ${errorData.rawSupabaseError.message || ''} Code: ${errorData.rawSupabaseError.code || ''}`;
+          }
         }
       } catch (e) {
-         // If JSON.parse fails, it means the response was not JSON (e.g., HTML error page)
-         console.warn("[Client Fetch] API error response was not valid JSON. Raw body (first 200 chars):", rawBodyForLog.substring(0, 200));
+         console.warn("[Client Fetch] API error response was not valid JSON for homepage content. Raw body (first 200 chars):", rawBodyForLog.substring(0, 200));
+         errorDetail += ` (Server response was not valid JSON. Raw: ${rawBodyForLog.substring(0,100)})`
       }
-      console.error("[Client Fetch] Error fetching content from API:", errorDetail, "Raw response status:", res.status, res.statusText);
-      return { ...defaultHomepageContent, error: errorDetail || "Unknown error fetching homepage content." };
+      console.error("[Client Fetch] Error fetching homepage content from API:", errorDetail, "Raw response status:", res.status, res.statusText);
+      return { ...defaultHomepageContent, error: errorDetail };
     }
 
-    const jsonData = await res.json();
-    console.log("[Client Fetch] Successfully fetched content:", jsonData);
+    const jsonData: HomepageContent = await res.json();
+    console.log("[Client Fetch] Successfully fetched homepage content:", jsonData);
     
     const processedData: HomepageContent = {
       heroSlides: Array.isArray(jsonData.heroSlides) && jsonData.heroSlides.length > 0 
-        ? jsonData.heroSlides.map((slide: any, index: number) => ({ ...fallbackHeroSlide, ...slide, id: slide.id || `hs-fetched-${Date.now()}-${index}` }))
-        : [{...fallbackHeroSlide, id: `hs-default-processed-${Date.now()}`}],
+        ? jsonData.heroSlides.map((slide: Partial<HeroSlide>, index: number) => ({ ...fallbackHeroSlide, ...slide, id: slide.id || `hs-fetched-${Date.now()}-${index}` }))
+        : defaultHomepageContent.heroSlides, // Use default if API returns empty/invalid
       artisanalRoots: {
         title: jsonData.artisanalRoots?.title || defaultHomepageContent.artisanalRoots!.title,
         description: jsonData.artisanalRoots?.description || defaultHomepageContent.artisanalRoots!.description,
         slides: Array.isArray(jsonData.artisanalRoots?.slides) 
-          ? jsonData.artisanalRoots.slides.map((slide: any, index: number) => ({ id: slide.id || `ars-fetched-${Date.now()}-${index}`, imageUrl: slide.imageUrl || '', altText: slide.altText || '', dataAiHint: slide.dataAiHint || '' })) 
-          : [],
+          ? jsonData.artisanalRoots.slides.map((slide: Partial<ArtisanalRootsSlide>, index: number) => ({ id: slide.id || `ars-fetched-${Date.now()}-${index}`, imageUrl: slide.imageUrl || '', altText: slide.altText || '', dataAiHint: slide.dataAiHint || '' })) 
+          : defaultHomepageContent.artisanalRoots!.slides || [],
       },
       socialCommerceItems: Array.isArray(jsonData.socialCommerceItems) 
-        ? jsonData.socialCommerceItems.map((item: any, index: number) => ({ id: item.id || `scs-fetched-${Date.now()}-${index}`, imageUrl: item.imageUrl || '', linkUrl: item.linkUrl || '#', altText: item.altText || '', dataAiHint: item.dataAiHint || '', displayOrder: item.displayOrder || 0}))
-        : [],
+        ? jsonData.socialCommerceItems.map((item: Partial<SocialCommerceItem>, index: number) => ({ id: item.id || `scs-fetched-${Date.now()}-${index}`, imageUrl: item.imageUrl || '', linkUrl: item.linkUrl || '#', altText: item.altText || '', dataAiHint: item.dataAiHint || '', displayOrder: item.displayOrder || 0}))
+        : defaultHomepageContent.socialCommerceItems || [],
       heroVideoId: jsonData.heroVideoId === null ? undefined : jsonData.heroVideoId,
       heroImageUrl: jsonData.heroImageUrl === null ? undefined : jsonData.heroImageUrl,
     };
     return processedData;
   } catch (error: any) {
     console.error('[Client Fetch] CRITICAL NETWORK/FETCH ERROR in getHomepageContent:', error.name, error.message, error.stack);
-    return { ...defaultHomepageContent, error: `Network error: ${error.message || 'Failed to connect to API.'}` };
+    return { ...defaultHomepageContent, error: `Network error: ${error.message || 'Failed to connect to content API.'}` };
   }
 }
 
@@ -126,10 +130,10 @@ function HomePageContent() {
     setIsLoadingCollaborations(true);
     
     const fetchedContent = await getHomepageContent();
-    setContent(current => ({...current, ...fetchedContent, heroSlides: fetchedContent.heroSlides || current.heroSlides })); // Ensure heroSlides isn't wiped if error
+    setContent(current => ({...current, ...fetchedContent, heroSlides: fetchedContent.heroSlides || current.heroSlides }));
     if (fetchedContent.error) {
       toast({
-        title: "Error Loading Content",
+        title: "Error Loading Homepage Content",
         description: `${fetchedContent.error}. Using default values.`,
         variant: "destructive",
         duration: 7000,
@@ -141,12 +145,18 @@ function HomePageContent() {
     try {
       const productsResponse = await fetch('/api/products');
       if (!productsResponse.ok) {
-         let errorDetail = 'Failed to fetch products for featured section';
-        try { const errorData = await productsResponse.json(); errorDetail = errorData.message || errorData.rawSupabaseError?.message || `${productsResponse.status} ${productsResponse.statusText}`; } catch (e) {/* ignore */}
+        let errorDetail = 'Failed to fetch products for featured section';
+        try { 
+            const errorData = await productsResponse.json(); 
+            errorDetail = errorData.message || errorData.rawSupabaseError?.message || `${productsResponse.status} ${productsResponse.statusText}`; 
+        } catch (e) {
+            const textError = await productsResponse.text();
+            errorDetail = `${productsResponse.status}: ${textError.substring(0,100) || productsResponse.statusText}`;
+        }
         throw new Error(errorDetail);
       }
       const allProducts: Product[] = await productsResponse.json();
-      const featured = allProducts.filter(p => p.isFeatured).sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 3);
+      const featured = allProducts.filter(p => p.isFeatured).slice(0, 3);
       setFeaturedProducts(featured);
     } catch (err) {
       toast({ title: "Error Loading Featured Products", description: (err as Error).message, variant: "destructive" });
@@ -257,7 +267,7 @@ function HomePageContent() {
     };
   }, [isArtisanalPlaying, nextArtisanalSlide, activeArtisanalSlides.length]);
 
-  if (isLoadingContent && isLoadingFeaturedProducts && isLoadingCategories && isLoadingUserPosts && isLoadingCollaborations) { // Show loader only if all initial fetches are loading
+  if (isLoadingContent && isLoadingFeaturedProducts && isLoadingCategories && isLoadingUserPosts && isLoadingCollaborations) {
     return (
         <div className="flex items-center justify-center min-h-screen bg-background">
             <div className="flex flex-col items-center">
@@ -313,8 +323,7 @@ function HomePageContent() {
                   <div className="absolute inset-0 bg-black/30 z-[1]" />
                 </>
               ) : (
-                 // Fallback if a slide has neither video nor image (should be black due to parent section)
-                <div className="absolute inset-0 bg-black/50" />
+                 <div className="absolute inset-0 bg-black" /> // Fallback if a slide has neither
               )}
             </div>
           ))}
@@ -346,6 +355,9 @@ function HomePageContent() {
                     <div className="absolute inset-0 bg-black/30 z-[1]" />
                 </>
            )}
+           {activeHeroSlides.length === 0 && !heroVideoId && !heroImageUrl && (
+                <div className="absolute inset-0 bg-black" /> // Ultimate fallback if no content at all
+           )}
         </div>
 
         {/* Content Overlay for each slide */}
@@ -367,7 +379,9 @@ function HomePageContent() {
                 </p>
                 {slide.ctaText && slide.ctaLink && (
                     <Link href={slide.ctaLink} className={cn(buttonVariants({ size: "lg", className: "text-base md:text-lg py-3 px-8" }))}>
-                        {slide.ctaText} <ShoppingBag className="ml-2 h-5 w-5" />
+                        <span className="flex items-center">
+                            {slide.ctaText} <ShoppingBag className="ml-2 h-5 w-5" />
+                        </span>
                     </Link>
                 )}
             </div>
@@ -414,9 +428,9 @@ function HomePageContent() {
           <p className="text-center text-muted-foreground">No featured products available at the moment. Check back soon!</p>
         )}
         <div className="text-center mt-12">
-          <Link href="/products" className={cn(buttonVariants({ variant: "outline", size: "lg", className: "text-base" }))}>
-            View All Products <ArrowRight className="ml-2 h-5 w-5" />
-          </Link>
+            <Link href="/products" className={cn(buttonVariants({ variant: "outline", size: "lg", className: "text-base" }))}>
+                View All Products <ArrowRight className="ml-2 h-5 w-5" />
+            </Link>
         </div>
       </section>
 
@@ -439,11 +453,9 @@ function HomePageContent() {
                         className="object-cover"
                         data-ai-hint={slide.dataAiHint || "nepal craft texture"}
                     />
-                    {/* Gradient overlay over the image */}
                     <div className="absolute inset-0 bg-gradient-to-t from-card via-card/80 to-card/50 md:bg-gradient-to-r md:from-card md:via-card/70 md:to-transparent z-[1]"></div>
                  </div>
             ))}
-            {/* Fallback if no artisanal slides, so text is still on card background */}
             {activeArtisanalSlides.length === 0 && <div className="absolute inset-0 bg-primary/5"></div>}
         </div>
         <div className="container-slim text-center md:text-left relative z-10">
@@ -452,7 +464,7 @@ function HomePageContent() {
                 <h2 className="text-3xl font-bold mb-6 text-foreground">{content.artisanalRoots?.title || "Our Artisanal Roots"}</h2>
                 <p className="text-lg text-muted-foreground mb-8 leading-relaxed">{content.artisanalRoots?.description || "Details loading..."}</p>
                 <Link href="/our-story" className={cn(buttonVariants({ variant: "default", size: "lg", className: "text-base" }))}>
-                    Discover Our Story <ArrowRight className="ml-2 h-5 w-5" />
+                    <span className="flex items-center">Discover Our Story <ArrowRight className="ml-2 h-5 w-5" /></span>
                 </Link>
             </div>
         </div>
@@ -532,22 +544,27 @@ function HomePageContent() {
       {/* Social Commerce Section (#PeakPulseStyle) */}
       <section className="section-padding container-wide relative z-[1] bg-card">
           <h2 className="text-3xl font-bold text-center mb-12 text-foreground"> #PeakPulseStyle <Instagram className="inline-block ml-2 h-7 w-7 text-pink-500" /> </h2>
-        {content.socialCommerceItems && content.socialCommerceItems.length > 0 ? (
+        {isLoadingContent || (content.socialCommerceItems && content.socialCommerceItems.length > 0) ? (
            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {content.socialCommerceItems.map((item) => (
-               <InteractiveExternalLink key={item.id} href={item.linkUrl} className="block bg-muted rounded-lg overflow-hidden group relative shadow-md hover:shadow-xl transition-shadow" showDialog={true} >
+            {(isLoadingContent ? Array(4).fill(null) : content.socialCommerceItems!).map((item, idx) => (
+              item ? (
+               <InteractiveExternalLink key={item.id || `scs-${idx}`} href={item.linkUrl} className="block bg-muted rounded-lg overflow-hidden group relative shadow-md hover:shadow-xl transition-shadow" showDialog={true} >
                 <AspectRatio ratio={1/1} className="bg-background">
                   <Image src={item.imageUrl || `https://placehold.co/400x400.png?text=Post`} alt={item.altText || `User generated content showcasing Peak Pulse style`} fill sizes="(max-width: 768px) 50vw, 25vw" className="object-cover group-hover:scale-105 transition-transform duration-300" data-ai-hint={item.dataAiHint || "instagram fashion user"} />
                 </AspectRatio>
                 <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col items-center justify-center text-white p-2"> <Instagram className="h-8 w-8 mb-1" /> <span className="text-xs font-medium text-center">View on Instagram</span> </div>
               </InteractiveExternalLink>
+              ) : (
+                <AspectRatio key={`scs-skel-${idx}`} ratio={1/1} className="bg-muted rounded-lg animate-pulse"/>
+              )
             ))}
           </div>
         ) : ( <p className="text-center text-muted-foreground">Follow us on Instagram to see our latest styles! Posts managed by admin will appear here.</p> )}
           <div className="text-center mt-12">
             <InteractiveExternalLink href="https://instagram.com/peakpulsenp" showDialog={true}>
                 <Button variant="outline" className="transition-all duration-300 ease-in-out hover:scale-105 hover:shadow-lg hover:bg-pink-100 dark:hover:bg-pink-500/20 hover:text-pink-600 dark:hover:text-pink-400 border-pink-300 dark:border-pink-500/50 text-pink-600 dark:text-pink-400" >
-                Follow us on Instagram <Instagram className="ml-2 h-4 w-4" /> </Button>
+                    <span className="flex items-center">Follow us on Instagram <Instagram className="ml-2 h-4 w-4" /></span>
+                </Button>
             </InteractiveExternalLink>
           </div>
         </section>
@@ -581,7 +598,7 @@ function HomePageContent() {
         ) : ( <p className="text-center text-muted-foreground py-8">No community posts yet. Be the first to share your style!</p> )}
         <div className="text-center mt-12">
             <Link href="/community/create-post" className={cn(buttonVariants({ size: "lg"}))}>
-                <ImagePlus className="mr-2 h-5 w-5" /> Share Your Style
+                <span className="flex items-center"><ImagePlus className="mr-2 h-5 w-5" /> Share Your Style</span>
             </Link>
         </div>
       </section>
