@@ -13,7 +13,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDes
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Save, PlusCircle, Trash2, Edit, Image as ImageIconLucide, Printer, Palette } from 'lucide-react';
+import { Loader2, Save, PlusCircle, Trash2, Edit, ImageIcon as ImageIconLucide, Printer } from 'lucide-react';
 import type { PrintOnDemandDesign, DesignCollaborationGallery } from '@/types';
 import {
   Dialog, DialogContent, DialogDescription as DialogFormDescription, DialogFooter, DialogHeader, DialogTitle, DialogClose
@@ -29,7 +29,7 @@ import {
 const printDesignSchema = z.object({
   id: z.string().optional(),
   title: z.string().min(3, "Title must be at least 3 characters."),
-  slug: z.string().min(3, "Slug must be at least 3 characters.").regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Slug must be lowercase alphanumeric with hyphens."),
+  slug: z.string().min(3, "Slug must be at least 3 characters.").regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Slug must be lowercase alphanumeric with hyphens.").optional().or(z.literal('')),
   description: z.string().optional(),
   image_url: z.string().url({ message: "Valid image URL is required." }).min(1, "Image URL cannot be empty."),
   ai_image_prompt: z.string().optional(),
@@ -40,6 +40,8 @@ const printDesignSchema = z.object({
 });
 
 type PrintDesignFormValues = z.infer<typeof printDesignSchema>;
+
+const NO_COLLABORATION_ID_VALUE = "__NONE_COLLAB__"; // Special value for "None" option
 
 export default function AdminPrintOnDemandDesignsPage() {
   const { toast } = useToast();
@@ -65,10 +67,16 @@ export default function AdminPrintOnDemandDesignsPage() {
     try {
       const [designsRes, collabsRes] = await Promise.all([
         fetch('/api/admin/print-on-demand-designs'),
-        fetch('/api/admin/design-collaborations')
+        fetch('/api/admin/design-collaborations') // Fetch all collaborations for the dropdown
       ]);
-      if (!designsRes.ok) throw new Error('Failed to fetch print designs');
-      if (!collabsRes.ok) throw new Error('Failed to fetch design collaborations');
+      if (!designsRes.ok) {
+        const errorData = await designsRes.json().catch(() => ({}));
+        throw new Error(errorData.message || errorData.rawSupabaseError?.message || 'Failed to fetch print designs');
+      }
+      if (!collabsRes.ok) {
+        const errorData = await collabsRes.json().catch(() => ({}));
+        throw new Error(errorData.message || errorData.rawSupabaseError?.message || 'Failed to fetch design collaborations');
+      }
 
       const designsData: PrintOnDemandDesign[] = await designsRes.json();
       const collabsData: DesignCollaborationGallery[] = await collabsRes.json();
@@ -91,6 +99,10 @@ export default function AdminPrintOnDemandDesignsPage() {
     form.reset({
       ...design,
       collaboration_id: design.collaboration_id || null,
+      slug: design.slug || '', // Ensure slug is empty string if null/undefined for form
+      description: design.description || '',
+      ai_image_prompt: design.ai_image_prompt || '',
+      sku: design.sku || '',
     });
     setIsFormOpen(true);
   };
@@ -110,8 +122,8 @@ export default function AdminPrintOnDemandDesignsPage() {
     const url = editingDesign ? `/api/admin/print-on-demand-designs/${editingDesign.id}` : '/api/admin/print-on-demand-designs';
     const payload = {
       ...data,
-      slug: data.slug || data.title.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, ''),
-      collaboration_id: data.collaboration_id === '' ? null : data.collaboration_id,
+      slug: data.slug?.trim() || data.title.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, ''),
+      collaboration_id: data.collaboration_id === NO_COLLABORATION_ID_VALUE ? null : data.collaboration_id,
     };
 
     try {
@@ -119,7 +131,7 @@ export default function AdminPrintOnDemandDesignsPage() {
         method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
       });
       if (!response.ok) {
-        const errorData = await response.json();
+        const errorData = await response.json().catch(() => ({ message: 'Failed to save and parse error' }));
         throw new Error(errorData.message || errorData.rawSupabaseError?.message || `Failed to ${editingDesign ? 'update' : 'create'} print design`);
       }
       toast({ title: "Success!", description: `Print design "${payload.title}" ${editingDesign ? 'updated' : 'created'}.` });
@@ -138,7 +150,7 @@ export default function AdminPrintOnDemandDesignsPage() {
     try {
       const response = await fetch(`/api/admin/print-on-demand-designs/${designToDelete.id}`, { method: 'DELETE' });
       if (!response.ok) {
-        const errorData = await response.json();
+        const errorData = await response.json().catch(() => ({ message: 'Failed to delete and parse error' }));
         throw new Error(errorData.message || errorData.rawSupabaseError?.message || 'Failed to delete print design');
       }
       toast({ title: "Print Design Deleted", description: `"${designToDelete.title}" deleted.` });
@@ -148,6 +160,7 @@ export default function AdminPrintOnDemandDesignsPage() {
     } finally {
       setIsSaving(false);
       setIsDeleteAlertOpen(false);
+      setDesignToDelete(null);
     }
   };
 
@@ -171,7 +184,7 @@ export default function AdminPrintOnDemandDesignsPage() {
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
             <CardTitle className="text-2xl flex items-center"><Printer className="mr-3 h-6 w-6 text-primary"/>Manage Print-on-Demand Designs</CardTitle>
-            <CardDescription>Create, edit, and manage designs available for print-on-demand.</CardDescription>
+            <CardDescription>Create, edit, and manage designs available for print-on-demand customization on products.</CardDescription>
           </div>
           <Button onClick={handleAddNew}><PlusCircle className="mr-2 h-4 w-4"/> Add New Design</Button>
         </CardHeader>
@@ -219,7 +232,7 @@ export default function AdminPrintOnDemandDesignsPage() {
                         <FormItem><FormLabel>Title*</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                     )} />
                     <FormField control={form.control} name="slug" render={({ field }) => (
-                        <FormItem><FormLabel>Slug*</FormLabel><FormControl><Input {...field} placeholder="auto-generated if empty" /></FormControl><FormMessage /></FormItem>
+                        <FormItem><FormLabel>Slug</FormLabel><FormControl><Input {...field} placeholder="auto-generated if empty" /></FormControl><FormDescription>Lowercase, hyphens only.</FormDescription><FormMessage /></FormItem>
                     )} />
                 </div>
                 <FormField control={form.control} name="description" render={({ field }) => (
@@ -227,10 +240,10 @@ export default function AdminPrintOnDemandDesignsPage() {
                 )} />
                 <FormField control={form.control} name="image_url" render={({ field }) => (
                     <FormItem><FormLabel>Image URL*</FormLabel><FormControl><Input {...field} placeholder="https://example.com/design.png" /></FormControl>
-                    <FormDescription>Use services like ImgBB.com or Postimages.org for free uploads. Paste the "Direct link" (ending in .jpg, .png, etc.).</FormDescription><FormMessage /></FormItem>
+                    <FormDescription>Tip: Use services like ImgBB.com or Postimages.org for free uploads. Paste the "Direct link".</FormDescription><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="ai_image_prompt" render={({ field }) => (
-                    <FormItem><FormLabel>AI Image Prompt</FormLabel><FormControl><Textarea {...field} rows={2} placeholder="Prompt for image generation" /></FormControl><FormMessage /></FormItem>
+                    <FormItem><FormLabel>AI Image Prompt</FormLabel><FormControl><Textarea {...field} rows={2} placeholder="Prompt used for image generation" /></FormControl><FormMessage /></FormItem>
                 )} />
                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <FormField control={form.control} name="price" render={({ field }) => (
@@ -242,10 +255,13 @@ export default function AdminPrintOnDemandDesignsPage() {
                 </div>
                 <FormField control={form.control} name="collaboration_id" render={({ field }) => (
                     <FormItem><FormLabel>Related Collaboration (Optional)</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value || undefined} value={field.value === null ? undefined : field.value}>
+                        <Select
+                            onValueChange={(value) => field.onChange(value === NO_COLLABORATION_ID_VALUE ? null : value)}
+                            value={field.value === null || field.value === undefined ? NO_COLLABORATION_ID_VALUE : field.value}
+                        >
                         <FormControl><SelectTrigger><SelectValue placeholder="Link to a design collaboration" /></SelectTrigger></FormControl>
                         <SelectContent>
-                            <SelectItem value="">None</SelectItem>
+                            <SelectItem value={NO_COLLABORATION_ID_VALUE}>None</SelectItem>
                             {collaborations.map(collab => <SelectItem key={collab.id} value={collab.id}>{collab.title}</SelectItem>)}
                         </SelectContent>
                         </Select><FormMessage />
@@ -271,16 +287,16 @@ export default function AdminPrintOnDemandDesignsPage() {
         </DialogContent>
       </Dialog>
 
-      <AlertDialog open={isDeleteAlertOpen} onOpenChange={setIsDeleteAlertOpen}>
+      <AlertDialog open={isDeleteAlertOpen} onOpenChange={(open) => { if (!open) setDesignToDelete(null); setIsDeleteAlertOpen(open);}}>
         <AlertDialogDeleteContent>
           <AlertDialogDeleteHeader>
             <AlertDialogDeleteTitle>Are you sure?</AlertDialogDeleteTitle>
             <AlertDialogDeleteDescription>
-              This will permanently delete the print design "{designToDelete?.title}".
+              This will permanently delete the print design "{designToDelete?.title}". This action cannot be undone.
             </AlertDialogDeleteDescription>
           </AlertDialogDeleteHeader>
           <AlertDialogDeleteFooter>
-            <AlertDialogCancel onClick={() => setDesignToDelete(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel onClick={() => {setIsDeleteAlertOpen(false); setDesignToDelete(null);}}>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleDelete} disabled={isSaving} className="bg-destructive hover:bg-destructive/90">
               {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null} Delete
             </AlertDialogAction>
@@ -290,3 +306,4 @@ export default function AdminPrintOnDemandDesignsPage() {
     </>
   );
 }
+
