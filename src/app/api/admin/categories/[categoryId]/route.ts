@@ -7,13 +7,14 @@ import type { AdminCategory } from '@/types';
 
 export const dynamic = 'force-dynamic';
 
-const NO_PARENT_ID_VALUE = "__NONE__"; // Matches client-side constant
-
+// Define an interface for the context object
 interface CategoryRouteContext {
   params: {
     categoryId: string;
   };
 }
+
+const NO_PARENT_ID_VALUE = "__NONE__"; // Matches client-side constant
 
 function isValidUUID(str: string | undefined | null): boolean {
   if (!str) return false;
@@ -24,9 +25,9 @@ function isValidUUID(str: string | undefined | null): boolean {
 // GET a single category (Admin)
 export async function GET(
   request: NextRequest,
-  context: CategoryRouteContext
+  context: CategoryRouteContext // Use the new interface
 ) {
-  const { categoryId } = context.params;
+  const { categoryId } = context.params; // Access categoryId correctly
   const clientForRead = supabaseAdmin || fallbackSupabase;
 
   if (!clientForRead) {
@@ -81,9 +82,9 @@ export async function GET(
 // PUT (Update) an existing category (Admin)
 export async function PUT(
   request: NextRequest,
-  context: CategoryRouteContext
+  context: CategoryRouteContext // Use the new interface
 ) {
-  const { categoryId } = context.params;
+  const { categoryId } = context.params; // Access categoryId correctly
   const clientToUse = supabaseAdmin;
 
   if (!clientToUse) {
@@ -141,9 +142,6 @@ export async function PUT(
     categoryToUpdate["displayOrder"] = Number(body.displayOrder);
     if(isNaN(categoryToUpdate["displayOrder"])) categoryToUpdate["displayOrder"] = 0;
   }
-
-  // Rely on database trigger for "updatedAt"
-  // Do NOT set "updatedAt" or "updated_at" here
 
   if (Object.keys(categoryToUpdate).length === 0) {
     console.log(`[API ADMIN CATEGORY PUT /${categoryId}] No valid fields to update. Fetching current record.`);
@@ -210,9 +208,9 @@ export async function PUT(
 // DELETE an existing category (Admin)
 export async function DELETE(
   request: NextRequest,
-  context: CategoryRouteContext
+  context: CategoryRouteContext // Use the new interface
 ) {
-  const { categoryId } = context.params;
+  const { categoryId } = context.params; // Access categoryId correctly
   const clientForWrite = supabaseAdmin;
 
   if (!clientForWrite) {
@@ -228,7 +226,6 @@ export async function DELETE(
   console.log(`[API ADMIN CATEGORY DELETE /${categoryId}] Attempting to delete category. Using ADMIN client.`);
 
   try {
-    // Check if category is used by any products
     const { data: rpcData, error: rpcError } = await clientForWrite.rpc('is_category_used_in_products', {
       p_category_id: categoryId,
     });
@@ -248,7 +245,6 @@ export async function DELETE(
       }, { status: 409 }); // 409 Conflict
     }
 
-    // If not used, proceed with deletion
     const { error: deleteError } = await clientForWrite
       .from('categories')
       .delete()
@@ -268,5 +264,4 @@ export async function DELETE(
     return NextResponse.json({ message: `Failed to delete category: ${e.message}` }, { status: 500 });
   }
 }
-
     
