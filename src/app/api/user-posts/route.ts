@@ -1,3 +1,4 @@
+
 // /src/app/api/user-posts/route.ts
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
@@ -121,7 +122,9 @@ export async function POST(request: NextRequest) {
     // Supabase will handle created_at and updated_at
   };
   
-  console.log('[API /api/user-posts POST] Attempting to insert new post data into Supabase:', newPostData);
+  console.log('[API /api/user-posts POST] EXACT DATA FOR SUPABASE INSERT:', JSON.stringify(newPostData, null, 2));
+  console.log(`[API /api/user-posts POST] typeof userId: ${typeof userId}, length: ${userId?.length}, value: ${userId}`);
+  console.log(`[API /api/user-posts POST] typeof imageUrl: ${typeof imageUrl}, length: ${imageUrl?.length}, value: ${imageUrl}`);
 
   try {
     const { data, error: insertError } = await supabase
