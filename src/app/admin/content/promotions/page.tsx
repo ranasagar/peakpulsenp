@@ -19,7 +19,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent a
 import { ScrollArea } from '@/components/ui/scroll-area';
 import Image from 'next/image';
 import { formatInputDate, formatDisplayDate } from '@/lib/dateUtils';
-import { Badge } from '@/components/ui/badge'; // Corrected: Added Badge import
+import { Badge } from '@/components/ui/badge';
 
 
 const promotionalPostSchema = z.object({
@@ -187,7 +187,14 @@ export default function AdminPromotionalPostsPage() {
                 {posts.map(post => (
                   <Card key={post.id} className="p-4 flex flex-col sm:flex-row justify-between items-start gap-4 hover:shadow-md transition-shadow">
                     <div className="flex items-start gap-4 flex-grow">
-                      <Image src={post.imageUrl} alt={post.title} width={100} height={60} className="rounded-md object-cover aspect-video bg-muted" data-ai-hint={post.dataAiHint || 'promotion marketing'} />
+                      <Image 
+                        src={post.imageUrl && post.imageUrl.trim() !== '' ? post.imageUrl : 'https://placehold.co/100x60.png'} 
+                        alt={post.title} 
+                        width={100} 
+                        height={60} 
+                        className="rounded-md object-cover aspect-video bg-muted" 
+                        data-ai-hint={post.dataAiHint || 'promotion marketing'} 
+                      />
                       <div className="flex-grow">
                         <h3 className="font-semibold text-lg text-foreground">{post.title} <Badge variant={post.isActive ? "default" : "outline"}>{post.isActive ? 'Active' : 'Inactive'}</Badge></h3>
                         <p className="text-xs text-muted-foreground line-clamp-1">Slug: {post.slug} | Order: {post.displayOrder}</p>
