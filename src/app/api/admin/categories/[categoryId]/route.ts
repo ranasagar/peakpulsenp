@@ -1,4 +1,3 @@
-
 // /src/app/api/admin/categories/[categoryId]/route.ts
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
@@ -7,7 +6,10 @@ import type { AdminCategory } from '@/types';
 
 export const dynamic = 'force-dynamic';
 
-const NO_PARENT_ID_VALUE = "__NONE__"; // Matches client-side constant
+// NOTE: The CategoryRouteContext interface has been removed as per the last attempt to fix the build.
+// We are using the standard Next.js way to type params for route handlers.
+
+const NO_PARENT_ID_VALUE = "__NONE__";
 
 function isValidUUID(str: string | undefined | null): boolean {
   if (!str) return false;
@@ -18,7 +20,7 @@ function isValidUUID(str: string | undefined | null): boolean {
 // GET a single category (Admin)
 export async function GET(
   request: NextRequest,
-  { params }: { params: { categoryId: string } }
+  { params }: { params: { categoryId: string } } // Standard Next.js way
 ) {
   const { categoryId } = params;
   const clientForRead = supabaseAdmin || fallbackSupabase;
@@ -75,7 +77,7 @@ export async function GET(
 // PUT (Update) an existing category (Admin)
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { categoryId: string } }
+  { params }: { params: { categoryId: string } } // Standard Next.js way
 ) {
   const { categoryId } = params;
   const clientToUse = supabaseAdmin;
@@ -111,15 +113,15 @@ export async function PUT(
 
   if (body.slug !== undefined) {
     if (body.slug.trim() === '') {
-       if (categoryToUpdate.name) { // Use the potentially updated name
+      if (categoryToUpdate.name) { 
         categoryToUpdate.slug = categoryToUpdate.name.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, '');
-      } else if (body.name && body.name.trim() !== '') { // Or use the original name from body if slug is empty but name isn't
+      } else if (body.name && body.name.trim() !== '') { 
          categoryToUpdate.slug = body.name.trim().toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, '');
       }
     } else {
       categoryToUpdate.slug = body.slug.trim().toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, '');
     }
-  } else if (body.name && body.name.trim() !== '') { // If slug is not provided at all, generate from name
+  } else if (body.name && body.name.trim() !== '') { 
       categoryToUpdate.slug = body.name.trim().toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, '');
   }
 
@@ -204,7 +206,7 @@ export async function PUT(
 // DELETE an existing category (Admin)
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { categoryId: string } }
+  { params }: { params: { categoryId: string } } // Standard Next.js way
 ) {
   const { categoryId } = params;
   const clientForWrite = supabaseAdmin;
@@ -222,7 +224,6 @@ export async function DELETE(
   console.log(`[API ADMIN CATEGORY DELETE /${categoryId}] Attempting to delete category. Using ADMIN client.`);
 
   try {
-    // Check if category is used in products
     const { data: rpcData, error: rpcError } = await clientForWrite.rpc('is_category_used_in_products', {
       p_category_id: categoryId,
     });
@@ -261,5 +262,3 @@ export async function DELETE(
     return NextResponse.json({ message: `Failed to delete category: ${e.message}` }, { status: 500 });
   }
 }
-
-    
