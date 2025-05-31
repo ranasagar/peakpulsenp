@@ -9,6 +9,12 @@ export const dynamic = 'force-dynamic';
 
 const NO_PARENT_ID_VALUE = "__NONE__"; // Matches client-side constant
 
+interface CategoryRouteContext {
+  params: {
+    categoryId: string;
+  };
+}
+
 function isValidUUID(str: string | undefined | null): boolean {
   if (!str) return false;
   const uuidRegex = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
@@ -18,10 +24,10 @@ function isValidUUID(str: string | undefined | null): boolean {
 // GET a single category (Admin)
 export async function GET(
   request: NextRequest,
-  { params }: { params: { categoryId: string } }
+  context: CategoryRouteContext
 ) {
-  const { categoryId } = params;
-  const clientForRead = supabaseAdmin || fallbackSupabase; 
+  const { categoryId } = context.params;
+  const clientForRead = supabaseAdmin || fallbackSupabase;
 
   if (!clientForRead) {
     console.error(`[API ADMIN CATEGORY GET /${categoryId}] Supabase client not configured.`);
@@ -39,17 +45,17 @@ export async function GET(
       .single();
 
     if (error) {
-      if (error.code === 'PGRST116') { 
+      if (error.code === 'PGRST116') {
         return NextResponse.json({ message: 'Category not found' }, { status: 404 });
       }
       console.error(`[API ADMIN CATEGORY GET /${categoryId}] Supabase error:`, error);
-      return NextResponse.json({ 
-        message: `Database error: ${error.message}`, 
+      return NextResponse.json({
+        message: `Database error: ${error.message}`,
         rawSupabaseError: { message: error.message, details: error.details, hint: error.hint, code: error.code }
       }, { status: 500 });
     }
-    
-    if (!data) { 
+
+    if (!data) {
       return NextResponse.json({ message: 'Category not found (no data returned)' }, { status: 404 });
     }
 
@@ -75,9 +81,9 @@ export async function GET(
 // PUT (Update) an existing category (Admin)
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { categoryId: string } }
+  context: CategoryRouteContext
 ) {
-  const { categoryId } = params;
+  const { categoryId } = context.params;
   const clientToUse = supabaseAdmin;
 
   if (!clientToUse) {
@@ -124,7 +130,7 @@ export async function PUT(
   if (body.hasOwnProperty('description')) categoryToUpdate.description = body.description || null;
   if (body.hasOwnProperty('imageUrl')) categoryToUpdate.image_url = body.imageUrl || null;
   if (body.hasOwnProperty('aiImagePrompt')) categoryToUpdate.ai_image_prompt = body.aiImagePrompt || null;
-  
+
   if (body.hasOwnProperty('parentId')) {
     categoryToUpdate.parent_id = body.parentId === NO_PARENT_ID_VALUE || body.parentId === '' ? null : body.parentId;
     if (categoryToUpdate.parent_id !== null && !isValidUUID(categoryToUpdate.parent_id)) {
@@ -135,7 +141,7 @@ export async function PUT(
     categoryToUpdate["displayOrder"] = Number(body.displayOrder);
     if(isNaN(categoryToUpdate["displayOrder"])) categoryToUpdate["displayOrder"] = 0;
   }
-  
+
   // Rely on database trigger for "updatedAt"
   // Do NOT set "updatedAt" or "updated_at" here
 
@@ -169,18 +175,18 @@ export async function PUT(
     if (error) {
       console.error(`[API ADMIN CATEGORY PUT /${categoryId}] Supabase error updating category:`, error);
       const status = error.code === 'PGRST116' ? 404 : error.code === '23505' ? 409 : 500;
-      const message = error.code === 'PGRST116' ? 'Category not found for update.' : 
+      const message = error.code === 'PGRST116' ? 'Category not found for update.' :
                       error.code === '23505' ? `Failed to update category: A category with that name or slug already exists. ${error.details || ''}` :
                       `Database error updating category: ${error.message}`;
-      return NextResponse.json({ 
-        message: message, 
+      return NextResponse.json({
+        message: message,
         rawSupabaseError: { message: error.message, details: error.details, hint: error.hint, code: error.code }
       }, { status });
     }
     if (!updatedData) {
         return NextResponse.json({ message: 'Category not found after update attempt (no data returned).' }, { status: 404 });
     }
-    
+
     const responseCategory: AdminCategory = {
       id: updatedData.id,
       name: updatedData.name,
@@ -203,15 +209,15 @@ export async function PUT(
 
 // DELETE an existing category (Admin)
 export async function DELETE(
-  request: NextRequest, 
-  { params }: { params: { categoryId: string } }
+  request: NextRequest,
+  context: CategoryRouteContext
 ) {
-  const { categoryId } = params;
+  const { categoryId } = context.params;
   const clientForWrite = supabaseAdmin;
 
   if (!clientForWrite) {
     console.error(`[API ADMIN CATEGORY DELETE /${categoryId}] CRITICAL: Supabase ADMIN client (service_role) is not initialized.`);
-    return NextResponse.json({ 
+    return NextResponse.json({
         message: 'Database admin client not configured. Cannot delete category.',
         rawSupabaseError: { message: 'Admin Supabase client not available.' }
     }, { status: 503 });
@@ -229,15 +235,15 @@ export async function DELETE(
 
     if (rpcError) {
       console.error(`[API ADMIN CATEGORY DELETE /${categoryId}] Error calling RPC is_category_used_in_products:`, rpcError);
-      return NextResponse.json({ 
+      return NextResponse.json({
         message: `Database error checking product associations: ${rpcError.message}`,
-        rawSupabaseError: rpcError 
+        rawSupabaseError: rpcError
       }, { status: 500 });
     }
 
     if (rpcData === true) {
       console.warn(`[API ADMIN CATEGORY DELETE /${categoryId}] Attempt to delete category that is in use by products.`);
-      return NextResponse.json({ 
+      return NextResponse.json({
         message: 'Cannot delete category: It is currently associated with one or more products. Please remove it from all products first.',
       }, { status: 409 }); // 409 Conflict
     }
@@ -250,8 +256,8 @@ export async function DELETE(
 
     if (deleteError) {
       console.error(`[API ADMIN CATEGORY DELETE /${categoryId}] Supabase error deleting category:`, deleteError);
-      return NextResponse.json({ 
-        message: `Database error deleting category: ${deleteError.message}`, 
+      return NextResponse.json({
+        message: `Database error deleting category: ${deleteError.message}`,
         rawSupabaseError: deleteError
       }, { status: 500 });
     }
