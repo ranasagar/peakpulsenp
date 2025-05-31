@@ -7,13 +7,6 @@ import type { AdminCategory } from '@/types';
 
 export const dynamic = 'force-dynamic';
 
-// Define an interface for the context object
-interface CategoryRouteContext {
-  params: {
-    categoryId: string;
-  };
-}
-
 const NO_PARENT_ID_VALUE = "__NONE__"; // Matches client-side constant
 
 function isValidUUID(str: string | undefined | null): boolean {
@@ -25,9 +18,9 @@ function isValidUUID(str: string | undefined | null): boolean {
 // GET a single category (Admin)
 export async function GET(
   request: NextRequest,
-  context: CategoryRouteContext // Use the new interface
+  { params }: { params: { categoryId: string } }
 ) {
-  const { categoryId } = context.params; // Access categoryId correctly
+  const { categoryId } = params;
   const clientForRead = supabaseAdmin || fallbackSupabase;
 
   if (!clientForRead) {
@@ -82,9 +75,9 @@ export async function GET(
 // PUT (Update) an existing category (Admin)
 export async function PUT(
   request: NextRequest,
-  context: CategoryRouteContext // Use the new interface
+  { params }: { params: { categoryId: string } }
 ) {
-  const { categoryId } = context.params; // Access categoryId correctly
+  const { categoryId } = params;
   const clientToUse = supabaseAdmin;
 
   if (!clientToUse) {
@@ -118,15 +111,18 @@ export async function PUT(
 
   if (body.slug !== undefined) {
     if (body.slug.trim() === '') {
-      if (categoryToUpdate.name) {
+       if (categoryToUpdate.name) { // Use the potentially updated name
         categoryToUpdate.slug = categoryToUpdate.name.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, '');
+      } else if (body.name && body.name.trim() !== '') { // Or use the original name from body if slug is empty but name isn't
+         categoryToUpdate.slug = body.name.trim().toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, '');
       }
     } else {
       categoryToUpdate.slug = body.slug.trim().toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, '');
     }
-  } else if (categoryToUpdate.name) {
-      categoryToUpdate.slug = categoryToUpdate.name.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, '');
+  } else if (body.name && body.name.trim() !== '') { // If slug is not provided at all, generate from name
+      categoryToUpdate.slug = body.name.trim().toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, '');
   }
+
 
   if (body.hasOwnProperty('description')) categoryToUpdate.description = body.description || null;
   if (body.hasOwnProperty('imageUrl')) categoryToUpdate.image_url = body.imageUrl || null;
@@ -208,9 +204,9 @@ export async function PUT(
 // DELETE an existing category (Admin)
 export async function DELETE(
   request: NextRequest,
-  context: CategoryRouteContext // Use the new interface
+  { params }: { params: { categoryId: string } }
 ) {
-  const { categoryId } = context.params; // Access categoryId correctly
+  const { categoryId } = params;
   const clientForWrite = supabaseAdmin;
 
   if (!clientForWrite) {
@@ -226,6 +222,7 @@ export async function DELETE(
   console.log(`[API ADMIN CATEGORY DELETE /${categoryId}] Attempting to delete category. Using ADMIN client.`);
 
   try {
+    // Check if category is used in products
     const { data: rpcData, error: rpcError } = await clientForWrite.rpc('is_category_used_in_products', {
       p_category_id: categoryId,
     });
@@ -237,7 +234,7 @@ export async function DELETE(
         rawSupabaseError: rpcError
       }, { status: 500 });
     }
-
+    
     if (rpcData === true) {
       console.warn(`[API ADMIN CATEGORY DELETE /${categoryId}] Attempt to delete category that is in use by products.`);
       return NextResponse.json({
@@ -264,3 +261,5 @@ export async function DELETE(
     return NextResponse.json({ message: `Failed to delete category: ${e.message}` }, { status: 500 });
   }
 }
+
+    
