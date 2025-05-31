@@ -19,6 +19,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent a
 import { ScrollArea } from '@/components/ui/scroll-area';
 import Image from 'next/image';
 import { formatInputDate, formatDisplayDate } from '@/lib/dateUtils';
+import { Badge } from '@/components/ui/badge'; // Corrected: Added Badge import
 
 
 const promotionalPostSchema = z.object({
