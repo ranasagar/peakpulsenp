@@ -105,26 +105,35 @@ export async function POST(request: NextRequest) {
   }
 
   const { userId, imageUrl, caption, productTags } = payload;
-  console.log('[API /api/user-posts POST] Parsed Payload:', payload);
+  
+  // Extremely detailed logging of received payload values BEFORE any processing
+  console.log(`[API /api/user-posts POST] RAW PAYLOAD - userId: '${userId}' (type: ${typeof userId}), length: ${userId ? userId.length : 'N/A'}`);
+  console.log(`[API /api/user-posts POST] RAW PAYLOAD - imageUrl: '${imageUrl}' (type: ${typeof imageUrl}), length: ${imageUrl ? imageUrl.length : 'N/A'}`);
+  console.log(`[API /api/user-posts POST] RAW PAYLOAD - caption: '${caption}' (type: ${typeof caption})`);
+  console.log(`[API /api/user-posts POST] RAW PAYLOAD - productTags:`, productTags);
 
 
-  if (!userId || !imageUrl) {
-    console.warn('[API /api/user-posts POST] Missing required fields: userId or imageUrl.');
-    return NextResponse.json({ message: 'User ID and Image URL are required.' }, { status: 400 });
+  // Stricter pre-flight checks
+  if (!userId || typeof userId !== 'string' || userId.trim().length <= 20) {
+    const message = `Invalid userId: '${userId}'. Must be a non-empty string longer than 20 characters. Type: ${typeof userId}, Length: ${userId ? userId.length : 'N/A'}`;
+    console.warn(`[API /api/user-posts POST] VALIDATION FAILED: ${message}`);
+    return NextResponse.json({ message }, { status: 400 });
+  }
+  if (!imageUrl || typeof imageUrl !== 'string' || imageUrl.trim() === '') {
+    const message = `Invalid imageUrl: '${imageUrl}'. Must be a non-empty string. Type: ${typeof imageUrl}, Length: ${imageUrl ? imageUrl.length : 'N/A'}`;
+    console.warn(`[API /api/user-posts POST] VALIDATION FAILED: ${message}`);
+    return NextResponse.json({ message }, { status: 400 });
   }
 
   const newPostData = {
-    user_id: userId, 
-    image_url: imageUrl,
+    user_id: userId.trim(), // Ensure no leading/trailing whitespace from client
+    image_url: imageUrl.trim(), // Ensure no leading/trailing whitespace
     caption: caption || null,
     product_tags: productTags && productTags.length > 0 ? productTags : null,
-    status: 'pending', // New posts default to pending
-    // Supabase will handle created_at and updated_at
+    status: 'pending' as const, // Explicitly type status
   };
-  
-  console.log('[API /api/user-posts POST] EXACT DATA FOR SUPABASE INSERT:', JSON.stringify(newPostData, null, 2));
-  console.log(`[API /api/user-posts POST] typeof userId: ${typeof userId}, length: ${userId?.length}, value: ${userId}`);
-  console.log(`[API /api/user-posts POST] typeof imageUrl: ${typeof imageUrl}, length: ${imageUrl?.length}, value: ${imageUrl}`);
+
+  console.log('[API /api/user-posts POST] DATA PREPARED FOR SUPABASE INSERT:', JSON.stringify(newPostData, null, 2));
 
   try {
     const { data, error: insertError } = await supabase
@@ -135,6 +144,8 @@ export async function POST(request: NextRequest) {
 
     if (insertError) {
       console.error('[API /api/user-posts POST] Supabase error creating post:', insertError);
+      // Log the exact data that caused the RLS violation if this is an RLS error
+      console.error('[API /api/user-posts POST] Data that failed RLS (if this is RLS error):', JSON.stringify(newPostData, null, 2));
       return NextResponse.json({
         message: 'Failed to create post in database.',
         rawSupabaseError: {
@@ -143,7 +154,7 @@ export async function POST(request: NextRequest) {
           hint: insertError.hint,
           code: insertError.code,
         },
-      }, { status: 500 }); // Use 500 for DB errors, or specific codes if applicable (e.g. 403 for RLS)
+      }, { status: 500 });
     }
 
     console.log('[API /api/user-posts POST] User post created successfully:', data);
