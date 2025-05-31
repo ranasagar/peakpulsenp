@@ -264,4 +264,3 @@ export async function DELETE(
     return NextResponse.json({ message: `Failed to delete category: ${e.message}` }, { status: 500 });
   }
 }
-    
