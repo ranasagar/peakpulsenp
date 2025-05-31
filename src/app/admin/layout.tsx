@@ -1,8 +1,9 @@
+
 // /src/app/admin/layout.tsx
 "use client"; 
 
 import Link from 'next/link';
-import { Shield, LayoutDashboard, Settings, ArrowLeft, BookOpenText, ShoppingBag, BarChart3, ListOrdered, Landmark, Tags, Users, ListChecks, FileText, Package as PackageIcon, Home as HomeIcon, PenSquare, DollarSign, FileSpreadsheet, Palette, ImageIcon as ImageIconLucide, Printer, MessageSquare } from 'lucide-react';
+import { Shield, LayoutDashboard, Settings, ArrowLeft, BookOpenText, ShoppingBag, BarChart3, ListOrdered, Landmark, Tags, Users, ListChecks, FileText, Package as PackageIcon, Home as HomeIcon, PenSquare, DollarSign, FileSpreadsheet, Palette, ImageIcon as ImageIconLucide, Printer, MessageSquare, Percent } from 'lucide-react';
 import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
 import { Button } from '@/components/ui/button';
@@ -111,6 +112,9 @@ export default function AdminLayout({
                       </Button>
                       <Button variant="ghost" className="w-full justify-start text-sm font-normal h-9 pl-2 pr-3 py-2" asChild>
                         <Link href="/admin/content/our-story"><PenSquare className="mr-2 h-4 w-4" />Our Story</Link>
+                      </Button>
+                       <Button variant="ghost" className="w-full justify-start text-sm font-normal h-9 pl-2 pr-3 py-2" asChild>
+                        <Link href="/admin/content/promotions"><Percent className="mr-2 h-4 w-4" />Promotional Posts</Link>
                       </Button>
                       <Button variant="ghost" className="w-full justify-start text-sm font-normal h-9 pl-2 pr-3 py-2" asChild>
                         <Link href="/admin/content/footer"><ListChecks className="mr-2 h-4 w-4" /> Footer</Link>

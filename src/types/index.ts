@@ -1,3 +1,4 @@
+
 import type { LucideIcon } from 'lucide-react';
 
 export interface User {
@@ -246,9 +247,14 @@ export interface HomepageContent {
   artisanalRoots?: {
     title: string;
     description: string;
-    slides?: ArtisanalRootsSlide[]; // Added slides for artisanal roots
+    slides?: ArtisanalRootsSlide[];
   };
   socialCommerceItems?: SocialCommerceItem[];
+  promotionalPostsSection?: { // Added section for homepage promotions
+    enabled?: boolean;
+    title?: string;
+    maxItems?: number;
+  };
   error?: string;
 }
 
@@ -418,4 +424,26 @@ export interface CollaborationApplication {
   admin_notes?: string | null;
   submitted_at?: string;
   updated_at?: string;
+}
+
+export interface PromotionalPost {
+  id: string;
+  title: string;
+  slug: string;
+  description?: string;
+  imageUrl: string;
+  imageAltText?: string;
+  dataAiHint?: string;
+  ctaText?: string;
+  ctaLink?: string;
+  price?: number;
+  discountPrice?: number;
+  validFrom?: string; // ISO Date string
+  validUntil?: string; // ISO Date string
+  isActive: boolean;
+  displayOrder?: number;
+  backgroundColor?: string; // e.g., hex color or Tailwind class
+  textColor?: string;       // e.g., hex color or Tailwind class
+  createdAt?: string;
+  updatedAt?: string;
 }

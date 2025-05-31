@@ -11,9 +11,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Save, Youtube, Image as ImageIconLucide, PlusCircle, Trash2, Package, Tv, BookOpen, ExternalLink, ListCollapse, Sprout, Palette as PaletteIcon, ImagePlay } from 'lucide-react';
+import { Loader2, Save, Youtube, Image as ImageIconLucide, PlusCircle, Trash2, Package, Tv, BookOpen, ExternalLink, ListCollapse, Sprout, Palette as PaletteIcon, ImagePlay, Percent } from 'lucide-react';
 import type { HomepageContent, HeroSlide, SocialCommerceItem, ArtisanalRootsSlide } from '@/types';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Checkbox } from '@/components/ui/checkbox'; // Added Checkbox import
 
 const heroSlideSchema = z.object({
   id: z.string().optional(),
@@ -47,6 +48,13 @@ const socialCommerceItemSchema = z.object({
   displayOrder: z.coerce.number().int().optional().default(0),
 });
 
+const promotionalPostsSectionSchema = z.object({
+  enabled: z.boolean().default(false).optional(),
+  title: z.string().min(1, "Section title is required if enabled.").optional().or(z.literal('')),
+  maxItems: z.coerce.number().int().min(1, "Max items must be at least 1.").max(10, "Max items can be at most 10.").optional().default(3),
+}).optional();
+
+
 const homepageContentSchema = z.object({
   heroSlides: z.array(heroSlideSchema).min(0).optional(),
   artisanalRootsTitle: z.string().min(1, "Artisanal roots title is required.").optional().or(z.literal('')),
@@ -57,6 +65,7 @@ const homepageContentSchema = z.object({
     message: "Must be a valid YouTube Video ID (11 characters) or empty.",
   }).or(z.literal('')),
   heroImageUrl: z.string().url({ message: "Must be a valid URL or empty." }).optional().or(z.literal('')),
+  promotionalPostsSection: promotionalPostsSectionSchema,
 });
 
 type HomepageContentFormValues = z.infer<typeof homepageContentSchema>;
@@ -79,6 +88,11 @@ const defaultHomepageFormValues: HomepageContentFormValues = {
   socialCommerceItems: [],
   heroVideoId: '',
   heroImageUrl: '',
+  promotionalPostsSection: {
+    enabled: true,
+    title: 'Special Offers',
+    maxItems: 3,
+  },
 };
 
 export default function AdminHomepageContentPage() {
@@ -118,6 +132,7 @@ export default function AdminHomepageContentPage() {
         socialCommerceItems: (data.socialCommerceItems || []).map(item => ({ ...defaultSocialCommerceItem, ...item, id: item.id || `sc-loaded-${Date.now()}-${Math.random()}` })).sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0)),
         heroVideoId: data.heroVideoId || defaultHomepageFormValues.heroVideoId,
         heroImageUrl: data.heroImageUrl || defaultHomepageFormValues.heroImageUrl,
+        promotionalPostsSection: { ...defaultHomepageFormValues.promotionalPostsSection, ...data.promotionalPostsSection },
       });
     } catch (error) {
       toast({ title: "Error Loading Content", description: (error as Error).message, variant: "destructive" });
@@ -134,7 +149,7 @@ export default function AdminHomepageContentPage() {
   const onSubmit = async (data: HomepageContentFormValues) => {
     setIsSaving(true);
     try {
-      const payload = {
+      const payload: HomepageContent = { // Match HomepageContent type structure
         heroSlides: (data.heroSlides || []).map(slide => ({
           ...slide,
           id: slide.id || `hs-submit-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
@@ -156,6 +171,11 @@ export default function AdminHomepageContentPage() {
         })).sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0)),
         heroVideoId: data.heroVideoId || undefined,
         heroImageUrl: data.heroImageUrl || undefined,
+        promotionalPostsSection: {
+          enabled: data.promotionalPostsSection?.enabled || false,
+          title: data.promotionalPostsSection?.title || 'Special Offers',
+          maxItems: data.promotionalPostsSection?.maxItems || 3,
+        },
       };
 
       const response = await fetch('/api/admin/content/homepage', {
@@ -177,7 +197,7 @@ export default function AdminHomepageContentPage() {
         throw new Error(errorDetail);
       }
       toast({ title: "Content Saved!", description: "Homepage content has been updated successfully." });
-      fetchContent(); // Re-fetch to ensure form is up-to-date with potentially server-modified data (like new IDs)
+      fetchContent(); 
     } catch (error) {
       toast({ title: "Save Failed", description: (error as Error).message, variant: "destructive" });
     } finally {
@@ -212,8 +232,8 @@ export default function AdminHomepageContentPage() {
                 <h3 className="text-xl font-semibold text-foreground flex items-center">
                   <ListCollapse className="mr-3 h-5 w-5 text-primary" /> Hero Section Carousel Slides
                 </h3>
-                <ScrollArea className="max-h-[60vh]">
-                  <div className="space-y-4 p-1">
+                {/* Removed nested ScrollArea here for hero slides */}
+                <div className="space-y-4 p-1">
                     {heroSlidesFields.map((field, index) => (
                       <Card key={field.fieldId} className="p-4 space-y-3 bg-muted/30">
                         <div className="flex justify-between items-center mb-2">
@@ -258,8 +278,7 @@ export default function AdminHomepageContentPage() {
                         )} />
                       </Card>
                     ))}
-                  </div>
-                </ScrollArea>
+                </div>
                 <Button type="button" variant="outline" size="sm" onClick={() => appendHeroSlide({ ...defaultHeroSlide, id: `slide-${Date.now()}-${Math.random().toString(36).substr(2, 5)}` })} className="mt-4">
                   <PlusCircle className="mr-2 h-4 w-4" /> Add Hero Slide
                 </Button>
@@ -300,13 +319,13 @@ export default function AdminHomepageContentPage() {
                 )} />
                 
                 <div className="space-y-2 pt-2 border-t border-border/50 mt-4">
-                   <h4 className="text-md font-medium text-foreground pt-2">Background Slides for Artisanal Roots Section</h4>
+                   <h4 className="text-md font-medium text-foreground pt-2">Main Visuals for Artisanal Roots Section</h4>
                    <ScrollArea className="max-h-96">
                       <div className="space-y-3 p-1">
                       {artisanalRootsSlidesFields.map((field, index) => (
                           <Card key={field.fieldId} className="p-3 space-y-2 bg-muted/30">
                               <div className="flex justify-between items-center mb-1">
-                                  <FormLabel className="text-sm">Slide {index + 1}</FormLabel>
+                                  <FormLabel className="text-sm">Visual {index + 1}</FormLabel>
                                   <Button type="button" variant="destructive" size="xs" onClick={() => removeArtisanalRootsSlide(index)}>
                                       <Trash2 className="mr-1 h-3 w-3" /> Remove
                                   </Button>
@@ -325,7 +344,7 @@ export default function AdminHomepageContentPage() {
                       </div>
                    </ScrollArea>
                    <Button type="button" variant="outline" size="sm" onClick={() => appendArtisanalRootsSlide({ ...defaultArtisanalRootsSlide, id: `ars-${Date.now()}-${Math.random().toString(36).substr(2,5)}` })} className="mt-2">
-                      <PlusCircle className="mr-2 h-4 w-4" /> Add Background Slide
+                      <PlusCircle className="mr-2 h-4 w-4" /> Add Visual
                    </Button>
                 </div>
               </div>
@@ -334,7 +353,6 @@ export default function AdminHomepageContentPage() {
                 <h3 className="text-xl font-semibold text-foreground flex items-center">
                   <Package className="mr-3 h-5 w-5 text-primary" /> Social Commerce Section (#PeakPulseStyle)
                 </h3>
-                {/* Removed nested ScrollArea here */}
                 <div className="space-y-4 p-1">
                   {socialCommerceFields.map((field, index) => (
                       <Card key={field.fieldId} className="p-4 space-y-3 bg-muted/30">
@@ -375,6 +393,38 @@ export default function AdminHomepageContentPage() {
                   <PlusCircle className="mr-2 h-4 w-4" /> Add Instagram Post Item
                 </Button>
               </div>
+
+              <div className="space-y-6 p-4 border border-border rounded-lg shadow-sm bg-card">
+                 <h3 className="text-xl font-semibold text-foreground flex items-center">
+                  <Percent className="mr-3 h-5 w-5 text-primary" /> Promotional Posts Slider Section
+                </h3>
+                 <FormField
+                  control={form.control}
+                  name="promotionalPostsSection.enabled"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm bg-muted/30">
+                        <div className="space-y-0.5">
+                        <FormLabel className="cursor-pointer">Enable Promotional Posts Slider on Homepage</FormLabel>
+                        <FormMessage />
+                        </div>
+                        <FormControl>
+                        <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                        </FormControl>
+                    </FormItem>
+                  )}
+                />
+                {form.watch('promotionalPostsSection.enabled') && (
+                  <>
+                    <FormField control={form.control} name="promotionalPostsSection.title" render={({ field }) => (
+                      <FormItem><FormLabel>Section Title</FormLabel><FormControl><Input {...field} placeholder="e.g., Current Promotions" value={field.value || ''} /></FormControl><FormMessage /></FormItem>
+                    )} />
+                    <FormField control={form.control} name="promotionalPostsSection.maxItems" render={({ field }) => (
+                      <FormItem><FormLabel>Max Items to Display</FormLabel><FormControl><Input type="number" {...field} min="1" max="10" value={field.value ?? 3} onChange={e => field.onChange(parseInt(e.target.value,10) || 3)}/></FormControl><FormDescription>Number of promotional posts to show in the slider (1-10).</FormDescription><FormMessage /></FormItem>
+                    )} />
+                  </>
+                )}
+              </div>
+
 
               <Button type="submit" disabled={isSaving || isLoading} className="w-full sm:w-auto !mt-8" size="lg">
                 {isSaving ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Save className="mr-2 h-5 w-5" />}
