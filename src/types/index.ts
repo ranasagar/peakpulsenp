@@ -222,6 +222,9 @@ export interface HeroSlide {
   dataAiHint?: string;
   ctaText?: string;
   ctaLink?: string;
+  _isPromo?: boolean; // Internal flag for combined hero slides
+  _backgroundColor?: string; // For promo slides
+  _textColor?: string; // For promo slides
 }
 
 export interface SocialCommerceItem {
@@ -250,7 +253,7 @@ export interface HomepageContent {
     slides?: ArtisanalRootsSlide[];
   };
   socialCommerceItems?: SocialCommerceItem[];
-  promotionalPostsSection?: { // Added section for homepage promotions
+  promotionalPostsSection?: { 
     enabled?: boolean;
     title?: string;
     maxItems?: number;
@@ -275,19 +278,6 @@ export interface OurStoryContentData {
   valuesSection?: OurStorySection;
   joinJourneySection?: OurStorySection;
   error?: string;
-}
-
-export interface UserPost {
-  id: string;
-  user_id: string;
-  user_name?: string;
-  user_avatar_url?: string;
-  image_url: string;
-  caption?: string;
-  product_tags?: string[];
-  status: 'pending' | 'approved' | 'rejected';
-  created_at: string;
-  updated_at: string;
 }
 
 export interface SocialLink {
@@ -320,6 +310,7 @@ export interface SiteSettings {
   storePhone?: string;
   storeAddress?: string;
   socialLinks?: SocialLink[];
+  showExternalLinkWarning?: boolean; // Added new setting
 }
 
 export interface PageContent {

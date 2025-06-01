@@ -13,7 +13,8 @@ const defaultSettings: SiteSettings = {
   storeEmail: "info@example.com",
   storePhone: "+977-000-000000",
   storeAddress: "Kathmandu, Nepal (Default Address)",
-  socialLinks: [] // Social links are managed via footerContent now
+  socialLinks: [], 
+  showExternalLinkWarning: true, // Default for the new setting
 };
 
 // GET current site settings for admin
@@ -23,7 +24,7 @@ export async function GET() {
     console.error('[Admin API Settings GET] Supabase client is not initialized.');
     return NextResponse.json({ message: 'Database client not configured.', rawSupabaseError: { message: 'Supabase client not initialized.'} }, { status: 503 });
   }
-  console.log(`[Admin API Settings GET] Request to fetch settings. Using ${supabase === supabaseAdmin ? "ADMIN client" : "public client"}`);
+  // console.log(`[Admin API Settings GET] Request to fetch settings. Using ${supabase === supabaseAdmin ? "ADMIN client" : "public client"}`);
 
   try {
     const { data, error } = await supabase
@@ -38,20 +39,20 @@ export async function GET() {
     }
 
     if (data && data.value) {
-      console.log(`[Admin API Settings GET] Successfully fetched settings for ${SETTINGS_CONFIG_KEY}.`);
+      // console.log(`[Admin API Settings GET] Successfully fetched settings for ${SETTINGS_CONFIG_KEY}.`);
       const dbSettings = data.value as Partial<SiteSettings>;
-      // Ensure all fields are present, merging with defaults
       const responseSettings: SiteSettings = {
         siteTitle: dbSettings.siteTitle || defaultSettings.siteTitle,
         siteDescription: dbSettings.siteDescription || defaultSettings.siteDescription,
         storeEmail: dbSettings.storeEmail || defaultSettings.storeEmail,
         storePhone: dbSettings.storePhone || defaultSettings.storePhone,
         storeAddress: dbSettings.storeAddress || defaultSettings.storeAddress,
-        socialLinks: dbSettings.socialLinks || defaultSettings.socialLinks, // Keep for structure, though managed by footer
+        socialLinks: dbSettings.socialLinks || defaultSettings.socialLinks,
+        showExternalLinkWarning: dbSettings.showExternalLinkWarning === undefined ? defaultSettings.showExternalLinkWarning : dbSettings.showExternalLinkWarning,
       };
       return NextResponse.json(responseSettings);
     } else {
-      console.log(`[Admin API Settings GET] No settings found for ${SETTINGS_CONFIG_KEY}, returning default structure.`);
+      // console.log(`[Admin API Settings GET] No settings found for ${SETTINGS_CONFIG_KEY}, returning default structure.`);
       return NextResponse.json(defaultSettings);
     }
   } catch (e) {
@@ -67,22 +68,20 @@ export async function POST(request: NextRequest) {
     console.error('[Admin API Settings POST] Supabase client is not initialized.');
     return NextResponse.json({ message: 'Database client not configured.', rawSupabaseError: { message: 'Supabase client not initialized.'} }, { status: 503 });
   }
-  console.log(`[Admin API Settings POST] Request to update settings. Using ${client === supabaseAdmin ? "ADMIN client" : "public client"}`);
+  // console.log(`[Admin API Settings POST] Request to update settings. Using ${client === supabaseAdmin ? "ADMIN client" : "public client"}`);
 
   try {
     const newSettings = await request.json() as Partial<SiteSettings>;
-    console.log(`[Admin API Settings POST] Received new data for ${SETTINGS_CONFIG_KEY}:`, JSON.stringify(newSettings, null, 2));
+    // console.log(`[Admin API Settings POST] Received new data for ${SETTINGS_CONFIG_KEY}:`, JSON.stringify(newSettings, null, 2));
 
-    // Construct the full object to save, ensuring all fields are present by merging with defaults
-    // Social links are part of SiteSettings type but primarily managed via footer now.
-    // If form doesn't send socialLinks, keep existing or default ones.
     const dataToUpsert: SiteSettings = {
       siteTitle: newSettings.siteTitle || defaultSettings.siteTitle,
       siteDescription: newSettings.siteDescription || defaultSettings.siteDescription,
       storeEmail: newSettings.storeEmail || defaultSettings.storeEmail,
       storePhone: newSettings.storePhone || defaultSettings.storePhone,
       storeAddress: newSettings.storeAddress || defaultSettings.storeAddress,
-      socialLinks: newSettings.socialLinks || defaultSettings.socialLinks, // Retain if form sends it, otherwise default
+      socialLinks: newSettings.socialLinks || defaultSettings.socialLinks,
+      showExternalLinkWarning: newSettings.showExternalLinkWarning === undefined ? defaultSettings.showExternalLinkWarning : newSettings.showExternalLinkWarning,
     };
     
     const { error } = await client
@@ -97,7 +96,7 @@ export async function POST(request: NextRequest) {
       }, { status: 500 });
     }
     
-    console.log(`[Admin API Settings POST] Site settings for ${SETTINGS_CONFIG_KEY} updated successfully.`);
+    // console.log(`[Admin API Settings POST] Site settings for ${SETTINGS_CONFIG_KEY} updated successfully.`);
     return NextResponse.json({ message: 'Site settings updated successfully.' });
   } catch (e) {
     console.error(`[Admin API Settings POST] Unhandled error updating settings for ${SETTINGS_CONFIG_KEY}:`, e);
@@ -108,5 +107,3 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ message: 'Failed to update site settings.', error: errorMessage }, { status: 500 });
   }
 }
-
-    

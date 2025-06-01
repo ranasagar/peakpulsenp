@@ -8,26 +8,28 @@ import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Save, Link as LinkIcon, PlusCircle, Trash2, Settings } from 'lucide-react';
 import type { SiteSettings, SocialLink } from '@/types';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
 
-// Schema for general settings (social links are now part of footer content and managed there)
+// Schema for general settings
 const siteGeneralSettingsSchema = z.object({
   siteTitle: z.string().min(3, "Site title must be at least 3 characters.").default("Peak Pulse"),
   siteDescription: z.string().min(10, "Site description must be at least 10 characters.").default("Discover Peak Pulse..."),
   storeEmail: z.string().email("Invalid email address.").default("contact@example.com"),
   storePhone: z.string().optional().or(z.literal('')).default(""),
   storeAddress: z.string().optional().or(z.literal('')).default(""),
-  socialLinks: z.array(z.object({ // Keep for type consistency, but not editable here
+  socialLinks: z.array(z.object({
     id: z.string().optional(),
     platform: z.string(),
     url: z.string().url(),
   })).optional().default([]),
+  showExternalLinkWarning: z.boolean().optional().default(true), // New field
 });
 
 type SiteGeneralSettingsFormValues = z.infer<typeof siteGeneralSettingsSchema>;
@@ -38,7 +40,8 @@ const defaultGeneralSettings: SiteGeneralSettingsFormValues = {
   storeEmail: "contact@peakpulse.com",
   storePhone: "+977-XXX-XXXXXX",
   storeAddress: "Kathmandu, Nepal",
-  socialLinks: [], // Social links are managed in Footer Content now
+  socialLinks: [],
+  showExternalLinkWarning: true, // Default to true
 };
 
 export default function AdminSettingsPage() {
@@ -71,7 +74,8 @@ export default function AdminSettingsPage() {
                 storeEmail: data.storeEmail || defaultGeneralSettings.storeEmail,
                 storePhone: data.storePhone || defaultGeneralSettings.storePhone,
                 storeAddress: data.storeAddress || defaultGeneralSettings.storeAddress,
-                socialLinks: data.socialLinks || [], // Will be empty, managed by footer
+                socialLinks: data.socialLinks || [],
+                showExternalLinkWarning: data.showExternalLinkWarning === undefined ? defaultGeneralSettings.showExternalLinkWarning : data.showExternalLinkWarning,
             });
         } catch (error) {
             toast({ title: "Error Loading Settings", description: (error as Error).message + ". Displaying defaults.", variant: "destructive" });
@@ -87,16 +91,14 @@ export default function AdminSettingsPage() {
   const onSubmit = async (data: SiteGeneralSettingsFormValues) => {
     setIsSaving(true);
     try {
-      // Payload should only include fields editable on this page. SocialLinks are not sent.
-      const payload: Omit<SiteSettings, 'socialLinks'> & { socialLinks?: SocialLink[] } = { 
+      const payload: SiteSettings = { 
         siteTitle: data.siteTitle,
         siteDescription: data.siteDescription,
         storeEmail: data.storeEmail,
         storePhone: data.storePhone,
         storeAddress: data.storeAddress,
-        // socialLinks will not be sent from this form; they are part of footer content
-        // However, if the API expects it, we can send the current (empty or default) value
-        socialLinks: form.getValues('socialLinks') // Send current value (likely empty)
+        socialLinks: data.socialLinks || [],
+        showExternalLinkWarning: data.showExternalLinkWarning,
       }; 
 
       const response = await fetch('/api/admin/settings', {
@@ -160,6 +162,30 @@ export default function AdminSettingsPage() {
                 <FormItem><FormLabel>Store Address (Optional)</FormLabel><FormControl><Textarea {...field} rows={2} value={field.value || ''}/></FormControl><FormMessage /></FormItem>
               )} />
             </fieldset>
+
+            <fieldset className="space-y-4 p-4 border rounded-md bg-card">
+                <legend className="text-lg font-semibold px-1 -mt-7 bg-card">User Experience</legend>
+                <FormField
+                  control={form.control}
+                  name="showExternalLinkWarning"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm bg-muted/30">
+                      <div className="space-y-0.5">
+                        <FormLabel>External Link Warning</FormLabel>
+                        <FormDescription>
+                          Show a confirmation popup before navigating to external websites.
+                        </FormDescription>
+                      </div>
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+            </fieldset>
             
             <Button type="submit" disabled={isSaving || isLoading} size="lg" className="w-full sm:w-auto">
               {isSaving ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Save className="mr-2 h-5 w-5" />}
@@ -173,5 +199,3 @@ export default function AdminSettingsPage() {
     </Card>
   );
 }
-
-    

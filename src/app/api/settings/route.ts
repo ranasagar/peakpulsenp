@@ -13,7 +13,8 @@ const defaultSettings: SiteSettings = {
   storeEmail: "contact@peakpulse.example.com",
   storePhone: "+977-XXX-XXXXXX (Default)",
   storeAddress: "Kathmandu, Nepal (Default)",
-  socialLinks: [] // Social links are primarily managed via footerContent now
+  socialLinks: [],
+  showExternalLinkWarning: true, // Default for the new setting
 };
 
 export async function GET() {
@@ -21,7 +22,7 @@ export async function GET() {
     console.error('[Public API Settings GET] Supabase client is not initialized. Returning default settings.');
     return NextResponse.json({ ...defaultSettings, error: "Database client not configured." });
   }
-  console.log(`[Public API Settings GET] Request to fetch settings from Supabase for key: ${SETTINGS_CONFIG_KEY}`);
+  // console.log(`[Public API Settings GET] Request to fetch settings from Supabase for key: ${SETTINGS_CONFIG_KEY}`);
 
   try {
     const { data, error } = await supabase
@@ -36,7 +37,7 @@ export async function GET() {
     }
 
     if (data && data.value) {
-      console.log(`[Public API Settings GET] Successfully fetched settings for ${SETTINGS_CONFIG_KEY}.`);
+      // console.log(`[Public API Settings GET] Successfully fetched settings for ${SETTINGS_CONFIG_KEY}.`);
       const dbSettings = data.value as Partial<SiteSettings>;
       const responseSettings: SiteSettings = {
         siteTitle: dbSettings.siteTitle || defaultSettings.siteTitle,
@@ -44,11 +45,12 @@ export async function GET() {
         storeEmail: dbSettings.storeEmail || defaultSettings.storeEmail,
         storePhone: dbSettings.storePhone || defaultSettings.storePhone,
         storeAddress: dbSettings.storeAddress || defaultSettings.storeAddress,
-        socialLinks: dbSettings.socialLinks || defaultSettings.socialLinks, // Keep for consistency if used elsewhere
+        socialLinks: dbSettings.socialLinks || defaultSettings.socialLinks,
+        showExternalLinkWarning: dbSettings.showExternalLinkWarning === undefined ? defaultSettings.showExternalLinkWarning : dbSettings.showExternalLinkWarning,
       };
       return NextResponse.json(responseSettings);
     } else {
-      console.warn(`[Public API Settings GET] No settings found for ${SETTINGS_CONFIG_KEY}. Returning default.`);
+      // console.warn(`[Public API Settings GET] No settings found for ${SETTINGS_CONFIG_KEY}. Returning default.`);
       return NextResponse.json(defaultSettings);
     }
   } catch (e) {
@@ -56,5 +58,3 @@ export async function GET() {
     return NextResponse.json({ ...defaultSettings, error: `Server error fetching settings. ${(e as Error).message}` }, { status: 500 });
   }
 }
-
-    
