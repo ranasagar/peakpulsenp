@@ -8,7 +8,7 @@ import { Button, buttonVariants } from '@/components/ui/button';
 import { Icons } from '@/components/icons';
 import { ChevronLeft, ChevronRight, ShoppingBag, ArrowRight, Instagram, Send, Users, ImagePlus, Loader2, Play, Pause, LayoutGrid, Palette as PaletteIcon, Handshake, Sprout } from 'lucide-react';
 import { NewsletterSignupForm } from '@/components/forms/newsletter-signup-form';
-import type { HomepageContent, Product, HeroSlide, UserPost, AdminCategory as CategoryType, DesignCollaborationGallery, ArtisanalRootsSlide } from '@/types';
+import type { HomepageContent, Product, HeroSlide, UserPost, AdminCategory as CategoryType, DesignCollaborationGallery, ArtisanalRootsSlide, SocialCommerceItem } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent } from '@/components/ui/card';
 import { AspectRatio } from "@/components/ui/aspect-ratio";
@@ -77,7 +77,7 @@ async function getHomepageContent(): Promise<HomepageContent> {
     const processedData: HomepageContent = {
       heroSlides: Array.isArray(jsonData.heroSlides) && jsonData.heroSlides.length > 0 
         ? jsonData.heroSlides.map((slide: Partial<HeroSlide>, index: number) => ({ ...fallbackHeroSlide, ...slide, id: slide.id || `hs-fetched-${Date.now()}-${index}` }))
-        : defaultHomepageContent.heroSlides, // Use default if API returns empty/invalid
+        : defaultHomepageContent.heroSlides, 
       artisanalRoots: {
         title: jsonData.artisanalRoots?.title || defaultHomepageContent.artisanalRoots!.title,
         description: jsonData.artisanalRoots?.description || defaultHomepageContent.artisanalRoots!.description,
@@ -120,6 +120,8 @@ function HomePageContent() {
   const [currentArtisanalSlide, setCurrentArtisanalSlide] = useState(0);
   const [isArtisanalPlaying, setIsArtisanalPlaying] = useState(true);
 
+  const [currentSocialCommerceSlide, setCurrentSocialCommerceSlide] = useState(0);
+
   const { toast } = useToast();
 
   const loadPageData = useCallback(async () => {
@@ -141,7 +143,6 @@ function HomePageContent() {
     }
     setIsLoadingContent(false);
 
-    // Fetch Featured Products
     try {
       const productsResponse = await fetch('/api/products');
       if (!productsResponse.ok) {
@@ -164,7 +165,6 @@ function HomePageContent() {
       setIsLoadingFeaturedProducts(false);
     }
 
-    // Fetch Categories
     try {
       const categoriesResponse = await fetch('/api/categories');
       if (!categoriesResponse.ok) {
@@ -180,7 +180,6 @@ function HomePageContent() {
       setIsLoadingCategories(false);
     }
     
-    // Fetch User Posts
     try {
         const userPostsResponse = await fetch('/api/user-posts');
         if(!userPostsResponse.ok) {
@@ -199,7 +198,6 @@ function HomePageContent() {
         setIsLoadingUserPosts(false);
     }
 
-    // Fetch Collaborations
     try {
       const collabsResponse = await fetch('/api/design-collaborations');
       if (!collabsResponse.ok) {
@@ -266,6 +264,26 @@ function HomePageContent() {
       }
     };
   }, [isArtisanalPlaying, nextArtisanalSlide, activeArtisanalSlides.length]);
+  
+  const activeSocialCommerceItems = content.socialCommerceItems || [];
+
+  const nextSocialCommerceSlide = useCallback(() => {
+    if (activeSocialCommerceItems.length > 0) {
+      setCurrentSocialCommerceSlide(prev => (prev === activeSocialCommerceItems.length - 1 ? 0 : prev + 1));
+    }
+  }, [activeSocialCommerceItems.length]);
+
+  const prevSocialCommerceSlide = useCallback(() => {
+    if (activeSocialCommerceItems.length > 0) {
+      setCurrentSocialCommerceSlide(prev => (prev === 0 ? activeSocialCommerceItems.length - 1 : prev - 1));
+    }
+  }, [activeSocialCommerceItems.length]);
+
+  const goToSocialCommerceSlide = (index: number) => {
+    if (activeSocialCommerceItems.length > 0) {
+      setCurrentSocialCommerceSlide(index % activeSocialCommerceItems.length);
+    }
+  };
 
   if (isLoadingContent && isLoadingFeaturedProducts && isLoadingCategories && isLoadingUserPosts && isLoadingCollaborations) {
     return (
@@ -287,7 +305,6 @@ function HomePageContent() {
     <>
       {/* Hero Section */}
       <section style={{ backgroundColor: 'black' }} className="relative h-screen w-full overflow-hidden">
-        {/* Background Layer (Video or Image) */}
         <div className="absolute inset-0 z-0 pointer-events-none">
           {activeHeroSlides.map((slide, index) => (
             <div
@@ -323,11 +340,10 @@ function HomePageContent() {
                   <div className="absolute inset-0 bg-black/30 z-[1]" />
                 </>
               ) : (
-                 <div className="absolute inset-0 bg-black" /> // Fallback if a slide has neither
+                 <div className="absolute inset-0 bg-black" /> 
               )}
             </div>
           ))}
-           {/* Fallback if no slides define video/image, using main heroVideoId or heroImageUrl */}
            {activeHeroSlides.length === 0 && heroVideoId && (
              <>
                 <iframe
@@ -356,11 +372,10 @@ function HomePageContent() {
                 </>
            )}
            {activeHeroSlides.length === 0 && !heroVideoId && !heroImageUrl && (
-                <div className="absolute inset-0 bg-black" /> // Ultimate fallback if no content at all
+                <div className="absolute inset-0 bg-black" />
            )}
         </div>
 
-        {/* Content Overlay for each slide */}
         {activeHeroSlides.map((slide, index) => (
           <div
             key={slide.id || `hero-content-${index}`}
@@ -388,7 +403,6 @@ function HomePageContent() {
           </div>
         ))}
         
-        {/* Carousel Controls */}
         {activeHeroSlides.length > 1 && (
           <>
             <Button
@@ -415,7 +429,6 @@ function HomePageContent() {
         )}
       </section>
 
-      {/* Featured Collection Section */}
       <section className="section-padding container-wide relative z-[1] bg-background">
         <h2 className="text-3xl font-bold text-center mb-12 text-foreground">Featured Collection</h2>
         {isLoadingFeaturedProducts ? (
@@ -434,7 +447,6 @@ function HomePageContent() {
         </div>
       </section>
 
-      {/* Artisanal Roots Section */}
       <section className="bg-card section-padding relative z-[1] overflow-hidden">
         <div className="absolute inset-0 z-0 pointer-events-none">
             {activeArtisanalSlides.map((slide, index) => (
@@ -470,7 +482,6 @@ function HomePageContent() {
         </div>
       </section>
 
-      {/* Categories Section */}
       {isLoadingCategories ? ( <section className="section-padding container-wide relative z-[1] bg-background"> <div className="flex justify-center items-center py-10"><Loader2 className="h-10 w-10 animate-spin text-primary" /></div></section>
       ) : categories && categories.length > 0 && (
         <section className="section-padding container-wide relative z-[1] bg-background">
@@ -504,7 +515,6 @@ function HomePageContent() {
         </section>
       )}
 
-      {/* Featured Collaborations Section */}
       {isLoadingCollaborations ? ( <section className="section-padding container-wide relative z-[1] bg-muted/30"><div className="flex justify-center items-center py-10"><Loader2 className="h-10 w-10 animate-spin text-primary" /></div></section>
       ): featuredCollaborations.length > 0 && (
         <section className="section-padding container-wide relative z-[1] bg-muted/30">
@@ -541,35 +551,93 @@ function HomePageContent() {
         </section>
       )}
 
-      {/* Social Commerce Section (#PeakPulseStyle) */}
+      {/* Social Commerce Section (#PeakPulseStyle) - NEW SLIDER */}
       <section className="section-padding container-wide relative z-[1] bg-card">
-          <h2 className="text-3xl font-bold text-center mb-12 text-foreground"> #PeakPulseStyle <Instagram className="inline-block ml-2 h-7 w-7 text-pink-500" /> </h2>
-        {isLoadingContent || (content.socialCommerceItems && content.socialCommerceItems.length > 0) ? (
-           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {(isLoadingContent ? Array(4).fill(null) : content.socialCommerceItems!).map((item, idx) => (
-              item ? (
-               <InteractiveExternalLink key={item.id || `scs-${idx}`} href={item.linkUrl} className="block bg-muted rounded-lg overflow-hidden group relative shadow-md hover:shadow-xl transition-shadow" showDialog={true} >
-                <AspectRatio ratio={1/1} className="bg-background">
-                  <Image src={item.imageUrl || `https://placehold.co/400x400.png?text=Post`} alt={item.altText || `User generated content showcasing Peak Pulse style`} fill sizes="(max-width: 768px) 50vw, 25vw" className="object-cover group-hover:scale-105 transition-transform duration-300" data-ai-hint={item.dataAiHint || "instagram fashion user"} />
-                </AspectRatio>
-                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col items-center justify-center text-white p-2"> <Instagram className="h-8 w-8 mb-1" /> <span className="text-xs font-medium text-center">View on Instagram</span> </div>
-              </InteractiveExternalLink>
-              ) : (
-                <AspectRatio key={`scs-skel-${idx}`} ratio={1/1} className="bg-muted rounded-lg animate-pulse"/>
-              )
-            ))}
+        <h2 className="text-3xl font-bold text-center mb-12 text-foreground">
+          #PeakPulseStyle <Instagram className="inline-block ml-2 h-7 w-7 text-pink-500" />
+        </h2>
+        {isLoadingContent ? (
+          <div className="relative w-full max-w-xl mx-auto">
+            <AspectRatio ratio={1/1} className="bg-muted rounded-xl shadow-lg animate-pulse" />
+            <div className="flex justify-center mt-4 space-x-2">
+              {Array(3).fill(0).map((_, i) => ( <div key={i} className="h-2.5 w-2.5 bg-muted rounded-full animate-pulse" /> ))}
+            </div>
           </div>
-        ) : ( <p className="text-center text-muted-foreground">Follow us on Instagram to see our latest styles! Posts managed by admin will appear here.</p> )}
-          <div className="text-center mt-12">
+        ) : activeSocialCommerceItems.length > 0 ? (
+          <div className="relative w-full max-w-xl mx-auto">
+            <div className="overflow-hidden rounded-xl shadow-2xl">
+              <div
+                className="flex transition-transform duration-700 ease-in-out"
+                style={{ transform: `translateX(-${currentSocialCommerceSlide * 100}%)` }}
+              >
+                {activeSocialCommerceItems.map((item) => (
+                  <div key={item.id || item.imageUrl} className="min-w-full shrink-0">
+                    <InteractiveExternalLink href={item.linkUrl} className="block group relative" showDialog={true}>
+                      <AspectRatio ratio={1/1} className="bg-background">
+                        <Image
+                          src={item.imageUrl || `https://placehold.co/600x600.png?text=User+Post`}
+                          alt={item.altText || `Peak Pulse style by a user`}
+                          fill
+                          sizes="(max-width: 768px) 100vw, 600px"
+                          className="object-cover"
+                          data-ai-hint={item.dataAiHint || "instagram fashion user"}
+                        />
+                        {/* Glass reflection overlay */}
+                        <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 
+                                        bg-gradient-to-tr from-white/10 via-white/5 to-transparent group-hover:bg-white/5
+                                        pointer-events-none mix-blend-overlay">
+                        </div>
+                        {/* Instagram icon overlay */}
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col items-center justify-center text-white p-4">
+                          <Instagram className="h-10 w-10 mb-2" />
+                          <span className="text-sm font-medium text-center">View on Instagram</span>
+                        </div>
+                      </AspectRatio>
+                    </InteractiveExternalLink>
+                  </div>
+                ))}
+              </div>
+            </div>
+            {activeSocialCommerceItems.length > 1 && (
+              <>
+                <Button
+                  variant="outline" size="icon"
+                  className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 md:-translate-x-full z-10 h-10 w-10 rounded-full bg-card/80 hover:bg-card shadow-md"
+                  onClick={prevSocialCommerceSlide} aria-label="Previous Social Post"
+                > <ChevronLeft className="h-5 w-5" /> </Button>
+                <Button
+                  variant="outline" size="icon"
+                  className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 md:translate-x-full z-10 h-10 w-10 rounded-full bg-card/80 hover:bg-card shadow-md"
+                  onClick={nextSocialCommerceSlide} aria-label="Next Social Post"
+                > <ChevronRight className="h-5 w-5" /> </Button>
+                <div className="absolute bottom-[-20px] left-1/2 -translate-x-1/2 z-10 flex items-center space-x-2 mt-4">
+                  {activeSocialCommerceItems.map((_, index) => (
+                    <button
+                      key={`scs-dot-${index}`}
+                      onClick={() => goToSocialCommerceSlide(index)}
+                      className={cn(
+                        "h-2.5 w-2.5 rounded-full cursor-pointer transition-all duration-300 ease-in-out hover:bg-primary/70",
+                        currentSocialCommerceSlide === index ? 'bg-primary scale-125' : 'bg-muted-foreground/40'
+                      )}
+                      aria-label={`Go to social post ${index + 1}`}
+                    />
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        ) : (
+          <p className="text-center text-muted-foreground">Follow us on Instagram! Posts shared by our community will appear here.</p>
+        )}
+        <div className="text-center mt-16">
             <InteractiveExternalLink href="https://instagram.com/peakpulsenp" showDialog={true}>
                 <Button variant="outline" className="transition-all duration-300 ease-in-out hover:scale-105 hover:shadow-lg hover:bg-pink-100 dark:hover:bg-pink-500/20 hover:text-pink-600 dark:hover:text-pink-400 border-pink-300 dark:border-pink-500/50 text-pink-600 dark:text-pink-400" >
                     <span className="flex items-center">Follow us on Instagram <Instagram className="ml-2 h-4 w-4" /></span>
                 </Button>
             </InteractiveExternalLink>
-          </div>
-        </section>
+        </div>
+      </section>
 
-      {/* Community Spotlights Section */}
       <section className="section-padding container-wide relative z-[1] bg-muted/30">
         <div className="text-center mb-12">
             <Users className="h-10 w-10 text-primary mx-auto mb-3" />
@@ -603,7 +671,6 @@ function HomePageContent() {
         </div>
       </section>
 
-      {/* Newsletter Signup Section */}
       <section className="bg-card section-padding relative z-[1]">
         <div className="container-slim text-center">
           <Send className="h-12 w-12 text-primary mx-auto mb-4" />
