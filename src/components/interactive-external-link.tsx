@@ -19,19 +19,19 @@ import type { SiteSettings } from '@/types';
 interface InteractiveExternalLinkProps extends React.AnchorHTMLAttributes<HTMLAnchorElement> {
   href: string;
   children: React.ReactNode;
-  showDialogProp?: boolean; // Renamed to avoid conflict, undefined means use global setting
+  showDialog?: boolean; // This is the prop passed by parent components
 }
 
 export function InteractiveExternalLink({
   href,
   children,
   className,
-  showDialogProp, // Use the renamed prop
-  ...props
+  showDialog, // Explicitly destructure `showDialog` here
+  ...rest // All other props (like `aria-label`, `target`, etc.) go into `rest`
 }: InteractiveExternalLinkProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [targetUrl, setTargetUrl] = useState('');
-  const [globalShowWarning, setGlobalShowWarning] = useState<boolean | undefined>(undefined); // undefined: not fetched yet
+  const [globalShowWarning, setGlobalShowWarning] = useState<boolean | undefined>(undefined);
   const [isLoadingSettings, setIsLoadingSettings] = useState(true);
 
   useEffect(() => {
@@ -44,11 +44,11 @@ export function InteractiveExternalLink({
           setGlobalShowWarning(settings.showExternalLinkWarning);
         } else {
           console.warn("InteractiveExternalLink: Failed to fetch site settings, defaulting to show warning.");
-          setGlobalShowWarning(true); // Default to true if fetch fails
+          setGlobalShowWarning(true);
         }
       } catch (error) {
         console.error("InteractiveExternalLink: Error fetching site settings:", error);
-        setGlobalShowWarning(true); // Default to true on error
+        setGlobalShowWarning(true);
       } finally {
         setIsLoadingSettings(false);
       }
@@ -67,18 +67,23 @@ export function InteractiveExternalLink({
   const hostname = getHostname(href);
 
   // Determine if dialog should be shown based on prop and global setting
-  const shouldShowDialog = (): boolean => {
-    if (isLoadingSettings) return true; // Default to showing dialog while settings load for safety
-    if (showDialogProp === false) return false; // Prop explicitly disables dialog
-    if (showDialogProp === true) return true; // Prop explicitly enables dialog
-    // If prop is undefined, use global setting (defaulting to true if global setting is undefined)
+  const determineDialogBehavior = (): boolean => {
+    if (isLoadingSettings) return true; // Default to showing dialog while settings load (for safety)
+    // `showDialog` prop takes precedence:
+    if (showDialog === false) return false; // Prop explicitly disables dialog
+    if (showDialog === true) return true;   // Prop explicitly enables dialog
+    // If `showDialog` prop is undefined, use the global setting.
+    // Default to true if global setting is also undefined (not yet fetched or error).
     return globalShowWarning === undefined ? true : globalShowWarning;
   };
 
   const handleClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
-    if (!shouldShowDialog()) {
-      return; // Behave like a normal link if dialog is not to be shown
+    if (!determineDialogBehavior()) {
+      // If dialog is not to be shown, let the default link behavior occur.
+      // No event.preventDefault() means the link will navigate as usual.
+      return;
     }
+    // If dialog IS to be shown, prevent default navigation and open dialog.
     event.preventDefault();
     setTargetUrl(href);
     setIsDialogOpen(true);
@@ -94,15 +99,10 @@ export function InteractiveExternalLink({
     setIsDialogOpen(false);
   };
 
-  if (isLoadingSettings && showDialogProp === undefined) {
-    // Show a minimal loader or placeholder if global settings are loading and prop doesn't override
-    // Or, for simplicity, let the link be clickable and the dialog will show "Loading settings..."
-    // For this iteration, we'll let it be clickable. The dialog itself will handle loading appearance if needed.
-  }
-
   return (
     <>
-      <a href={href} onClick={handleClick} className={className} {...props}>
+      {/* `showDialog` is destructured above, so it is NOT in `...rest` here */}
+      <a href={href} onClick={handleClick} className={className} {...rest}>
         {children}
       </a>
 
@@ -114,7 +114,8 @@ export function InteractiveExternalLink({
               Leaving Peak Pulse
             </AlertDialogTitle>
             <AlertDialogDescription className="pt-2">
-              {isLoadingSettings && showDialogProp === undefined ? (
+              {/* Show loading only if global settings are loading AND showDialog prop was not explicitly set */}
+              {isLoadingSettings && showDialog === undefined ? (
                 <div className="flex items-center justify-center p-4">
                   <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                   <span className="ml-2 text-muted-foreground">Loading settings...</span>
@@ -130,20 +131,23 @@ export function InteractiveExternalLink({
               )}
             </AlertDialogDescription>
           </AlertDialogHeader>
-          {!isLoadingSettings && (
-            <div className="text-xs text-muted-foreground mt-2 p-3 bg-muted/50 rounded-md">
-              <strong>Tip:</strong> To open this link in an incognito/private window, you can right-click the link (or one of the 'Open' buttons below after confirming) and choose that option from your browser's context menu.
-            </div>
+          {/* Show tip and footer only if settings are not loading (or if showDialog prop overrides) */}
+          {!(isLoadingSettings && showDialog === undefined) && (
+            <>
+              <div className="text-xs text-muted-foreground mt-2 p-3 bg-muted/50 rounded-md">
+                <strong>Tip:</strong> To open this link in an incognito/private window, you can right-click the link (or one of the 'Open' buttons below after confirming) and choose that option from your browser's context menu.
+              </div>
+              <AlertDialogFooter className="gap-2 sm:gap-0">
+                <AlertDialogCancel>Stay on Page</AlertDialogCancel>
+                <Button variant="outline" onClick={handleProceedNewWindow}>
+                  Open in New Window
+                </Button>
+                <AlertDialogAction onClick={handleProceedNewTab}>
+                  Open in New Tab
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </>
           )}
-          <AlertDialogFooter className="gap-2 sm:gap-0">
-            <AlertDialogCancel disabled={isLoadingSettings && showDialogProp === undefined}>Stay on Page</AlertDialogCancel>
-            <Button variant="outline" onClick={handleProceedNewWindow} disabled={isLoadingSettings && showDialogProp === undefined}>
-              Open in New Window
-            </Button>
-            <AlertDialogAction onClick={handleProceedNewTab} disabled={isLoadingSettings && showDialogProp === undefined}>
-              Open in New Tab
-            </AlertDialogAction>
-          </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
     </>
