@@ -551,7 +551,7 @@ function HomePageContent() {
         </section>
       )}
 
-      {/* Social Commerce Section (#PeakPulseStyle) - NEW SLIDER */}
+      {/* Social Commerce Section (#PeakPulseStyle) */}
       <section className="section-padding container-wide relative z-[1] bg-card">
         <h2 className="text-3xl font-bold text-center mb-12 text-foreground">
           #PeakPulseStyle <Instagram className="inline-block ml-2 h-7 w-7 text-pink-500" />
@@ -579,14 +579,15 @@ function HomePageContent() {
                           alt={item.altText || `Peak Pulse style by a user`}
                           fill
                           sizes="(max-width: 768px) 100vw, 600px"
-                          className="object-cover"
+                          className="object-cover" 
                           data-ai-hint={item.dataAiHint || "instagram fashion user"}
                         />
-                        {/* Glass reflection overlay */}
-                        <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 
-                                        bg-gradient-to-tr from-white/10 via-white/5 to-transparent group-hover:bg-white/5
-                                        pointer-events-none mix-blend-overlay">
-                        </div>
+                        {/* Enhanced Glass reflection overlay */}
+                        <div
+                          className="absolute inset-0 opacity-0 group-hover:opacity-40 transition-all duration-500 ease-in-out
+                                     bg-gradient-to-br from-white/50 via-white/25 to-transparent
+                                     mix-blend-overlay group-hover:backdrop-blur-[2px] pointer-events-none"
+                        ></div>
                         {/* Instagram icon overlay */}
                         <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col items-center justify-center text-white p-4">
                           <Instagram className="h-10 w-10 mb-2" />
