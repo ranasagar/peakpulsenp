@@ -8,7 +8,7 @@ import { Button, buttonVariants } from '@/components/ui/button';
 import { Icons } from '@/components/icons';
 import { ChevronLeft, ChevronRight, ShoppingBag, ArrowRight, Instagram, Send, Users, ImagePlus, Loader2, Play, Pause, LayoutGrid, Palette as PaletteIcon, Handshake, Sprout } from 'lucide-react';
 import { NewsletterSignupForm } from '@/components/forms/newsletter-signup-form';
-import type { HomepageContent, Product, HeroSlide, UserPost, AdminCategory as CategoryType, DesignCollaborationGallery, ArtisanalRootsSlide, SocialCommerceItem } from '@/types';
+import type { HomepageContent, Product, HeroSlide, AdminCategory as CategoryType, DesignCollaborationGallery, ArtisanalRootsSlide, SocialCommerceItem } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent } from '@/components/ui/card';
 import { AspectRatio } from "@/components/ui/aspect-ratio";
@@ -108,8 +108,7 @@ function HomePageContent() {
   const [categories, setCategories] = useState<CategoryType[]>([]);
   const [isLoadingCategories, setIsLoadingCategories] = useState(true);
   
-  const [userPosts, setUserPosts] = useState<UserPost[]>([]);
-  const [isLoadingUserPosts, setIsLoadingUserPosts] = useState(true);
+  // Removed userPosts and isLoadingUserPosts states
 
   const [featuredCollaborations, setFeaturedCollaborations] = useState<DesignCollaborationGallery[]>([]);
   const [isLoadingCollaborations, setIsLoadingCollaborations] = useState(true);
@@ -128,7 +127,7 @@ function HomePageContent() {
     setIsLoadingContent(true);
     setIsLoadingFeaturedProducts(true);
     setIsLoadingCategories(true);
-    setIsLoadingUserPosts(true);
+    // setIsLoadingUserPosts(true); // Removed
     setIsLoadingCollaborations(true);
     
     const fetchedContent = await getHomepageContent();
@@ -180,23 +179,8 @@ function HomePageContent() {
       setIsLoadingCategories(false);
     }
     
-    try {
-        const userPostsResponse = await fetch('/api/user-posts');
-        if(!userPostsResponse.ok) {
-            let errorDetail = `Failed to fetch user posts. Status: ${userPostsResponse.status}`;
-            try {
-                const errorData = await userPostsResponse.json();
-                errorDetail = errorData.message || errorData.rawSupabaseError?.message || `Server error: ${userPostsResponse.statusText}`;
-            } catch(e) {/* ignore */}
-            throw new Error(errorDetail);
-        }
-        const postsData: UserPost[] = await userPostsResponse.json();
-        setUserPosts(postsData.slice(0,4));
-    } catch (err) {
-        toast({ title: "Error Loading User Posts", description: (err as Error).message, variant: "destructive" });
-    } finally {
-        setIsLoadingUserPosts(false);
-    }
+    // Removed user posts fetching logic
+    // setIsLoadingUserPosts(false); // Removed
 
     try {
       const collabsResponse = await fetch('/api/design-collaborations');
@@ -285,7 +269,7 @@ function HomePageContent() {
     }
   };
 
-  if (isLoadingContent && isLoadingFeaturedProducts && isLoadingCategories && isLoadingUserPosts && isLoadingCollaborations) {
+  if (isLoadingContent && isLoadingFeaturedProducts && isLoadingCategories && isLoadingCollaborations) { // Removed isLoadingUserPosts
     return (
         <div className="flex items-center justify-center min-h-screen bg-background">
             <div className="flex flex-col items-center">
@@ -638,39 +622,8 @@ function HomePageContent() {
             </InteractiveExternalLink>
         </div>
       </section>
-
-      <section className="section-padding container-wide relative z-[1] bg-muted/30">
-        <div className="text-center mb-12">
-            <Users className="h-10 w-10 text-primary mx-auto mb-3" />
-            <h2 className="text-3xl font-bold text-foreground">Community Spotlights</h2>
-            <p className="text-muted-foreground mt-2 max-w-xl mx-auto">See how our community styles Peak Pulse. Share your look!</p>
-        </div>
-        {isLoadingUserPosts ? ( <div className="flex justify-center items-center py-10"><Loader2 className="h-8 w-8 animate-spin text-primary"/></div>
-        ) : userPosts.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {userPosts.map(post => (
-              <Card key={post.id} className="overflow-hidden shadow-lg group">
-                <AspectRatio ratio={1/1} className="bg-background">
-                  <Image src={post.image_url} alt={post.caption || `Peak Pulse style by ${post.user_name}`} fill sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw" className="object-cover group-hover:scale-105 transition-transform" data-ai-hint="community fashion style" />
-                </AspectRatio>
-                <CardContent className="p-4">
-                  <div className="flex items-center mb-2">
-                    <Image src={post.user_avatar_url || 'https://placehold.co/40x40.png'} alt={post.user_name || 'User'} width={32} height={32} className="rounded-full mr-2" data-ai-hint="user avatar community"/>
-                    <span className="text-sm font-semibold text-foreground truncate">{post.user_name || 'Peak Pulse Fan'}</span>
-                  </div>
-                  <p className="text-xs text-muted-foreground truncate h-10">{post.caption || "Loving my Peak Pulse gear!"}</p>
-                  {post.product_tags && post.product_tags.length > 0 && ( <div className="mt-2"> <span className="text-xs font-medium text-primary">Wearing: </span> <span className="text-xs text-muted-foreground">{post.product_tags.join(', ')}</span> </div> )}
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        ) : ( <p className="text-center text-muted-foreground py-8">No community posts yet. Be the first to share your style!</p> )}
-        <div className="text-center mt-12">
-            <Link href="/community/create-post" className={cn(buttonVariants({ size: "lg"}))}>
-                <span className="flex items-center"><ImagePlus className="mr-2 h-5 w-5" /> Share Your Style</span>
-            </Link>
-        </div>
-      </section>
+      
+      {/* Removed Community Spotlights Section */}
 
       <section className="bg-card section-padding relative z-[1]">
         <div className="container-slim text-center">
