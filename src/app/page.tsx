@@ -1,14 +1,14 @@
 // src/app/page.tsx
 "use client";
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Icons } from '@/components/icons';
 import { ChevronLeft, ChevronRight, ShoppingBag, ArrowRight, Instagram, Send, Users, ImagePlus, Loader2, Play, Pause, LayoutGrid, Palette as PaletteIcon, Handshake, Sprout } from 'lucide-react';
 import { NewsletterSignupForm } from '@/components/forms/newsletter-signup-form';
-import type { HomepageContent, Product, HeroSlide, AdminCategory as CategoryType, DesignCollaborationGallery, ArtisanalRootsSlide, SocialCommerceItem } from '@/types';
+import type { HomepageContent, Product, HeroSlide, AdminCategory as CategoryType, DesignCollaborationGallery, ArtisanalRootsSlide, SocialCommerceItem, PromotionalPost } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent } from '@/components/ui/card';
 import { AspectRatio } from "@/components/ui/aspect-ratio";
@@ -21,12 +21,12 @@ import { ProductCard } from '@/components/product/product-card';
 
 const fallbackHeroSlide: HeroSlide = {
   id: 'fallback-hero-main-public-page-ts',
-  title: "Peak Pulse (Fallback)",
-  description: "Experience the fusion of ancient Nepali artistry and modern streetwear. (Content failed to load, displaying fallback)",
+  title: "Peak Pulse",
+  description: "Experience the fusion of ancient Nepali artistry and modern streetwear. (Default Content)",
   imageUrl: "https://images.unsplash.com/photo-1502823403499-6ccfcf4fb453?ixlib=rb-1.2.1&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1920&h=1080&q=80",
   altText: "Fallback Peak Pulse Hero Image",
   dataAiHint: "fashion model fallback",
-  ctaText: "Explore Our Collections",
+  ctaText: "Explore Collections",
   ctaLink: "/products",
   videoId: undefined,
 };
@@ -41,6 +41,11 @@ const defaultHomepageContent: HomepageContent = {
   socialCommerceItems: [],
   heroVideoId: undefined,
   heroImageUrl: undefined,
+  promotionalPostsSection: { // Default config for promo section
+    enabled: false,
+    title: "Special Offers",
+    maxItems: 3,
+  },
 };
 
 
@@ -90,6 +95,11 @@ async function getHomepageContent(): Promise<HomepageContent> {
         : defaultHomepageContent.socialCommerceItems || [],
       heroVideoId: jsonData.heroVideoId === null ? undefined : jsonData.heroVideoId,
       heroImageUrl: jsonData.heroImageUrl === null ? undefined : jsonData.heroImageUrl,
+      promotionalPostsSection: { // Merge promotionalPostsSection config
+        enabled: jsonData.promotionalPostsSection?.enabled ?? defaultHomepageContent.promotionalPostsSection!.enabled,
+        title: jsonData.promotionalPostsSection?.title || defaultHomepageContent.promotionalPostsSection!.title,
+        maxItems: jsonData.promotionalPostsSection?.maxItems || defaultHomepageContent.promotionalPostsSection!.maxItems,
+      },
     };
     return processedData;
   } catch (error: any) {
@@ -108,7 +118,8 @@ function HomePageContent() {
   const [categories, setCategories] = useState<CategoryType[]>([]);
   const [isLoadingCategories, setIsLoadingCategories] = useState(true);
   
-  // Removed userPosts and isLoadingUserPosts states
+  const [promotionalPosts, setPromotionalPosts] = useState<PromotionalPost[]>([]);
+  const [isLoadingPromotionalPosts, setIsLoadingPromotionalPosts] = useState(false);
 
   const [featuredCollaborations, setFeaturedCollaborations] = useState<DesignCollaborationGallery[]>([]);
   const [isLoadingCollaborations, setIsLoadingCollaborations] = useState(true);
@@ -127,7 +138,6 @@ function HomePageContent() {
     setIsLoadingContent(true);
     setIsLoadingFeaturedProducts(true);
     setIsLoadingCategories(true);
-    // setIsLoadingUserPosts(true); // Removed
     setIsLoadingCollaborations(true);
     
     const fetchedContent = await getHomepageContent();
@@ -141,6 +151,29 @@ function HomePageContent() {
       });
     }
     setIsLoadingContent(false);
+
+    // Fetch promotional posts if enabled
+    if (fetchedContent?.promotionalPostsSection?.enabled) {
+      setIsLoadingPromotionalPosts(true);
+      try {
+        const promosResponse = await fetch('/api/promotional-posts'); // Public endpoint
+        if (!promosResponse.ok) {
+          let errorDetail = 'Failed to fetch promotional posts';
+          try { const errorData = await promosResponse.json(); errorDetail = errorData.message || errorData.rawSupabaseError?.message || `${promosResponse.status} ${promosResponse.statusText}`; } catch (e) {/* ignore */}
+          throw new Error(errorDetail);
+        }
+        const promosData: PromotionalPost[] = await promosResponse.json();
+        setPromotionalPosts(promosData);
+      } catch (err) {
+        toast({ title: "Error Loading Promotions", description: (err as Error).message, variant: "destructive" });
+        setPromotionalPosts([]); 
+      } finally {
+        setIsLoadingPromotionalPosts(false);
+      }
+    } else {
+      setPromotionalPosts([]); 
+      setIsLoadingPromotionalPosts(false);
+    }
 
     try {
       const productsResponse = await fetch('/api/products');
@@ -179,9 +212,6 @@ function HomePageContent() {
       setIsLoadingCategories(false);
     }
     
-    // Removed user posts fetching logic
-    // setIsLoadingUserPosts(false); // Removed
-
     try {
       const collabsResponse = await fetch('/api/design-collaborations');
       if (!collabsResponse.ok) {
@@ -203,7 +233,36 @@ function HomePageContent() {
     loadPageData();
   }, [loadPageData]);
   
-  const activeHeroSlides = content.heroSlides && content.heroSlides.length > 0 ? content.heroSlides : [fallbackHeroSlide];
+  const adaptedPromotionalSlides: HeroSlide[] = useMemo(() => {
+    if (content.promotionalPostsSection?.enabled && promotionalPosts.length > 0) {
+      return promotionalPosts
+        .slice(0, content.promotionalPostsSection.maxItems || promotionalPosts.length)
+        .map((promo, index) => ({
+          id: promo.id || `promo-slide-${index}`,
+          title: promo.title,
+          description: promo.description || '',
+          imageUrl: promo.imageUrl,
+          altText: promo.imageAltText || promo.title,
+          dataAiHint: promo.dataAiHint || 'promotion offer sale',
+          ctaText: promo.ctaText || 'Learn More',
+          ctaLink: promo.ctaLink || `/products?promo=${promo.slug}`,
+          videoId: undefined, // Assuming promotional posts don't have videos for hero
+          // Optional: Add specific styling/flags for promo slides if needed
+          _isPromo: true,
+          _backgroundColor: promo.backgroundColor,
+          _textColor: promo.textColor,
+        }));
+    }
+    return [];
+  }, [content.promotionalPostsSection, promotionalPosts]);
+
+  const combinedHeroSlides = useMemo(() => {
+    const baseSlides = content.heroSlides && content.heroSlides.length > 0 ? content.heroSlides : [];
+    const slides = [...adaptedPromotionalSlides, ...baseSlides];
+    return slides.length > 0 ? slides : [fallbackHeroSlide];
+  }, [content.heroSlides, adaptedPromotionalSlides]);
+
+  const activeHeroSlides = combinedHeroSlides;
   const activeArtisanalSlides = content.artisanalRoots?.slides && content.artisanalRoots.slides.length > 0 ? content.artisanalRoots.slides : [];
 
 
@@ -269,7 +328,7 @@ function HomePageContent() {
     }
   };
 
-  if (isLoadingContent && isLoadingFeaturedProducts && isLoadingCategories && isLoadingCollaborations) { // Removed isLoadingUserPosts
+  if (isLoadingContent || isLoadingFeaturedProducts || isLoadingCategories || isLoadingCollaborations || (content.promotionalPostsSection?.enabled && isLoadingPromotionalPosts)) {
     return (
         <div className="flex items-center justify-center min-h-screen bg-background">
             <div className="flex flex-col items-center">
@@ -281,6 +340,7 @@ function HomePageContent() {
   }
   
   const currentDisplayedHeroSlide = activeHeroSlides[currentHeroSlide];
+  // Fallback to general hero video/image if current slide doesn't have specific ones
   const heroVideoId = currentDisplayedHeroSlide?.videoId || content.heroVideoId; 
   const heroImageUrl = currentDisplayedHeroSlide?.imageUrl || content.heroImageUrl;
 
@@ -297,6 +357,9 @@ function HomePageContent() {
                 "absolute inset-0 transition-opacity duration-1000 ease-in-out",
                 index === currentHeroSlide ? "opacity-100" : "opacity-0"
               )}
+              style={{ 
+                backgroundColor: slide._isPromo ? (slide._backgroundColor || 'rgba(0,0,0,0.3)') : 'transparent' 
+              }}
             >
               {slide.videoId ? (
                 <>
@@ -308,7 +371,7 @@ function HomePageContent() {
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                     allowFullScreen={false}
                   />
-                  <div className="absolute inset-0 bg-black/30 z-[1]" />
+                  {!slide._isPromo && <div className="absolute inset-0 bg-black/30 z-[1]" />}
                 </>
               ) : slide.imageUrl ? (
                 <>
@@ -321,14 +384,14 @@ function HomePageContent() {
                     className="absolute inset-0 w-full h-full object-cover"
                     data-ai-hint={slide.dataAiHint || "fashion mountains nepal"}
                   />
-                  <div className="absolute inset-0 bg-black/30 z-[1]" />
+                  {!slide._isPromo && <div className="absolute inset-0 bg-black/30 z-[1]" />}
                 </>
               ) : (
                  <div className="absolute inset-0 bg-black" /> 
               )}
             </div>
           ))}
-           {activeHeroSlides.length === 0 && heroVideoId && (
+           {activeHeroSlides.length === 0 && heroVideoId && ( // Fallback if NO slides are defined at all
              <>
                 <iframe
                     className="absolute top-1/2 left-1/2 w-full h-full min-w-[177.77vh] min-h-[56.25vw] transform -translate-x-1/2 -translate-y-1/2"
@@ -367,17 +430,20 @@ function HomePageContent() {
                 "absolute inset-0 transition-opacity duration-1000 ease-in-out",
                 index === currentHeroSlide ? "opacity-100" : "opacity-0 pointer-events-none"
             )}
-            style={{ pointerEvents: index === currentHeroSlide ? 'auto' : 'none' }}
+            style={{ 
+                pointerEvents: index === currentHeroSlide ? 'auto' : 'none',
+                color: slide._isPromo ? (slide._textColor || 'white') : 'white'
+            }}
           >
-            <div className="relative z-20 flex flex-col items-center justify-center h-full pt-[calc(theme(spacing.20)_+_theme(spacing.6))] pb-12 px-6 md:px-8 text-center text-white max-w-3xl mx-auto">
+            <div className="relative z-20 flex flex-col items-center justify-center h-full pt-[calc(theme(spacing.20)_+_theme(spacing.6))] pb-12 px-6 md:px-8 text-center max-w-3xl mx-auto">
                 <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-6 text-shadow-lg">
                     {slide.title}
                 </h1>
-                <p className="text-lg md:text-xl lg:text-2xl text-neutral-200 mb-10 max-w-2xl mx-auto text-shadow-md">
+                <p className={cn("text-lg md:text-xl lg:text-2xl mb-10 max-w-2xl mx-auto text-shadow-md", slide._isPromo ? (slide._textColor ? '' : 'text-neutral-100') : 'text-neutral-200')}>
                     {slide.description}
                 </p>
                 {slide.ctaText && slide.ctaLink && (
-                    <Link href={slide.ctaLink} className={cn(buttonVariants({ size: "lg", className: "text-base md:text-lg py-3 px-8" }))}>
+                    <Link href={slide.ctaLink} className={cn(buttonVariants({ size: "lg", className: "text-base md:text-lg py-3 px-8" }), slide._isPromo ? 'bg-white/90 text-black hover:bg-white' : '')}>
                         <span className="flex items-center">
                             {slide.ctaText} <ShoppingBag className="ml-2 h-5 w-5" />
                         </span>
@@ -566,13 +632,11 @@ function HomePageContent() {
                           className="object-cover" 
                           data-ai-hint={item.dataAiHint || "instagram fashion user"}
                         />
-                        {/* Enhanced Glass reflection overlay */}
                         <div
                           className="absolute inset-0 opacity-0 group-hover:opacity-40 transition-all duration-500 ease-in-out
                                      bg-gradient-to-br from-white/50 via-white/25 to-transparent
                                      mix-blend-overlay group-hover:backdrop-blur-[2px] pointer-events-none"
                         ></div>
-                        {/* Instagram icon overlay */}
                         <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col items-center justify-center text-white p-4">
                           <Instagram className="h-10 w-10 mb-2" />
                           <span className="text-sm font-medium text-center">View on Instagram</span>
@@ -623,8 +687,6 @@ function HomePageContent() {
         </div>
       </section>
       
-      {/* Removed Community Spotlights Section */}
-
       <section className="bg-card section-padding relative z-[1]">
         <div className="container-slim text-center">
           <Send className="h-12 w-12 text-primary mx-auto mb-4" />
