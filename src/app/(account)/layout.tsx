@@ -5,7 +5,8 @@ import { useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
 import { Footer } from "@/components/layout/footer";
-import { Header } from "@/components/layout/header";
+import { Header } from "@/components/layout/header"; // This is now the TopBar
+import { BottomNavigation } from "@/components/layout/bottom-navigation"; // Import new component
 import { ChatbotWidget } from "@/components/chatbot/chatbot-widget";
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card } from '@/components/ui/card';
@@ -24,12 +25,12 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
       console.log(`[AccountLayout] User not authenticated. Redirecting to /login from: ${currentPath}`);
       router.replace(`/login?redirect=${encodeURIComponent(currentPath)}`);
     }
-  }, [isAuthenticated, isLoading, router, pathname]); // Added pathname to deps
+  }, [isAuthenticated, isLoading, router, pathname]);
 
   if (isLoading) {
     return (
       <div className="flex min-h-screen flex-col">
-        <Header />
+        <Header /> {/* TopBar */}
         <main className="flex-grow container-wide section-padding">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <div className="md:col-span-1">
@@ -48,6 +49,7 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
             </div>
           </div>
         </main>
+        {/* No BottomNavigation during loading state for simplicity, could add Skeleton if needed */}
         <Footer />
       </div>
     );
@@ -56,7 +58,7 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
   if (!isAuthenticated && !isLoading) {
     return (
        <div className="flex min-h-screen flex-col">
-        <Header />
+        <Header /> {/* TopBar */}
         <main className="flex-grow container-wide section-padding flex items-center justify-center">
             <Card className="max-w-md w-full p-8 text-center shadow-xl">
                 <ShieldAlert className="h-16 w-16 text-destructive mx-auto mb-6" />
@@ -67,6 +69,7 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
                 </Button>
             </Card>
         </main>
+        {/* No BottomNavigation when access denied */}
         <Footer />
       </div>
     );
@@ -77,7 +80,7 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
     if (pathname?.includes('/vip-collection') && !user.roles?.includes('vip') && !user.roles?.includes('admin')) {
       return (
         <div className="flex min-h-screen flex-col">
-          <Header />
+          <Header /> {/* TopBar */}
           <main className="flex-grow container-wide section-padding flex items-center justify-center">
             <Card className="max-w-md w-full p-8 text-center shadow-xl">
               <AlertTriangle className="h-16 w-16 text-accent mx-auto mb-6" />
@@ -88,6 +91,7 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
               </Button>
             </Card>
           </main>
+          {/* No BottomNavigation for VIP access denied */}
           <Footer />
         </div>
       );
@@ -96,7 +100,7 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
      if (pathname?.includes('/affiliate-portal') && !user.roles?.includes('affiliate') && !user.roles?.includes('admin')) {
       return (
         <div className="flex min-h-screen flex-col">
-          <Header />
+          <Header /> {/* TopBar */}
           <main className="flex-grow container-wide section-padding flex items-center justify-center">
             <Card className="max-w-md w-full p-8 text-center shadow-xl">
               <AlertTriangle className="h-16 w-16 text-accent mx-auto mb-6" />
@@ -107,20 +111,20 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
               </Button>
             </Card>
           </main>
+          {/* No BottomNavigation for Affiliate access denied */}
           <Footer />
         </div>
       );
     }
   }
 
-
-  // If authenticated and authorized for the specific sub-route, render children
   return (
     <div className="flex min-h-screen flex-col">
-      <Header />
+      <Header /> {/* TopBar */}
       <main className="flex-grow bg-background">
         {children}
       </main>
+      <BottomNavigation /> {/* Added BottomNavigation */}
       <Footer />
       <ChatbotWidget />
     </div>

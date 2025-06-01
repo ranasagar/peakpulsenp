@@ -19,13 +19,14 @@ import { Icons } from '@/components/icons';
 import { useAuth } from '@/hooks/use-auth';
 import { cn } from '@/lib/utils';
 import type { NavItem } from '@/types';
-import { ShoppingCart, Search, LogOut, UserCircle, LayoutDashboard, Settings, Star, ShoppingBag, Briefcase, LayoutGrid, Home as HomeIcon, BookOpenText, Mail, Handshake, Users, Palette as PaletteIcon, Printer, FileText as PageIcon, MessageSquare, Landmark, FileSpreadsheet, DollarSign, ListChecks } from 'lucide-react';
+import { ShoppingCart, Search, LogOut, UserCircle, LayoutDashboard, Settings, Star, ShoppingBag as ShoppingBagIcon, Briefcase, LayoutGrid, Home as HomeIcon, BookOpenText, Mail, Handshake } from 'lucide-react'; // Renamed ShoppingBag to ShoppingBagIcon
 import { ModeToggle } from './mode-toggle';
 import { useCart } from '@/context/cart-context';
 
+// These are used for the mobile Sheet menu and User Dropdown
 const mainNavItems: NavItem[] = [
   { title: 'Home', href: '/', icon: HomeIcon },
-  { title: 'Shop', href: '/products', icon: ShoppingBag },
+  { title: 'Shop', href: '/products', icon: ShoppingBagIcon },
   { title: 'Categories', href: '/categories', icon: LayoutGrid },
   { title: 'Collaborations', href: '/collaborations', icon: Handshake },
   { title: 'Our Story', href: '/our-story', icon: BookOpenText },
@@ -34,12 +35,12 @@ const mainNavItems: NavItem[] = [
 
 const userNavItems: NavItem[] = [
   { title: 'Dashboard', href: '/account/dashboard', icon: LayoutDashboard },
-  { title: 'Orders', href: '/account/orders', icon: ShoppingBag },
+  { title: 'Orders', href: '/account/orders', icon: ShoppingBagIcon },
   { title: 'Profile', href: '/account/profile', icon: Settings },
   { title: 'Wishlist', href: '/account/wishlist', icon: Star },
 ];
 
-export function Header() {
+export function Header() { // Still named Header, but acts as TopBar
   const { user, logout, isAuthenticated } = useAuth();
   const { cartItemCount } = useCart();
   const pathname = usePathname();
@@ -48,8 +49,8 @@ export function Header() {
 
   useEffect(() => setMounted(true), []);
 
-
-  const navLinks = mainNavItems.map((item) => {
+  // Mobile navigation links are generated from mainNavItems
+  const mobileNavLinks = mainNavItems.map((item) => {
     const isVipLink = item.href === '/vip-collection';
     if (isVipLink && !isAuthenticated) return null;
     return (
@@ -57,12 +58,12 @@ export function Header() {
         key={item.href}
         href={item.href}
         className={cn(
-          "flex items-center text-sm font-medium transition-colors hover:text-primary header-link-pulse",
+          "flex items-center text-base py-2 font-medium transition-colors hover:text-primary header-link-pulse",
           pathname === item.href ? "text-primary" : "text-foreground/80"
         )}
         onClick={() => setIsMobileMenuOpen(false)}
       >
-        {item.icon && <item.icon className="mr-2 h-4 w-4 md:hidden lg:inline-block" />}
+        {item.icon && <item.icon className="mr-3 h-5 w-5" />}
         {item.title}
       </Link>
     );
@@ -104,7 +105,7 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/60 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container-wide flex h-20 items-center justify-between"> {/* Changed to justify-between */}
+      <div className="container-wide flex h-20 items-center justify-between">
         {/* Left Group: Mobile Menu Trigger & Desktop Logo */}
         <div className="flex items-center">
           <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
@@ -123,8 +124,8 @@ export function Header() {
                   </Link>
               </SheetHeader>
               <div className="p-6">
-                <nav className="flex flex-col space-y-5">
-                  {navLinks}
+                <nav className="flex flex-col space-y-4"> {/* Adjusted spacing */}
+                  {mobileNavLinks}
                   {isAuthenticated && (
                     <div className="pt-4 border-t border-border/60">
                       <p className="text-sm font-medium text-muted-foreground mb-2">My Account</p>
@@ -132,35 +133,35 @@ export function Header() {
                         <Link
                           key={item.href}
                           href={item.href}
-                          className="flex items-center py-2 text-sm font-medium text-foreground/80 hover:text-primary header-link-pulse"
+                          className="flex items-center py-2 text-base font-medium text-foreground/80 hover:text-primary header-link-pulse"
                           onClick={() => setIsMobileMenuOpen(false)}
                         >
-                          {item.icon && <item.icon className="mr-2 h-4 w-4" />}
+                          {item.icon && <item.icon className="mr-3 h-5 w-5" />}
                           {item.title}
                         </Link>
                       ))}
                       {user?.roles?.includes('affiliate') && (
                         <Link
                           href="/account/affiliate-portal"
-                          className="flex items-center py-2 text-sm font-medium text-foreground/80 hover:text-primary header-link-pulse"
+                          className="flex items-center py-2 text-base font-medium text-foreground/80 hover:text-primary header-link-pulse"
                           onClick={() => setIsMobileMenuOpen(false)}
                         >
-                           <Briefcase className="mr-2 h-4 w-4" />
+                           <Briefcase className="mr-3 h-5 w-5" />
                            Affiliate Portal
                         </Link>
                       )}
                        {user?.roles?.includes('admin') && (
                         <Link
                           href="/admin"
-                          className="flex items-center py-2 text-sm font-medium text-primary hover:text-primary/80 header-link-pulse font-semibold"
+                          className="flex items-center py-2 text-base font-medium text-primary hover:text-primary/80 header-link-pulse font-semibold"
                           onClick={() => setIsMobileMenuOpen(false)}
                         >
-                          <LayoutDashboard className="mr-2 h-4 w-4" />
+                          <LayoutDashboard className="mr-3 h-5 w-5" />
                           Admin Panel
                         </Link>
                       )}
-                      <Button variant="ghost" onClick={() => { logout(); setIsMobileMenuOpen(false); }} className="w-full justify-start mt-2 px-0 text-foreground/80 hover:text-primary">
-                        <LogOut className="mr-2 h-4 w-4" /> Log out
+                      <Button variant="ghost" onClick={() => { logout(); setIsMobileMenuOpen(false); }} className="w-full justify-start mt-3 px-0 text-base text-foreground/80 hover:text-primary">
+                        <LogOut className="mr-3 h-5 w-5" /> Log out
                       </Button>
                     </div>
                   )}
@@ -174,7 +175,7 @@ export function Header() {
             </SheetContent>
           </Sheet>
 
-          <Link href="/" className="flex items-center space-x-2"> {/* Removed mr-6 lg:mr-8 for better balance with justify-between */}
+          <Link href="/" className="flex items-center space-x-2">
             <Icons.Logo className="h-8 w-8 text-primary" />
             <span className="hidden lg:inline-block font-semibold text-xl text-foreground">
               Peak Pulse
@@ -182,14 +183,14 @@ export function Header() {
           </Link>
         </div>
 
-        {/* Center Group: Desktop Navigation */}
-        <nav className="hidden md:flex items-center space-x-4 lg:space-x-6 text-sm font-medium">
+        {/* Center Group: Desktop Navigation - REMOVED FROM HERE */}
+        {/* <nav className="hidden md:flex items-center space-x-4 lg:space-x-6 text-sm font-medium">
           {navLinks}
-        </nav>
+        </nav> */}
 
         {/* Right Group: Actions */}
-        <div className="flex items-center space-x-2 md:space-x-3"> {/* Removed flex-1 */}
-          <Button variant="ghost" size="icon" className="hidden md:inline-flex"> {/* Kept hidden md:inline-flex for search */}
+        <div className="flex items-center space-x-2 md:space-x-3">
+          <Button variant="ghost" size="icon" className="hidden md:inline-flex">
             <Search className="h-5 w-5" />
             <span className="sr-only">Search</span>
           </Button>
@@ -241,5 +242,3 @@ export function Header() {
     </header>
   );
 }
-
-    

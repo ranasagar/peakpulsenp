@@ -3,15 +3,15 @@
 "use client"; 
 
 import Link from 'next/link';
-import { Shield, LayoutDashboard, Settings, ArrowLeft, BookOpenText, ShoppingBag, BarChart3, ListOrdered, Landmark, Tags, Users, ListChecks, FileText, Package as PackageIcon, Home as HomeIcon, PenSquare, DollarSign, FileSpreadsheet, Palette, ImageIcon as ImageIconLucide, Printer, MessageSquare, Percent } from 'lucide-react';
-import { Header } from '@/components/layout/header';
+import { Shield, LayoutDashboard, Settings, ArrowLeft, BookOpenText, ShoppingBag, BarChart3, ListOrdered, Landmark, Tags, Users, ListChecks, FileText, Package as PackageIcon, Home as HomeIcon, PenSquare, DollarSign, FileSpreadsheet, MessageSquare, Palette, ImageIcon as ImageIconLucide, Printer, Percent } from 'lucide-react'; // Added Percent
+import { Header } from '@/components/layout/header'; // This will now be the TopBar
 import { Footer } from '@/components/layout/footer';
 import { Button } from '@/components/ui/button';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { useAuth } from '@/hooks/use-auth';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card } from '@/components/ui/card';
-import { ScrollArea } from '@/components/ui/scroll-area';
+// No BottomNavigation needed for Admin layout
 
 export default function AdminLayout({
   children,
@@ -23,7 +23,7 @@ export default function AdminLayout({
   if (isLoading) {
     return (
       <div className="flex min-h-screen flex-col">
-        <Header />
+        <Header /> {/* TopBar */}
         <main className="flex-grow container-wide section-padding">
           <Skeleton className="h-12 w-1/3 mb-8" />
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
@@ -39,7 +39,7 @@ export default function AdminLayout({
   if (!isAuthenticated || !user?.roles?.includes('admin')) {
     return (
       <div className="flex min-h-screen flex-col">
-        <Header />
+        <Header /> {/* TopBar */}
         <main className="flex-grow container-wide section-padding flex items-center justify-center">
           <Card className="p-8 text-center shadow-xl">
             <Shield className="h-16 w-16 text-destructive mx-auto mb-6" />
@@ -55,7 +55,7 @@ export default function AdminLayout({
 
   return (
     <div className="flex min-h-screen flex-col">
-      <Header />
+      <Header /> {/* TopBar */}
       <main className="flex-grow bg-muted/30">
         <div className="container-wide section-padding pt-8 md:pt-12">
           <div className="mb-8 flex items-center justify-between">
