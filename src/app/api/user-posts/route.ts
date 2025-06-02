@@ -9,7 +9,11 @@ export const dynamic = 'force-dynamic';
 
 // GET approved user posts for frontend display
 export async function GET(request: NextRequest) {
-  console.log("[API /api/user-posts GET] request received for approved posts.");
+  const { searchParams } = new URL(request.url);
+  const userIdParam = searchParams.get('userId'); // For fetching specific user's posts
+  const statusParam = searchParams.get('status'); // For fetching posts by status (e.g., 'approved')
+
+  console.log(`[API /api/user-posts GET] request received. userId: ${userIdParam}, status: ${statusParam}`);
 
   if (!supabase) { // Use public client for public reads
     console.error('[API /api/user-posts GET] Supabase public client is not initialized. Check environment variables and server restart.');
@@ -20,7 +24,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const { data, error } = await supabase // Use public client
+    let query = supabase // Use public client
       .from('user_posts')
       .select(`
         id,
@@ -34,12 +38,23 @@ export async function GET(request: NextRequest) {
         created_at,
         updated_at,
         user:users ( name, "avatarUrl" ) 
-      `)
-      .eq('status', 'approved') // Rely on RLS for this, or filter here
-      .order('created_at', { ascending: false });
+      `);
+
+    if (userIdParam) {
+      query = query.eq('user_id', userIdParam);
+    }
+    if (statusParam) {
+      query = query.eq('status', statusParam);
+    } else if (!userIdParam) { // If no specific user is requested, only fetch approved posts by default
+      query = query.eq('status', 'approved');
+    }
+    
+    query = query.order('created_at', { ascending: false });
+
+    const { data, error } = await query;
 
     if (error) {
-      console.error('[API /api/user-posts GET] Supabase error fetching approved posts:', error);
+      console.error('[API /api/user-posts GET] Supabase error fetching posts:', error);
       return NextResponse.json({
         message: 'Failed to fetch user posts from database.',
         rawSupabaseError: { 
@@ -66,7 +81,7 @@ export async function GET(request: NextRequest) {
         updated_at: post.updated_at,
     }));
 
-    console.log(`[API /api/user-posts GET] Successfully fetched ${posts.length} approved posts.`);
+    console.log(`[API /api/user-posts GET] Successfully fetched ${posts.length} posts. Params: userId=${userIdParam}, status=${statusParam}`);
     return NextResponse.json(posts);
   } catch (e) {
     const error = e as Error;

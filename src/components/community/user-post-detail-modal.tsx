@@ -182,7 +182,11 @@ export function UserPostDetailModal({
                   <AvatarFallback>{post.user_name ? post.user_name.charAt(0).toUpperCase() : 'A'}</AvatarFallback>
                 </Avatar>
                 <div>
-                  <DialogTitle className="text-sm font-semibold">{post.user_name || 'Anonymous'}</DialogTitle>
+                  <Link href={`/users/${post.user_id}`} passHref>
+                    <DialogTitle className="text-sm font-semibold hover:underline cursor-pointer">
+                      {post.user_name || 'Anonymous'}
+                    </DialogTitle>
+                  </Link>
                    <p className="text-xs text-muted-foreground">
                     {formatDistanceToNow(new Date(post.created_at), { addSuffix: true })}
                   </p>
@@ -221,7 +225,9 @@ export function UserPostDetailModal({
                          <AvatarFallback>{comment.user_name ? comment.user_name.charAt(0).toUpperCase() : 'U'}</AvatarFallback>
                       </Avatar>
                       <div>
-                        <span className="font-semibold text-foreground">{comment.user_name || 'User'}</span>
+                        <Link href={`/users/${comment.user_id}`} className="font-semibold text-foreground hover:underline">
+                          {comment.user_name || 'User'}
+                        </Link>
                         <p className="text-muted-foreground whitespace-pre-line">{comment.comment_text}</p>
                         <p className="text-xs text-muted-foreground/70 mt-0.5">
                           {formatDistanceToNow(new Date(comment.created_at), { addSuffix: true })}
@@ -284,5 +290,6 @@ export function UserPostDetailModal({
     </Dialog>
   );
 }
+
 
 

@@ -842,7 +842,9 @@ function HomePageContent() {
                 {userPosts.slice(0, 4).map(post => {
                     const hasLiked = user?.id && post.liked_by_user_ids?.includes(user.id);
                     const userNameDisplay = post.user_name || 'Anonymous';
-                    const canLinkToProfile = isAuthenticated && user?.id === post.user_id;
+                    // const canLinkToProfile = isAuthenticated && user?.id === post.user_id; // Was for /account/profile
+                    // For public profile link:
+                    const userProfileLink = `/users/${post.user_id}`;
 
                     return (
                     <Card 
@@ -866,13 +868,9 @@ function HomePageContent() {
                                     <AvatarImage src={post.user_avatar_url || undefined} alt={userNameDisplay} data-ai-hint="user avatar small"/>
                                     <AvatarFallback>{userNameDisplay.charAt(0).toUpperCase()}</AvatarFallback>
                                 </Avatar>
-                                {canLinkToProfile ? (
-                                    <Link href="/account/profile" className="text-xs font-medium text-foreground hover:text-primary truncate" onClick={(e) => e.stopPropagation()}>
-                                        {userNameDisplay}
-                                    </Link>
-                                ) : (
-                                    <span className="text-xs font-medium text-foreground truncate">{userNameDisplay}</span>
-                                )}
+                                <Link href={userProfileLink} className="text-xs font-medium text-foreground hover:text-primary truncate" onClick={(e) => e.stopPropagation()}>
+                                    {userNameDisplay}
+                                </Link>
                             </div>
                             {post.caption && <p className="text-xs text-muted-foreground line-clamp-2 mb-1.5">{post.caption}</p>}
                              <div className="flex items-center justify-between text-xs text-muted-foreground">
@@ -920,6 +918,7 @@ function HomePageContent() {
           onOpenChange={setIsPostModalOpen}
           post={userPosts.find(p => p.id === selectedPostForModal.id) || selectedPostForModal} 
           currentUserId={user?.id}
+          currentUser={user}
           onLikeToggle={handleLikeToggle}
           onBookmarkToggle={handleBookmarkToggle}
           onCommentPosted={handleCommentPosted}
@@ -940,4 +939,5 @@ export default function RootPage() {
 }
 
     
+
 
