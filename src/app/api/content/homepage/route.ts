@@ -7,40 +7,33 @@ import type { HomepageContent, HeroSlide, SocialCommerceItem, ArtisanalRootsSlid
 export const dynamic = 'force-dynamic';
 const HOMEPAGE_CONFIG_KEY = 'homepageContent';
 
+// This is the default structure for an individual slide IF fields are missing from the DB slide.
+// Critical fields like imageUrl and videoId are undefined here.
 const defaultHeroSlideStructure: Omit<HeroSlide, 'id'> = {
-  title: "Welcome to Peak Pulse",
-  description: "Discover unique apparel where Nepali heritage meets contemporary design. (Default fallback content)",
-  imageUrl: "https://images.unsplash.com/photo-1502823403499-6ccfcf4fb453?ixlib=rb-1.2.1&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1920&h=1080&q=80",
-  altText: "Default Peak Pulse Hero Image",
-  dataAiHint: "fashion model fallback",
-  ctaText: "Explore Collections",
-  ctaLink: "/products",
+  title: "Peak Pulse Collection",
+  description: "Experience unique Nepali craftsmanship.",
+  imageUrl: undefined,
   videoId: undefined,
-  audioUrl: undefined, 
-  duration: 7000, 
-  displayOrder: 0, // Added default displayOrder
+  audioUrl: undefined,
+  altText: "Hero image",
+  dataAiHint: "fashion model style",
+  ctaText: "Shop Now",
+  ctaLink: "/products",
+  duration: 7000,
+  displayOrder: 0,
 };
 
-const defaultArtisanalRootsSlideStructure: Omit<ArtisanalRootsSlide, 'id'> = {
-  imageUrl: 'https://placehold.co/800x500.png?text=Default+Artisan+Craft',
-  altText: 'Default artisanal craft background',
-  dataAiHint: 'default craft texture'
-};
-
-const defaultSocialCommerceItemStructure: Omit<SocialCommerceItem, 'id'> = {
-  imageUrl: 'https://placehold.co/400x400.png?text=Default+Style', linkUrl: '#', altText: 'Default user style post', dataAiHint: 'default social fashion', displayOrder: 0
-};
-
+// This is the fallback for the ENTIRE homepage content if nothing is found in DB.
 const defaultHomepageContentData: HomepageContent = {
-  heroSlides: [{...defaultHeroSlideStructure, id: `hs-default-${Date.now()}`}],
+  heroSlides: [{ ...defaultHeroSlideStructure, id: `hs-default-fallback-${Date.now()}` }], // One default slide if all else fails
   artisanalRoots: {
     title: "Our Artisanal Roots (Default)",
     description: "Default description about heritage and craftsmanship.",
     slides: [],
   },
   socialCommerceItems: [],
-  heroVideoId: undefined,
-  heroImageUrl: undefined,
+  heroVideoId: undefined, // Standalone fallback video
+  heroImageUrl: undefined, // Standalone fallback image
   promotionalPostsSection: {
     enabled: false,
     title: "Special Offers",
@@ -52,13 +45,13 @@ export async function GET() {
   console.log(`[API /api/content/homepage GET] Request received for key: ${HOMEPAGE_CONFIG_KEY}.`);
 
   if (!supabase) {
-    const errorMsg = '[API /api/content/homepage GET] CRITICAL: Supabase client (public) is not initialized. Check environment variables and server restart.';
+    const errorMsg = '[API /api/content/homepage GET] CRITICAL: Supabase client (public) is not initialized.';
     console.error(errorMsg);
     return NextResponse.json({
-        ...defaultHomepageContentData, 
-        error: "Database client not configured on server. Please check server logs and .env file for NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.",
+        ...defaultHomepageContentData,
+        error: "Database client not configured on server.",
         rawSupabaseError: { message: 'Supabase public client not initialized.' }
-    }, { status: 503 }); 
+    }, { status: 503 });
   }
 
   try {
@@ -77,48 +70,70 @@ export async function GET() {
       }, { status: 500 });
     }
 
+    let finalHeroSlides: HeroSlide[];
+
     if (data && data.value && typeof data.value === 'object') {
       const dbContent = data.value as Partial<HomepageContent>;
+      console.log(`[API /api/content/homepage GET] Successfully fetched content for ${HOMEPAGE_CONFIG_KEY}. Raw DB heroSlides length: ${dbContent.heroSlides?.length}`);
+
+      if (Array.isArray(dbContent.heroSlides)) {
+        // If heroSlides exists in DB and is an array (even if empty)
+        finalHeroSlides = dbContent.heroSlides.map((slideFromDb: Partial<HeroSlide>, index: number) => {
+          return {
+            id: slideFromDb.id || `hs-db-${Date.now()}-${index}`,
+            title: slideFromDb.title || defaultHeroSlideStructure.title,
+            description: slideFromDb.description || defaultHeroSlideStructure.description,
+            imageUrl: (slideFromDb.imageUrl && slideFromDb.imageUrl.trim() !== "") ? slideFromDb.imageUrl.trim() : undefined,
+            videoId: (slideFromDb.videoId && slideFromDb.videoId.trim() !== "") ? slideFromDb.videoId.trim() : undefined,
+            audioUrl: (slideFromDb.audioUrl && slideFromDb.audioUrl.trim() !== "") ? slideFromDb.audioUrl.trim() : undefined,
+            altText: slideFromDb.altText || defaultHeroSlideStructure.altText,
+            dataAiHint: slideFromDb.dataAiHint || defaultHeroSlideStructure.dataAiHint,
+            ctaText: slideFromDb.ctaText || defaultHeroSlideStructure.ctaText,
+            ctaLink: slideFromDb.ctaLink || defaultHeroSlideStructure.ctaLink,
+            duration: (slideFromDb.duration !== undefined && slideFromDb.duration !== null && Number(slideFromDb.duration) >= 1000)
+                        ? Number(slideFromDb.duration)
+                        : defaultHeroSlideStructure.duration,
+            displayOrder: slideFromDb.displayOrder !== undefined ? Number(slideFromDb.displayOrder) : (index * 10),
+            _isPromo: slideFromDb._isPromo,
+            _backgroundColor: slideFromDb._backgroundColor,
+            _textColor: slideFromDb._textColor,
+          };
+        });
+      } else {
+        // If heroSlides field is entirely missing or not an array in DB, use the global default.
+        console.warn(`[API /api/content/homepage GET] dbContent.heroSlides is not an array or missing. Using global default slides.`);
+        finalHeroSlides = defaultHomepageContentData.heroSlides!;
+      }
       
       const artisanalRootsData = dbContent.artisanalRoots || defaultHomepageContentData.artisanalRoots!;
-      
       const responseData: HomepageContent = {
-        heroSlides: (Array.isArray(dbContent.heroSlides) && dbContent.heroSlides.length > 0 
-          ? dbContent.heroSlides.map((slide: Partial<HeroSlide>, index: number) => ({ 
-              ...defaultHeroSlideStructure, 
-              ...slide, 
-              id: slide.id || `hs-db-${Date.now()}-${index}`,
-              audioUrl: slide.audioUrl || undefined, 
-              duration: slide.duration === undefined ? defaultHeroSlideStructure.duration : Number(slide.duration) || defaultHeroSlideStructure.duration,
-              displayOrder: slide.displayOrder === undefined ? index * 10 : Number(slide.displayOrder) || 0, // Handle displayOrder
-            }))
-          : defaultHomepageContentData.heroSlides
-        ),
+        heroSlides: finalHeroSlides,
         artisanalRoots: {
           title: artisanalRootsData.title || defaultHomepageContentData.artisanalRoots!.title,
           description: artisanalRootsData.description || defaultHomepageContentData.artisanalRoots!.description,
           slides: (Array.isArray(artisanalRootsData.slides)
-            ? artisanalRootsData.slides.map((slide: Partial<ArtisanalRootsSlide>, index: number) => ({ ...defaultArtisanalRootsSlideStructure, ...slide, id: slide.id || `ars-db-${Date.now()}-${index}`}))
+            ? artisanalRootsData.slides.map((slide: Partial<ArtisanalRootsSlide>, index: number) => ({ id: slide.id || `ars-db-${Date.now()}-${index}`, imageUrl: slide.imageUrl || '', altText: slide.altText || '', dataAiHint: slide.dataAiHint || '' }))
             : defaultHomepageContentData.artisanalRoots!.slides || []
           )
         },
         socialCommerceItems: (Array.isArray(dbContent.socialCommerceItems)
-          ? dbContent.socialCommerceItems.map((item: Partial<SocialCommerceItem>, index: number) => ({ ...defaultSocialCommerceItemStructure, ...item, id: item.id || `scs-db-${Date.now()}-${index}`}))
+          ? dbContent.socialCommerceItems.map((item: Partial<SocialCommerceItem>, index: number) => ({ id: item.id || `scs-db-${Date.now()}-${index}`, imageUrl: item.imageUrl || '', linkUrl: item.linkUrl || '#', altText: item.altText || '', dataAiHint: item.dataAiHint || '', displayOrder: item.displayOrder || 0}))
           : defaultHomepageContentData.socialCommerceItems || []
         ).sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0)),
-        heroVideoId: dbContent.heroVideoId === null ? undefined : dbContent.heroVideoId,
-        heroImageUrl: dbContent.heroImageUrl === null ? undefined : dbContent.heroImageUrl,
+        heroVideoId: dbContent.heroVideoId === null ? undefined : (dbContent.heroVideoId || defaultHomepageContentData.heroVideoId),
+        heroImageUrl: dbContent.heroImageUrl === null ? undefined : (dbContent.heroImageUrl || defaultHomepageContentData.heroImageUrl),
         promotionalPostsSection: {
           enabled: dbContent.promotionalPostsSection?.enabled ?? defaultHomepageContentData.promotionalPostsSection!.enabled,
           title: dbContent.promotionalPostsSection?.title || defaultHomepageContentData.promotionalPostsSection!.title,
           maxItems: dbContent.promotionalPostsSection?.maxItems || defaultHomepageContentData.promotionalPostsSection!.maxItems,
         }
       };
-      console.log(`[API /api/content/homepage GET] Successfully fetched and processed content for ${HOMEPAGE_CONFIG_KEY}.`);
+      console.log(`[API /api/content/homepage GET] Processed and returning data for admin form. Number of hero slides: ${responseData.heroSlides?.length}`);
       return NextResponse.json(responseData);
+
     } else {
       console.warn(`[API /api/content/homepage GET] No content found or invalid format for ${HOMEPAGE_CONFIG_KEY} in Supabase. Returning default structure.`);
-      return NextResponse.json(defaultHomepageContentData); 
+      return NextResponse.json(defaultHomepageContentData);
     }
   } catch (e: any) {
     console.error(`[API /api/content/homepage GET] UNHANDLED EXCEPTION fetching content for ${HOMEPAGE_CONFIG_KEY}:`, e);
@@ -129,3 +144,4 @@ export async function GET() {
     }, { status: 500 });
   }
 }
+
