@@ -156,14 +156,16 @@ function HomePageContent() {
 
   const [currentHeroSlide, setCurrentHeroSlide] = useState(0);
   const [isHeroPlaying, setIsHeroPlaying] = useState(true);
+  const [isInitialSlidePaused, setIsInitialSlidePaused] = useState(true); // New state
   const heroIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const minPlayTimeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const audioRef = useRef<HTMLAudioElement>(null);
-  const [isDirectAudioMuted, setIsDirectAudioMuted] = useState(true); // For <audio> tag
+  const [isDirectAudioMuted, setIsDirectAudioMuted] = useState(true); 
 
   const [isYouTubeApiReady, setIsYouTubeApiReady] = useState(false);
-  const playerRefs = useRef<any[]>([]); // Store YT.Player instances
-  const [isYouTubePlayerMuted, setIsYouTubePlayerMuted] = useState(true); // Tracks desired mute state for YT player
+  const playerRefs = useRef<any[]>([]); 
+  const [isYouTubePlayerMuted, setIsYouTubePlayerMuted] = useState(false); 
 
   const [currentArtisanalSlide, setCurrentArtisanalSlide] = useState(0);
   const [isArtisanalPlaying, setIsArtisanalPlaying] = useState(true);
@@ -188,7 +190,7 @@ function HomePageContent() {
 
   useEffect(() => {
     setIsMounted(true);
-    if (!window.YT) { // Load YouTube API if not already loaded
+    if (!window.YT) { 
       const tag = document.createElement('script');
       tag.src = "https://www.youtube.com/iframe_api";
       const firstScriptTag = document.getElementsByTagName('script')[0];
@@ -197,7 +199,7 @@ function HomePageContent() {
         setIsYouTubeApiReady(true);
       };
     } else {
-      setIsYouTubeApiReady(true); // API already loaded
+      setIsYouTubeApiReady(true); 
     }
   }, []);
 
@@ -220,7 +222,6 @@ function HomePageContent() {
   }, [menusVisibleOnScroll, isMounted, pathname]);
 
   const loadPageData = useCallback(async () => {
-    // ... (data fetching logic remains largely the same) ...
     setIsLoadingContent(true);
     setIsLoadingFeaturedProducts(true);
     setIsLoadingCategories(true);
@@ -325,131 +326,160 @@ function HomePageContent() {
   const activeArtisanalSlides = content.artisanalRoots?.slides && content.artisanalRoots.slides.length > 0 ? content.artisanalRoots.slides : [];
 
   const nextHeroSlide = useCallback(() => {
+    if (isInitialSlidePaused && currentHeroSlide === 0) { // If interaction comes from timer on first slide
+      setIsInitialSlidePaused(false);
+    }
     if (activeHeroSlides.length > 0) {
       setCurrentHeroSlide((prev) => (prev === activeHeroSlides.length - 1 ? 0 : prev + 1));
     }
-  }, [activeHeroSlides.length]);
+  }, [activeHeroSlides.length, isInitialSlidePaused, currentHeroSlide]);
 
   const prevHeroSlide = () => {
+     if (isInitialSlidePaused) setIsInitialSlidePaused(false);
      if (activeHeroSlides.length > 0) {
       setCurrentHeroSlide((prev) => (prev === 0 ? activeHeroSlides.length - 1 : prev - 1));
     }
   };
   const goToHeroSlide = (index: number) => {
+    if (isInitialSlidePaused) setIsInitialSlidePaused(false);
     if (activeHeroSlides.length > 0) { setCurrentHeroSlide(index % activeHeroSlides.length); }
   };
-  const toggleHeroPlayPause = () => setIsHeroPlaying(prev => !prev);
+  const toggleHeroPlayPause = () => {
+    if (isInitialSlidePaused && currentHeroSlide === 0) setIsInitialSlidePaused(false);
+    setIsHeroPlaying(prev => !prev);
+  };
 
   const handleMuteToggleClick = () => {
     const currentSlide = activeHeroSlides[currentHeroSlide];
     const player = playerRefs.current[currentHeroSlide];
 
-    if (currentSlide?.audioUrl && audioRef.current) { // Direct audio
+    if (currentSlide?.audioUrl && audioRef.current) { 
       audioRef.current.muted = !audioRef.current.muted;
       setIsDirectAudioMuted(audioRef.current.muted);
-    } else if (player && typeof player.isMuted === 'function') { // YouTube video
-      if (player.isMuted()) {
-        player.unMute();
-        setIsYouTubePlayerMuted(false);
-      } else {
-        player.mute();
-        setIsYouTubePlayerMuted(true);
-      }
+    } else if (player && typeof player.isMuted === 'function') { 
+        if (player.isMuted()) {
+            player.unMute(); setIsYouTubePlayerMuted(false);
+        } else {
+            player.mute(); setIsYouTubePlayerMuted(true);
+        }
     }
   };
 
 
-  useEffect(() => { // Hero slide interval and direct audio management
+  useEffect(() => { 
     if (heroIntervalRef.current) clearInterval(heroIntervalRef.current);
-    if (isHeroPlaying && activeHeroSlides.length > 1) {
-      const currentSlideDuration = activeHeroSlides[currentHeroSlide]?.duration || 7000;
-      heroIntervalRef.current = setInterval(nextHeroSlide, currentSlideDuration);
-    }
+    if (minPlayTimeTimeoutRef.current) clearTimeout(minPlayTimeTimeoutRef.current);
 
-    const currentSlide = activeHeroSlides[currentHeroSlide];
-    if (audioRef.current) {
-      if (currentSlide?.audioUrl) {
-        if (audioRef.current.src !== currentSlide.audioUrl) {
-          audioRef.current.src = currentSlide.audioUrl;
+    if (!isHeroPlaying || (isInitialSlidePaused && currentHeroSlide === 0)) {
+      if (audioRef.current) audioRef.current.pause();
+      const currentPlayerInstance = playerRefs.current[currentHeroSlide];
+      if (currentPlayerInstance && typeof currentPlayerInstance.pauseVideo === 'function') {
+          try { currentPlayerInstance.pauseVideo(); } catch(e) { console.warn("Error pausing YT player:", e); }
+      }
+      return;
+    }
+    
+    const currentSlideData = activeHeroSlides[currentHeroSlide];
+    if (!currentSlideData) return;
+
+    if (currentSlideData.audioUrl && audioRef.current) {
+        if (audioRef.current.src !== currentSlideData.audioUrl) {
+          audioRef.current.src = currentSlideData.audioUrl;
           audioRef.current.load();
         }
         audioRef.current.muted = isDirectAudioMuted;
         audioRef.current.play().catch(error => console.warn("Direct audio play failed:", error));
-      } else {
+    } else if (audioRef.current && !currentSlideData.audioUrl) {
         audioRef.current.pause();
         audioRef.current.currentTime = 0;
-      }
     }
-    return () => { if (heroIntervalRef.current) clearInterval(heroIntervalRef.current); };
-  }, [isHeroPlaying, nextHeroSlide, activeHeroSlides, currentHeroSlide, isDirectAudioMuted]);
+
+    if (!currentSlideData.imageUrl && currentSlideData.videoId) {
+      // YouTube video handling is now primarily in the player's onStateChange for timeouts
+    } else { // Image or color-only slide
+      heroIntervalRef.current = setInterval(nextHeroSlide, currentSlideData.duration || 7000);
+    }
+
+    return () => { 
+      if (heroIntervalRef.current) clearInterval(heroIntervalRef.current);
+      if (minPlayTimeTimeoutRef.current) clearTimeout(minPlayTimeTimeoutRef.current);
+    };
+  }, [isHeroPlaying, nextHeroSlide, activeHeroSlides, currentHeroSlide, isDirectAudioMuted, isInitialSlidePaused]);
 
 
-  useEffect(() => { // YouTube player management
+  useEffect(() => { 
     if (!isYouTubeApiReady || activeHeroSlides.length === 0) return;
 
     const currentSlideData = activeHeroSlides[currentHeroSlide];
     const targetDivId = `youtube-player-${currentHeroSlide}`;
     const existingPlayer = playerRefs.current[currentHeroSlide];
+    
+    const shouldPlayerBeActive = currentSlideData?.videoId && !currentSlideData.imageUrl;
+    const shouldAutoplayVideo = isHeroPlaying && !(isInitialSlidePaused && currentHeroSlide === 0);
 
-    // Destroy previous player if it exists and is for a different slide
     playerRefs.current.forEach((player, index) => {
-      if (player && index !== currentHeroSlide) {
+      if (player && (index !== currentHeroSlide || !shouldPlayerBeActive)) {
         try { player.destroy(); } catch (e) { console.warn("Error destroying old YT player", e); }
         playerRefs.current[index] = null;
       }
     });
 
-    if (currentSlideData?.videoId && !currentSlideData.imageUrl) { // Only init if it's a YT video slide
+    if (shouldPlayerBeActive) {
       if (!existingPlayer || existingPlayer.getVideoData?.()?.video_id !== currentSlideData.videoId) {
         if (existingPlayer) { try { existingPlayer.destroy(); } catch(e) { console.warn("Error destroying existing YT player", e);} }
+        
         const newPlayer = new window.YT.Player(targetDivId, {
           videoId: currentSlideData.videoId,
           playerVars: {
-            autoplay: 1,
-            controls: 0,
-            loop: 1,
-            playlist: currentSlideData.videoId, // Required for loop:1
-            modestbranding: 1,
-            playsinline: 1,
-            showinfo: 0,
-            rel: 0,
-            mute: (currentSlideData.audioUrl || !isHeroPlaying) ? 1 : (isYouTubePlayerMuted ? 1 : 0), // Mute if separate audio or if paused globally or if YT specifically muted
+            autoplay: shouldAutoplayVideo ? 1 : 0,
+            controls: 0, loop: 1, playlist: currentSlideData.videoId, 
+            modestbranding: 1, playsinline: 1, showinfo: 0, rel: 0,
+            mute: (currentSlideData.audioUrl || !shouldAutoplayVideo) ? 1 : (isYouTubePlayerMuted ? 1 : 0), 
           },
           events: {
             onReady: (event: any) => {
-              event.target.playVideo();
-              if (currentSlideData.audioUrl || !isHeroPlaying) { // If separate direct audio exists, YT must be muted. Or if hero is paused.
+              if (shouldAutoplayVideo) event.target.playVideo();
+              if (currentSlideData.audioUrl || !shouldAutoplayVideo) {
                 event.target.mute();
               } else {
                 isYouTubePlayerMuted ? event.target.mute() : event.target.unMute();
               }
             },
             onStateChange: (event: any) => {
-              if (event.data === window.YT.PlayerState.ENDED) {
-                event.target.seekTo(0); // Loop manually if playlist method fails for single videos sometimes
+              if (event.data === window.YT.PlayerState.PLAYING) {
+                 if (isHeroPlaying && !(isInitialSlidePaused && currentHeroSlide === 0)) {
+                    if (minPlayTimeTimeoutRef.current) clearTimeout(minPlayTimeTimeoutRef.current);
+                    const effectiveDuration = Math.max(5000, currentSlideData.duration || 7000);
+                    minPlayTimeTimeoutRef.current = setTimeout(() => {
+                      if (isHeroPlaying) nextHeroSlide();
+                    }, effectiveDuration);
+                 }
+              } else if (event.data === window.YT.PlayerState.PAUSED) {
+                  if (minPlayTimeTimeoutRef.current) clearTimeout(minPlayTimeTimeoutRef.current);
+              } else if (event.data === window.YT.PlayerState.ENDED) {
+                event.target.seekTo(0); 
                 event.target.playVideo();
               }
             }
           },
         });
         playerRefs.current[currentHeroSlide] = newPlayer;
-      } else if (existingPlayer) { // Player exists, ensure its state matches
+      } else if (existingPlayer) { 
         try {
-          if (currentSlideData.audioUrl || !isHeroPlaying) {
-            if(!existingPlayer.isMuted()) existingPlayer.mute();
-          } else {
+          if (shouldAutoplayVideo) {
+            if(existingPlayer.getPlayerState() !== window.YT.PlayerState.PLAYING) existingPlayer.playVideo();
             isYouTubePlayerMuted ? existingPlayer.mute() : existingPlayer.unMute();
-          }
-          if (isHeroPlaying && existingPlayer.getPlayerState() !== window.YT.PlayerState.PLAYING) {
-            existingPlayer.playVideo();
+            if (currentSlideData.audioUrl) existingPlayer.mute(); // Prioritize direct audio
+          } else {
+            if(existingPlayer.getPlayerState() === window.YT.PlayerState.PLAYING) existingPlayer.pauseVideo();
+            existingPlayer.mute(); // Mute if not supposed to be playing
           }
         } catch (e) { console.warn("Error controlling existing YT player state", e); }
       }
     }
-  }, [currentHeroSlide, activeHeroSlides, isYouTubeApiReady, isHeroPlaying, isYouTubePlayerMuted]);
+  }, [currentHeroSlide, activeHeroSlides, isYouTubeApiReady, isHeroPlaying, isYouTubePlayerMuted, nextHeroSlide, isInitialSlidePaused]);
 
 
-  // ... (artisanal and social commerce slider logic remains the same) ...
   const nextArtisanalSlide = useCallback(() => {
     if (activeArtisanalSlides.length > 0) {
       setCurrentArtisanalSlide((prev) => (prev === activeArtisanalSlides.length - 1 ? 0 : prev + 1));
@@ -487,7 +517,6 @@ function HomePageContent() {
     return () => { if (socialInterval) clearInterval(socialInterval); };
   }, [activeSocialCommerceItems.length, nextSocialCommerceSlide, isSocialCommerceHovered, socialCommerceSlideDuration]);
 
-  // ... (community post interaction logic remains the same) ...
   const handleCommunityPostClick = (post: UserPost) => {
     if (!isAuthenticated) {
       toast({ title: "Login to Interact", description: "Please log in to view post details and interact.", action: <Button asChild variant="outline"><Link href="/login?redirect=/">Login</Link></Button> });
@@ -496,9 +525,9 @@ function HomePageContent() {
     setSelectedPostForModal(post);
     setIsPostModalOpen(true);
   };
-  const handleLikeToggle = useCallback(async (postId: string) => { /* ... (existing logic) ... */ if (!isAuthenticated || !user?.id) { toast({ title: "Please Login", description: "You need to be logged in to like posts.", variant: "default", action: <Button asChild variant="outline"><Link href="/login?redirect=/">Login</Link></Button> }); return; } setIsLikingPostId(postId); const originalPosts = [...userPosts]; const postIndex = userPosts.findIndex(p => p.id === postId); if (postIndex === -1) { setIsLikingPostId(null); return; } const postToUpdate = { ...userPosts[postIndex] }; const alreadyLiked = postToUpdate.liked_by_user_ids?.includes(user.id); const newLikedBy = alreadyLiked ? postToUpdate.liked_by_user_ids?.filter(id => id !== user.id) : [...(postToUpdate.liked_by_user_ids || []), user.id]; postToUpdate.liked_by_user_ids = newLikedBy; postToUpdate.like_count = newLikedBy?.length || 0; setUserPosts(prev => prev.map(p => p.id === postId ? postToUpdate : p)); if (selectedPostForModal?.id === postId) setSelectedPostForModal(postToUpdate); try { const response = await fetch(`/api/user-posts/${postId}/like`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: user.id }), }); if (!response.ok) { const errorData = await response.json(); throw new Error(errorData.message || 'Failed to update like status.'); } const updatedPostFromServer: UserPost = await response.json(); setUserPosts(prev => prev.map(p => p.id === postId ? updatedPostFromServer : p)); if (selectedPostForModal?.id === postId) setSelectedPostForModal(updatedPostFromServer); } catch (error) { toast({ title: "Error", description: (error as Error).message, variant: "destructive" }); setUserPosts(originalPosts); if (selectedPostForModal?.id === postId) setSelectedPostForModal(originalPosts[postIndex]); } finally { setIsLikingPostId(null); } }, [isAuthenticated, user, userPosts, selectedPostForModal, toast]);
-  const handleBookmarkToggle = useCallback(async (postId: string) => { /* ... (existing logic) ... */ if (!isAuthenticated || !user?.id) { toast({ title: "Please Login", description: "You need to be logged in to bookmark posts.", variant: "default", action: <Button asChild variant="outline"><Link href="/login?redirect=/">Login</Link></Button> }); return; } setIsBookmarkingPostId(postId); try { const response = await fetch(`/api/user-posts/${postId}/bookmark`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: user.id }), }); if (!response.ok) { const errorData = await response.json(); throw new Error(errorData.message || 'Failed to update bookmark status.'); } await refreshUserProfile(); toast({ title: "Bookmark status updated!" }); } catch (error) { toast({ title: "Error", description: (error as Error).message, variant: "destructive" }); } finally { setIsBookmarkingPostId(null); } }, [isAuthenticated, user, toast, refreshUserProfile]);
-  const handleCommentPosted = useCallback((postId: string, newComment: PostComment) => { /* ... (existing logic) ... */ setUserPosts(prevPosts => prevPosts.map(p => { if (p.id === postId) { return { ...p, comment_count: (p.comment_count || 0) + 1, comments: p.comments ? [...p.comments, newComment] : [newComment] }; } return p; })); if (selectedPostForModal?.id === postId) { setSelectedPostForModal(prev => prev ? ({ ...prev, comment_count: (prev.comment_count || 0) + 1, comments: prev.comments ? [...prev.comments, newComment] : [newComment] }) : null); } }, [selectedPostForModal]);
+  const handleLikeToggle = useCallback(async (postId: string) => { if (!isAuthenticated || !user?.id) { toast({ title: "Please Login", description: "You need to be logged in to like posts.", variant: "default", action: <Button asChild variant="outline"><Link href="/login?redirect=/">Login</Link></Button> }); return; } setIsLikingPostId(postId); const originalPosts = [...userPosts]; const postIndex = userPosts.findIndex(p => p.id === postId); if (postIndex === -1) { setIsLikingPostId(null); return; } const postToUpdate = { ...userPosts[postIndex] }; const alreadyLiked = postToUpdate.liked_by_user_ids?.includes(user.id); const newLikedBy = alreadyLiked ? postToUpdate.liked_by_user_ids?.filter(id => id !== user.id) : [...(postToUpdate.liked_by_user_ids || []), user.id]; postToUpdate.liked_by_user_ids = newLikedBy; postToUpdate.like_count = newLikedBy?.length || 0; setUserPosts(prev => prev.map(p => p.id === postId ? postToUpdate : p)); if (selectedPostForModal?.id === postId) setSelectedPostForModal(postToUpdate); try { const response = await fetch(`/api/user-posts/${postId}/like`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: user.id }), }); if (!response.ok) { const errorData = await response.json(); throw new Error(errorData.message || 'Failed to update like status.'); } const updatedPostFromServer: UserPost = await response.json(); setUserPosts(prev => prev.map(p => p.id === postId ? updatedPostFromServer : p)); if (selectedPostForModal?.id === postId) setSelectedPostForModal(updatedPostFromServer); } catch (error) { toast({ title: "Error", description: (error as Error).message, variant: "destructive" }); setUserPosts(originalPosts); if (selectedPostForModal?.id === postId) setSelectedPostForModal(originalPosts[postIndex]); } finally { setIsLikingPostId(null); } }, [isAuthenticated, user, userPosts, selectedPostForModal, toast]);
+  const handleBookmarkToggle = useCallback(async (postId: string) => { if (!isAuthenticated || !user?.id) { toast({ title: "Please Login", description: "You need to be logged in to bookmark posts.", variant: "default", action: <Button asChild variant="outline"><Link href="/login?redirect=/">Login</Link></Button> }); return; } setIsBookmarkingPostId(postId); try { const response = await fetch(`/api/user-posts/${postId}/bookmark`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: user.id }), }); if (!response.ok) { const errorData = await response.json(); throw new Error(errorData.message || 'Failed to update bookmark status.'); } await refreshUserProfile(); toast({ title: "Bookmark status updated!" }); } catch (error) { toast({ title: "Error", description: (error as Error).message, variant: "destructive" }); } finally { setIsBookmarkingPostId(null); } }, [isAuthenticated, user, toast, refreshUserProfile]);
+  const handleCommentPosted = useCallback((postId: string, newComment: PostComment) => { setUserPosts(prevPosts => prevPosts.map(p => { if (p.id === postId) { return { ...p, comment_count: (p.comment_count || 0) + 1, comments: p.comments ? [...p.comments, newComment] : [newComment] }; } return p; })); if (selectedPostForModal?.id === postId) { setSelectedPostForModal(prev => prev ? ({ ...prev, comment_count: (prev.comment_count || 0) + 1, comments: prev.comments ? [...prev.comments, newComment] : [newComment] }) : null); } }, [selectedPostForModal]);
 
 
   if (isLoadingContent || isLoadingFeaturedProducts || isLoadingCategories || isLoadingCollaborations || (content.promotionalPostsSection?.enabled && isLoadingPromotionalPosts) || isLoadingUserPosts) {
@@ -509,7 +538,6 @@ function HomePageContent() {
   const heroVideoIdForFallbackVisuals = content.heroVideoId;
   const heroImageUrlForFallbackVisuals = content.heroImageUrl;
 
-  // Determine what audio source is active for the mute button logic
   let isCurrentSlideDirectAudio = !!currentDisplayedHeroSlide?.audioUrl;
   let isCurrentSlideYouTubeAudio = !currentDisplayedHeroSlide?.audioUrl && !!currentDisplayedHeroSlide?.videoId && !currentDisplayedHeroSlide?.imageUrl;
   const showMuteButton = isCurrentSlideDirectAudio || isCurrentSlideYouTubeAudio;
@@ -657,3 +685,4 @@ export default function RootPage() {
     </MainLayout>
   );
 }
+
