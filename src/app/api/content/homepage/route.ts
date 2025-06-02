@@ -16,6 +16,7 @@ const defaultHeroSlideStructure: Omit<HeroSlide, 'id'> = {
   ctaText: "Explore Collections",
   ctaLink: "/products",
   videoId: undefined,
+  audioUrl: undefined, // Added audioUrl
   duration: 7000, // Default duration
 };
 
@@ -81,11 +82,12 @@ export async function GET() {
       const artisanalRootsData = dbContent.artisanalRoots || defaultHomepageContentData.artisanalRoots!;
       
       const responseData: HomepageContent = {
-        heroSlides: (Array.isArray(dbContent.heroSlides) && dbContent.heroSlides.length > 0
+        heroSlides: (Array.isArray(dbContent.heroSlides) && dbContent.heroSlides.length > 0 
           ? dbContent.heroSlides.map((slide: Partial<HeroSlide>, index: number) => ({ 
               ...defaultHeroSlideStructure, 
               ...slide, 
               id: slide.id || `hs-db-${Date.now()}-${index}`,
+              audioUrl: slide.audioUrl || undefined, // Ensure audioUrl is handled
               duration: slide.duration === undefined ? defaultHeroSlideStructure.duration : Number(slide.duration) || defaultHeroSlideStructure.duration,
             }))
           : defaultHomepageContentData.heroSlides

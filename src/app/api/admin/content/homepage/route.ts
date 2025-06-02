@@ -12,6 +12,7 @@ const defaultHeroSlideStructure: Omit<HeroSlide, 'id'> = {
   description: "Discover the latest arrivals.",
   imageUrl: undefined,
   videoId: undefined,
+  audioUrl: undefined, // Added audioUrl
   altText: "Hero image",
   dataAiHint: "fashion background",
   ctaText: "Shop Now",
@@ -83,6 +84,7 @@ export async function GET() {
         heroSlides: (Array.isArray(dbContent.heroSlides) ? dbContent.heroSlides : defaultHomepageContentData.heroSlides!).map(
           (slide: Partial<HeroSlide>, index: number) => ({
             ...defaultHeroSlideStructure, ...slide, id: slide.id || `hs-db-${Date.now()}-${index}`,
+            audioUrl: slide.audioUrl || undefined, // Ensure audioUrl is handled
             duration: slide.duration === undefined ? defaultHeroSlideStructure.duration : Number(slide.duration) || defaultHeroSlideStructure.duration,
           })
         ),
@@ -152,11 +154,12 @@ export async function POST(request: NextRequest) {
       description: slide.description || '',
       imageUrl: slide.imageUrl || undefined,
       videoId: slide.videoId || undefined,
+      audioUrl: slide.audioUrl || undefined, // Handle audioUrl
       altText: slide.altText || '',
       dataAiHint: slide.dataAiHint || '',
       ctaText: slide.ctaText || '',
       ctaLink: slide.ctaLink || '',
-      duration: slide.duration === undefined || slide.duration === null ? defaultHeroSlideStructure.duration : (Number(slide.duration) >= 1000 ? Number(slide.duration) : defaultHeroSlideStructure.duration),
+      duration: slide.duration === undefined || slide.duration === null || Number(slide.duration) < 1000 ? defaultHeroSlideStructure.duration : Number(slide.duration),
     })),
     artisanalRoots: {
       title: newDataFromRequest.artisanalRoots?.title || defaultHomepageContentData.artisanalRoots!.title,

@@ -16,7 +16,7 @@ function isValidUUID(str: string | undefined | null): boolean {
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { categoryId: string } }
+  params: { params: { categoryId: string } }
 ) {
   const { categoryId } = params;
   const clientForRead = supabaseAdmin || fallbackSupabase;

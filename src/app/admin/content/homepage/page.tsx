@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Save, Youtube, Image as ImageIconLucide, PlusCircle, Trash2, Package, Tv, BookOpen, ExternalLink, ListCollapse, Sprout, Palette as PaletteIcon, ImagePlay, Percent, Clock } from 'lucide-react';
+import { Loader2, Save, Youtube, Image as ImageIconLucide, PlusCircle, Trash2, Package, Tv, BookOpen, ExternalLink, ListCollapse, Sprout, Palette as PaletteIcon, ImagePlay, Percent, Clock, Music } from 'lucide-react';
 import type { HomepageContent, HeroSlide, SocialCommerceItem, ArtisanalRootsSlide } from '@/types';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -24,6 +24,7 @@ const heroSlideSchema = z.object({
     message: "Must be a valid YouTube Video ID (11 characters) or empty.",
   }).or(z.literal('')),
   imageUrl: z.string().url({ message: "Must be a valid URL or empty." }).optional().or(z.literal('')),
+  audioUrl: z.string().url({ message: "Must be a valid URL or empty." }).optional().or(z.literal('')), // New field
   altText: z.string().optional().or(z.literal('')),
   dataAiHint: z.string().optional().or(z.literal('')),
   ctaText: z.string().optional().or(z.literal('')),
@@ -72,7 +73,7 @@ const homepageContentSchema = z.object({
 type HomepageContentFormValues = z.infer<typeof homepageContentSchema>;
 
 const defaultHeroSlide: Omit<HeroSlide, 'id'> = {
-  title: 'New Slide Title', description: 'Compelling description for the new slide.', videoId: '', imageUrl: '', altText: 'Hero slide image', dataAiHint: 'fashion background', ctaText: 'Shop Now', ctaLink: '/products', duration: 7000,
+  title: 'New Slide Title', description: 'Compelling description for the new slide.', videoId: '', imageUrl: '', audioUrl: '', altText: 'Hero slide image', dataAiHint: 'fashion background', ctaText: 'Shop Now', ctaLink: '/products', duration: 7000,
 };
 const defaultArtisanalRootsSlide: Omit<ArtisanalRootsSlide, 'id'> = {
   imageUrl: '', altText: 'Artisanal background slide', dataAiHint: 'craft culture texture'
@@ -126,7 +127,7 @@ export default function AdminHomepageContentPage() {
       }
       const data: HomepageContent = await response.json();
       form.reset({
-        heroSlides: (data.heroSlides || []).map(slide => ({ ...defaultHeroSlide, ...slide, id: slide.id || `hs-loaded-${Date.now()}-${Math.random()}`, duration: slide.duration === undefined ? null : slide.duration })),
+        heroSlides: (data.heroSlides || []).map(slide => ({ ...defaultHeroSlide, ...slide, id: slide.id || `hs-loaded-${Date.now()}-${Math.random()}`, audioUrl: slide.audioUrl || '', duration: slide.duration === undefined ? null : slide.duration })),
         artisanalRootsTitle: data.artisanalRoots?.title || defaultHomepageFormValues.artisanalRootsTitle,
         artisanalRootsDescription: data.artisanalRoots?.description || defaultHomepageFormValues.artisanalRootsDescription,
         artisanalRootsSlides: (data.artisanalRoots?.slides || []).map(slide => ({ ...defaultArtisanalRootsSlide, ...slide, id: slide.id || `ars-loaded-${Date.now()}-${Math.random()}` })),
@@ -156,7 +157,8 @@ export default function AdminHomepageContentPage() {
           id: slide.id || `hs-submit-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
           videoId: slide.videoId || undefined,
           imageUrl: slide.imageUrl || undefined,
-          duration: slide.duration === null || slide.duration === undefined ? undefined : Number(slide.duration),
+          audioUrl: slide.audioUrl || undefined, // Add audioUrl to payload
+          duration: slide.duration === null || slide.duration === undefined || Number(slide.duration) < 1000 ? defaultHeroSlide.duration : Number(slide.duration),
         })),
         artisanalRoots: {
           title: data.artisanalRootsTitle || '',
@@ -268,6 +270,14 @@ export default function AdminHomepageContentPage() {
                             <FormLabel className="flex items-center"><Youtube className="mr-2 h-4 w-4 text-muted-foreground"/> YouTube Video ID (Overrides Image)</FormLabel>
                             <FormControl><Input {...field} placeholder="e.g. gCRNEJxDJKM (11 characters)" value={field.value || ''} /></FormControl>
                             <FormDescription>The 11-character ID from a YouTube video URL.</FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )} />
+                        <FormField control={form.control} name={`heroSlides.${index}.audioUrl`} render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="flex items-center"><Music className="mr-2 h-4 w-4 text-muted-foreground"/> Audio URL (Optional)</FormLabel>
+                            <FormControl><Input {...field} placeholder="e.g. https://example.com/hero-audio.mp3" value={field.value || ''} /></FormControl>
+                            <FormDescription>Link to a copyright-free audio file (mp3, wav, ogg).</FormDescription>
                             <FormMessage />
                           </FormItem>
                         )} />

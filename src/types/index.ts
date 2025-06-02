@@ -222,6 +222,7 @@ export interface HeroSlide {
   description: string;
   imageUrl?: string;
   videoId?: string;
+  audioUrl?: string; // Added field for audio URL
   altText?: string;
   dataAiHint?: string;
   ctaText?: string;

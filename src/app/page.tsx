@@ -2,12 +2,12 @@
 // src/app/page.tsx
 "use client";
 
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'; // Ensured useRef is imported
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'; 
 import Image from 'next/image';
 import Link from 'next/link';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Icons } from '@/components/icons';
-import { ChevronLeft, ChevronRight, ShoppingBag, ArrowRight, Instagram, Send, Users, ImagePlus, Loader2, Play, Pause, LayoutGrid, Palette as PaletteIcon, Handshake, Sprout, ImagePlay as ImagePlayIcon, Heart as HeartIcon, Clock } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ShoppingBag, ArrowRight, Instagram, Send, Users, ImagePlus, Loader2, Play, Pause, LayoutGrid, Palette as PaletteIcon, Handshake, Sprout, ImagePlay as ImagePlayIcon, Heart as HeartIcon, Clock, Music, Volume2, VolumeX } from 'lucide-react';
 import { NewsletterSignupForm } from '@/components/forms/newsletter-signup-form';
 import type { HomepageContent, Product, HeroSlide, AdminCategory as CategoryType, DesignCollaborationGallery, ArtisanalRootsSlide, SocialCommerceItem, PromotionalPost, UserPost, PostComment } from '@/types';
 import { useToast } from '@/hooks/use-toast';
@@ -36,6 +36,7 @@ const fallbackHeroSlide: HeroSlide = {
   ctaText: "Explore Collections",
   ctaLink: "/products",
   videoId: undefined,
+  audioUrl: undefined,
   duration: 7000,
 };
 
@@ -89,6 +90,7 @@ async function getHomepageContent(): Promise<HomepageContent> {
             ...fallbackHeroSlide, 
             ...slide, 
             id: slide.id || `hs-fetched-${Date.now()}-${index}`,
+            audioUrl: slide.audioUrl || undefined,
             duration: slide.duration === undefined || slide.duration === null || Number(slide.duration) < 1000 ? fallbackHeroSlide.duration : Number(slide.duration),
           }))
         : defaultHomepageContent.heroSlides, 
@@ -139,6 +141,8 @@ function HomePageContent() {
   const [currentHeroSlide, setCurrentHeroSlide] = useState(0);
   const [isHeroPlaying, setIsHeroPlaying] = useState(true);
   const heroIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const [isAudioMuted, setIsAudioMuted] = useState(false);
 
 
   const [currentArtisanalSlide, setCurrentArtisanalSlide] = useState(0);
@@ -324,6 +328,7 @@ function HomePageContent() {
           ctaText: promo.ctaText || 'Learn More',
           ctaLink: promo.ctaLink || `/products?promo=${promo.slug}`,
           videoId: undefined, 
+          audioUrl: undefined, // Promos currently don't have separate audio
           duration: promo.displayOrder && promo.displayOrder > 1000 ? promo.displayOrder : 7000, // Example: use displayOrder as duration if set, else default
           _isPromo: true,
           _backgroundColor: promo.backgroundColor,
@@ -357,6 +362,12 @@ function HomePageContent() {
     if (activeHeroSlides.length > 0) { setCurrentHeroSlide(index % activeHeroSlides.length); }
   };
   const toggleHeroPlayPause = () => setIsHeroPlaying(prev => !prev);
+  const toggleAudioMute = () => {
+    if (audioRef.current) {
+      audioRef.current.muted = !audioRef.current.muted;
+      setIsAudioMuted(audioRef.current.muted);
+    }
+  };
 
   useEffect(() => {
     if (heroIntervalRef.current) {
@@ -366,6 +377,22 @@ function HomePageContent() {
       const currentSlideDuration = activeHeroSlides[currentHeroSlide]?.duration || 7000;
       heroIntervalRef.current = setInterval(nextHeroSlide, currentSlideDuration);
     }
+    
+    // Handle audio for the current slide
+    if (audioRef.current) {
+      const currentAudioUrl = activeHeroSlides[currentHeroSlide]?.audioUrl;
+      if (currentAudioUrl) {
+        if (audioRef.current.src !== currentAudioUrl) {
+          audioRef.current.src = currentAudioUrl;
+          audioRef.current.load(); // Important to load new source
+        }
+        audioRef.current.play().catch(error => console.warn("Audio play failed:", error)); // Autoplay might be blocked
+      } else {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0; // Reset for next play
+      }
+    }
+
     return () => {
       if (heroIntervalRef.current) {
         clearInterval(heroIntervalRef.current);
@@ -548,6 +575,7 @@ function HomePageContent() {
   return (
     <>
       <section style={{ backgroundColor: 'black' }} className="relative h-screen w-full overflow-hidden">
+        <audio ref={audioRef} loop muted={isAudioMuted} className="hidden" />
         <div className="absolute inset-0 z-0 pointer-events-none">
           {activeHeroSlides.map((slide, index) => (
             <div
@@ -673,6 +701,11 @@ function HomePageContent() {
                     ${currentHeroSlide === index ? 'bg-white scale-125 ring-2 ring-white/30 ring-offset-1 ring-offset-transparent p-0.5 w-5 md:w-6' : 'bg-white/40 hover:bg-white/70'}`}
                   aria-label={`Go to slide ${index + 1}`} />
               ))}
+              {activeHeroSlides[currentHeroSlide]?.audioUrl && (
+                  <Button variant="ghost" size="icon" onClick={toggleAudioMute} className="h-7 w-7 text-white/70 hover:text-white p-1" aria-label={isAudioMuted ? "Unmute audio" : "Mute audio"}>
+                      {isAudioMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+                  </Button>
+              )}
             </div>
           </>
         )}
