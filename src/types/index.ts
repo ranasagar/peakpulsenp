@@ -8,6 +8,10 @@ export interface User {
   avatarUrl?: string; // Firebase photoURL or from Supabase
   roles: string[]; // e.g., ['customer', 'vip', 'affiliate', 'admin']
   wishlist?: string[]; // Array of product IDs
+  bookmarked_post_ids?: string[]; // Array of post IDs
+  createdAt?: string; // ISO string
+  updatedAt?: string; // ISO string
+  bio?: string;
 }
 
 export interface AdminCategory {
@@ -222,9 +226,10 @@ export interface HeroSlide {
   dataAiHint?: string;
   ctaText?: string;
   ctaLink?: string;
-  _isPromo?: boolean; // Internal flag for combined hero slides
-  _backgroundColor?: string; // For promo slides
-  _textColor?: string; // For promo slides
+  duration?: number; // in milliseconds
+  _isPromo?: boolean; 
+  _backgroundColor?: string; 
+  _textColor?: string; 
 }
 
 export interface SocialCommerceItem {
@@ -375,14 +380,15 @@ export interface DesignCollaborationGallery {
   slug: string;
   description?: string;
   category_id?: string | null;
-  category_name?: string;
+  category_name?: string; // For display, joined in API
+  category_slug?: string; // For linking, joined in API
   cover_image_url?: string;
   ai_cover_image_prompt?: string;
   artist_name?: string;
   artist_statement?: string;
   gallery_images?: GalleryImageItem[];
   is_published?: boolean;
-  collaboration_date?: string;
+  collaboration_date?: string; // ISO Date string
   createdAt?: string;
   updatedAt?: string;
 }
@@ -398,7 +404,7 @@ export interface PrintOnDemandDesign {
   is_for_sale?: boolean;
   sku?: string;
   collaboration_id?: string | null;
-  collaboration_title?: string;
+  collaboration_title?: string; // For display
   createdAt?: string;
   updatedAt?: string;
 }
@@ -422,7 +428,7 @@ export interface PromotionalPost {
   title: string;
   slug: string;
   description?: string;
-  imageUrl: string;
+  imageUrl: string; // Renamed from image_url to match form field
   imageAltText?: string;
   dataAiHint?: string;
   ctaText?: string;
@@ -433,8 +439,8 @@ export interface PromotionalPost {
   validUntil?: string; // ISO Date string
   isActive: boolean;
   displayOrder?: number;
-  backgroundColor?: string; // e.g., hex color or Tailwind class
-  textColor?: string;       // e.g., hex color or Tailwind class
+  backgroundColor?: string; 
+  textColor?: string;       
   createdAt?: string;
   updatedAt?: string;
 }
@@ -447,10 +453,53 @@ export interface UserPost {
   user_avatar_url?: string; // Denormalized from users table
   image_url: string;
   caption?: string;
-  product_tags?: string[]; // Array of product IDs or SKUs mentioned
+  product_tags?: string[]; // Array of product names or SKUs mentioned
   status: 'pending' | 'approved' | 'rejected';
+  like_count?: number;
+  liked_by_user_ids?: string[]; // Array of user IDs who liked the post
+  comment_count?: number;
+  comments?: PostComment[]; // Optional: to hold comments when fetching a single post
   created_at: string; // ISO string
   updated_at: string; // ISO string
 }
 
-    
+export interface PostComment {
+  id: string; // uuid from Supabase
+  post_id: string; // FK to user_posts.id
+  user_id: string; // FK to users.id (Firebase UID)
+  user_name?: string; // Denormalized from users table for display
+  user_avatar_url?: string; // Denormalized
+  comment_text: string;
+  parent_comment_id?: string | null; // For threaded comments
+  created_at: string; // ISO string
+  updated_at: string; // ISO string
+}
+
+export interface NotificationDataNewMessage {
+  senderId: string;
+  senderName: string;
+  senderAvatarUrl?: string;
+  messageSnippet: string;
+  conversationId: string;
+}
+export interface NotificationDataOrderUpdate {
+  orderId: string;
+  newStatus: OrderStatus | PaymentStatus; // Or a combined status message
+  productName?: string; // Main product from order if relevant
+}
+export type NotificationData = NotificationDataNewMessage | NotificationDataOrderUpdate | { [key: string]: any };
+export const NotificationType = {
+  NEW_MESSAGE: 'new_message',
+  ORDER_UPDATE: 'order_update',
+} as const;
+export type NotificationTypeValues = typeof NotificationType[keyof typeof NotificationType];
+
+export interface Notification {
+  id: string;
+  user_id: string;
+  type: NotificationTypeValues;
+  data: NotificationData;
+  link?: string;
+  is_read: boolean;
+  created_at: string;
+}

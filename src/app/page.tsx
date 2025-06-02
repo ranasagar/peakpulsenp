@@ -2,12 +2,12 @@
 // src/app/page.tsx
 "use client";
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'; // Ensured useRef is imported
 import Image from 'next/image';
 import Link from 'next/link';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Icons } from '@/components/icons';
-import { ChevronLeft, ChevronRight, ShoppingBag, ArrowRight, Instagram, Send, Users, ImagePlus, Loader2, Play, Pause, LayoutGrid, Palette as PaletteIcon, Handshake, Sprout, ImagePlay as ImagePlayIcon, Heart as HeartIcon } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ShoppingBag, ArrowRight, Instagram, Send, Users, ImagePlus, Loader2, Play, Pause, LayoutGrid, Palette as PaletteIcon, Handshake, Sprout, ImagePlay as ImagePlayIcon, Heart as HeartIcon, Clock } from 'lucide-react';
 import { NewsletterSignupForm } from '@/components/forms/newsletter-signup-form';
 import type { HomepageContent, Product, HeroSlide, AdminCategory as CategoryType, DesignCollaborationGallery, ArtisanalRootsSlide, SocialCommerceItem, PromotionalPost, UserPost, PostComment } from '@/types';
 import { useToast } from '@/hooks/use-toast';
@@ -36,6 +36,7 @@ const fallbackHeroSlide: HeroSlide = {
   ctaText: "Explore Collections",
   ctaLink: "/products",
   videoId: undefined,
+  duration: 7000,
 };
 
 const defaultHomepageContent: HomepageContent = {
@@ -58,7 +59,6 @@ const defaultHomepageContent: HomepageContent = {
 
 async function getHomepageContent(): Promise<HomepageContent> {
   const fetchUrl = `/api/content/homepage`;
-  // console.log(`[Client Fetch] Attempting to fetch from: ${fetchUrl}`);
   try {
     const res = await fetch(fetchUrl, { cache: 'no-store' });
 
@@ -76,19 +76,21 @@ async function getHomepageContent(): Promise<HomepageContent> {
           }
         }
       } catch (e) {
-        //  console.warn("[Client Fetch] API error response was not valid JSON for homepage content. Raw body (first 200 chars):", rawBodyForLog.substring(0, 200));
          errorDetail += ` (Server response was not valid JSON. Raw: ${rawBodyForLog.substring(0,100)})`
       }
-      // console.error("[Client Fetch] Error fetching homepage content from API:", errorDetail, "Raw response status:", res.status, res.statusText);
       return { ...defaultHomepageContent, error: errorDetail };
     }
 
     const jsonData: HomepageContent = await res.json();
-    // console.log("[Client Fetch] Successfully fetched homepage content:", jsonData);
     
     const processedData: HomepageContent = {
       heroSlides: Array.isArray(jsonData.heroSlides) && jsonData.heroSlides.length > 0 
-        ? jsonData.heroSlides.map((slide: Partial<HeroSlide>, index: number) => ({ ...fallbackHeroSlide, ...slide, id: slide.id || `hs-fetched-${Date.now()}-${index}` }))
+        ? jsonData.heroSlides.map((slide: Partial<HeroSlide>, index: number) => ({ 
+            ...fallbackHeroSlide, 
+            ...slide, 
+            id: slide.id || `hs-fetched-${Date.now()}-${index}`,
+            duration: slide.duration === undefined || slide.duration === null || Number(slide.duration) < 1000 ? fallbackHeroSlide.duration : Number(slide.duration),
+          }))
         : defaultHomepageContent.heroSlides, 
       artisanalRoots: {
         title: jsonData.artisanalRoots?.title || defaultHomepageContent.artisanalRoots!.title,
@@ -136,7 +138,8 @@ function HomePageContent() {
 
   const [currentHeroSlide, setCurrentHeroSlide] = useState(0);
   const [isHeroPlaying, setIsHeroPlaying] = useState(true);
-  const [heroSlideDuration, setHeroSlideDuration] = useState(7000); 
+  const heroIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
 
   const [currentArtisanalSlide, setCurrentArtisanalSlide] = useState(0);
   const [isArtisanalPlaying, setIsArtisanalPlaying] = useState(true);
@@ -170,10 +173,7 @@ function HomePageContent() {
     const handleScroll = () => {
       setMenusVisibleOnScroll(window.scrollY > scrollThreshold);
     };
-
-    // Set initial state based on current scroll position
     handleScroll();
-
     window.addEventListener('scroll', handleScroll);
     return () => {
       window.removeEventListener('scroll', handleScroll);
@@ -188,13 +188,9 @@ function HomePageContent() {
         document.body.classList.add('menus-hidden-on-hero');
       }
     } else {
-      // If not on homepage or not mounted yet, ensure class is removed
       document.body.classList.remove('menus-hidden-on-hero');
     }
-
     return () => {
-      // Cleanup: always remove the class when HomePageContent unmounts
-      // or if the effect re-runs due to pathname change and it's no longer the homepage
       document.body.classList.remove('menus-hidden-on-hero');
     };
   }, [menusVisibleOnScroll, isMounted, pathname]);
@@ -294,7 +290,7 @@ function HomePageContent() {
     }
 
     try {
-      const userPostsResponse = await fetch('/api/user-posts?status=approved'); // Fetch only approved posts
+      const userPostsResponse = await fetch('/api/user-posts?status=approved'); 
       if (!userPostsResponse.ok) {
           let errorDetail = 'Failed to fetch user posts';
           try { const errorData = await userPostsResponse.json(); errorDetail = errorData.message || errorData.rawSupabaseError?.message || `${userPostsResponse.status} ${userPostsResponse.statusText}`; } catch (e) {/* ignore */}
@@ -328,6 +324,7 @@ function HomePageContent() {
           ctaText: promo.ctaText || 'Learn More',
           ctaLink: promo.ctaLink || `/products?promo=${promo.slug}`,
           videoId: undefined, 
+          duration: promo.displayOrder && promo.displayOrder > 1000 ? promo.displayOrder : 7000, // Example: use displayOrder as duration if set, else default
           _isPromo: true,
           _backgroundColor: promo.backgroundColor,
           _textColor: promo.textColor,
@@ -362,12 +359,19 @@ function HomePageContent() {
   const toggleHeroPlayPause = () => setIsHeroPlaying(prev => !prev);
 
   useEffect(() => {
-    let slideInterval: NodeJS.Timeout | undefined;
-    if (isHeroPlaying && activeHeroSlides.length > 1) {
-      slideInterval = setInterval(nextHeroSlide, heroSlideDuration); 
+    if (heroIntervalRef.current) {
+      clearInterval(heroIntervalRef.current);
     }
-    return () => { if (slideInterval) { clearInterval(slideInterval); } };
-  }, [isHeroPlaying, nextHeroSlide, activeHeroSlides.length, heroSlideDuration]);
+    if (isHeroPlaying && activeHeroSlides.length > 1) {
+      const currentSlideDuration = activeHeroSlides[currentHeroSlide]?.duration || 7000;
+      heroIntervalRef.current = setInterval(nextHeroSlide, currentSlideDuration);
+    }
+    return () => {
+      if (heroIntervalRef.current) {
+        clearInterval(heroIntervalRef.current);
+      }
+    };
+  }, [isHeroPlaying, nextHeroSlide, activeHeroSlides, currentHeroSlide]);
   
   const nextArtisanalSlide = useCallback(() => {
     if (activeArtisanalSlides.length > 0) {
@@ -496,7 +500,6 @@ function HomePageContent() {
         const errorData = await response.json(); throw new Error(errorData.message || 'Failed to update bookmark status.');
       }
       await refreshUserProfile(); 
-      // const updatedPost = await response.json(); // Not strictly needed if just refreshing profile
       toast({ title: "Bookmark status updated!" });
     } catch (error) {
       toast({ title: "Error", description: (error as Error).message, variant: "destructive" });
@@ -635,7 +638,7 @@ function HomePageContent() {
                 <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-6 text-shadow-lg">
                     {slide.title}
                 </h1>
-                <p className={cn("text-lg md:text-xl lg:text-2xl mb-10 max-w-2xl mx-auto text-shadow-lg", slide._isPromo ? (slide._textColor ? '' : 'text-neutral-100') : 'text-neutral-200')}>
+                <p className={cn("text-lg md:text-xl lg:text-2xl mb-10 max-w-2xl mx-auto text-shadow-lg", slide._isPromo && !(slide._backgroundColor && slide._textColor) ? 'text-neutral-100' : 'text-neutral-200')}>
                     {slide.description}
                 </p>
                 {slide.ctaText && slide.ctaLink && (
@@ -990,5 +993,3 @@ export default function RootPage() {
     </MainLayout>
   );
 }
-
-    

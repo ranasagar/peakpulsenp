@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useForm, useFieldArray, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -11,10 +11,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Save, Youtube, Image as ImageIconLucide, PlusCircle, Trash2, Package, Tv, BookOpen, ExternalLink, ListCollapse, Sprout, Palette as PaletteIcon, ImagePlay, Percent } from 'lucide-react';
+import { Loader2, Save, Youtube, Image as ImageIconLucide, PlusCircle, Trash2, Package, Tv, BookOpen, ExternalLink, ListCollapse, Sprout, Palette as PaletteIcon, ImagePlay, Percent, Clock } from 'lucide-react';
 import type { HomepageContent, HeroSlide, SocialCommerceItem, ArtisanalRootsSlide } from '@/types';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Checkbox } from '@/components/ui/checkbox'; // Added Checkbox import
+import { Checkbox } from '@/components/ui/checkbox';
 
 const heroSlideSchema = z.object({
   id: z.string().optional(),
@@ -30,6 +30,7 @@ const heroSlideSchema = z.object({
   ctaLink: z.string().optional().refine(val => !val || val.startsWith('/') || val.startsWith('http') || val.startsWith('#'), {
     message: "CTA link must be a relative path (e.g., /products), an anchor (#id), or a full URL."
   }).or(z.literal('')),
+  duration: z.coerce.number().int().min(0, "Duration must be a positive number or 0 for default.").optional().nullable(),
 });
 
 const artisanalRootsSlideSchema = z.object({
@@ -71,7 +72,7 @@ const homepageContentSchema = z.object({
 type HomepageContentFormValues = z.infer<typeof homepageContentSchema>;
 
 const defaultHeroSlide: Omit<HeroSlide, 'id'> = {
-  title: 'New Slide Title', description: 'Compelling description for the new slide.', videoId: '', imageUrl: '', altText: 'Hero slide image', dataAiHint: 'fashion background', ctaText: 'Shop Now', ctaLink: '/products'
+  title: 'New Slide Title', description: 'Compelling description for the new slide.', videoId: '', imageUrl: '', altText: 'Hero slide image', dataAiHint: 'fashion background', ctaText: 'Shop Now', ctaLink: '/products', duration: 7000,
 };
 const defaultArtisanalRootsSlide: Omit<ArtisanalRootsSlide, 'id'> = {
   imageUrl: '', altText: 'Artisanal background slide', dataAiHint: 'craft culture texture'
@@ -125,7 +126,7 @@ export default function AdminHomepageContentPage() {
       }
       const data: HomepageContent = await response.json();
       form.reset({
-        heroSlides: (data.heroSlides || []).map(slide => ({ ...defaultHeroSlide, ...slide, id: slide.id || `hs-loaded-${Date.now()}-${Math.random()}` })),
+        heroSlides: (data.heroSlides || []).map(slide => ({ ...defaultHeroSlide, ...slide, id: slide.id || `hs-loaded-${Date.now()}-${Math.random()}`, duration: slide.duration === undefined ? null : slide.duration })),
         artisanalRootsTitle: data.artisanalRoots?.title || defaultHomepageFormValues.artisanalRootsTitle,
         artisanalRootsDescription: data.artisanalRoots?.description || defaultHomepageFormValues.artisanalRootsDescription,
         artisanalRootsSlides: (data.artisanalRoots?.slides || []).map(slide => ({ ...defaultArtisanalRootsSlide, ...slide, id: slide.id || `ars-loaded-${Date.now()}-${Math.random()}` })),
@@ -149,12 +150,13 @@ export default function AdminHomepageContentPage() {
   const onSubmit = async (data: HomepageContentFormValues) => {
     setIsSaving(true);
     try {
-      const payload: HomepageContent = { // Match HomepageContent type structure
+      const payload: HomepageContent = { 
         heroSlides: (data.heroSlides || []).map(slide => ({
           ...slide,
           id: slide.id || `hs-submit-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
           videoId: slide.videoId || undefined,
           imageUrl: slide.imageUrl || undefined,
+          duration: slide.duration === null || slide.duration === undefined ? undefined : Number(slide.duration),
         })),
         artisanalRoots: {
           title: data.artisanalRootsTitle || '',
@@ -232,7 +234,6 @@ export default function AdminHomepageContentPage() {
                 <h3 className="text-xl font-semibold text-foreground flex items-center">
                   <ListCollapse className="mr-3 h-5 w-5 text-primary" /> Hero Section Carousel Slides
                 </h3>
-                {/* Removed nested ScrollArea here for hero slides */}
                 <div className="space-y-4 p-1">
                     {heroSlidesFields.map((field, index) => (
                       <Card key={field.fieldId} className="p-4 space-y-3 bg-muted/30">
@@ -275,6 +276,14 @@ export default function AdminHomepageContentPage() {
                         )} />
                         <FormField control={form.control} name={`heroSlides.${index}.ctaLink`} render={({ field }) => (
                           <FormItem><FormLabel>CTA Button Link</FormLabel><FormControl><Input {...field} placeholder="/products or https://example.com" value={field.value || ''} /></FormControl><FormMessage /></FormItem>
+                        )} />
+                        <FormField control={form.control} name={`heroSlides.${index}.duration`} render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="flex items-center"><Clock className="mr-2 h-4 w-4 text-muted-foreground"/> Slide Duration (ms)</FormLabel>
+                            <FormControl><Input type="number" {...field} placeholder="e.g., 7000 (for 7 seconds)" value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? null : parseInt(e.target.value, 10))} /></FormControl>
+                            <FormDescription>Leave empty or 0 for default duration. Min 1000ms.</FormDescription>
+                            <FormMessage />
+                          </FormItem>
                         )} />
                       </Card>
                     ))}

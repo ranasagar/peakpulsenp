@@ -15,7 +15,8 @@ const defaultHeroSlideStructure: Omit<HeroSlide, 'id'> = {
   altText: "Hero image",
   dataAiHint: "fashion background",
   ctaText: "Shop Now",
-  ctaLink: "/products"
+  ctaLink: "/products",
+  duration: 7000, // Default duration
 };
 
 const defaultArtisanalRootsSlideStructure: Omit<ArtisanalRootsSlide, 'id'> = {
@@ -36,11 +37,16 @@ const defaultHomepageContentData: HomepageContent = {
   socialCommerceItems: [],
   heroVideoId: undefined,
   heroImageUrl: undefined,
+  promotionalPostsSection: {
+    enabled: true,
+    title: "Special Offers",
+    maxItems: 3,
+  },
 };
 
 // GET current homepage content for admin
 export async function GET() {
-  const supabaseClientToUse = supabaseAdmin; // Prioritize admin client for admin routes
+  const supabaseClientToUse = supabaseAdmin; 
 
   if (!supabaseClientToUse) {
     const errorMessage = '[Admin API Homepage GET] CRITICAL: Supabase ADMIN client (service_role) is not initialized. Cannot fetch settings. Check SUPABASE_SERVICE_ROLE_KEY in .env and server restart.';
@@ -76,7 +82,8 @@ export async function GET() {
       const responseData: HomepageContent = {
         heroSlides: (Array.isArray(dbContent.heroSlides) ? dbContent.heroSlides : defaultHomepageContentData.heroSlides!).map(
           (slide: Partial<HeroSlide>, index: number) => ({
-            ...defaultHeroSlideStructure, ...slide, id: slide.id || `hs-db-${Date.now()}-${index}`
+            ...defaultHeroSlideStructure, ...slide, id: slide.id || `hs-db-${Date.now()}-${index}`,
+            duration: slide.duration === undefined ? defaultHeroSlideStructure.duration : Number(slide.duration) || defaultHeroSlideStructure.duration,
           })
         ),
         artisanalRoots: {
@@ -95,6 +102,11 @@ export async function GET() {
           .sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0)),
         heroVideoId: dbContent.heroVideoId === null ? undefined : (dbContent.heroVideoId || defaultHomepageContentData.heroVideoId),
         heroImageUrl: dbContent.heroImageUrl === null ? undefined : (dbContent.heroImageUrl || defaultHomepageContentData.heroImageUrl),
+        promotionalPostsSection: {
+          enabled: dbContent.promotionalPostsSection?.enabled ?? defaultHomepageContentData.promotionalPostsSection!.enabled,
+          title: dbContent.promotionalPostsSection?.title || defaultHomepageContentData.promotionalPostsSection!.title,
+          maxItems: dbContent.promotionalPostsSection?.maxItems || defaultHomepageContentData.promotionalPostsSection!.maxItems,
+        }
       };
       console.log(`[Admin API Homepage GET] Processed and returning data for admin form.`);
       return NextResponse.json(responseData);
@@ -114,7 +126,7 @@ export async function GET() {
 
 // POST to update homepage content
 export async function POST(request: NextRequest) {
-  const clientForWrite = supabaseAdmin; // Strictly use admin client for writes
+  const clientForWrite = supabaseAdmin; 
   if (!clientForWrite) {
     const errorMessage = '[Admin API Homepage POST] CRITICAL: Supabase ADMIN client (service_role) is not initialized. Cannot save settings. Check SUPABASE_SERVICE_ROLE_KEY in .env and server restart.';
     console.error(errorMessage);
@@ -132,7 +144,6 @@ export async function POST(request: NextRequest) {
     console.error(`[Admin API Homepage POST] Error parsing request JSON for ${HOMEPAGE_CONFIG_KEY}:`, e.message);
     return NextResponse.json({ message: 'Invalid JSON in request body.', errorDetails: e.message }, { status: 400 });
   }
-  // console.log("[Admin API Homepage POST] Received newDataFromRequest:", JSON.stringify(newDataFromRequest).substring(0, 1000) + "...");
 
   const dataToStore: HomepageContent = {
     heroSlides: (newDataFromRequest.heroSlides || []).map((slide, index) => ({
@@ -145,6 +156,7 @@ export async function POST(request: NextRequest) {
       dataAiHint: slide.dataAiHint || '',
       ctaText: slide.ctaText || '',
       ctaLink: slide.ctaLink || '',
+      duration: slide.duration === undefined || slide.duration === null ? defaultHeroSlideStructure.duration : (Number(slide.duration) >= 1000 ? Number(slide.duration) : defaultHeroSlideStructure.duration),
     })),
     artisanalRoots: {
       title: newDataFromRequest.artisanalRoots?.title || defaultHomepageContentData.artisanalRoots!.title,
@@ -168,9 +180,12 @@ export async function POST(request: NextRequest) {
       .sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0)),
     heroVideoId: newDataFromRequest.heroVideoId || undefined,
     heroImageUrl: newDataFromRequest.heroImageUrl || undefined,
+    promotionalPostsSection: {
+      enabled: newDataFromRequest.promotionalPostsSection?.enabled ?? defaultHomepageContentData.promotionalPostsSection!.enabled,
+      title: newDataFromRequest.promotionalPostsSection?.title || defaultHomepageContentData.promotionalPostsSection!.title,
+      maxItems: newDataFromRequest.promotionalPostsSection?.maxItems || defaultHomepageContentData.promotionalPostsSection!.maxItems,
+    }
   };
-
-  // console.log("[Admin API Homepage POST] Attempting to save (upsert) dataToStore:", JSON.stringify(dataToStore).substring(0, 1000) + "...");
 
   try {
     const { data: existingData, error: selectError } = await clientForWrite
@@ -189,14 +204,14 @@ export async function POST(request: NextRequest) {
       console.log(`[Admin API Homepage POST] Updating existing entry for ${HOMEPAGE_CONFIG_KEY}`);
       const { error } = await clientForWrite
         .from('site_configurations')
-        .update({ value: dataToStore as any, updated_at: new Date().toISOString() }) // Trigger will also set updated_at
+        .update({ value: dataToStore as any, updated_at: new Date().toISOString() }) 
         .eq('config_key', HOMEPAGE_CONFIG_KEY);
       dbOperationError = error;
     } else {
       console.log(`[Admin API Homepage POST] Inserting new entry for ${HOMEPAGE_CONFIG_KEY}`);
       const { error } = await clientForWrite
         .from('site_configurations')
-        .insert({ config_key: HOMEPAGE_CONFIG_KEY, value: dataToStore as any, updated_at: new Date().toISOString() }); // Explicitly set updated_at on insert
+        .insert({ config_key: HOMEPAGE_CONFIG_KEY, value: dataToStore as any, updated_at: new Date().toISOString() }); 
       dbOperationError = error;
     }
 

@@ -1,3 +1,4 @@
+
 // /src/app/api/content/homepage/route.ts
 import { NextResponse } from 'next/server';
 import { supabase } from '../../../../lib/supabaseClient.ts'; // Use the public client
@@ -11,10 +12,11 @@ const defaultHeroSlideStructure: Omit<HeroSlide, 'id'> = {
   description: "Discover unique apparel where Nepali heritage meets contemporary design. (Default fallback content)",
   imageUrl: "https://images.unsplash.com/photo-1502823403499-6ccfcf4fb453?ixlib=rb-1.2.1&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1920&h=1080&q=80",
   altText: "Default Peak Pulse Hero Image",
-  dataAiHint: "fashion model lifestyle",
+  dataAiHint: "fashion model fallback",
   ctaText: "Explore Collections",
   ctaLink: "/products",
   videoId: undefined,
+  duration: 7000, // Default duration
 };
 
 const defaultArtisanalRootsSlideStructure: Omit<ArtisanalRootsSlide, 'id'> = {
@@ -37,6 +39,11 @@ const defaultHomepageContentData: HomepageContent = {
   socialCommerceItems: [],
   heroVideoId: undefined,
   heroImageUrl: undefined,
+  promotionalPostsSection: {
+    enabled: false,
+    title: "Special Offers",
+    maxItems: 3,
+  },
 };
 
 export async function GET() {
@@ -46,10 +53,10 @@ export async function GET() {
     const errorMsg = '[API /api/content/homepage GET] CRITICAL: Supabase client (public) is not initialized. Check environment variables and server restart.';
     console.error(errorMsg);
     return NextResponse.json({
-        ...defaultHomepageContentData, // Return default structure even on critical error
+        ...defaultHomepageContentData, 
         error: "Database client not configured on server. Please check server logs and .env file for NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.",
         rawSupabaseError: { message: 'Supabase public client not initialized.' }
-    }, { status: 503 }); // Service Unavailable
+    }, { status: 503 }); 
   }
 
   try {
@@ -71,12 +78,16 @@ export async function GET() {
     if (data && data.value && typeof data.value === 'object') {
       const dbContent = data.value as Partial<HomepageContent>;
       
-      // Ensure all parts of the structure are present, merging with defaults
       const artisanalRootsData = dbContent.artisanalRoots || defaultHomepageContentData.artisanalRoots!;
       
       const responseData: HomepageContent = {
         heroSlides: (Array.isArray(dbContent.heroSlides) && dbContent.heroSlides.length > 0
-          ? dbContent.heroSlides.map((slide: Partial<HeroSlide>, index: number) => ({ ...defaultHeroSlideStructure, ...slide, id: slide.id || `hs-db-${Date.now()}-${index}` }))
+          ? dbContent.heroSlides.map((slide: Partial<HeroSlide>, index: number) => ({ 
+              ...defaultHeroSlideStructure, 
+              ...slide, 
+              id: slide.id || `hs-db-${Date.now()}-${index}`,
+              duration: slide.duration === undefined ? defaultHeroSlideStructure.duration : Number(slide.duration) || defaultHeroSlideStructure.duration,
+            }))
           : defaultHomepageContentData.heroSlides
         ),
         artisanalRoots: {
@@ -93,12 +104,17 @@ export async function GET() {
         ).sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0)),
         heroVideoId: dbContent.heroVideoId === null ? undefined : dbContent.heroVideoId,
         heroImageUrl: dbContent.heroImageUrl === null ? undefined : dbContent.heroImageUrl,
+        promotionalPostsSection: {
+          enabled: dbContent.promotionalPostsSection?.enabled ?? defaultHomepageContentData.promotionalPostsSection!.enabled,
+          title: dbContent.promotionalPostsSection?.title || defaultHomepageContentData.promotionalPostsSection!.title,
+          maxItems: dbContent.promotionalPostsSection?.maxItems || defaultHomepageContentData.promotionalPostsSection!.maxItems,
+        }
       };
       console.log(`[API /api/content/homepage GET] Successfully fetched and processed content for ${HOMEPAGE_CONFIG_KEY}.`);
       return NextResponse.json(responseData);
     } else {
       console.warn(`[API /api/content/homepage GET] No content found or invalid format for ${HOMEPAGE_CONFIG_KEY} in Supabase. Returning default structure.`);
-      return NextResponse.json(defaultHomepageContentData); // Return default structure with 200 OK
+      return NextResponse.json(defaultHomepageContentData); 
     }
   } catch (e: any) {
     console.error(`[API /api/content/homepage GET] UNHANDLED EXCEPTION fetching content for ${HOMEPAGE_CONFIG_KEY}:`, e);
