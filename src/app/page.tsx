@@ -615,7 +615,7 @@ function HomePageContent() {
             </div>
           ) : (
             <div className="text-center py-10">
-              <p className="text-muted-foreground">No social posts to display at the moment. Follow us and tag #PeakPulseStyle!</p>
+              <p className="text-muted-foreground">No social posts to display at the moment. Add some in the Admin Panel! (Admin &gt; Content &gt; Homepage)</p>
             </div>
           )}
         </section>
@@ -681,7 +681,7 @@ function HomePageContent() {
                             <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 p-3 flex flex-col justify-end">
                                 <div className="flex items-center space-x-2 mb-1">
                                     <Avatar className="h-6 w-6 border-2 border-white">
-                                        <AvatarImage src={post.user_avatar_url || 'https://placehold.co/40x40.png'} alt={post.user_name} data-ai-hint="user avatar"/>
+                                        <AvatarImage src={post.user_avatar_url || 'https://placehold.co/40x40.png'} alt={post.user_name || 'User'} data-ai-hint="user avatar"/>
                                         <AvatarFallback>{post.user_name ? post.user_name.charAt(0).toUpperCase() : 'P'}</AvatarFallback>
                                     </Avatar>
                                     <span className="text-xs font-medium text-white truncate">{post.user_name}</span>
