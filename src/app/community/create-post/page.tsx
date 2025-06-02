@@ -54,10 +54,10 @@ export default function CreateUserPostPage() {
         : [];
 
       const payload = {
-        userId: user.id, // This now comes from the authenticated user context
+        userId: user.id, 
         imageUrl: data.imageUrl,
-        caption: data.caption || null, // Send null if empty
-        productTags: productTagsArray.length > 0 ? productTagsArray : null, // Send null if empty
+        caption: data.caption || null, 
+        productTags: productTagsArray.length > 0 ? productTagsArray : null, 
       };
 
       const response = await fetch('/api/user-posts', {
@@ -151,7 +151,9 @@ export default function CreateUserPostPage() {
                       <FormControl>
                         <Input placeholder="https://example.com/your-image.jpg" {...field} />
                       </FormControl>
-                      <FormDescription>Tip: For quick uploads, try free sites like ImgBB.com or Postimages.org. Upload your image, then copy and paste the "Direct link" (ending in .jpg, .png, .gif, etc.) here.</FormDescription>
+                      <FormDescription>
+                        Tip: For quick uploads, try ImgBB.com or Postimages.org. Paste the "Direct link". Square (1:1) or portrait (4:5) images display best. Recommended minimum width: 1080px.
+                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -181,7 +183,7 @@ export default function CreateUserPostPage() {
                           {...field}
                         />
                       </FormControl>
-                      <p className="text-xs text-muted-foreground">Separate product names with commas.</p>
+                      <FormDescription>Separate product names with commas.</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}

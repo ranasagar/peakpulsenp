@@ -8,14 +8,13 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogClose,
+  DialogClose, // Keep this for the X button
 } from '@/components/ui/dialog';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Heart, MessageCircle, Send, Bookmark, Loader2, Tag } from 'lucide-react';
+import { Heart, MessageCircle, Send, Bookmark, Loader2, Tag, X } from 'lucide-react'; // Added X
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Separator } from '@/components/ui/separator';
 import type { UserPost } from '@/types';
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -45,9 +44,16 @@ export function UserPostDetailModal({
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-3xl p-0 max-h-[90vh] flex flex-col overflow-hidden">
-        <div className="grid grid-cols-1 md:grid-cols-2 h-full">
+        {/* Explicit Close button for mobile, DialogClose handles the X icon internally in shadcn */}
+         <DialogClose asChild className="md:hidden absolute right-2 top-2 z-50">
+            <Button variant="ghost" size="icon" className="rounded-full bg-black/30 hover:bg-black/50 text-white">
+              <X className="h-5 w-5" />
+            </Button>
+          </DialogClose>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 h-full w-full">
           {/* Image Section */}
-          <div className="relative bg-black flex items-center justify-center md:max-h-[calc(90vh-4rem)]">
+          <div className="relative bg-black flex items-center justify-center h-[60vh] md:h-full w-full md:max-h-[calc(90vh-0rem)]"> {/* Removed md:max-h calc */}
             <Image
               src={post.image_url}
               alt={post.caption || `Post by ${post.user_name}`}
@@ -59,15 +65,15 @@ export function UserPostDetailModal({
           </div>
 
           {/* Details Section */}
-          <div className="flex flex-col h-full">
+          <div className="flex flex-col h-full w-full"> {/* Ensure details section can scroll if content overflows */}
             <DialogHeader className="p-4 border-b flex-shrink-0">
               <div className="flex items-center space-x-3">
                 <Avatar className="h-9 w-9">
-                  <AvatarImage src={post.user_avatar_url || undefined} alt={post.user_name} data-ai-hint="user avatar"/>
-                  <AvatarFallback>{post.user_name ? post.user_name.charAt(0).toUpperCase() : 'U'}</AvatarFallback>
+                  <AvatarImage src={post.user_avatar_url || undefined} alt={post.user_name || 'User'} data-ai-hint="user avatar"/>
+                  <AvatarFallback>{post.user_name ? post.user_name.charAt(0).toUpperCase() : 'A'}</AvatarFallback>
                 </Avatar>
                 <div>
-                  <DialogTitle className="text-sm font-semibold">{post.user_name}</DialogTitle>
+                  <DialogTitle className="text-sm font-semibold">{post.user_name || 'Anonymous'}</DialogTitle>
                    <p className="text-xs text-muted-foreground">
                     {formatDistanceToNow(new Date(post.created_at), { addSuffix: true })}
                   </p>
@@ -75,7 +81,7 @@ export function UserPostDetailModal({
               </div>
             </DialogHeader>
 
-            <ScrollArea className="flex-grow p-4">
+            <ScrollArea className="flex-grow p-4"> {/* ScrollArea for caption and tags */}
               <div className="space-y-3">
                 {post.caption && (
                   <p className="text-sm text-foreground whitespace-pre-line">{post.caption}</p>
@@ -95,7 +101,7 @@ export function UserPostDetailModal({
               </div>
             </ScrollArea>
 
-            <div className="p-4 border-t flex-shrink-0 space-y-3">
+            <div className="p-4 border-t flex-shrink-0 space-y-3 bg-card"> {/* Ensure background for action bar */}
               <div className="flex items-center space-x-4">
                 <Button
                   variant="ghost"
@@ -111,7 +117,6 @@ export function UserPostDetailModal({
                     <Heart className={cn("h-5 w-5", hasLiked && "fill-destructive")} />
                   )}
                 </Button>
-                {/* Placeholder icons */}
                 <Button variant="ghost" size="icon" className="text-foreground/70 hover:text-primary" aria-label="Comment (UI only)">
                   <MessageCircle className="h-5 w-5" />
                 </Button>

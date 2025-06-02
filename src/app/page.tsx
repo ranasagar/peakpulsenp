@@ -16,7 +16,7 @@ import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { InteractiveExternalLink } from '@/components/interactive-external-link';
 import MainLayout from '@/components/layout/main-layout';
 import { formatDisplayDate } from '@/lib/dateUtils';
-import { formatDistanceToNow } from 'date-fns'; // Corrected import
+import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { ProductCard } from '@/components/product/product-card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -696,10 +696,10 @@ function HomePageContent() {
               <div className="overflow-hidden">
                 <div
                   className="flex transition-transform duration-700 ease-in-out"
-                  style={{ transform: `translateX(-${currentSocialCommerceSlide * 100}%)` }}
+                  style={{ transform: `translateX(-${currentSocialCommerceSlide * 100 / (activeSocialCommerceItems.length > 0 ? Math.min(activeSocialCommerceItems.length, 1) : 1)}%)` }} // Adjust for number of visible items if changing
                 >
                   {activeSocialCommerceItems.map((item, index) => (
-                    <div key={item.id || `scs-slide-${index}`} className="w-full flex-shrink-0 px-2 md:px-4">
+                    <div key={item.id || `scs-slide-${index}`} className="w-full flex-shrink-0 px-2 md:px-4"> {/* Ensure full width and padding for spacing */}
                       <Card className="overflow-hidden rounded-xl shadow-lg group mx-auto max-w-md">
                         <InteractiveExternalLink href={item.linkUrl} target="_blank" rel="noopener noreferrer" showDialog={true}>
                           <div className="relative">
@@ -824,10 +824,10 @@ function HomePageContent() {
                         <div className="p-3 bg-background/80 backdrop-blur-sm">
                            <div className="flex items-center space-x-2 mb-1.5">
                                 <Avatar className="h-7 w-7 border-border">
-                                    <AvatarImage src={post.user_avatar_url || undefined} alt={post.user_name} data-ai-hint="user avatar small"/>
-                                    <AvatarFallback>{post.user_name ? post.user_name.charAt(0).toUpperCase() : 'P'}</AvatarFallback>
+                                    <AvatarImage src={post.user_avatar_url || undefined} alt={post.user_name || 'User'} data-ai-hint="user avatar small"/>
+                                    <AvatarFallback>{post.user_name ? post.user_name.charAt(0).toUpperCase() : 'A'}</AvatarFallback>
                                 </Avatar>
-                                <span className="text-xs font-medium text-foreground truncate">{post.user_name}</span>
+                                <span className="text-xs font-medium text-foreground truncate">{post.user_name || 'Anonymous'}</span>
                             </div>
                             {post.caption && <p className="text-xs text-muted-foreground line-clamp-2 mb-1.5">{post.caption}</p>}
                              <div className="flex items-center justify-between text-xs text-muted-foreground">
