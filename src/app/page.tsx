@@ -7,9 +7,9 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Icons } from '@/components/icons';
-import { ChevronLeft, ChevronRight, ShoppingBag, ArrowRight, Instagram, Send, Users, ImagePlus, Loader2, Play, Pause, LayoutGrid, Palette as PaletteIcon, Handshake, Sprout, ImagePlay as ImagePlayIcon, Heart } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ShoppingBag, ArrowRight, Instagram, Send, Users, ImagePlus, Loader2, Play, Pause, LayoutGrid, Palette as PaletteIcon, Handshake, Sprout, ImagePlay as ImagePlayIcon, Heart as HeartIcon } from 'lucide-react';
 import { NewsletterSignupForm } from '@/components/forms/newsletter-signup-form';
-import type { HomepageContent, Product, HeroSlide, AdminCategory as CategoryType, DesignCollaborationGallery, ArtisanalRootsSlide, SocialCommerceItem, PromotionalPost, UserPost } from '@/types';
+import type { HomepageContent, Product, HeroSlide, AdminCategory as CategoryType, DesignCollaborationGallery, ArtisanalRootsSlide, SocialCommerceItem, PromotionalPost, UserPost, PostComment } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent } from '@/components/ui/card';
 import { AspectRatio } from "@/components/ui/aspect-ratio";
@@ -56,7 +56,7 @@ const defaultHomepageContent: HomepageContent = {
 
 async function getHomepageContent(): Promise<HomepageContent> {
   const fetchUrl = `/api/content/homepage`;
-  console.log(`[Client Fetch] Attempting to fetch from: ${fetchUrl}`);
+  // console.log(`[Client Fetch] Attempting to fetch from: ${fetchUrl}`);
   try {
     const res = await fetch(fetchUrl, { cache: 'no-store' });
 
@@ -74,15 +74,15 @@ async function getHomepageContent(): Promise<HomepageContent> {
           }
         }
       } catch (e) {
-         console.warn("[Client Fetch] API error response was not valid JSON for homepage content. Raw body (first 200 chars):", rawBodyForLog.substring(0, 200));
+        //  console.warn("[Client Fetch] API error response was not valid JSON for homepage content. Raw body (first 200 chars):", rawBodyForLog.substring(0, 200));
          errorDetail += ` (Server response was not valid JSON. Raw: ${rawBodyForLog.substring(0,100)})`
       }
-      console.error("[Client Fetch] Error fetching homepage content from API:", errorDetail, "Raw response status:", res.status, res.statusText);
+      // console.error("[Client Fetch] Error fetching homepage content from API:", errorDetail, "Raw response status:", res.status, res.statusText);
       return { ...defaultHomepageContent, error: errorDetail };
     }
 
     const jsonData: HomepageContent = await res.json();
-    console.log("[Client Fetch] Successfully fetched homepage content:", jsonData);
+    // console.log("[Client Fetch] Successfully fetched homepage content:", jsonData);
     
     const processedData: HomepageContent = {
       heroSlides: Array.isArray(jsonData.heroSlides) && jsonData.heroSlides.length > 0 
@@ -142,8 +142,10 @@ function HomePageContent() {
   const [isSocialCommerceHovered, setIsSocialCommerceHovered] = useState(false);
 
   const { toast } = useToast();
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, refreshUserProfile } = useAuth();
+
   const [isLikingPostId, setIsLikingPostId] = useState<string | null>(null);
+  const [isBookmarkingPostId, setIsBookmarkingPostId] = useState<string | null>(null);
 
   const [selectedPostForModal, setSelectedPostForModal] = useState<UserPost | null>(null);
   const [isPostModalOpen, setIsPostModalOpen] = useState(false);
@@ -377,7 +379,7 @@ function HomePageContent() {
     setIsPostModalOpen(true);
   };
 
-  const handleLikeToggle = async (postId: string) => {
+  const handleLikeToggle = useCallback(async (postId: string) => {
     if (!isAuthenticated || !user?.id) {
       toast({
         title: "Please Login",
@@ -387,32 +389,21 @@ function HomePageContent() {
       });
       return;
     }
-
     setIsLikingPostId(postId);
-
     const originalPosts = [...userPosts];
     const postIndex = userPosts.findIndex(p => p.id === postId);
-    if (postIndex === -1) {
-      setIsLikingPostId(null);
-      return;
-    }
+    if (postIndex === -1) { setIsLikingPostId(null); return; }
 
     const postToUpdate = { ...userPosts[postIndex] };
     const alreadyLiked = postToUpdate.liked_by_user_ids?.includes(user.id);
-
-    if (alreadyLiked) {
-      postToUpdate.like_count = (postToUpdate.like_count || 1) - 1;
-      postToUpdate.liked_by_user_ids = postToUpdate.liked_by_user_ids?.filter(id => id !== user.id);
-    } else {
-      postToUpdate.like_count = (postToUpdate.like_count || 0) + 1;
-      postToUpdate.liked_by_user_ids = [...(postToUpdate.liked_by_user_ids || []), user.id];
-    }
+    const newLikedBy = alreadyLiked 
+      ? postToUpdate.liked_by_user_ids?.filter(id => id !== user.id) 
+      : [...(postToUpdate.liked_by_user_ids || []), user.id];
+    postToUpdate.liked_by_user_ids = newLikedBy;
+    postToUpdate.like_count = newLikedBy?.length || 0;
     
-    const updatedPosts = userPosts.map(p => p.id === postId ? postToUpdate : p);
-    setUserPosts(updatedPosts);
-    if (selectedPostForModal?.id === postId) {
-      setSelectedPostForModal(postToUpdate);
-    }
+    setUserPosts(prev => prev.map(p => p.id === postId ? postToUpdate : p));
+    if (selectedPostForModal?.id === postId) setSelectedPostForModal(postToUpdate);
 
     try {
       const response = await fetch(`/api/user-posts/${postId}/like`, {
@@ -420,27 +411,72 @@ function HomePageContent() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId: user.id }),
       });
-
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to update like status.');
+        const errorData = await response.json(); throw new Error(errorData.message || 'Failed to update like status.');
       }
       const updatedPostFromServer: UserPost = await response.json();
-      setUserPosts(prevPosts => prevPosts.map(p => p.id === postId ? updatedPostFromServer : p));
-      if (selectedPostForModal?.id === postId) {
-        setSelectedPostForModal(updatedPostFromServer);
-      }
-
+      setUserPosts(prev => prev.map(p => p.id === postId ? updatedPostFromServer : p));
+      if (selectedPostForModal?.id === postId) setSelectedPostForModal(updatedPostFromServer);
     } catch (error) {
       toast({ title: "Error", description: (error as Error).message, variant: "destructive" });
       setUserPosts(originalPosts);
-      if (selectedPostForModal?.id === postId) {
-        setSelectedPostForModal(originalPosts[postIndex]);
-      }
+      if (selectedPostForModal?.id === postId) setSelectedPostForModal(originalPosts[postIndex]);
     } finally {
       setIsLikingPostId(null);
     }
-  };
+  }, [isAuthenticated, user, userPosts, selectedPostForModal, toast]);
+
+  const handleBookmarkToggle = useCallback(async (postId: string) => {
+    if (!isAuthenticated || !user?.id) {
+      toast({
+        title: "Please Login",
+        description: "You need to be logged in to bookmark posts.",
+        variant: "default",
+        action: <Button asChild variant="outline"><Link href="/login?redirect=/">Login</Link></Button>
+      });
+      return;
+    }
+    setIsBookmarkingPostId(postId);
+    try {
+      const response = await fetch(`/api/user-posts/${postId}/bookmark`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id }),
+      });
+      if (!response.ok) {
+        const errorData = await response.json(); throw new Error(errorData.message || 'Failed to update bookmark status.');
+      }
+      await refreshUserProfile(); // This will update user.bookmarked_post_ids
+      const updatedPost = await response.json(); // API returns the post, which now might have updated bookmark_count if we add that
+      // Note: The UserPost type doesn't have a bookmark_count. If it did, we'd update it here.
+      // For now, the visual change relies on the user context update from refreshUserProfile.
+      toast({ title: "Bookmark status updated!" });
+    } catch (error) {
+      toast({ title: "Error", description: (error as Error).message, variant: "destructive" });
+    } finally {
+      setIsBookmarkingPostId(null);
+    }
+  }, [isAuthenticated, user, toast, refreshUserProfile]);
+
+  const handleCommentPosted = useCallback((postId: string, newComment: PostComment) => {
+    setUserPosts(prevPosts => prevPosts.map(p => {
+      if (p.id === postId) {
+        return {
+          ...p,
+          comment_count: (p.comment_count || 0) + 1,
+          comments: p.comments ? [...p.comments, newComment] : [newComment]
+        };
+      }
+      return p;
+    }));
+    if (selectedPostForModal?.id === postId) {
+      setSelectedPostForModal(prev => prev ? ({
+        ...prev,
+        comment_count: (prev.comment_count || 0) + 1,
+        comments: prev.comments ? [...prev.comments, newComment] : [newComment]
+      }) : null);
+    }
+  }, [selectedPostForModal]);
 
 
   if (isLoadingContent || isLoadingFeaturedProducts || isLoadingCategories || isLoadingCollaborations || (content.promotionalPostsSection?.enabled && isLoadingPromotionalPosts) || isLoadingUserPosts) {
@@ -805,6 +841,9 @@ function HomePageContent() {
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 md:gap-8">
                 {userPosts.slice(0, 4).map(post => {
                     const hasLiked = user?.id && post.liked_by_user_ids?.includes(user.id);
+                    const userNameDisplay = post.user_name || 'Anonymous';
+                    const canLinkToProfile = isAuthenticated && user?.id === post.user_id;
+
                     return (
                     <Card 
                         key={post.id} 
@@ -824,10 +863,16 @@ function HomePageContent() {
                         <div className="p-3 bg-background/80 backdrop-blur-sm">
                            <div className="flex items-center space-x-2 mb-1.5">
                                 <Avatar className="h-7 w-7 border-border">
-                                    <AvatarImage src={post.user_avatar_url || undefined} alt={post.user_name || 'User'} data-ai-hint="user avatar small"/>
-                                    <AvatarFallback>{post.user_name ? post.user_name.charAt(0).toUpperCase() : 'A'}</AvatarFallback>
+                                    <AvatarImage src={post.user_avatar_url || undefined} alt={userNameDisplay} data-ai-hint="user avatar small"/>
+                                    <AvatarFallback>{userNameDisplay.charAt(0).toUpperCase()}</AvatarFallback>
                                 </Avatar>
-                                <span className="text-xs font-medium text-foreground truncate">{post.user_name || 'Anonymous'}</span>
+                                {canLinkToProfile ? (
+                                    <Link href="/account/profile" className="text-xs font-medium text-foreground hover:text-primary truncate" onClick={(e) => e.stopPropagation()}>
+                                        {userNameDisplay}
+                                    </Link>
+                                ) : (
+                                    <span className="text-xs font-medium text-foreground truncate">{userNameDisplay}</span>
+                                )}
                             </div>
                             {post.caption && <p className="text-xs text-muted-foreground line-clamp-2 mb-1.5">{post.caption}</p>}
                              <div className="flex items-center justify-between text-xs text-muted-foreground">
@@ -840,7 +885,7 @@ function HomePageContent() {
                                     )}
                                     aria-label={hasLiked ? "Unlike post" : "Like post"}
                                 >
-                                    {isLikingPostId === post.id ? <Loader2 className="h-3.5 w-3.5 animate-spin"/> : <Heart className={cn("h-3.5 w-3.5", hasLiked && "fill-destructive")}/>}
+                                    {isLikingPostId === post.id ? <Loader2 className="h-3.5 w-3.5 animate-spin"/> : <HeartIcon className={cn("h-3.5 w-3.5", hasLiked && "fill-destructive")}/>}
                                     <span>{post.like_count || 0}</span>
                                 </button>
                                 <span>{formatDistanceToNow(new Date(post.created_at), { addSuffix: true, includeSeconds: false })}</span>
@@ -876,7 +921,10 @@ function HomePageContent() {
           post={userPosts.find(p => p.id === selectedPostForModal.id) || selectedPostForModal} 
           currentUserId={user?.id}
           onLikeToggle={handleLikeToggle}
+          onBookmarkToggle={handleBookmarkToggle}
+          onCommentPosted={handleCommentPosted}
           isLikingPostId={isLikingPostId}
+          isBookmarkingPostId={isBookmarkingPostId}
         />
       )}
     </>
@@ -892,3 +940,4 @@ export default function RootPage() {
 }
 
     
+
