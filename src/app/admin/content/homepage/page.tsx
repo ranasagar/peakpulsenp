@@ -32,7 +32,7 @@ const heroSlideSchema = z.object({
     message: "CTA link must be a relative path (e.g., /products), an anchor (#id), or a full URL."
   }).or(z.literal('')),
   duration: z.coerce.number().int().min(0, "Duration must be a positive number or 0 for default.").optional().nullable(),
-  displayOrder: z.coerce.number().int().optional().default(0), // Added displayOrder
+  displayOrder: z.coerce.number().int().optional().default(0),
 });
 
 const artisanalRootsSlideSchema = z.object({
@@ -134,12 +134,12 @@ export default function AdminHomepageContentPage() {
             id: slide.id || `hs-loaded-${Date.now()}-${Math.random()}`, 
             audioUrl: slide.audioUrl || '', 
             duration: slide.duration === undefined ? null : slide.duration,
-            displayOrder: slide.displayOrder === undefined ? index * 10 : slide.displayOrder, // Default displayOrder
+            displayOrder: slide.displayOrder === undefined ? index * 10 : slide.displayOrder,
         })),
         artisanalRootsTitle: data.artisanalRoots?.title || defaultHomepageFormValues.artisanalRootsTitle,
         artisanalRootsDescription: data.artisanalRoots?.description || defaultHomepageFormValues.artisanalRootsDescription,
         artisanalRootsSlides: (data.artisanalRoots?.slides || []).map(slide => ({ ...defaultArtisanalRootsSlide, ...slide, id: slide.id || `ars-loaded-${Date.now()}-${Math.random()}` })),
-        socialCommerceItems: (data.socialCommerceItems || []).map(item => ({ ...defaultSocialCommerceItem, ...item, id: item.id || `sc-loaded-${Date.now()}-${Math.random()}` })).sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0)),
+        socialCommerceItems: (data.socialCommerceItems || []).map((item, index) => ({ ...defaultSocialCommerceItem, ...item, id: item.id || `sc-loaded-${Date.now()}-${Math.random()}`, displayOrder: item.displayOrder || index * 10 })).sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0)),
         heroVideoId: data.heroVideoId || defaultHomepageFormValues.heroVideoId,
         heroImageUrl: data.heroImageUrl || defaultHomepageFormValues.heroImageUrl,
         promotionalPostsSection: { ...defaultHomepageFormValues.promotionalPostsSection, ...data.promotionalPostsSection },
@@ -167,7 +167,7 @@ export default function AdminHomepageContentPage() {
           imageUrl: slide.imageUrl || undefined,
           audioUrl: slide.audioUrl || undefined,
           duration: slide.duration === null || slide.duration === undefined || Number(slide.duration) < 1000 ? defaultHeroSlide.duration : Number(slide.duration),
-          displayOrder: Number(slide.displayOrder) || 0, // Ensure displayOrder is a number
+          displayOrder: Number(slide.displayOrder) || 0,
         })),
         artisanalRoots: {
           title: data.artisanalRootsTitle || '',
@@ -177,11 +177,13 @@ export default function AdminHomepageContentPage() {
             id: slide.id || `ars-submit-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
           }))
         },
-        socialCommerceItems: (data.socialCommerceItems || []).map((item, index) => ({
-          ...item,
-          id: item.id || `scs-submit-${Date.now()}-${index}`,
-          displayOrder: Number(item.displayOrder) || 0,
-        })).sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0)),
+        socialCommerceItems: (data.socialCommerceItems || [])
+          .map((item, index) => ({
+            ...item,
+            id: item.id || `scs-submit-${Date.now()}-${index}`,
+            displayOrder: Number(item.displayOrder) || 0,
+          }))
+          .sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0)),
         heroVideoId: data.heroVideoId || undefined,
         heroImageUrl: data.heroImageUrl || undefined,
         promotionalPostsSection: {
@@ -286,7 +288,7 @@ export default function AdminHomepageContentPage() {
                           <FormItem>
                             <FormLabel className="flex items-center"><Youtube className="mr-2 h-4 w-4 text-muted-foreground"/> YouTube Video ID (Overrides Image)</FormLabel>
                             <FormControl><Input {...field} placeholder="e.g. gCRNEJxDJKM (11 characters)" value={field.value || ''} /></FormControl>
-                            <FormDescription>The 11-character ID from a YouTube video URL.</FormDescription>
+                            <FormDescription>The 11-character ID from a YouTube video URL. If set and Image URL is empty, this video becomes the background.</FormDescription>
                             <FormMessage />
                           </FormItem>
                         )} />
@@ -294,7 +296,7 @@ export default function AdminHomepageContentPage() {
                           <FormItem>
                             <FormLabel className="flex items-center"><Music className="mr-2 h-4 w-4 text-muted-foreground"/> Audio URL (Optional, for MP3/etc.)</FormLabel>
                             <FormControl><Input {...field} placeholder="e.g. https://example.com/hero-audio.mp3" value={field.value || ''} /></FormControl>
-                            <FormDescription>Direct link to audio file. Takes priority over YouTube audio if set. YouTube video (if any) will be muted.</FormDescription>
+                            <FormDescription>Direct link to an audio file (e.g., .mp3, .wav). This is for background music. If a YouTube video is also on this slide, the video will be muted. This audio is controlled by the UI Mute button.</FormDescription>
                             <FormMessage />
                           </FormItem>
                         )} />
