@@ -7,7 +7,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Icons } from '@/components/icons';
-import { ChevronLeft, ChevronRight, ShoppingBag, ArrowRight, Instagram, Send, Users, ImagePlus, Loader2, Play, Pause, LayoutGrid, Palette as PaletteIcon, Handshake, Sprout, ImagePlay as ImagePlayIcon } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ShoppingBag, ArrowRight, Instagram, Send, Users, ImagePlus, Loader2, Play, Pause, LayoutGrid, Palette as PaletteIcon, Handshake, Sprout, ImagePlay as ImagePlayIcon, Heart } from 'lucide-react';
 import { NewsletterSignupForm } from '@/components/forms/newsletter-signup-form';
 import type { HomepageContent, Product, HeroSlide, AdminCategory as CategoryType, DesignCollaborationGallery, ArtisanalRootsSlide, SocialCommerceItem, PromotionalPost, UserPost } from '@/types';
 import { useToast } from '@/hooks/use-toast';
@@ -15,10 +15,12 @@ import { Card, CardContent } from '@/components/ui/card';
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { InteractiveExternalLink } from '@/components/interactive-external-link';
 import MainLayout from '@/components/layout/main-layout';
-import { formatDisplayDate } from '@/lib/dateUtils';
+import { formatDisplayDate, formatDistanceToNow } from '@/lib/dateUtils'; // Added formatDistanceToNow
 import { cn } from '@/lib/utils';
 import { ProductCard } from '@/components/product/product-card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { UserPostDetailModal } from '@/components/community/user-post-detail-modal'; // Added
+import { useAuth } from '@/hooks/use-auth'; // Added for user context
 
 
 const fallbackHeroSlide: HeroSlide = {
@@ -136,9 +138,16 @@ function HomePageContent() {
   const [isArtisanalPlaying, setIsArtisanalPlaying] = useState(true);
 
   const [currentSocialCommerceSlide, setCurrentSocialCommerceSlide] = useState(0);
-  const [isSocialCommerceHovered, setIsSocialCommerceHovered] = useState(false); // New state for hover
+  const [isSocialCommerceHovered, setIsSocialCommerceHovered] = useState(false);
 
   const { toast } = useToast();
+  const { user, isAuthenticated } = useAuth(); // Get user for like interactions
+  const [isLikingPostId, setIsLikingPostId] = useState<string | null>(null); // Track which post is being liked
+
+  // Modal state for Community Spotlights
+  const [selectedPostForModal, setSelectedPostForModal] = useState<UserPost | null>(null);
+  const [isPostModalOpen, setIsPostModalOpen] = useState(false);
+
 
   const loadPageData = useCallback(async () => {
     setIsLoadingContent(true);
@@ -347,14 +356,94 @@ function HomePageContent() {
     }
   };
   
-  // Autoplay for Social Commerce Carousel, with hover pause
   useEffect(() => {
     let socialInterval: NodeJS.Timeout | undefined;
     if (activeSocialCommerceItems.length > 1 && !isSocialCommerceHovered) {
-      socialInterval = setInterval(nextSocialCommerceSlide, 6000); // Change slide every 6 seconds
+      socialInterval = setInterval(nextSocialCommerceSlide, 6000);
     }
     return () => { if (socialInterval) clearInterval(socialInterval); };
   }, [activeSocialCommerceItems.length, nextSocialCommerceSlide, isSocialCommerceHovered]);
+
+  const handleCommunityPostClick = (post: UserPost) => {
+    if (!isAuthenticated) {
+      toast({
+        title: "Login to Interact",
+        description: "Please log in to view post details and interact.",
+        action: <Button asChild variant="outline"><Link href="/login?redirect=/">Login</Link></Button>
+      });
+      return;
+    }
+    setSelectedPostForModal(post);
+    setIsPostModalOpen(true);
+  };
+
+  const handleLikeToggle = async (postId: string) => {
+    if (!isAuthenticated || !user?.id) {
+      toast({
+        title: "Please Login",
+        description: "You need to be logged in to like posts.",
+        variant: "default",
+        action: <Button asChild variant="outline"><Link href="/login?redirect=/">Login</Link></Button>
+      });
+      return;
+    }
+
+    setIsLikingPostId(postId);
+
+    // Optimistic UI update
+    const originalPosts = [...userPosts];
+    const postIndex = userPosts.findIndex(p => p.id === postId);
+    if (postIndex === -1) {
+      setIsLikingPostId(null);
+      return;
+    }
+
+    const postToUpdate = { ...userPosts[postIndex] };
+    const alreadyLiked = postToUpdate.liked_by_user_ids?.includes(user.id);
+
+    if (alreadyLiked) {
+      postToUpdate.like_count = (postToUpdate.like_count || 1) - 1;
+      postToUpdate.liked_by_user_ids = postToUpdate.liked_by_user_ids?.filter(id => id !== user.id);
+    } else {
+      postToUpdate.like_count = (postToUpdate.like_count || 0) + 1;
+      postToUpdate.liked_by_user_ids = [...(postToUpdate.liked_by_user_ids || []), user.id];
+    }
+    
+    const updatedPosts = userPosts.map(p => p.id === postId ? postToUpdate : p);
+    setUserPosts(updatedPosts);
+    if (selectedPostForModal?.id === postId) {
+      setSelectedPostForModal(postToUpdate);
+    }
+
+    try {
+      const response = await fetch(`/api/user-posts/${postId}/like`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to update like status.');
+      }
+      // API returns updated post, reflect it
+      const updatedPostFromServer: UserPost = await response.json();
+      setUserPosts(prevPosts => prevPosts.map(p => p.id === postId ? updatedPostFromServer : p));
+      if (selectedPostForModal?.id === postId) {
+        setSelectedPostForModal(updatedPostFromServer);
+      }
+
+    } catch (error) {
+      toast({ title: "Error", description: (error as Error).message, variant: "destructive" });
+      // Revert optimistic update on error
+      setUserPosts(originalPosts);
+      if (selectedPostForModal?.id === postId) {
+        setSelectedPostForModal(originalPosts[postIndex]);
+      }
+    } finally {
+      setIsLikingPostId(null);
+    }
+  };
 
 
   if (isLoadingContent || isLoadingFeaturedProducts || isLoadingCategories || isLoadingCollaborations || (content.promotionalPostsSection?.enabled && isLoadingPromotionalPosts) || isLoadingUserPosts) {
@@ -592,7 +681,6 @@ function HomePageContent() {
         </section>
       )}
 
-      {/* Social Commerce Section (#PeakPulseStyle) - Carousel */}
       {!isLoadingContent && (
         <section 
           className="section-padding container-wide relative z-[1] bg-muted/30 overflow-hidden"
@@ -610,11 +698,11 @@ function HomePageContent() {
             <div className="relative">
               <div className="overflow-hidden">
                 <div
-                  className="flex transition-transform duration-500 ease-in-out"
-                  style={{ transform: `translateX(-${currentSocialCommerceSlide * 100 / (Math.min(activeSocialCommerceItems.length, 1))}%)` }}
+                  className="flex transition-transform duration-700 ease-in-out" // Increased duration
+                  style={{ transform: `translateX(-${currentSocialCommerceSlide * 100}%)` }}
                 >
-                  {activeSocialCommerceItems.map(item => (
-                    <div key={item.id} className="w-full flex-shrink-0 px-2 md:px-4" style={{ minWidth: `calc(100% / ${Math.min(activeSocialCommerceItems.length, 1)})`}}>
+                  {activeSocialCommerceItems.map((item, index) => (
+                    <div key={item.id || `scs-slide-${index}`} className="w-full flex-shrink-0 px-2 md:px-4">
                       <Card className="overflow-hidden rounded-xl shadow-lg group mx-auto max-w-md">
                         <InteractiveExternalLink href={item.linkUrl} target="_blank" rel="noopener noreferrer" showDialog={true}>
                           <div className="relative">
@@ -718,8 +806,14 @@ function HomePageContent() {
             <div className="flex justify-center items-center py-10"><Loader2 className="h-10 w-10 animate-spin text-primary" /></div>
         ) : userPosts.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 md:gap-8">
-                {userPosts.slice(0, 4).map(post => ( // Display up to 4 posts
-                    <Card key={post.id} className="overflow-hidden rounded-xl shadow-lg group hover:shadow-2xl transition-shadow">
+                {userPosts.slice(0, 4).map(post => {
+                    const hasLiked = user?.id && post.liked_by_user_ids?.includes(user.id);
+                    return (
+                    <Card 
+                        key={post.id} 
+                        className="overflow-hidden rounded-xl shadow-lg group hover:shadow-2xl transition-shadow cursor-pointer"
+                        onClick={() => handleCommunityPostClick(post)}
+                    >
                         <AspectRatio ratio={1/1} className="relative bg-muted">
                             <Image 
                                 src={post.image_url} 
@@ -729,19 +823,35 @@ function HomePageContent() {
                                 className="object-cover transition-transform duration-500 group-hover:scale-105"
                                 data-ai-hint="user fashion style"
                             />
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 p-3 flex flex-col justify-end">
-                                <div className="flex items-center space-x-2 mb-1">
-                                    <Avatar className="h-6 w-6 border-2 border-white">
-                                        <AvatarImage src={post.user_avatar_url || 'https://placehold.co/40x40.png'} alt={post.user_name || 'User'} data-ai-hint="user avatar"/>
-                                        <AvatarFallback>{post.user_name ? post.user_name.charAt(0).toUpperCase() : 'P'}</AvatarFallback>
-                                    </Avatar>
-                                    <span className="text-xs font-medium text-white truncate">{post.user_name}</span>
-                                </div>
-                                {post.caption && <p className="text-xs text-neutral-200 line-clamp-2">{post.caption}</p>}
-                            </div>
                         </AspectRatio>
+                        <div className="p-3 bg-background/80 backdrop-blur-sm">
+                           <div className="flex items-center space-x-2 mb-1.5">
+                                <Avatar className="h-7 w-7 border-border">
+                                    <AvatarImage src={post.user_avatar_url || undefined} alt={post.user_name} data-ai-hint="user avatar small"/>
+                                    <AvatarFallback>{post.user_name ? post.user_name.charAt(0).toUpperCase() : 'P'}</AvatarFallback>
+                                </Avatar>
+                                <span className="text-xs font-medium text-foreground truncate">{post.user_name}</span>
+                            </div>
+                            {post.caption && <p className="text-xs text-muted-foreground line-clamp-2 mb-1.5">{post.caption}</p>}
+                             <div className="flex items-center justify-between text-xs text-muted-foreground">
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); handleLikeToggle(post.id); }}
+                                    disabled={isLikingPostId === post.id || !isAuthenticated}
+                                    className={cn(
+                                        "flex items-center gap-1 hover:text-destructive p-1 -ml-1 rounded-md transition-colors",
+                                        hasLiked ? "text-destructive" : "text-muted-foreground"
+                                    )}
+                                    aria-label={hasLiked ? "Unlike post" : "Like post"}
+                                >
+                                    {isLikingPostId === post.id ? <Loader2 className="h-3.5 w-3.5 animate-spin"/> : <Heart className={cn("h-3.5 w-3.5", hasLiked && "fill-destructive")}/>}
+                                    <span>{post.like_count || 0}</span>
+                                </button>
+                                <span>{formatDistanceToNow(new Date(post.created_at), { addSuffix: true, includeSeconds: false })}</span>
+                            </div>
+                        </div>
                     </Card>
-                ))}
+                );
+            })}
             </div>
         ) : (
             <p className="text-center text-muted-foreground py-8">No community posts yet. Be the first to share your style!</p>
@@ -761,6 +871,17 @@ function HomePageContent() {
           <NewsletterSignupForm />
         </div>
       </section>
+
+      {selectedPostForModal && (
+        <UserPostDetailModal
+          isOpen={isPostModalOpen}
+          onOpenChange={setIsPostModalOpen}
+          post={userPosts.find(p => p.id === selectedPostForModal.id) || selectedPostForModal} // Ensure modal gets updated post data
+          currentUserId={user?.id}
+          onLikeToggle={handleLikeToggle}
+          isLikingPostId={isLikingPostId}
+        />
+      )}
     </>
   );
 }
