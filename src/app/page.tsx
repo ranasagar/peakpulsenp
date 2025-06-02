@@ -15,12 +15,13 @@ import { Card, CardContent } from '@/components/ui/card';
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { InteractiveExternalLink } from '@/components/interactive-external-link';
 import MainLayout from '@/components/layout/main-layout';
-import { formatDisplayDate, formatDistanceToNow } from '@/lib/dateUtils'; // Added formatDistanceToNow
+import { formatDisplayDate } from '@/lib/dateUtils';
+import { formatDistanceToNow } from 'date-fns'; // Corrected import
 import { cn } from '@/lib/utils';
 import { ProductCard } from '@/components/product/product-card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { UserPostDetailModal } from '@/components/community/user-post-detail-modal'; // Added
-import { useAuth } from '@/hooks/use-auth'; // Added for user context
+import { UserPostDetailModal } from '@/components/community/user-post-detail-modal';
+import { useAuth } from '@/hooks/use-auth';
 
 
 const fallbackHeroSlide: HeroSlide = {
@@ -141,10 +142,9 @@ function HomePageContent() {
   const [isSocialCommerceHovered, setIsSocialCommerceHovered] = useState(false);
 
   const { toast } = useToast();
-  const { user, isAuthenticated } = useAuth(); // Get user for like interactions
-  const [isLikingPostId, setIsLikingPostId] = useState<string | null>(null); // Track which post is being liked
+  const { user, isAuthenticated } = useAuth();
+  const [isLikingPostId, setIsLikingPostId] = useState<string | null>(null);
 
-  // Modal state for Community Spotlights
   const [selectedPostForModal, setSelectedPostForModal] = useState<UserPost | null>(null);
   const [isPostModalOpen, setIsPostModalOpen] = useState(false);
 
@@ -390,7 +390,6 @@ function HomePageContent() {
 
     setIsLikingPostId(postId);
 
-    // Optimistic UI update
     const originalPosts = [...userPosts];
     const postIndex = userPosts.findIndex(p => p.id === postId);
     if (postIndex === -1) {
@@ -426,7 +425,6 @@ function HomePageContent() {
         const errorData = await response.json();
         throw new Error(errorData.message || 'Failed to update like status.');
       }
-      // API returns updated post, reflect it
       const updatedPostFromServer: UserPost = await response.json();
       setUserPosts(prevPosts => prevPosts.map(p => p.id === postId ? updatedPostFromServer : p));
       if (selectedPostForModal?.id === postId) {
@@ -435,7 +433,6 @@ function HomePageContent() {
 
     } catch (error) {
       toast({ title: "Error", description: (error as Error).message, variant: "destructive" });
-      // Revert optimistic update on error
       setUserPosts(originalPosts);
       if (selectedPostForModal?.id === postId) {
         setSelectedPostForModal(originalPosts[postIndex]);
@@ -698,7 +695,7 @@ function HomePageContent() {
             <div className="relative">
               <div className="overflow-hidden">
                 <div
-                  className="flex transition-transform duration-700 ease-in-out" // Increased duration
+                  className="flex transition-transform duration-700 ease-in-out"
                   style={{ transform: `translateX(-${currentSocialCommerceSlide * 100}%)` }}
                 >
                   {activeSocialCommerceItems.map((item, index) => (
@@ -876,7 +873,7 @@ function HomePageContent() {
         <UserPostDetailModal
           isOpen={isPostModalOpen}
           onOpenChange={setIsPostModalOpen}
-          post={userPosts.find(p => p.id === selectedPostForModal.id) || selectedPostForModal} // Ensure modal gets updated post data
+          post={userPosts.find(p => p.id === selectedPostForModal.id) || selectedPostForModal} 
           currentUserId={user?.id}
           onLikeToggle={handleLikeToggle}
           isLikingPostId={isLikingPostId}
