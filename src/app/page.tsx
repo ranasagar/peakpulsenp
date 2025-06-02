@@ -1,4 +1,3 @@
-
 // src/app/page.tsx
 "use client";
 
@@ -587,11 +586,11 @@ function HomePageContent() {
                 <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-6 text-shadow-lg">
                     {slide.title}
                 </h1>
-                <p className={cn("text-lg md:text-xl lg:text-2xl mb-10 max-w-2xl mx-auto text-shadow-md", slide._isPromo ? (slide._textColor ? '' : 'text-neutral-100') : 'text-neutral-200')}>
+                <p className={cn("text-lg md:text-xl lg:text-2xl mb-10 max-w-2xl mx-auto text-shadow-lg", slide._isPromo ? (slide._textColor ? '' : 'text-neutral-100') : 'text-neutral-200')}>
                     {slide.description}
                 </p>
                 {slide.ctaText && slide.ctaLink && (
-                    <Link href={slide.ctaLink} className={cn(buttonVariants({ size: "lg", className: "text-base md:text-lg py-3 px-8" }), slide._isPromo ? 'bg-white/90 text-black hover:bg-white' : '')}>
+                    <Link href={slide.ctaLink} className={cn(buttonVariants({ size: "lg", className: "text-base md:text-lg py-3 px-8" }), slide._isPromo && !(slide._backgroundColor && slide._textColor) ? 'bg-white/90 text-black hover:bg-white' : '')}>
                         <span className="flex items-center">
                             {slide.ctaText} <ShoppingBag className="ml-2 h-5 w-5" />
                         </span>
@@ -628,7 +627,7 @@ function HomePageContent() {
       </section>
 
       <section className="section-padding container-wide relative z-[1] bg-background">
-        <h2 className="text-3xl font-bold text-center mb-12 text-foreground">Featured Collection</h2>
+        <h2 className="text-3xl font-bold tracking-tight text-center mb-12 text-foreground">Featured Collection</h2>
         {isLoadingFeaturedProducts ? (
           <div className="flex justify-center items-center py-10"> <Loader2 className="h-10 w-10 animate-spin text-primary" /> </div>
         ) : featuredProducts.length > 0 ? (
@@ -685,7 +684,7 @@ function HomePageContent() {
         <section className="section-padding container-wide relative z-[1] bg-background">
           <div className="text-center mb-12">
             <LayoutGrid className="h-10 w-10 text-primary mx-auto mb-3" />
-            <h2 className="text-3xl font-bold text-foreground">Shop by Category</h2>
+            <h2 className="text-3xl font-bold tracking-tight text-foreground">Shop by Category</h2>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8">
             {categories.slice(0, 4).map((category) => (
@@ -721,9 +720,9 @@ function HomePageContent() {
         >
           <div className="text-center mb-12">
             <Instagram className="h-10 w-10 text-pink-600 mx-auto mb-3" />
-            <h2 className="text-3xl font-bold text-foreground">#PeakPulseStyle on Social</h2>
+            <h2 className="text-3xl font-bold tracking-tight text-foreground">#PeakPulseStyle on Social</h2>
             <p className="text-muted-foreground mt-1 max-w-xl mx-auto">
-              Get inspired by our community. Tag us <code className="font-mono bg-foreground/10 p-1 rounded-sm">@peakpulsenp</code> to be featured!
+              Get inspired by our community. Tag us <code className="font-mono bg-primary/10 text-primary px-1.5 py-0.5 rounded-sm text-sm">@peakpulsenp</code> to be featured!
             </p>
           </div>
           {activeSocialCommerceItems.length > 0 ? (
@@ -798,7 +797,7 @@ function HomePageContent() {
           <Separator className="my-0 mb-16" />
           <div className="text-center mb-12">
             <Handshake className="h-10 w-10 text-primary mx-auto mb-3" />
-            <h2 className="text-3xl font-bold text-foreground">Featured Collaborations</h2>
+            <h2 className="text-3xl font-bold tracking-tight text-foreground">Featured Collaborations</h2>
             <p className="text-muted-foreground mt-1 max-w-xl mx-auto">Discover unique artistic visions and creative partnerships.</p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -832,7 +831,7 @@ function HomePageContent() {
       <section className="bg-card section-padding relative z-[1]">
         <div className="text-center mb-12">
             <ImagePlayIcon className="h-10 w-10 text-primary mx-auto mb-3" />
-            <h2 className="text-3xl font-bold text-foreground">Community Spotlights</h2>
+            <h2 className="text-3xl font-bold tracking-tight text-foreground">Community Spotlights</h2>
             <p className="text-muted-foreground mt-1 max-w-xl mx-auto">See how others are styling Peak Pulse. Share your look with #PeakPulseStyle!</p>
         </div>
         {isLoadingUserPosts ? (
@@ -842,7 +841,7 @@ function HomePageContent() {
                 {userPosts.slice(0, 4).map(post => {
                     const hasLiked = user?.id && post.liked_by_user_ids?.includes(user.id);
                     const userNameDisplay = post.user_name || 'Anonymous';
-                    const userProfileLink = post.user_id ? `/users/${post.user_id}` : '#'; // Fallback href
+                    const userProfileLink = post.user_id ? `/users/${post.user_id}` : '#'; 
 
                     return (
                     <Card 
@@ -911,7 +910,7 @@ function HomePageContent() {
       <section className="bg-background section-padding relative z-[1]">
         <div className="container-slim text-center">
           <Send className="h-12 w-12 text-primary mx-auto mb-4" />
-          <h2 className="text-3xl font-bold mb-4 text-foreground">Join the Peak Pulse Community</h2>
+          <h2 className="text-3xl font-bold tracking-tight mb-4 text-foreground">Join the Peak Pulse Community</h2>
           <p className="text-lg text-muted-foreground mb-8 max-w-xl mx-auto"> Be the first to know about new arrivals, exclusive collections, and special events. </p>
           <NewsletterSignupForm />
         </div>
@@ -942,5 +941,3 @@ export default function RootPage() {
     </MainLayout>
   );
 }
-
-    
