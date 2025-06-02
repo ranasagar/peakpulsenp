@@ -29,6 +29,8 @@ export async function GET(request: NextRequest) {
         caption,
         product_tags,
         status,
+        like_count,
+        liked_by_user_ids,
         created_at,
         updated_at,
         user:users ( name, "avatarUrl" ) 
@@ -52,6 +54,8 @@ export async function GET(request: NextRequest) {
         caption: post.caption,
         product_tags: post.product_tags,
         status: post.status as UserPost['status'],
+        like_count: post.like_count || 0,
+        liked_by_user_ids: post.liked_by_user_ids || [],
         created_at: post.created_at,
         updated_at: post.updated_at,
     }));

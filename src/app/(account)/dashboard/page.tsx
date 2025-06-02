@@ -30,11 +30,16 @@ export default function CustomerDashboardPage() {
     );
   }
 
+  // Safeguard for user.name
+  const userName = user.name || 'Customer';
+  const firstName = userName.includes(' ') ? userName.split(' ')[0] : userName;
+
+
   return (
     <div className="container-wide section-padding space-y-10">
       <Card className="shadow-lg">
         <CardHeader>
-          <CardTitle className="text-3xl md:text-4xl">Welcome to your Dashboard, {user.name?.split(' ')[0] || 'Customer'}!</CardTitle>
+          <CardTitle className="text-3xl md:text-4xl">Welcome to your Dashboard, {firstName}!</CardTitle>
           <CardDescription className="mt-1">This is a simplified dashboard page to test routing.</CardDescription>
         </CardHeader>
         <CardContent>
@@ -45,3 +50,5 @@ export default function CustomerDashboardPage() {
     </div>
   );
 }
+
+    
