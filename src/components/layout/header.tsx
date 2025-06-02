@@ -19,8 +19,9 @@ import { Icons } from '@/components/icons';
 import { useAuth } from '@/hooks/use-auth';
 import { cn } from '@/lib/utils';
 import type { NavItem } from '@/types';
-import { ShoppingCart, Search, LogOut, UserCircle, LayoutDashboard, Settings, Star, ShoppingBag as ShoppingBagIcon, Briefcase, LayoutGrid, Home as HomeIcon, BookOpenText, Mail, Handshake, Users } from 'lucide-react'; // Added Users icon
+import { ShoppingCart, Search, LogOut, UserCircle, LayoutDashboard, Settings, Star, ShoppingBag as ShoppingBagIcon, Briefcase, LayoutGrid, Home as HomeIcon, BookOpenText, Mail, Handshake, Users } from 'lucide-react';
 import { ModeToggle } from './mode-toggle';
+import { FullscreenToggleButton } from '@/components/ui/fullscreen-toggle-button'; // Added import
 import { useCart } from '@/context/cart-context';
 
 // These are used for the mobile Sheet menu and User Dropdown
@@ -29,7 +30,7 @@ const mainNavItems: NavItem[] = [
   { title: 'Shop', href: '/products', icon: ShoppingBagIcon },
   { title: 'Categories', href: '/categories', icon: LayoutGrid },
   { title: 'Collaborations', href: '/collaborations', icon: Handshake },
-  { title: 'Community', href: '/community', icon: Users }, // Added Community link
+  { title: 'Community', href: '/community', icon: Users },
   { title: 'Our Story', href: '/our-story', icon: BookOpenText },
   { title: 'Contact', href: '/contact', icon: Mail },
 ];
@@ -184,18 +185,14 @@ export function Header() { // Still named Header, but acts as TopBar
           </Link>
         </div>
 
-        {/* Center Group: Desktop Navigation - REMOVED FROM HERE */}
-        {/* <nav className="hidden md:flex items-center space-x-4 lg:space-x-6 text-sm font-medium">
-          {navLinks}
-        </nav> */}
-
         {/* Right Group: Actions */}
-        <div className="flex items-center space-x-2 md:space-x-3">
+        <div className="flex items-center space-x-1 md:space-x-2"> {/* Reduced space-x for smaller screens */}
           <Button variant="ghost" size="icon" className="hidden md:inline-flex">
             <Search className="h-5 w-5" />
             <span className="sr-only">Search</span>
           </Button>
           
+          {mounted && <FullscreenToggleButton />} {/* Added Fullscreen Toggle Button */}
           {mounted && <ModeToggle />}
 
           <Button variant="ghost" size="icon" asChild>
