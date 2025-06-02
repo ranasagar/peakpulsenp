@@ -47,13 +47,13 @@ const mapFirebaseUserToAppUser = (
   }
   mergedRoles = [...new Set(mergedRoles)];
 
-  // Prioritize Supabase profile name, then Firebase display name, then email prefix
-  let displayName = 'New User';
-  if (supaProfile?.name && supaProfile.name.trim() !== '') {
+  // Refined name prioritization
+  let displayName = 'New User'; // Default fallback
+  if (supaProfile?.name && supaProfile.name.trim() !== '') { // Prioritize Supabase name if it's non-empty
     displayName = supaProfile.name;
-  } else if (firebaseUser.displayName && firebaseUser.displayName.trim() !== '') {
+  } else if (firebaseUser.displayName && firebaseUser.displayName.trim() !== '') { // Then Firebase display name if non-empty
     displayName = firebaseUser.displayName;
-  } else if (firebaseUser.email) {
+  } else if (firebaseUser.email) { // Then email prefix
     displayName = firebaseUser.email.split('@')[0];
   }
 
@@ -63,10 +63,11 @@ const mapFirebaseUserToAppUser = (
     email: firebaseUser.email || '',
     name: displayName,
     avatarUrl: supaProfile?.avatarUrl || firebaseUser.photoURL || undefined,
+    bio: supaProfile?.bio || '', // Ensure bio is part of AuthUserType if fetched
     roles: mergedRoles,
     wishlist: (supaProfile?.wishlist && Array.isArray(supaProfile.wishlist)) ? supaProfile.wishlist : [],
     bookmarked_post_ids: (supaProfile?.bookmarked_post_ids && Array.isArray(supaProfile.bookmarked_post_ids)) ? supaProfile.bookmarked_post_ids : [],
-    createdAt: supaProfile?.createdAt || undefined, // Assuming supaProfile might have these
+    createdAt: supaProfile?.createdAt || undefined, 
     updatedAt: supaProfile?.updatedAt || undefined,
   };
 };
@@ -83,16 +84,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       console.warn("[AuthContext] fetchAppUserProfile called with null or invalid firebaseUser.");
       return null;
     }
-    console.log(`[AuthContext] Fetching Supabase profile for Firebase UID: ${firebaseUser.uid}`);
+    // console.log(`[AuthContext] Fetching Supabase profile for Firebase UID: ${firebaseUser.uid}`);
     
     let profileResponse;
     const fetchUrl = `/api/account/profile?uid=${firebaseUser.uid}`;
-    // console.log(`[AuthContext] API Call URL: ${fetchUrl}`);
-
+    
     try {
       profileResponse = await fetch(fetchUrl);
-      // console.log(`[AuthContext] Profile API response status for ${firebaseUser.uid}: ${profileResponse.status}`);
-
+      
       if (!profileResponse.ok) {
         let errorDetail = `[AuthContext] Error fetching Supabase profile for ${firebaseUser.uid}. Status: ${profileResponse.status}`;
         let apiMessage = 'Profile fetch failed.';
@@ -111,8 +110,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         errorDetail += ` . API Message: ${apiMessage}`;
         
         if (profileResponse.status === 404) {
-          console.log(errorDetail + " (This is expected for a new user, attempting to create profile.)");
-          console.log(`[AuthContext] No Supabase profile for ${firebaseUser.uid}. Attempting to create initial profile.`);
+          // console.log(errorDetail + " (This is expected for a new user, attempting to create profile.)");
+          // console.log(`[AuthContext] No Supabase profile for ${firebaseUser.uid}. Attempting to create initial profile.`);
           
           const initialRoles = (firebaseUser.email === 'sagarrana@gmail.com' || firebaseUser.email === 'sagarbikramrana7@gmail.com')
             ? ['admin', 'customer']
@@ -123,25 +122,23 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             email: firebaseUser.email || '',
             name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'New User',
             avatarUrl: firebaseUser.photoURL || null, 
+            bio: '', 
             roles: initialRoles,
             wishlist: [] as string[],
-            bio: '', // Add default bio
-            bookmarked_post_ids: [] as string[], // Add default bookmarks
+            bookmarked_post_ids: [] as string[],
           };
-          // console.log("[AuthContext] Initial profile data to POST:", JSON.stringify(initialProfileData, null, 2));
-
+          
           try {
             const createResponse = await fetch('/api/account/profile', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify(initialProfileData),
             });
-            // console.log(`[AuthContext] Profile creation API response status for ${firebaseUser.uid}: ${createResponse.status}`);
-
+            
             if (createResponse.ok) {
               const newSupaProfileResponse = await createResponse.json();
               if (newSupaProfileResponse.user) {
-                console.log(`[AuthContext] Successfully created initial Supabase profile for ${firebaseUser.uid}.`);
+                // console.log(`[AuthContext] Successfully created initial Supabase profile for ${firebaseUser.uid}.`);
                 return mapFirebaseUserToAppUser(firebaseUser, newSupaProfileResponse.user);
               } else {
                 console.error(`[AuthContext] Profile creation API call succeeded but response did not contain user object for ${firebaseUser.uid}.`);
@@ -170,7 +167,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
 
       const supaProfile = await profileResponse.json();
-      // console.log(`[AuthContext] Supabase profile found for ${firebaseUser.uid}. Merging with Firebase Auth data.`);
       return mapFirebaseUserToAppUser(firebaseUser, supaProfile);
 
     } catch (error: any) { 
@@ -182,17 +178,19 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      // console.log(`[AuthContext] Firebase auth state changed, user found: ${firebaseUser?.uid}`);
       setIsLoading(true);
       if (firebaseUser) {
         const appUser = await fetchAppUserProfile(firebaseUser);
         setUser(currentAppUser => {
-            if (!appUser) return currentAppUser; 
+            if (!appUser && !currentAppUser) return null; // No user, no change
+            if (!appUser && currentAppUser) return currentAppUser; // Failed to fetch new, keep old
+            if (appUser && !currentAppUser) return appUser; // New user logged in
+            if (!appUser) return null; // Should not happen if firebaseUser exists
 
-            const rolesChanged = JSON.stringify(currentAppUser?.roles?.sort()) !== JSON.stringify(appUser?.roles?.sort());
-            const wishlistChanged = JSON.stringify(currentAppUser?.wishlist?.sort()) !== JSON.stringify(appUser?.wishlist?.sort());
-            const bookmarksChanged = JSON.stringify(currentAppUser?.bookmarked_post_ids?.sort()) !== JSON.stringify(appUser?.bookmarked_post_ids?.sort());
-
+            // Deep comparison for relevant fields
+            const rolesChanged = JSON.stringify(currentAppUser?.roles?.sort()) !== JSON.stringify(appUser.roles?.sort());
+            const wishlistChanged = JSON.stringify(currentAppUser?.wishlist?.sort()) !== JSON.stringify(appUser.wishlist?.sort());
+            const bookmarksChanged = JSON.stringify(currentAppUser?.bookmarked_post_ids?.sort()) !== JSON.stringify(appUser.bookmarked_post_ids?.sort());
 
             if (currentAppUser?.id !== appUser.id ||
                 currentAppUser?.name !== appUser.name ||
@@ -200,14 +198,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                 currentAppUser?.avatarUrl !== appUser.avatarUrl || 
                 currentAppUser?.bio !== appUser.bio ||
                 rolesChanged || wishlistChanged || bookmarksChanged ) {
-                // console.log("[AuthContext] App user state updated in context:", appUser);
                 return appUser;
             }
-            // console.log("[AuthContext] App user state unchanged, no update to context needed for user:", appUser.id);
             return currentAppUser;
         });
       } else {
-        // console.log("[AuthContext] Firebase auth state changed, no user.");
         setUser(null);
       }
       setIsLoading(false);
@@ -231,6 +226,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       if (userCredential.user) {
         await updateFirebaseProfile(userCredential.user, { displayName: name });
       }
+      // Profile in Supabase will be created by onAuthStateChanged -> fetchAppUserProfile -> 404 handler
       return { success: true };
     } catch (error: any) {
       console.error("Firebase registration error:", error);
@@ -258,7 +254,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       // console.log("[AuthContext] Refreshing user profile via refreshUserProfile()...");
       setIsLoading(true);
       const appUser = await fetchAppUserProfile(currentFirebaseUser);
-      setUser(appUser); // This will trigger re-render if appUser is different
+      setUser(appUser); 
       setIsLoading(false);
       // console.log("[AuthContext] User profile refreshed via refreshUserProfile(). New state:", appUser);
     } else {
@@ -282,3 +278,4 @@ export const useAuth = (): AuthContextType => {
   }
   return context;
 };
+
