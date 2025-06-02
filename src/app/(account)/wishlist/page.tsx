@@ -12,66 +12,69 @@ import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
 
 export default function WishlistPage() {
-  const { user, isLoading: authLoading, refreshUserProfile } = useAuth();
+  const { user, isLoading: authIsLoading, refreshUserProfile } = useAuth();
   const { toast } = useToast();
+  const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [wishlistItems, setWishlistItems] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingAllProducts, setIsLoadingAllProducts] = useState(true);
 
-  const fetchWishlistProducts = useCallback(async () => {
-    if (!user || !user.id) {
-      setIsLoading(false);
-      setWishlistItems([]);
-      if (!authLoading) toast({ title: "Login Required", description: "Please log in to view your wishlist.", variant: "default" });
-      return;
-    }
-    setIsLoading(true);
+  const fetchAllProducts = useCallback(async () => {
+    setIsLoadingAllProducts(true);
     try {
-      // Fetch wishlist product IDs from user object (now sourced from Supabase via useAuth)
-      const wishlistProductIds = user.wishlist || [];
-
-      if (wishlistProductIds.length > 0) {
-        // Fetch product details for each ID in the wishlist
-        const productDetailsPromises = wishlistProductIds.map(async (productId: string) => {
-          try {
-            const res = await fetch(`/api/products/${productId}`); // Assuming product ID can be used as slug
-            if (res.ok) return res.json();
-            if (res.status === 404) {
-              console.warn(`[Wishlist] Product ID '${productId}' not found.`);
-              toast({ title: "Item Not Found", description: `A product (ID: ${productId}) in your wishlist is no longer available and has been removed.`, variant: "default" });
-              // Optionally, automatically remove this missing product ID from the user's wishlist
-              // This would require calling the remove API here. For now, we'll just not display it.
-              return null;
-            }
-            const errorData = await res.json().catch(() => ({}));
-            console.warn(`[Wishlist] Failed to fetch product ${productId}: ${errorData.message || res.statusText}`);
-            return null;
-          } catch (err) {
-            console.error(`[Wishlist] Network error fetching product ${productId}:`, err);
-            return null;
-          }
-        });
-        const products = (await Promise.all(productDetailsPromises)).filter(p => p !== null) as Product[];
-        setWishlistItems(products);
-      } else {
-        setWishlistItems([]);
+      const response = await fetch('/api/products');
+      if (!response.ok) {
+        throw new Error('Failed to fetch all products for wishlist.');
       }
+      const productsData: Product[] = await response.json();
+      setAllProducts(productsData);
     } catch (error) {
-      console.error("[WishlistPage] Error fetching wishlist products:", error);
-      toast({ title: "Error Loading Wishlist", description: "Could not load your wishlist items.", variant: "destructive" });
-      setWishlistItems([]);
+      console.error("[WishlistPage] Error fetching all products:", error);
+      toast({ title: "Error Loading Products", description: (error as Error).message, variant: "destructive" });
+      setAllProducts([]); // Ensure it's an empty array on error
     } finally {
-      setIsLoading(false);
+      setIsLoadingAllProducts(false);
     }
-  }, [user, authLoading, toast]);
+  }, [toast]);
 
   useEffect(() => {
-    if (!authLoading && user) {
-      fetchWishlistProducts();
-    } else if (!authLoading && !user) {
+    fetchAllProducts();
+  }, [fetchAllProducts]);
+
+  const filterWishlistItems = useCallback(() => {
+    if (authIsLoading || isLoadingAllProducts) {
+      setIsLoading(true);
+      return;
+    }
+    if (!user || !user.id) {
+      setWishlistItems([]);
       setIsLoading(false);
+      if(!authIsLoading) toast({ title: "Login Required", description: "Please log in to view your wishlist.", variant: "default" });
+      return;
+    }
+    
+    setIsLoading(true);
+    const wishlistProductIds = user.wishlist || [];
+    if (wishlistProductIds.length > 0 && allProducts.length > 0) {
+      const filteredItems = allProducts.filter(product => wishlistProductIds.includes(product.id));
+      setWishlistItems(filteredItems);
+      
+      // Check for missing items (IDs in wishlist but not found in allProducts)
+      const missingIds = wishlistProductIds.filter(id => !allProducts.some(p => p.id === id));
+      if (missingIds.length > 0) {
+        console.warn(`[Wishlist] ${missingIds.length} items from wishlist not found in product catalog:`, missingIds.join(', '));
+        // Optionally, you could inform the user or trigger an API call to clean up these missing IDs from their Supabase wishlist.
+        // For now, we just don't display them.
+      }
+    } else {
       setWishlistItems([]);
     }
-  }, [authLoading, user, fetchWishlistProducts]);
+    setIsLoading(false);
+  }, [user, authIsLoading, allProducts, isLoadingAllProducts, toast]);
+
+  useEffect(() => {
+    filterWishlistItems();
+  }, [filterWishlistItems]);
 
 
   const handleRemoveFromWishlist = async (productId: string) => {
@@ -91,14 +94,14 @@ export default function WishlistPage() {
       }
       toast({ title: "Item Removed", description: "The item has been removed from your wishlist." });
       await refreshUserProfile(); // This re-fetches user data including the updated wishlist
-      // The useEffect watching `user` will then trigger `fetchWishlistProducts`
+      // The useEffect watching `user` and `allProducts` will then trigger `filterWishlistItems`
     } catch (error) {
       console.error("Error removing from wishlist:", error);
       toast({ title: "Error", description: (error as Error).message, variant: "destructive" });
     }
   };
 
-  if (isLoading || authLoading) {
+  if (isLoading || authIsLoading || isLoadingAllProducts) {
     return (
         <div className="container-wide section-padding flex justify-center items-center min-h-[50vh]">
             <Loader2 className="h-12 w-12 animate-spin text-primary" />

@@ -7,18 +7,25 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Textarea } from '@/components/ui/textarea';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { User, Edit3, KeyRound, CheckCircle, ShieldAlert, Loader2 } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { User, Edit3, KeyRound, CheckCircle, ShieldAlert, Loader2, ShoppingBag, Heart, MessageSquare, Image as ImageIconLucide } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { useEffect, useState } from 'react';
-import type { User as AuthUserType } from '@/types'; // Assuming your types file defines this
+import { useEffect, useState, useCallback } from 'react';
+import type { User as AuthUserType, Order, Product, Review as ReviewType, UserPost } from '@/types';
+import { ProductCard } from '@/components/product/product-card';
+import Image from 'next/image'; // For order item images
+import { Badge } from '@/components/ui/badge'; // For order status
+import { RatingStars } from '@/components/ui/rating-stars'; // For review display
 
 const profileSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
   email: z.string().email({ message: "Invalid email address." }),
   avatarUrl: z.string().url({ message: "Invalid URL for avatar."}).optional().or(z.literal('')),
+  bio: z.string().max(250, "Bio must be 250 characters or less.").optional().or(z.literal('')),
 });
 
 const passwordSchema = z.object({
@@ -36,13 +43,25 @@ type PasswordFormValues = z.infer<typeof passwordSchema>;
 export default function ProfilePage() {
   const { user: authUser, isLoading: authLoading, refreshUserProfile } = useAuth();
   const { toast } = useToast();
-  const [isFetchingProfile, setIsFetchingProfile] = useState(true);
-  // Use a more specific type for profileData if it differs from AuthUserType from useAuth
-  const [profileData, setProfileData] = useState<Partial<AuthUserType> | null>(null); 
+  const [isFetchingProfileDetails, setIsFetchingProfileDetails] = useState(true);
+  const [profileData, setProfileData] = useState<AuthUserType | null>(null);
+  
+  const [userOrders, setUserOrders] = useState<Order[]>([]);
+  const [isLoadingOrders, setIsLoadingOrders] = useState(false);
+  
+  const [allProducts, setAllProducts] = useState<Product[]>([]); // For wishlist
+  const [wishlistItems, setWishlistItems] = useState<Product[]>([]);
+  const [isLoadingWishlistProducts, setIsLoadingWishlistProducts] = useState(false);
+
+  const [userSubmittedPosts, setUserSubmittedPosts] = useState<UserPost[]>([]);
+  const [isLoadingUserPosts, setIsLoadingUserPosts] = useState(false);
+  const [userReviews, setUserReviews] = useState<ReviewType[]>([]);
+  const [isLoadingUserReviews, setIsLoadingUserReviews] = useState(false);
+
 
   const profileForm = useForm<ProfileFormValues>({
     resolver: zodResolver(profileSchema),
-    defaultValues: { name: '', email: '', avatarUrl: '' },
+    defaultValues: { name: '', email: '', avatarUrl: '', bio: '' },
   });
 
   const passwordForm = useForm<PasswordFormValues>({
@@ -50,50 +69,108 @@ export default function ProfilePage() {
     defaultValues: { currentPassword: '', newPassword: '', confirmPassword: '' },
   });
 
-  useEffect(() => {
-    const fetchProfile = async () => {
-      if (authUser && authUser.id) {
-        setIsFetchingProfile(true);
-        try {
-          const response = await fetch(`/api/account/profile?uid=${authUser.id}`);
-          if (response.ok) {
-            const data: AuthUserType = await response.json();
-            setProfileData(data);
-            profileForm.reset({
-              name: data.name || '',
-              email: data.email || '', // Email should primarily come from authUser and be non-editable
-              avatarUrl: data.avatarUrl || '',
-            });
-          } else if (response.status === 404) {
-            // Profile not found in DB, use authUser details as base
-            setProfileData({ name: authUser.name, email: authUser.email, avatarUrl: authUser.avatarUrl });
-            profileForm.reset({
-              name: authUser.name || '',
-              email: authUser.email || '',
-              avatarUrl: authUser.avatarUrl || '',
-            });
-            toast({ title: "New Profile", description: "Looks like this is your first time, please complete your profile.", variant: "default" });
-          } else {
-            const errorData = await response.json().catch(() => ({}));
-            throw new Error(errorData.message || errorData.rawSupabaseError?.message || `Failed to fetch profile: ${response.statusText}`);
-          }
-        } catch (error) {
-          console.error("Error fetching profile:", error);
-          toast({ title: "Error Loading Profile", description: (error as Error).message, variant: "destructive" });
-          // Fallback to authUser data for the form if API fails
-          if (authUser) {
-            setProfileData({ name: authUser.name, email: authUser.email, avatarUrl: authUser.avatarUrl });
-            profileForm.reset({ name: authUser.name || '', email: authUser.email || '', avatarUrl: authUser.avatarUrl || '' });
-          }
-        } finally {
-          setIsFetchingProfile(false);
+  const fetchFullProfileData = useCallback(async () => {
+    if (authUser && authUser.id) {
+      setIsFetchingProfileDetails(true);
+      try {
+        const response = await fetch(`/api/account/profile?uid=${authUser.id}`);
+        if (response.ok) {
+          const data: AuthUserType = await response.json();
+          setProfileData(data);
+          profileForm.reset({
+            name: data.name || '',
+            email: data.email || '',
+            avatarUrl: data.avatarUrl || '',
+            bio: data.bio || '',
+          });
+        } else {
+          const errorData = await response.json().catch(() => ({}));
+           throw new Error(errorData.message || errorData.rawSupabaseError?.message || `Failed to fetch profile: ${response.statusText}`);
         }
-      } else if (!authLoading && !authUser) {
-        setIsFetchingProfile(false); 
+      } catch (error) {
+        console.error("Error fetching profile:", error);
+        toast({ title: "Error Loading Profile", description: (error as Error).message, variant: "destructive" });
+        if (authUser) { // Fallback to authUser if API fails
+            setProfileData(authUser);
+            profileForm.reset({ name: authUser.name || '', email: authUser.email || '', avatarUrl: authUser.avatarUrl || '', bio: authUser.bio || '' });
+        }
+      } finally {
+        setIsFetchingProfileDetails(false);
       }
-    };
-    if (!authLoading) fetchProfile();
+    } else if (!authLoading && !authUser) {
+        setIsFetchingProfileDetails(false);
+    }
   }, [authUser, authLoading, toast, profileForm]);
+
+  useEffect(() => {
+    if (!authLoading) fetchFullProfileData();
+  }, [authLoading, fetchFullProfileData]);
+
+  const fetchOrdersForProfile = useCallback(async () => {
+    if (authUser?.id) {
+      setIsLoadingOrders(true);
+      try {
+        const res = await fetch(`/api/account/orders?userId=${authUser.id}`);
+        if (!res.ok) throw new Error("Failed to fetch orders");
+        const data: Order[] = await res.json();
+        setUserOrders(data);
+      } catch (err) {
+        toast({ title: "Error", description: "Could not load your orders.", variant: "destructive" });
+      } finally {
+        setIsLoadingOrders(false);
+      }
+    }
+  }, [authUser, toast]);
+
+  const fetchAllProductsForWishlist = useCallback(async () => {
+    if (authUser?.wishlist && authUser.wishlist.length > 0) {
+      setIsLoadingWishlistProducts(true);
+      try {
+        const res = await fetch('/api/products');
+        if(!res.ok) throw new Error("Failed to load all products for wishlist filtering.");
+        const productsData: Product[] = await res.json();
+        setAllProducts(productsData);
+        const filtered = productsData.filter(p => authUser.wishlist!.includes(p.id));
+        setWishlistItems(filtered);
+      } catch (err) {
+        toast({ title: "Error", description: "Could not load wishlist products.", variant: "destructive"});
+      } finally {
+        setIsLoadingWishlistProducts(false);
+      }
+    } else {
+      setWishlistItems([]);
+    }
+  }, [authUser, toast]);
+
+  const fetchUserSubmissions = useCallback(async () => {
+      if (authUser?.id) {
+          setIsLoadingUserPosts(true);
+          setIsLoadingUserReviews(true);
+          try {
+              const [postsRes, reviewsRes] = await Promise.all([
+                  fetch(`/api/user-posts?userId=${authUser.id}`),
+                  fetch(`/api/reviews?userId=${authUser.id}`) 
+              ]);
+              if (postsRes.ok) {
+                  const postsData: UserPost[] = await postsRes.json();
+                  setUserSubmittedPosts(postsData.filter(p => p.status === 'approved')); // Show only approved posts
+              } else {
+                  toast({title: "Error", description: "Could not load your community posts.", variant: "destructive"});
+              }
+              if (reviewsRes.ok) {
+                  const reviewsData: ReviewType[] = await reviewsRes.json();
+                  setUserReviews(reviewsData.filter(r => r.status === 'approved')); // Show only approved reviews
+              } else {
+                   toast({title: "Error", description: "Could not load your reviews.", variant: "destructive"});
+              }
+          } catch (err) {
+               toast({title: "Error", description: "Failed to load your submissions.", variant: "destructive"});
+          } finally {
+              setIsLoadingUserPosts(false);
+              setIsLoadingUserReviews(false);
+          }
+      }
+  }, [authUser, toast]);
 
 
   const onProfileSubmit = async (data: ProfileFormValues) => {
@@ -101,40 +178,28 @@ export default function ProfilePage() {
       toast({ title: "Authentication Error", description: "You must be logged in.", variant: "destructive" });
       return;
     }
-
     try {
-      const payload: Partial<AuthUserType> & { id: string } = { // Ensure id is part of the payload for Supabase
+      const payload = {
         id: authUser.id,
         name: data.name,
-        avatarUrl: data.avatarUrl || undefined, // Send undefined if empty to clear it
-        // Email is usually not updated this way directly due to Firebase security/verification
-        // Roles and wishlist should be preserved from current authUser state or managed by backend
-        roles: authUser.roles,
-        wishlist: authUser.wishlist,
+        avatarUrl: data.avatarUrl || null,
+        bio: data.bio || null,
+        email: authUser.email, // Email is fixed from authUser
+        roles: profileData?.roles || authUser.roles, // Preserve roles
+        wishlist: profileData?.wishlist || authUser.wishlist, // Preserve wishlist
       };
-
       const response = await fetch('/api/account/profile', {
-        method: 'POST', // API route handles upsert logic
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
       });
-
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ message: 'Failed to update profile. Server returned non-JSON response.' }));
         throw new Error(errorData.message || errorData.rawSupabaseError?.message || 'Failed to update profile');
       }
-      
       const updatedProfileResponse = await response.json();
-      await refreshUserProfile(); // This will refetch user data from Supabase and update authContext
-
-      toast({
-        title: "Profile Updated",
-        description: "Your personal information has been successfully updated.",
-        action: <CheckCircle className="text-green-500" />,
-      });
-      setProfileData(updatedProfileResponse.user); 
-      profileForm.reset(updatedProfileResponse.user); // Reset form with new values
-
+      await refreshUserProfile();
+      toast({ title: "Profile Updated", description: "Your information has been saved.", action: <CheckCircle className="text-green-500" /> });
+      setProfileData(updatedProfileResponse.user);
+      profileForm.reset(updatedProfileResponse.user);
     } catch (error) {
       console.error("Error updating profile:", error);
       toast({ title: "Update Failed", description: (error as Error).message, variant: "destructive" });
@@ -142,19 +207,17 @@ export default function ProfilePage() {
   };
 
   const onPasswordSubmit = async (data: PasswordFormValues) => {
-    console.log("Password change data (client-side mock):", data);
-    toast({
-      title: "Password Change (Mock)",
-      description: "Password change functionality requires direct Firebase SDK integration for security. This is a UI placeholder.",
-      variant: "default",
-      action: <ShieldAlert className="text-yellow-500" />,
-    });
+    toast({ title: "Password Change (Mock)", description: "Password change requires Firebase SDK direct integration.", variant: "default", action: <ShieldAlert className="text-yellow-500" /> });
     passwordForm.reset();
   };
   
   const currentDisplayUser = profileData || authUser;
+  const ordersCount = userOrders.length;
+  const wishlistCount = authUser?.wishlist?.length || 0;
+  const submissionsCount = userSubmittedPosts.length + userReviews.length;
 
-  if (authLoading || isFetchingProfile) {
+
+  if (authLoading || isFetchingProfileDetails) {
       return <div className="container-wide section-padding text-center flex items-center justify-center min-h-[50vh]"><Loader2 className="h-12 w-12 animate-spin text-primary" /> <span className="ml-4 text-lg">Loading profile...</span></div>
   }
   if (!authUser) { 
@@ -163,142 +226,139 @@ export default function ProfilePage() {
 
   return (
     <div className="container-wide section-padding">
-      <div className="flex items-center mb-10">
-        <User className="h-10 w-10 mr-4 text-primary" />
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Your Profile</h1>
-          <p className="text-muted-foreground">Manage your personal information and account settings.</p>
-        </div>
-      </div>
-      
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-start">
-        <div className="md:col-span-1">
-          <Card className="shadow-lg p-6 text-center sticky top-24">
-             <Avatar className="h-28 w-28 mx-auto mb-4 border-4 border-primary p-1">
-                <AvatarImage src={profileForm.watch('avatarUrl') || currentDisplayUser?.avatarUrl || `https://placehold.co/150x150.png`} alt={currentDisplayUser?.name || 'User'} data-ai-hint="profile avatar user"/>
-                <AvatarFallback className="text-4xl">{currentDisplayUser?.name ? currentDisplayUser.name.charAt(0).toUpperCase() : <User />}</AvatarFallback>
-            </Avatar>
-            <h2 className="text-xl font-semibold text-foreground">{profileForm.watch('name') || currentDisplayUser?.name}</h2>
-            <p className="text-sm text-muted-foreground">{profileForm.watch('email') || currentDisplayUser?.email}</p>
-             <p className="text-xs text-accent mt-1 capitalize">Role: {currentDisplayUser?.roles?.join(', ') || 'Customer'}</p>
-          </Card>
+      <Card className="shadow-xl p-6 md:p-8">
+        <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 mb-8">
+          <Avatar className="h-24 w-24 sm:h-32 sm:w-32 border-4 border-primary p-1 shrink-0">
+            <AvatarImage src={profileForm.watch('avatarUrl') || currentDisplayUser?.avatarUrl || `https://placehold.co/150x150.png`} alt={currentDisplayUser?.name || 'User'} data-ai-hint="profile avatar user"/>
+            <AvatarFallback className="text-4xl">{currentDisplayUser?.name ? currentDisplayUser.name.charAt(0).toUpperCase() : <User />}</AvatarFallback>
+          </Avatar>
+          <div className="text-center sm:text-left flex-grow">
+            <h1 className="text-3xl font-bold text-foreground">{profileForm.watch('name') || currentDisplayUser?.name}</h1>
+            <p className="text-sm text-muted-foreground mb-1">{profileForm.watch('email') || currentDisplayUser?.email}</p>
+             <p className="text-xs text-accent mb-3 capitalize">Role: {currentDisplayUser?.roles?.join(', ') || 'Customer'}</p>
+            <Textarea 
+              readOnly 
+              value={profileForm.watch('bio') || currentDisplayUser?.bio || "No bio yet. Add one in Edit Profile!"} 
+              className="text-sm text-muted-foreground bg-transparent border-none p-0 min-h-[40px] resize-none focus-visible:ring-0 focus-visible:ring-offset-0 cursor-default"
+            />
+          </div>
+          <Button variant="outline" size="sm" onClick={() => document.getElementById('edit-profile-trigger')?.click()} className="mt-4 sm:mt-0 shrink-0">
+            <Edit3 className="mr-2 h-4 w-4" /> Edit Profile
+          </Button>
         </div>
 
-        <div className="md:col-span-2 space-y-8">
-          <Card className="shadow-xl">
-            <CardHeader>
-              <CardTitle className="text-2xl flex items-center"><Edit3 className="mr-3 h-6 w-6 text-primary" />Personal Information</CardTitle>
-              <CardDescription>Update your name, email address, and avatar.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Form {...profileForm}>
-                <form onSubmit={profileForm.handleSubmit(onProfileSubmit)} className="space-y-6">
-                  <FormField
-                    control={profileForm.control}
-                    name="name"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Full Name</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Your full name" {...field} value={field.value || ''} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={profileForm.control}
-                    name="email"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Email Address</FormLabel>
-                        <FormControl>
-                          <Input type="email" placeholder="your.email@example.com" {...field} value={field.value || ''} disabled />
-                        </FormControl>
-                        <FormMessage />
-                         <p className="text-xs text-muted-foreground pt-1">Email address cannot be changed here. This requires a separate secure process.</p>
-                      </FormItem>
-                    )}
-                  />
-                   <FormField
-                    control={profileForm.control}
-                    name="avatarUrl"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Avatar URL (Optional)</FormLabel>
-                        <FormControl>
-                          <Input placeholder="https://example.com/avatar.png" {...field} value={field.value || ''} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <Button type="submit" className="w-full sm:w-auto" disabled={profileForm.formState.isSubmitting}>
-                    {profileForm.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Save Changes
-                  </Button>
-                </form>
-              </Form>
-            </CardContent>
-          </Card>
-
-          <Card className="shadow-xl">
-            <CardHeader>
-              <CardTitle className="text-2xl flex items-center"><KeyRound className="mr-3 h-6 w-6 text-primary" />Change Password</CardTitle>
-              <CardDescription>Update your account password. Choose a strong, unique password.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Form {...passwordForm}>
-                <form onSubmit={passwordForm.handleSubmit(onPasswordSubmit)} className="space-y-6">
-                  <FormField
-                    control={passwordForm.control}
-                    name="currentPassword"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Current Password</FormLabel>
-                        <FormControl>
-                          <Input type="password" placeholder="••••••••" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={passwordForm.control}
-                    name="newPassword"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>New Password</FormLabel>
-                        <FormControl>
-                          <Input type="password" placeholder="••••••••" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={passwordForm.control}
-                    name="confirmPassword"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Confirm New Password</FormLabel>
-                        <FormControl>
-                          <Input type="password" placeholder="••••••••" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <Button type="submit" className="w-full sm:w-auto" disabled={passwordForm.formState.isSubmitting}>
-                     {passwordForm.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Update Password
-                  </Button>
-                </form>
-              </Form>
-            </CardContent>
-          </Card>
+        <div className="grid grid-cols-3 gap-4 text-center mb-10 border-t border-b py-4">
+          <div><p className="text-xl font-semibold text-foreground">{ordersCount}</p><p className="text-xs text-muted-foreground">Orders</p></div>
+          <div><p className="text-xl font-semibold text-foreground">{wishlistCount}</p><p className="text-xs text-muted-foreground">Wishlist</p></div>
+          <div><p className="text-xl font-semibold text-foreground">{submissionsCount}</p><p className="text-xs text-muted-foreground">Submissions</p></div>
         </div>
-      </div>
+
+        <Tabs defaultValue="submissions" 
+              onValueChange={(value) => {
+                if(value === 'orders' && userOrders.length === 0) fetchOrdersForProfile();
+                if(value === 'wishlist' && wishlistItems.length === 0) fetchAllProductsForWishlist();
+                if(value === 'submissions' && userSubmittedPosts.length === 0 && userReviews.length === 0) fetchUserSubmissions();
+              }}>
+          <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 mb-6">
+            <TabsTrigger value="submissions">My Submissions</TabsTrigger>
+            <TabsTrigger value="orders">My Orders</TabsTrigger>
+            <TabsTrigger value="wishlist">My Wishlist</TabsTrigger>
+            <TabsTrigger value="settings" id="edit-profile-trigger">Edit Profile</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="submissions" className="space-y-8">
+             <h3 className="text-xl font-semibold text-foreground mb-4 flex items-center"><ImageIconLucide className="mr-2 h-5 w-5 text-primary"/>My Community Posts</h3>
+              {isLoadingUserPosts ? <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary"/> : userSubmittedPosts.length > 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                      {userSubmittedPosts.map(post => (
+                          <Card key={post.id} className="overflow-hidden">
+                              <Image src={post.image_url} alt={post.caption || 'User post'} width={300} height={300} className="w-full h-48 object-cover" data-ai-hint="user fashion image"/>
+                              <CardContent className="p-3">
+                                  <p className="text-xs text-muted-foreground line-clamp-2">{post.caption || "No caption."}</p>
+                                  <p className="text-xs text-primary mt-1">Status: {post.status}</p>
+                              </CardContent>
+                          </Card>
+                      ))}
+                  </div>
+              ) : <p className="text-muted-foreground text-sm">You haven&apos;t submitted any community posts yet.</p>}
+
+              <h3 className="text-xl font-semibold text-foreground mb-4 mt-8 flex items-center"><MessageSquare className="mr-2 h-5 w-5 text-primary"/>My Product Reviews</h3>
+              {isLoadingUserReviews ? <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary"/> : userReviews.length > 0 ? (
+                  <div className="space-y-4">
+                      {userReviews.map(review => (
+                          <Card key={review.id} className="p-3">
+                              <div className="flex justify-between items-start">
+                                  <p className="text-sm font-medium text-foreground">{review.product_name || review.product_id}</p>
+                                  <RatingStars rating={review.rating} size={14}/>
+                              </div>
+                              {review.title && <p className="text-xs font-semibold mt-0.5">{review.title}</p>}
+                              <p className="text-xs text-muted-foreground mt-0.5 line-clamp-3">{review.comment}</p>
+                              <p className="text-xs text-primary mt-1">Status: {review.status}</p>
+                          </Card>
+                      ))}
+                  </div>
+              ) : <p className="text-muted-foreground text-sm">You haven&apos;t submitted any reviews yet.</p>}
+          </TabsContent>
+          
+          <TabsContent value="orders">
+             {isLoadingOrders ? <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary"/> : userOrders.length > 0 ? (
+                userOrders.map(order => (
+                  <Card key={order.id} className="mb-4 p-4">
+                    <div className="flex justify-between items-center mb-2">
+                        <p className="text-sm font-medium">Order ID: <span className="text-primary">{order.id.substring(0,12)}...</span></p>
+                        <Badge variant={order.status === 'Delivered' ? 'default' : 'outline'} className={order.status === 'Delivered' ? 'bg-green-100 text-green-700 border-green-300' : ''}>{order.status}</Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground">Date: {new Date(order.createdAt).toLocaleDateString()} | Total: रू{order.totalAmount.toLocaleString()}</p>
+                  </Card>
+                ))
+              ) : <p className="text-center text-muted-foreground py-6">No orders found.</p>}
+          </TabsContent>
+
+          <TabsContent value="wishlist">
+             {isLoadingWishlistProducts ? <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary"/> : wishlistItems.length > 0 ? (
+                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+                    {wishlistItems.map(item => <ProductCard key={item.id} product={item} />)}
+                 </div>
+              ) : <p className="text-center text-muted-foreground py-6">Your wishlist is empty.</p>}
+          </TabsContent>
+
+          <TabsContent value="settings">
+            <Card className="shadow-none border-0 md:border md:shadow-sm">
+              <CardHeader>
+                <CardTitle className="text-2xl flex items-center"><Edit3 className="mr-3 h-6 w-6 text-primary" />Personal Information</CardTitle>
+                <CardDescription>Update your name, avatar, and bio.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Form {...profileForm}>
+                  <form onSubmit={profileForm.handleSubmit(onProfileSubmit)} className="space-y-6">
+                    <FormField control={profileForm.control} name="name" render={({ field }) => ( <FormItem><FormLabel>Full Name</FormLabel><FormControl><Input placeholder="Your full name" {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem> )} />
+                    <FormField control={profileForm.control} name="email" render={({ field }) => ( <FormItem><FormLabel>Email Address</FormLabel><FormControl><Input type="email" placeholder="your.email@example.com" {...field} value={field.value || ''} disabled /></FormControl><FormMessage /><p className="text-xs text-muted-foreground pt-1">Email cannot be changed here.</p></FormItem> )} />
+                    <FormField control={profileForm.control} name="avatarUrl" render={({ field }) => ( <FormItem><FormLabel>Avatar URL</FormLabel><FormControl><Input placeholder="https://example.com/avatar.png" {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem> )} />
+                    <FormField control={profileForm.control} name="bio" render={({ field }) => ( <FormItem><FormLabel>Bio</FormLabel><FormControl><Textarea placeholder="Tell us a bit about yourself..." {...field} value={field.value || ''} rows={3} /></FormControl><FormMessage /></FormItem> )} />
+                    <Button type="submit" className="w-full sm:w-auto" disabled={profileForm.formState.isSubmitting}> {profileForm.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Save Changes </Button>
+                  </form>
+                </Form>
+              </CardContent>
+            </Card>
+            <Card className="mt-8 shadow-none border-0 md:border md:shadow-sm">
+              <CardHeader>
+                <CardTitle className="text-2xl flex items-center"><KeyRound className="mr-3 h-6 w-6 text-primary" />Change Password</CardTitle>
+                <CardDescription>Update your account password.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Form {...passwordForm}>
+                  <form onSubmit={passwordForm.handleSubmit(onPasswordSubmit)} className="space-y-6">
+                    <FormField control={passwordForm.control} name="currentPassword" render={({ field }) => ( <FormItem><FormLabel>Current Password</FormLabel><FormControl><Input type="password" placeholder="••••••••" {...field} /></FormControl><FormMessage /></FormItem> )} />
+                    <FormField control={passwordForm.control} name="newPassword" render={({ field }) => ( <FormItem><FormLabel>New Password</FormLabel><FormControl><Input type="password" placeholder="••••••••" {...field} /></FormControl><FormMessage /></FormItem> )} />
+                    <FormField control={passwordForm.control} name="confirmPassword" render={({ field }) => ( <FormItem><FormLabel>Confirm New Password</FormLabel><FormControl><Input type="password" placeholder="••••••••" {...field} /></FormControl><FormMessage /></FormItem> )} />
+                    <Button type="submit" className="w-full sm:w-auto" disabled={passwordForm.formState.isSubmitting}> {passwordForm.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Update Password </Button>
+                  </form>
+                </Form>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+      </Card>
     </div>
   );
 }
