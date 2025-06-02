@@ -12,7 +12,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Save, Link as LinkIcon, PlusCircle, Trash2, Settings, MessageCircle } from 'lucide-react'; // Added MessageCircle
+import { Loader2, Save, Link as LinkIcon, PlusCircle, Trash2, Settings, MessageCircle } from 'lucide-react'; 
 import type { SiteSettings, SocialLink } from '@/types';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
@@ -178,16 +178,16 @@ export default function AdminSettingsPage() {
             <fieldset className="space-y-4 p-4 border rounded-md bg-card">
               <legend className="text-lg font-semibold px-1 -mt-7 bg-card flex items-center"><MessageCircle className="mr-2 h-5 w-5 text-primary"/>Social Messaging Links</legend>
               <FormDescription>
-                Used for the floating social messaging widget.
+                Used for the floating social messaging widget on the bottom-left of your site. Enter only the username or ID, not the full URL.
               </FormDescription>
               <FormField control={form.control} name="whatsappNumber" render={({ field }) => (
-                <FormItem><FormLabel>WhatsApp Number</FormLabel><FormControl><Input {...field} value={field.value || ''} placeholder="e.g., 97798XXXXXXXX" /></FormControl><FormDescription>Include country code. Example: 9779862020757</FormDescription><FormMessage /></FormItem>
+                <FormItem><FormLabel>WhatsApp Number</FormLabel><FormControl><Input {...field} value={field.value || ''} placeholder="e.g., 97798XXXXXXXX" /></FormControl><FormDescription>Your WhatsApp phone number, including country code (e.g., 9779862020757). The widget will format the link.</FormDescription><FormMessage /></FormItem>
               )} />
               <FormField control={form.control} name="instagramUsername" render={({ field }) => (
-                <FormItem><FormLabel>Instagram Username</FormLabel><FormControl><Input {...field} value={field.value || ''} placeholder="e.g., peakpulsenp" /></FormControl><FormDescription>Your Instagram username (without @).</FormDescription><FormMessage /></FormItem>
+                <FormItem><FormLabel>Instagram Username</FormLabel><FormControl><Input {...field} value={field.value || ''} placeholder="e.g., peakpulsenp" /></FormControl><FormDescription>Your Instagram username (e.g., `peakpulsenp`), not the full profile URL. The widget will create the DM link.</FormDescription><FormMessage /></FormItem>
               )} />
               <FormField control={form.control} name="facebookUsernameOrPageId" render={({ field }) => (
-                <FormItem><FormLabel>Facebook Username or Page ID</FormLabel><FormControl><Input {...field} value={field.value || ''} placeholder="e.g., peakpulsenp or 1000XXXXXXXXX" /></FormControl><FormDescription>Your Facebook username or numeric Page ID.</FormDescription><FormMessage /></FormItem>
+                <FormItem><FormLabel>Facebook Username or Page ID</FormLabel><FormControl><Input {...field} value={field.value || ''} placeholder="e.g., peakpulsenp or 1000XXXXXXXXX" /></FormControl><FormDescription>Your Facebook Page's username (e.g., `peakpulsenp`) or its numeric Page ID. The widget will create the Messenger link.</FormDescription><FormMessage /></FormItem>
               )} />
             </fieldset>
 
