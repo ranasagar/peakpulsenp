@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
         liked_by_user_ids,
         created_at,
         updated_at,
-        user:users ( name, "avatarUrl" ) 
+        user:users ( name, email, "avatarUrl" ) 
       `);
 
     if (userIdParam) {
@@ -69,7 +69,7 @@ export async function GET(request: NextRequest) {
     const posts: UserPost[] = (data || []).map((post: any) => ({ 
         id: post.id,
         user_id: post.user_id,
-        user_name: post.user?.name || 'Peak Pulse User', 
+        user_name: post.user?.name || (post.user?.email ? post.user.email.split('@')[0] : (post.user_id ? post.user_id.substring(0,8)+'...' : 'Anonymous')), 
         user_avatar_url: post.user?.avatarUrl || undefined,
         image_url: post.image_url,
         caption: post.caption,
