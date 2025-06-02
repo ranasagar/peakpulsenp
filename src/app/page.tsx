@@ -581,6 +581,46 @@ function HomePageContent() {
         </section>
       )}
 
+      {/* Social Commerce Section (#PeakPulseStyle) */}
+      {!isLoadingContent && (
+        <section className="section-padding container-wide relative z-[1] bg-muted/30">
+          <div className="text-center mb-12">
+            <Instagram className="h-10 w-10 text-pink-600 mx-auto mb-3" />
+            <h2 className="text-3xl font-bold text-foreground">#PeakPulseStyle on Social</h2>
+            <p className="text-muted-foreground mt-1 max-w-xl mx-auto">
+              Get inspired by our community. Tag us <code className="font-mono bg-foreground/10 p-1 rounded-sm">@peakpulsenp</code> to be featured!
+            </p>
+          </div>
+          {activeSocialCommerceItems.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 md:gap-8">
+              {activeSocialCommerceItems.map(item => (
+                <Card key={item.id} className="overflow-hidden rounded-xl shadow-lg group hover:shadow-2xl transition-shadow">
+                  <InteractiveExternalLink href={item.linkUrl} target="_blank" rel="noopener noreferrer" showDialog={true}>
+                    <AspectRatio ratio={1/1} className="relative bg-card">
+                      <Image 
+                        src={item.imageUrl} 
+                        alt={item.altText || "Peak Pulse style on social media"}
+                        fill
+                        sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                        className="object-cover transition-transform duration-500 group-hover:scale-105"
+                        data-ai-hint={item.dataAiHint || "social fashion instagram"}
+                      />
+                       <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-3">
+                          <Instagram className="h-5 w-5 text-white" />
+                       </div>
+                    </AspectRatio>
+                  </InteractiveExternalLink>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-10">
+              <p className="text-muted-foreground">No social posts to display at the moment. Follow us and tag #PeakPulseStyle!</p>
+            </div>
+          )}
+        </section>
+      )}
+
       {isLoadingCollaborations ? ( <section className="section-padding container-wide relative z-[1] bg-muted/30"><div className="flex justify-center items-center py-10"><Loader2 className="h-10 w-10 animate-spin text-primary" /></div></section>
       ): featuredCollaborations.length > 0 && (
         <section className="section-padding container-wide relative z-[1] bg-muted/30">
