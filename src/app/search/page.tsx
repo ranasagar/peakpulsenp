@@ -4,34 +4,94 @@
 import MainLayout from '@/components/layout/main-layout';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Search as SearchIcon } from 'lucide-react';
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { ProductCard } from '@/components/product/product-card';
+import { Search as SearchIcon, XCircle, Loader2 } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
+import type { Product } from '@/types';
 
 export default function SearchPage() {
-  const [searchTerm, setSearchTerm] = useState('');
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
+
+  const [searchTerm, setSearchTerm] = useState('');
+  const [allProducts, setAllProducts] = useState<Product[]>([]);
+  const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [hasSearched, setHasSearched] = useState(false);
+
+  // Fetch all products on mount
+  useEffect(() => {
+    const fetchAllProducts = async () => {
+      setIsLoading(true);
+      setHasSearched(false); // Reset search state on initial load
+      try {
+        const response = await fetch('/api/products');
+        if (!response.ok) {
+          throw new Error('Failed to fetch products');
+        }
+        const productsData: Product[] = await response.json();
+        setAllProducts(productsData);
+        
+        // Check for initial search query from URL
+        const initialQuery = searchParams.get('q');
+        if (initialQuery) {
+          setSearchTerm(initialQuery);
+          performSearch(initialQuery, productsData);
+        } else {
+          setIsLoading(false); // Stop loading if no initial query
+        }
+      } catch (error) {
+        toast({
+          title: "Error Loading Products",
+          description: (error as Error).message,
+          variant: "destructive",
+        });
+        setAllProducts([]);
+        setIsLoading(false);
+      }
+    };
+    fetchAllProducts();
+  }, [searchParams]); // Depend on searchParams to re-trigger if 'q' changes externally
+
+  const performSearch = (query: string, productsToSearch: Product[]) => {
+    setIsLoading(true); // Show loading during search processing
+    setHasSearched(true);
+    const lowerCaseQuery = query.toLowerCase().trim();
+
+    if (!lowerCaseQuery) {
+      setFilteredProducts([]);
+      setIsLoading(false);
+      return;
+    }
+
+    const results = productsToSearch.filter(product => {
+      const nameMatch = product.name.toLowerCase().includes(lowerCaseQuery);
+      const shortDescMatch = product.shortDescription?.toLowerCase().includes(lowerCaseQuery);
+      const descMatch = product.description.toLowerCase().includes(lowerCaseQuery);
+      const categoryMatch = product.categories.some(cat => cat.name.toLowerCase().includes(lowerCaseQuery));
+      const skuMatch = product.sku?.toLowerCase().includes(lowerCaseQuery);
+      // Add more fields to search if needed (e.g., tags, variant names)
+      return nameMatch || shortDescMatch || descMatch || categoryMatch || skuMatch;
+    });
+
+    setFilteredProducts(results);
+    setIsLoading(false);
+  };
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (searchTerm.trim()) {
-      console.log('Search term submitted:', searchTerm);
-      toast({
-        title: "Search Submitted (Dev Mode)",
-        description: `You searched for: "${searchTerm}". Full search results functionality is pending implementation.`,
-      });
-      // Future: router.push(`/search/results?q=${encodeURIComponent(searchTerm.trim())}`);
-    } else {
-      toast({
-        title: "Empty Search",
-        description: "Please enter a term to search for.",
-        variant: "default"
-      });
-    }
+    const trimmedSearchTerm = searchTerm.trim();
+    // Update URL to reflect the search query
+    router.push(`/search?q=${encodeURIComponent(trimmedSearchTerm)}`);
+    // performSearch will be called by useEffect due to searchParams change,
+    // or call it directly if you don't want to rely on useEffect for this specific interaction.
+    // For immediate feedback:
+    performSearch(trimmedSearchTerm, allProducts); 
   };
-
+  
   return (
     <MainLayout>
       <div className="container-wide section-padding">
@@ -56,24 +116,40 @@ export default function SearchPage() {
           </Button>
         </form>
 
-        <div className="mt-12 text-center border-t pt-12">
-          {/* Placeholder for search results or suggestions */}
-          <h2 className="text-2xl font-semibold text-foreground mb-4">Search Results</h2>
-          <p className="text-muted-foreground">
-            Enter a search term above to find products. Full search results will appear here.
-          </p>
-          {/* Example of how results might look (static for now) */}
-          {/* 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 mt-8">
-            {[1,2,3].map(i => (
-              <div key={i} className="border p-4 rounded-lg bg-card shadow-sm">
-                <div className="w-full h-48 bg-muted rounded-md mb-3 animate-pulse"></div>
-                <div className="h-6 w-3/4 bg-muted rounded mb-2 animate-pulse"></div>
-                <div className="h-4 w-1/2 bg-muted rounded animate-pulse"></div>
+        <div className="mt-12">
+          {isLoading ? (
+            <div className="flex justify-center items-center py-10">
+              <Loader2 className="h-10 w-10 animate-spin text-primary" />
+              <p className="ml-3 text-muted-foreground">Searching...</p>
+            </div>
+          ) : hasSearched ? (
+            filteredProducts.length > 0 ? (
+              <>
+                <h2 className="text-2xl font-semibold text-foreground mb-6">
+                  Search Results for &quot;{decodeURIComponent(searchParams.get('q') || searchTerm)}&quot; ({filteredProducts.length})
+                </h2>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 md:gap-8">
+                  {filteredProducts.map(product => (
+                    <ProductCard key={product.id} product={product} />
+                  ))}
+                </div>
+              </>
+            ) : (
+              <div className="text-center py-16">
+                <XCircle className="mx-auto h-16 w-16 text-muted-foreground mb-4" />
+                <p className="text-xl font-semibold text-foreground mb-2">No products found</p>
+                <p className="text-muted-foreground">
+                  We couldn&apos;t find any products matching &quot;{decodeURIComponent(searchParams.get('q') || searchTerm)}&quot;. Try a different search term.
+                </p>
               </div>
-            ))}
-          </div> 
-          */}
+            )
+          ) : (
+             allProducts.length > 0 && !searchParams.get('q') && (
+                <div className="text-center py-10">
+                    <p className="text-muted-foreground">Enter a term above to search through {allProducts.length} available products.</p>
+                </div>
+            )
+          )}
         </div>
       </div>
     </MainLayout>
