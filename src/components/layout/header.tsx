@@ -34,10 +34,10 @@ const mainNavItems: NavItem[] = [
 ];
 
 const userNavItems: NavItem[] = [
-  { title: 'Dashboard', href: '/account/dashboard', icon: LayoutDashboard },
-  { title: 'Orders', href: '/account/orders', icon: ShoppingBagIcon },
-  { title: 'Profile', href: '/account/profile', icon: Settings },
-  { title: 'Wishlist', href: '/account/wishlist', icon: Star },
+  { title: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+  { title: 'Orders', href: '/orders', icon: ShoppingBagIcon },
+  { title: 'Profile', href: '/profile', icon: Settings },
+  { title: 'Wishlist', href: '/wishlist', icon: Star },
 ];
 
 export function Header() { // Still named Header, but acts as TopBar
@@ -51,7 +51,7 @@ export function Header() { // Still named Header, but acts as TopBar
 
   // Mobile navigation links are generated from mainNavItems
   const mobileNavLinks = mainNavItems.map((item) => {
-    const isVipLink = item.href === '/vip-collection';
+    const isVipLink = item.href === '/vip-collection'; // Note: VIP link corrected if it exists
     if (isVipLink && !isAuthenticated) return null;
     return (
       <Link
@@ -81,7 +81,7 @@ export function Header() { // Still named Header, but acts as TopBar
       ))}
        {user?.roles?.includes('affiliate') && (
         <DropdownMenuItem asChild>
-          <Link href="/account/affiliate-portal" className="flex items-center">
+          <Link href="/affiliate-portal" className="flex items-center">
             <Briefcase className="mr-2 h-4 w-4" />
             Affiliate Portal
           </Link>
@@ -142,7 +142,7 @@ export function Header() { // Still named Header, but acts as TopBar
                       ))}
                       {user?.roles?.includes('affiliate') && (
                         <Link
-                          href="/account/affiliate-portal"
+                          href="/affiliate-portal"
                           className="flex items-center py-2 text-base font-medium text-foreground/80 hover:text-primary header-link-pulse"
                           onClick={() => setIsMobileMenuOpen(false)}
                         >
