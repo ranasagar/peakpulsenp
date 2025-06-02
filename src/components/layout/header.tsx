@@ -53,8 +53,6 @@ export function Header() { // Still named Header, but acts as TopBar
 
   // Mobile navigation links are generated from mainNavItems
   const mobileNavLinks = mainNavItems.map((item) => {
-    const isVipLink = item.href === '/vip-collection';
-    if (isVipLink && !isAuthenticated) return null; // VIP link not shown if not authenticated
     return (
       <Link
         key={item.href}
@@ -186,10 +184,12 @@ export function Header() { // Still named Header, but acts as TopBar
         </div>
 
         {/* Right Group: Actions */}
-        <div className="flex items-center space-x-1 md:space-x-2"> {/* Reduced space-x for smaller screens */}
-          <Button variant="ghost" size="icon" className="hidden md:inline-flex">
-            <Search className="h-5 w-5" />
-            <span className="sr-only">Search</span>
+        <div className="flex items-center space-x-1 md:space-x-2">
+          <Button variant="ghost" size="icon" className="hidden md:inline-flex" asChild>
+            <Link href="/search" aria-label="Search Page">
+              <Search className="h-5 w-5" />
+              <span className="sr-only">Search</span>
+            </Link>
           </Button>
           
           {mounted && <FullscreenToggleButton />}
@@ -240,5 +240,3 @@ export function Header() { // Still named Header, but acts as TopBar
     </header>
   );
 }
-
-    
