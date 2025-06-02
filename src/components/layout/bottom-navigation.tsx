@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import type { NavItem } from '@/types';
-import { Home as HomeIcon, ShoppingBag, LayoutGrid, Handshake, BookOpenText, Mail } from 'lucide-react';
+import { Home as HomeIcon, ShoppingBag, LayoutGrid, Handshake, BookOpenText, Mail, Users } from 'lucide-react'; // Added Users icon
 
 // Define mainNavItems here as well, or centralize them in a shared file later
 const mainNavItems: NavItem[] = [
@@ -13,6 +13,7 @@ const mainNavItems: NavItem[] = [
   { title: 'Shop', href: '/products', icon: ShoppingBag },
   { title: 'Categories', href: '/categories', icon: LayoutGrid },
   { title: 'Collaborations', href: '/collaborations', icon: Handshake },
+  { title: 'Community', href: '/community', icon: Users }, // Added Community link
   { title: 'Our Story', href: '/our-story', icon: BookOpenText },
   { title: 'Contact', href: '/contact', icon: Mail },
 ];

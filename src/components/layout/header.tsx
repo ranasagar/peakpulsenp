@@ -19,7 +19,7 @@ import { Icons } from '@/components/icons';
 import { useAuth } from '@/hooks/use-auth';
 import { cn } from '@/lib/utils';
 import type { NavItem } from '@/types';
-import { ShoppingCart, Search, LogOut, UserCircle, LayoutDashboard, Settings, Star, ShoppingBag as ShoppingBagIcon, Briefcase, LayoutGrid, Home as HomeIcon, BookOpenText, Mail, Handshake } from 'lucide-react'; // Renamed ShoppingBag to ShoppingBagIcon
+import { ShoppingCart, Search, LogOut, UserCircle, LayoutDashboard, Settings, Star, ShoppingBag as ShoppingBagIcon, Briefcase, LayoutGrid, Home as HomeIcon, BookOpenText, Mail, Handshake, Users } from 'lucide-react'; // Added Users icon
 import { ModeToggle } from './mode-toggle';
 import { useCart } from '@/context/cart-context';
 
@@ -29,6 +29,7 @@ const mainNavItems: NavItem[] = [
   { title: 'Shop', href: '/products', icon: ShoppingBagIcon },
   { title: 'Categories', href: '/categories', icon: LayoutGrid },
   { title: 'Collaborations', href: '/collaborations', icon: Handshake },
+  { title: 'Community', href: '/community', icon: Users }, // Added Community link
   { title: 'Our Story', href: '/our-story', icon: BookOpenText },
   { title: 'Contact', href: '/contact', icon: Mail },
 ];
