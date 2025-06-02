@@ -11,14 +11,13 @@ import { AspectRatio } from '@/components/ui/aspect-ratio';
 import { Loader2, Users, ImagePlus, Heart as HeartIcon } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import MainLayout from '@/components/layout/main-layout';
-import type { UserPost, PostComment, User } from '@/types'; // Added PostComment, User
+import type { UserPost, PostComment, User as AuthUserType, BreadcrumbItem } from '@/types';
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { UserPostDetailModal } from '@/components/community/user-post-detail-modal';
 import { useAuth } from '@/hooks/use-auth';
 import { Breadcrumbs } from '@/components/navigation/breadcrumbs';
-import type { BreadcrumbItem } from '@/types';
 
 async function fetchApprovedUserPosts(): Promise<UserPost[]> {
   const response = await fetch('/api/user-posts?status=approved');
@@ -35,7 +34,7 @@ export default function CommunityPage() {
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
-  const { user: currentUser, isAuthenticated, refreshUserProfile } = useAuth();
+  const { user: loggedInUser, isAuthenticated, refreshUserProfile } = useAuth();
   const [selectedPostForModal, setSelectedPostForModal] = useState<UserPost | null>(null);
   const [isPostModalOpen, setIsPostModalOpen] = useState(false);
   const [isLikingPostId, setIsLikingPostId] = useState<string | null>(null);
@@ -78,17 +77,17 @@ export default function CommunityPage() {
   };
 
   const handleLikeToggle = useCallback(async (postId: string) => {
-    if (!isAuthenticated || !currentUser?.id) { return; } // Ensure currentUser and its ID are available
+    if (!isAuthenticated || !loggedInUser?.id) { return; } 
     setIsLikingPostId(postId);
     const originalPosts = [...posts];
     const postIndex = posts.findIndex(p => p.id === postId);
     if (postIndex === -1) { setIsLikingPostId(null); return; }
 
     const postToUpdate = { ...posts[postIndex] };
-    const alreadyLiked = postToUpdate.liked_by_user_ids?.includes(currentUser.id);
+    const alreadyLiked = postToUpdate.liked_by_user_ids?.includes(loggedInUser.id);
     const newLikedBy = alreadyLiked 
-      ? postToUpdate.liked_by_user_ids?.filter(id => id !== currentUser.id) 
-      : [...(postToUpdate.liked_by_user_ids || []), currentUser.id];
+      ? postToUpdate.liked_by_user_ids?.filter(id => id !== loggedInUser.id) 
+      : [...(postToUpdate.liked_by_user_ids || []), loggedInUser.id];
     postToUpdate.liked_by_user_ids = newLikedBy;
     postToUpdate.like_count = newLikedBy?.length || 0;
     
@@ -97,7 +96,7 @@ export default function CommunityPage() {
 
     try {
       const response = await fetch(`/api/user-posts/${postId}/like`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: currentUser.id }),
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: loggedInUser.id }),
       });
       if (!response.ok) { const errorData = await response.json(); throw new Error(errorData.message || 'Failed to update like status.'); }
       const updatedPostFromServer: UserPost = await response.json();
@@ -110,14 +109,14 @@ export default function CommunityPage() {
     } finally {
       setIsLikingPostId(null);
     }
-  }, [isAuthenticated, currentUser, posts, selectedPostForModal, toast]);
+  }, [isAuthenticated, loggedInUser, posts, selectedPostForModal, toast]);
 
   const handleBookmarkToggle = useCallback(async (postId: string) => {
-    if (!isAuthenticated || !currentUser?.id) { return; }
+    if (!isAuthenticated || !loggedInUser?.id) { return; }
     setIsBookmarkingPostId(postId);
     try {
       const response = await fetch(`/api/user-posts/${postId}/bookmark`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: currentUser.id }),
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: loggedInUser.id }),
       });
       if (!response.ok) { const errorData = await response.json(); throw new Error(errorData.message || 'Failed to update bookmark.'); }
       await refreshUserProfile(); 
@@ -127,7 +126,7 @@ export default function CommunityPage() {
     } finally {
       setIsBookmarkingPostId(null);
     }
-  }, [isAuthenticated, currentUser, toast, refreshUserProfile]);
+  }, [isAuthenticated, loggedInUser, toast, refreshUserProfile]);
 
   const handleCommentPosted = useCallback((postId: string, newComment: PostComment) => {
     setPosts(prevPosts => prevPosts.map(p => {
@@ -195,9 +194,23 @@ export default function CommunityPage() {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 md:gap-8">
             {posts.map((post) => {
-                const hasLiked = currentUser?.id && post.liked_by_user_ids?.includes(currentUser.id);
-                const userNameDisplay = post.user_name || 'Anonymous';
+                let userNameDisplay = post.user_name || 'Anonymous';
+                const idSnippetPattern = /^[a-zA-Z0-9]{4}\.\.\.[a-zA-Z0-9]{4}$/;
+
+                // If this post is by the currently logged-in user, and their auth context name is better, use it.
+                if (loggedInUser && post.user_id === loggedInUser.id && loggedInUser.name && loggedInUser.name.trim() !== '') {
+                    if (!idSnippetPattern.test(loggedInUser.name)) { // Ensure loggedInUser.name isn't an ID snippet
+                         userNameDisplay = loggedInUser.name;
+                    } else if (post.user_name && !idSnippetPattern.test(post.user_name)) {
+                        // Fallback: if loggedInUser.name is an ID snippet, but post.user_name (from API) is better
+                        userNameDisplay = post.user_name;
+                    }
+                    // If both are ID snippets, or loggedInUser.name is bad, post.user_name (which might also be an ID snippet) remains from initial API fetch.
+                }
+                
                 const userProfileLink = `/users/${post.user_id}`;
+
+                const hasLiked = loggedInUser?.id && post.liked_by_user_ids?.includes(loggedInUser.id);
 
                 return (
                   <Card 
@@ -208,7 +221,7 @@ export default function CommunityPage() {
                     <AspectRatio ratio={1/1} className="relative bg-muted">
                         <Image 
                             src={post.image_url} 
-                            alt={post.caption || `Style post by ${post.user_name}`}
+                            alt={post.caption || `Style post by ${userNameDisplay}`}
                             fill
                             sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
                             className="object-cover transition-transform duration-500 group-hover:scale-105"
@@ -219,7 +232,7 @@ export default function CommunityPage() {
                         <div className="flex items-center space-x-2 mb-1.5">
                             <Avatar className="h-7 w-7 border-border">
                                 <AvatarImage src={post.user_avatar_url || undefined} alt={userNameDisplay} data-ai-hint="user avatar small"/>
-                                <AvatarFallback>{userNameDisplay.charAt(0).toUpperCase()}</AvatarFallback>
+                                <AvatarFallback>{userNameDisplay ? userNameDisplay.charAt(0).toUpperCase() : 'U'}</AvatarFallback>
                             </Avatar>
                             <Link href={userProfileLink} className="text-xs font-medium text-foreground hover:text-primary truncate" onClick={(e) => e.stopPropagation()}>
                                 {userNameDisplay}
@@ -254,8 +267,8 @@ export default function CommunityPage() {
           isOpen={isPostModalOpen}
           onOpenChange={setIsPostModalOpen}
           post={posts.find(p => p.id === selectedPostForModal.id) || selectedPostForModal} 
-          currentUserId={currentUser?.id}
-          currentUser={currentUser}
+          currentUserId={loggedInUser?.id}
+          currentUser={loggedInUser}
           onLikeToggle={handleLikeToggle}
           onBookmarkToggle={handleBookmarkToggle}
           onCommentPosted={handleCommentPosted}
@@ -266,4 +279,3 @@ export default function CommunityPage() {
     </MainLayout>
   );
 }
-

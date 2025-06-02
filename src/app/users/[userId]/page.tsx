@@ -16,16 +16,17 @@ import { Breadcrumbs } from '@/components/navigation/breadcrumbs';
 import { AspectRatio } from '@/components/ui/aspect-ratio';
 import { UserPostDetailModal } from '@/components/community/user-post-detail-modal';
 import { useAuth } from '@/hooks/use-auth'; // To handle liking/bookmarking from this page
+import { cn } from '@/lib/utils';
+import { formatDistanceToNow } from 'date-fns';
+
 
 interface UserProfilePageProps {
-  // Update params to be a Promise as indicated by the error
   params: Promise<{ userId: string }>;
 }
 
 export default function UserProfilePage({ params: paramsPromise }: UserProfilePageProps) {
-  // Use React.use to unwrap the params promise
   const resolvedParams = React.use(paramsPromise);
-  const { userId } = resolvedParams; // Now userId can be safely destructured
+  const { userId } = resolvedParams; 
 
   const [profile, setProfile] = useState<AuthUserType | null>(null);
   const [userPosts, setUserPosts] = useState<UserPost[]>([]);
@@ -71,7 +72,7 @@ export default function UserProfilePage({ params: paramsPromise }: UserProfilePa
     }
     setIsLoadingPosts(true);
     try {
-      const response = await fetch(`/api/user-posts?userId=${userId}&status=approved`); // Assuming API supports filtering by user and status
+      const response = await fetch(`/api/user-posts?userId=${userId}&status=approved`); 
       if (!response.ok) {
         throw new Error('Failed to fetch user posts');
       }
@@ -130,7 +131,7 @@ export default function UserProfilePage({ params: paramsPromise }: UserProfilePa
       if (selectedPostForModal?.id === postId) setSelectedPostForModal(updatedPostFromServer);
     } catch (errorCatch) {
       toast({ title: "Error", description: (errorCatch as Error).message, variant: "destructive" });
-      setUserPosts(originalPosts); // Revert optimistic update
+      setUserPosts(originalPosts); 
       if (selectedPostForModal?.id === postId) setSelectedPostForModal(originalPosts[postIndex]);
     } finally {
       setIsLikingPostId(null);
@@ -154,7 +155,7 @@ export default function UserProfilePage({ params: paramsPromise }: UserProfilePa
     }
   }, [isAuthenticated, loggedInUser, toast, refreshUserProfile]);
 
-  const handleCommentPosted = useCallback((postId: string, newComment: any) => { // Use any for temp flexibility
+  const handleCommentPosted = useCallback((postId: string, newComment: any) => { 
     setUserPosts(prevPosts => prevPosts.map(p => {
       if (p.id === postId) {
         return {
@@ -199,10 +200,18 @@ export default function UserProfilePage({ params: paramsPromise }: UserProfilePa
     );
   }
 
+  // Determine the name to display for the profile being viewed.
+  // This profile's data comes from `fetchUserProfile`.
+  let profileDisplayName = profile.name || 'User';
+  const profileIdSnippetPattern = /^[a-zA-Z0-9]{4}\.\.\.[a-zA-Z0-9]{4}$/;
+  if (profileIdSnippetPattern.test(profileDisplayName) && profile.email) {
+    profileDisplayName = profile.email.split('@')[0]; // Prefer email prefix over ID snippet
+  }
+
   const breadcrumbs: BreadcrumbItem[] = [
     { name: 'Home', href: '/' },
-    { name: 'Community', href: '/community' }, // Assuming a general community page exists or will exist
-    { name: profile.name || 'User Profile' },
+    { name: 'Community', href: '/community' }, 
+    { name: profileDisplayName },
   ];
 
   return (
@@ -215,54 +224,94 @@ export default function UserProfilePage({ params: paramsPromise }: UserProfilePa
         <Card className="shadow-xl p-6 md:p-8 mb-12">
           <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6">
             <Avatar className="h-24 w-24 sm:h-32 sm:w-32 border-4 border-primary p-1 shrink-0">
-              <AvatarImage src={profile.avatarUrl || `https://placehold.co/150x150.png?text=${profile.name ? profile.name.charAt(0) : 'U'}`} alt={profile.name || 'User'} data-ai-hint="profile avatar"/>
-              <AvatarFallback className="text-4xl">{profile.name ? profile.name.charAt(0).toUpperCase() : <UserIcon />}</AvatarFallback>
+              <AvatarImage src={profile.avatarUrl || `https://placehold.co/150x150.png?text=${profileDisplayName ? profileDisplayName.charAt(0) : 'U'}`} alt={profileDisplayName} data-ai-hint="profile avatar"/>
+              <AvatarFallback className="text-4xl">{profileDisplayName ? profileDisplayName.charAt(0).toUpperCase() : <UserIcon />}</AvatarFallback>
             </Avatar>
             <div className="text-center sm:text-left flex-grow">
-              <h1 className="text-3xl font-bold text-foreground">{profile.name}</h1>
+              <h1 className="text-3xl font-bold text-foreground">{profileDisplayName}</h1>
               {profile.bio && <p className="text-md text-muted-foreground mt-2 max-w-xl">{profile.bio}</p>}
-              {/* Add more public profile info here if available, e.g., join date, website */}
+              {loggedInUser && loggedInUser.id !== profile.id && (
+                <Button className="mt-4" onClick={() => toast({ title: "Feature Coming Soon", description: "Direct messaging from profiles will be available later."})}>Message {profileDisplayName.split(' ')[0]}</Button>
+              )}
+              {loggedInUser && loggedInUser.id === profile.id && (
+                <Button asChild variant="outline" className="mt-4">
+                  <Link href="/profile">Edit Your Profile</Link>
+                </Button>
+              )}
             </div>
           </div>
         </Card>
 
         <h2 className="text-2xl font-semibold text-foreground mb-8">
-          {profile.name}'s Shared Styles ({userPosts.length})
+          {profileDisplayName}'s Shared Styles ({userPosts.length})
         </h2>
         {isLoadingPosts ? (
           <div className="flex justify-center py-10"><Loader2 className="h-10 w-10 animate-spin text-primary" /></div>
         ) : userPosts.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 md:gap-8">
-            {userPosts.map(post => (
-              <Card 
-                key={post.id} 
-                className="overflow-hidden rounded-xl shadow-lg group hover:shadow-2xl transition-shadow cursor-pointer"
-                onClick={() => handleCommunityPostClick(post)}
-              >
-                <AspectRatio ratio={1/1} className="relative bg-muted">
-                  <Image 
-                    src={post.image_url} 
-                    alt={post.caption || `Style post by ${post.user_name}`}
-                    fill
-                    sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
-                    className="object-cover transition-transform duration-500 group-hover:scale-105"
-                    data-ai-hint="user fashion style"
-                  />
-                </AspectRatio>
-                <CardContent className="p-3">
-                  {post.caption && <p className="text-xs text-muted-foreground line-clamp-2 mb-1.5">{post.caption}</p>}
-                  {/* Simplified actions for public view, actual interaction in modal */}
-                  <div className="flex items-center justify-between text-xs text-muted-foreground">
-                    <span className="flex items-center gap-1"><HeartIcon className="h-3.5 w-3.5"/>{post.like_count || 0}</span>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+            {userPosts.map(post => {
+              // For posts on this user's profile page, the author name should be consistent with `profileDisplayName`
+              let postAuthorName = profileDisplayName; // Use the fetched profile's name as the source of truth here.
+              
+              // If the post.user_name from API is somehow better than the profile's derived name (e.g. API had direct name, profile had fallback)
+              // This check might be redundant if API for user-posts uses similar derivation for its post.user_name
+              if (post.user_name && !profileIdSnippetPattern.test(post.user_name) && profileIdSnippetPattern.test(postAuthorName)) {
+                postAuthorName = post.user_name;
+              }
+
+
+              const hasLiked = loggedInUser?.id && post.liked_by_user_ids?.includes(loggedInUser.id);
+
+              return (
+                <Card 
+                  key={post.id} 
+                  className="overflow-hidden rounded-xl shadow-lg group hover:shadow-2xl transition-shadow cursor-pointer"
+                  onClick={() => handleCommunityPostClick(post)}
+                >
+                  <AspectRatio ratio={1/1} className="relative bg-muted">
+                    <Image 
+                      src={post.image_url} 
+                      alt={post.caption || `Style post by ${postAuthorName}`}
+                      fill
+                      sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                      className="object-cover transition-transform duration-500 group-hover:scale-105"
+                      data-ai-hint="user fashion style"
+                    />
+                  </AspectRatio>
+                  <CardContent className="p-3 bg-background/80 backdrop-blur-sm">
+                     <div className="flex items-center space-x-2 mb-1.5">
+                        <Avatar className="h-7 w-7 border-border">
+                            <AvatarImage src={profile.avatarUrl || undefined} alt={postAuthorName} data-ai-hint="user avatar small"/>
+                            <AvatarFallback>{postAuthorName ? postAuthorName.charAt(0).toUpperCase() : 'U'}</AvatarFallback>
+                        </Avatar>
+                        {/* Link text uses postAuthorName derived above */}
+                        <span className="text-xs font-medium text-foreground truncate">{postAuthorName}</span>
+                    </div>
+                    {post.caption && <p className="text-xs text-muted-foreground line-clamp-2 mb-1.5">{post.caption}</p>}
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <button
+                          onClick={(e) => { e.stopPropagation(); handleLikeToggle(post.id); }}
+                          disabled={isLikingPostId === post.id || !isAuthenticated}
+                          className={cn(
+                              "flex items-center gap-1 hover:text-destructive p-1 -ml-1 rounded-md transition-colors",
+                              hasLiked ? "text-destructive" : "text-muted-foreground"
+                          )}
+                          aria-label={hasLiked ? "Unlike post" : "Like post"}
+                      >
+                          {isLikingPostId === post.id ? <Loader2 className="h-3.5 w-3.5 animate-spin"/> : <HeartIcon className={cn("h-3.5 w-3.5", hasLiked && "fill-destructive")}/>}
+                          <span>{post.like_count || 0}</span>
+                      </button>
+                      <span>{formatDistanceToNow(new Date(post.created_at), { addSuffix: true, includeSeconds: false })}</span>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
         ) : (
           <div className="text-center py-12 text-muted-foreground">
             <ImagePlus className="h-12 w-12 mx-auto mb-4 opacity-50" />
-            <p>{profile.name} hasn't shared any styles yet.</p>
+            <p>{profileDisplayName} hasn't shared any styles yet.</p>
           </div>
         )}
       </div>
