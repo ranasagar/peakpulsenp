@@ -8,9 +8,9 @@ import Link from 'next/link';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Loader2, User as UserIcon, ImagePlus, ArrowLeft } from 'lucide-react';
+import { Loader2, User as UserIcon, ImagePlus, ArrowLeft, Heart as HeartIcon } from 'lucide-react';
 import MainLayout from '@/components/layout/main-layout';
-import type { User as AuthUserType, UserPost } from '@/types';
+import type { User as AuthUserType, UserPost, PostComment, BreadcrumbItem } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { Breadcrumbs } from '@/components/navigation/breadcrumbs';
 import { AspectRatio } from '@/components/ui/aspect-ratio';
@@ -18,11 +18,15 @@ import { UserPostDetailModal } from '@/components/community/user-post-detail-mod
 import { useAuth } from '@/hooks/use-auth'; // To handle liking/bookmarking from this page
 
 interface UserProfilePageProps {
-  params: { userId: string };
+  // Update params to be a Promise as indicated by the error
+  params: Promise<{ userId: string }>;
 }
 
-export default function UserProfilePage({ params }: UserProfilePageProps) {
-  const { userId } = params;
+export default function UserProfilePage({ params: paramsPromise }: UserProfilePageProps) {
+  // Use React.use to unwrap the params promise
+  const resolvedParams = React.use(paramsPromise);
+  const { userId } = resolvedParams; // Now userId can be safely destructured
+
   const [profile, setProfile] = useState<AuthUserType | null>(null);
   const [userPosts, setUserPosts] = useState<UserPost[]>([]);
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
@@ -39,7 +43,7 @@ export default function UserProfilePage({ params }: UserProfilePageProps) {
 
   const fetchUserProfile = useCallback(async () => {
     if (!userId) {
-      setError("User ID not provided.");
+      setError("User ID not available.");
       setIsLoadingProfile(false);
       return;
     }
@@ -195,7 +199,7 @@ export default function UserProfilePage({ params }: UserProfilePageProps) {
     );
   }
 
-  const breadcrumbs = [
+  const breadcrumbs: BreadcrumbItem[] = [
     { name: 'Home', href: '/' },
     { name: 'Community', href: '/community' }, // Assuming a general community page exists or will exist
     { name: profile.name || 'User Profile' },
