@@ -591,7 +591,7 @@ function HomePageContent() {
         </section>
       )}
 
-      {/* Social Commerce Section (#PeakPulseStyle) - Carousel with Reflection */}
+      {/* Social Commerce Section (#PeakPulseStyle) - Carousel */}
       {!isLoadingContent && (
         <section className="section-padding container-wide relative z-[1] bg-muted/30 overflow-hidden">
           <div className="text-center mb-12">
@@ -613,7 +613,7 @@ function HomePageContent() {
                       <Card className="overflow-hidden rounded-xl shadow-lg group mx-auto max-w-md">
                         <InteractiveExternalLink href={item.linkUrl} target="_blank" rel="noopener noreferrer" showDialog={true}>
                           <div className="relative">
-                            <AspectRatio ratio={1/1} className="relative bg-card">
+                            <AspectRatio ratio={1/1} className="relative bg-card"> {/* Ensure relative positioning for Image */}
                               <Image 
                                 src={item.imageUrl} 
                                 alt={item.altText || "Peak Pulse style on social media"}
@@ -623,18 +623,6 @@ function HomePageContent() {
                                 data-ai-hint={item.dataAiHint || "social fashion instagram"}
                               />
                             </AspectRatio>
-                            {/* Reflection attempt */}
-                            <div className="absolute bottom-0 left-0 right-0 h-1/3 overflow-hidden pointer-events-none">
-                              <Image 
-                                src={item.imageUrl} 
-                                alt=""
-                                fill
-                                sizes="(max-width: 640px) 100vw, (max-width: 768px) 80vw, (max-width: 1024px) 50vw, 33vw"
-                                className="object-cover transform -scale-y-100"
-                                data-ai-hint={item.dataAiHint || "social fashion instagram"}
-                              />
-                              <div className="absolute inset-0 bg-gradient-to-t from-muted/30 via-muted/20 to-transparent opacity-80"></div>
-                            </div>
                             <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-3">
                               <Instagram className="h-5 w-5 text-white" />
                             </div>
