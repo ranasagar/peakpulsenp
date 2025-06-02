@@ -22,12 +22,16 @@ const nextConfig: NextConfig = {
     ],
   },
   // output: 'standalone', // Vercel handles output optimization, this can sometimes conflict.
-  // experimental: { // Temporarily removed to simplify for server startup debugging
-  //   allowedDevOrigins: [
-  //       "https://9003-firebase-studio-1747567658921.cluster-ancjwrkgr5dvux4qug5rbzyc2y.cloudworkstations.dev",
-  //       "http://9003-firebase-studio-1747567658921.cluster-ancjwrkgr5dvux4qug5rbzyc2y.cloudworkstations.dev",
-  //   ],
-  // }
+  experimental: { // Temporarily removed to simplify for server startup debugging - RE-ENABLING
+    allowedDevOrigins: [
+        "https://6000-firebase-studio-1747567658921.cluster-ancjwrkgr5dvux4qug5rbzyc2y.cloudworkstations.dev",
+        "http://6000-firebase-studio-1747567658921.cluster-ancjwrkgr5dvux4qug5rbzyc2y.cloudworkstations.dev",
+        // It's good practice to include localhost as well if you ever run it locally without the proxy
+        "http://localhost:6000", // Assuming port 6000 based on the pattern
+        "http://localhost:9003"  // Default port for this app from package.json
+    ],
+  }
 };
 
 export default nextConfig;
+

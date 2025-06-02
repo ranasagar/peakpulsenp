@@ -1,3 +1,4 @@
+
 // /src/app/api/account/profile/route.ts
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
@@ -19,6 +20,13 @@ interface ProfileUpdateRequestBody {
 
 // GET user profile
 export async function GET(request: NextRequest) {
+  const requestUrl = new URL(request.url);
+  const uidFromQuery = requestUrl.searchParams.get('uid');
+
+  console.log(`[API /api/account/profile GET] Entry point. Request URL: ${requestUrl.toString()}`);
+  console.log(`[API /api/account/profile GET] Extracted UID from searchParams: ${uidFromQuery}`);
+
+
   if (!supabase) {
     console.error('[API /api/account/profile GET] Public Supabase client is not initialized. Check environment variables and server restart.');
     return NextResponse.json({
@@ -27,20 +35,14 @@ export async function GET(request: NextRequest) {
     }, { status: 503 });
   }
 
-  const { searchParams } = new URL(request.url);
-  const uidFromQuery = searchParams.get('uid');
-
-  console.log(`[API /api/account/profile GET] Request URL: ${request.url}`);
-  console.log(`[API /api/account/profile GET] Extracted UID from searchParams: ${uidFromQuery}`);
 
   if (!uidFromQuery) {
-    console.warn("[API /api/account/profile GET] User ID (uid) is required in query parameters.");
+    console.warn("[API /api/account/profile GET] User ID (uid) is required in query parameters. Responding 400.");
     return NextResponse.json({ message: 'User ID (uid) is required' }, { status: 400 });
   }
 
+  console.log(`[API /api/account/profile GET] Attempting to fetch profile for UID: ${uidFromQuery}`);
   try {
-    // Attempt to select all known columns, including the potentially missing ones.
-    // Supabase will error if a column doesn't exist.
     const baseSelectFields = 'id, email, name, avatar_url, bio, roles, wishlist, bookmarked_post_ids, "createdAt", "updatedAt"';
     
     const { data: profile, error: fetchError } = await supabase
@@ -50,8 +52,8 @@ export async function GET(request: NextRequest) {
       .single();
 
     if (fetchError) {
-      const isNotFound = fetchError.code === 'PGRST116'; // "Fetched result consists of 0 rows"
-      const isUndefinedColumn = fetchError.code === '42703'; // "column does not exist"
+      const isNotFound = fetchError.code === 'PGRST116'; 
+      const isUndefinedColumn = fetchError.code === '42703'; 
       
       let errorMessage = 'Error fetching profile from database.';
       if (isNotFound) errorMessage = 'Profile not found.';
@@ -67,7 +69,7 @@ export async function GET(request: NextRequest) {
     }
     
     if (!profile) {
-      console.warn(`[API /api/account/profile GET] Profile not found for ${uidFromQuery} (data was null after query).`);
+      console.warn(`[API /api/account/profile GET] Profile not found for ${uidFromQuery} (data was null after query). Responding 404.`);
       return NextResponse.json({
         message: 'Profile not found',
         rawSupabaseError: { message: 'No profile data returned from database (PGRST116 implied).', code: 'PGRST116_MANUAL' }
@@ -79,12 +81,12 @@ export async function GET(request: NextRequest) {
         id: profile.id,
         email: profile.email,
         name: profile.name,
-        avatarUrl: profile.avatar_url, // Map from db
-        bio: profile.bio,             // Map from db
+        avatarUrl: profile.avatar_url, 
+        bio: profile.bio,             
         roles: profile.roles || ['customer'],
         wishlist: profile.wishlist || [],
         bookmarked_post_ids: profile.bookmarked_post_ids || [],
-        createdAt: profile.createdAt || profile.created_at, // Handle potential casing
+        createdAt: profile.createdAt || profile.created_at, 
         updatedAt: profile.updatedAt || profile.updated_at,
     };
     return NextResponse.json(responseProfile);
@@ -131,12 +133,13 @@ export async function POST(request: NextRequest) {
     console.warn("[API /api/account/profile POST] User ID ('id' field) is required in request body.");
     return NextResponse.json({ message: "User ID ('id' field) is required for update/create" }, { status: 400 });
   }
-  if (!email && !requestBody.hasOwnProperty('name')) { // Email is only strictly required for inserts if name isn't provided
+  if (!email && !requestBody.hasOwnProperty('name')) { 
       console.warn(`[API /api/account/profile POST] Email is required for profile creation if name is not provided (UID ${userIdToProcess}).`);
       return NextResponse.json({ message: 'Email is required for profile creation if name is not set.', rawSupabaseError: {message: 'Email or Name is required.'} }, { status: 400 });
   }
   console.log(`[API /api/account/profile POST] Processing request for user ID: ${userIdToProcess}. Using ${clientForWrite === supabaseAdmin ? "ADMIN client" : "PUBLIC client"}.`);
-
+  
+  let operationType = '';
   try {
     const { data: existingUser, error: selectError } = await clientForWrite
       .from('users')
@@ -153,38 +156,34 @@ export async function POST(request: NextRequest) {
     }
 
     let finalUserData;
-    let operationType = '';
-
+    
     if (existingUser) {
       operationType = 'UPDATE';
       const dataToUpdate: Partial<AuthUserType & { avatar_url?: string | null, bookmarked_post_ids?: string[], updatedAt?: string }> = {};
 
       if (name !== undefined) dataToUpdate.name = name;
-      if (avatarUrl !== undefined) dataToUpdate.avatar_url = avatarUrl; // Map to db column
-      if (requestBody.hasOwnProperty('bio')) dataToUpdate.bio = bio; // Only include if key 'bio' is present
+      if (avatarUrl !== undefined) dataToUpdate.avatar_url = avatarUrl; 
+      if (requestBody.hasOwnProperty('bio')) dataToUpdate.bio = bio; 
       
-      // Email, roles, wishlist, bookmarked_post_ids are generally not updated through this specific profile form's save action.
-      // They are managed by Firebase Auth (email), admin panel (roles), or dedicated wishlist/bookmark actions.
-      // Only update them if explicitly part of a more comprehensive profile update payload.
       if (roles !== undefined) dataToUpdate.roles = roles;
       if (wishlist !== undefined) dataToUpdate.wishlist = wishlist;
       if (bookmarked_post_ids !== undefined) dataToUpdate.bookmarked_post_ids = bookmarked_post_ids;
 
 
       if (Object.keys(dataToUpdate).length > 0) {
-        dataToUpdate.updatedAt = new Date().toISOString(); // Handled by trigger, but explicit for clarity if needed
+        dataToUpdate.updatedAt = new Date().toISOString(); 
         console.log(`[API /api/account/profile POST] Data for update for UID ${userIdToProcess}:`, JSON.stringify(dataToUpdate, null, 2));
         const { data: updatedUser, error: updateError } = await clientForWrite
           .from('users')
           .update(dataToUpdate)
           .eq('id', userIdToProcess)
-          .select() // Select all fields after update
+          .select() 
           .single();
         if (updateError) throw updateError;
         finalUserData = updatedUser;
       } else {
         console.log(`[API /api/account/profile POST] No updatable fields sent for existing user ${userIdToProcess}. Returning current profile.`);
-        finalUserData = existingUser; // Return existing data if nothing was actually changed
+        finalUserData = existingUser; 
       }
 
     } else {
@@ -196,14 +195,13 @@ export async function POST(request: NextRequest) {
 
       const dataToInsert = {
         id: userIdToProcess,
-        email: email, // Must have email for new user
+        email: email, 
         name: name || email?.split('@')[0] || 'New User',
-        avatar_url: avatarUrl, // Map to db column
+        avatar_url: avatarUrl, 
         bio: bio,
         roles: initialRoles,
         wishlist: wishlist || [],
         bookmarked_post_ids: bookmarked_post_ids || [],
-        // createdAt and updatedAt handled by db
       };
       console.log(`[API /api/account/profile POST] Data for insert for UID ${userIdToProcess}:`, JSON.stringify(dataToInsert, null, 2));
       const { data: insertedUser, error: insertError } = await clientForWrite
@@ -241,9 +239,9 @@ export async function POST(request: NextRequest) {
     let errorMessage = `Failed to ${operationType ? operationType.toLowerCase() : 'process'} profile.`;
     let errorDetails = { message: error.message, code: error.code, details: error.details, hint: error.hint };
 
-    if (error.code) { // Likely a Supabase error
+    if (error.code) { 
       errorMessage = `Supabase error: ${error.message}`;
-      if (error.code === '42703') { // Undefined column
+      if (error.code === '42703') { 
           errorMessage = `Database schema error: ${error.message}. A required column might be missing (e.g., 'bio' or 'avatar_url'). Please ensure migrations are run.`;
       } else if (error.code === '42501') { 
         errorMessage = 'Database Row Level Security (RLS) policy violation. Check INSERT/UPDATE policy for "anon" or relevant role on "users" table in Supabase.';
@@ -262,3 +260,4 @@ export async function POST(request: NextRequest) {
     }, { status: 500 });
   }
 }
+
