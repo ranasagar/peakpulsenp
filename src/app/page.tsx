@@ -245,7 +245,7 @@ function HomePageContent() {
     }
 
     try {
-      const userPostsResponse = await fetch('/api/user-posts');
+      const userPostsResponse = await fetch('/api/user-posts?status=approved'); // Fetch only approved posts
       if (!userPostsResponse.ok) {
           let errorDetail = 'Failed to fetch user posts';
           try { const errorData = await userPostsResponse.json(); errorDetail = errorData.message || errorData.rawSupabaseError?.message || `${userPostsResponse.status} ${userPostsResponse.statusText}`; } catch (e) {/* ignore */}
@@ -446,10 +446,8 @@ function HomePageContent() {
       if (!response.ok) {
         const errorData = await response.json(); throw new Error(errorData.message || 'Failed to update bookmark status.');
       }
-      await refreshUserProfile(); // This will update user.bookmarked_post_ids
-      const updatedPost = await response.json(); // API returns the post, which now might have updated bookmark_count if we add that
-      // Note: The UserPost type doesn't have a bookmark_count. If it did, we'd update it here.
-      // For now, the visual change relies on the user context update from refreshUserProfile.
+      await refreshUserProfile(); 
+      const updatedPost = await response.json(); 
       toast({ title: "Bookmark status updated!" });
     } catch (error) {
       toast({ title: "Error", description: (error as Error).message, variant: "destructive" });
@@ -842,8 +840,6 @@ function HomePageContent() {
                 {userPosts.slice(0, 4).map(post => {
                     const hasLiked = user?.id && post.liked_by_user_ids?.includes(user.id);
                     const userNameDisplay = post.user_name || 'Anonymous';
-                    // const canLinkToProfile = isAuthenticated && user?.id === post.user_id; // Was for /account/profile
-                    // For public profile link:
                     const userProfileLink = `/users/${post.user_id}`;
 
                     return (
@@ -897,6 +893,9 @@ function HomePageContent() {
             <p className="text-center text-muted-foreground py-8">No community posts yet. Be the first to share your style!</p>
         )}
         <div className="text-center mt-12">
+             <Link href="/community" className={cn(buttonVariants({ variant: "outline", size: "lg", className: "text-base mr-4" }))}>
+                Explore Community
+            </Link>
             <Link href="/community/create-post" className={cn(buttonVariants({ variant: "default", size: "lg", className: "text-base" }))}>
                  <ImagePlus className="mr-2 h-5 w-5" /> Share Your Style
             </Link>
@@ -939,5 +938,3 @@ export default function RootPage() {
 }
 
     
-
-
