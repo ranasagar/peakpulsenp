@@ -345,6 +345,16 @@ function HomePageContent() {
       setCurrentSocialCommerceSlide(index % activeSocialCommerceItems.length);
     }
   };
+  
+  // Autoplay for Social Commerce Carousel
+  useEffect(() => {
+    let socialInterval: NodeJS.Timeout | undefined;
+    if (activeSocialCommerceItems.length > 1) {
+      socialInterval = setInterval(nextSocialCommerceSlide, 6000); // Change slide every 6 seconds
+    }
+    return () => { if (socialInterval) clearInterval(socialInterval); };
+  }, [activeSocialCommerceItems.length, nextSocialCommerceSlide]);
+
 
   if (isLoadingContent || isLoadingFeaturedProducts || isLoadingCategories || isLoadingCollaborations || (content.promotionalPostsSection?.enabled && isLoadingPromotionalPosts) || isLoadingUserPosts) {
     return (
@@ -581,9 +591,9 @@ function HomePageContent() {
         </section>
       )}
 
-      {/* Social Commerce Section (#PeakPulseStyle) */}
+      {/* Social Commerce Section (#PeakPulseStyle) - Carousel with Reflection */}
       {!isLoadingContent && (
-        <section className="section-padding container-wide relative z-[1] bg-muted/30">
+        <section className="section-padding container-wide relative z-[1] bg-muted/30 overflow-hidden">
           <div className="text-center mb-12">
             <Instagram className="h-10 w-10 text-pink-600 mx-auto mb-3" />
             <h2 className="text-3xl font-bold text-foreground">#PeakPulseStyle on Social</h2>
@@ -592,31 +602,79 @@ function HomePageContent() {
             </p>
           </div>
           {activeSocialCommerceItems.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 md:gap-8">
-              {activeSocialCommerceItems.map(item => (
-                <Card key={item.id} className="overflow-hidden rounded-xl shadow-lg group hover:shadow-2xl transition-shadow">
-                  <InteractiveExternalLink href={item.linkUrl} target="_blank" rel="noopener noreferrer" showDialog={true}>
-                    <AspectRatio ratio={1/1} className="relative bg-card">
-                      <Image 
-                        src={item.imageUrl} 
-                        alt={item.altText || "Peak Pulse style on social media"}
-                        fill
-                        sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
-                        className="object-cover transition-transform duration-500 group-hover:scale-105"
-                        data-ai-hint={item.dataAiHint || "social fashion instagram"}
+            <div className="relative">
+              <div className="overflow-hidden">
+                <div
+                  className="flex transition-transform duration-500 ease-in-out"
+                  style={{ transform: `translateX(-${currentSocialCommerceSlide * 100}%)` }}
+                >
+                  {activeSocialCommerceItems.map(item => (
+                    <div key={item.id} className="w-full flex-shrink-0 px-2 md:px-4">
+                      <Card className="overflow-hidden rounded-xl shadow-lg group mx-auto max-w-md">
+                        <InteractiveExternalLink href={item.linkUrl} target="_blank" rel="noopener noreferrer" showDialog={true}>
+                          <div className="relative">
+                            <AspectRatio ratio={1/1} className="relative bg-card">
+                              <Image 
+                                src={item.imageUrl} 
+                                alt={item.altText || "Peak Pulse style on social media"}
+                                fill
+                                sizes="(max-width: 640px) 100vw, (max-width: 768px) 80vw, (max-width: 1024px) 50vw, 33vw"
+                                className="object-cover"
+                                data-ai-hint={item.dataAiHint || "social fashion instagram"}
+                              />
+                            </AspectRatio>
+                            {/* Reflection attempt */}
+                            <div className="absolute bottom-0 left-0 right-0 h-1/3 overflow-hidden pointer-events-none">
+                              <Image 
+                                src={item.imageUrl} 
+                                alt=""
+                                fill
+                                sizes="(max-width: 640px) 100vw, (max-width: 768px) 80vw, (max-width: 1024px) 50vw, 33vw"
+                                className="object-cover transform -scale-y-100"
+                                data-ai-hint={item.dataAiHint || "social fashion instagram"}
+                              />
+                              <div className="absolute inset-0 bg-gradient-to-t from-muted/30 via-muted/20 to-transparent opacity-80"></div>
+                            </div>
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-3">
+                              <Instagram className="h-5 w-5 text-white" />
+                            </div>
+                          </div>
+                        </InteractiveExternalLink>
+                      </Card>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              {activeSocialCommerceItems.length > 1 && (
+                <>
+                  <Button
+                    variant="outline" size="icon"
+                    className="absolute left-0 sm:left-4 top-1/2 -translate-y-1/2 z-10 h-10 w-10 rounded-full bg-background/70 hover:bg-background"
+                    onClick={prevSocialCommerceSlide} aria-label="Previous social post"
+                  > <ChevronLeft className="h-6 w-6" /> </Button>
+                  <Button
+                    variant="outline" size="icon"
+                    className="absolute right-0 sm:right-4 top-1/2 -translate-y-1/2 z-10 h-10 w-10 rounded-full bg-background/70 hover:bg-background"
+                    onClick={nextSocialCommerceSlide} aria-label="Next social post"
+                  > <ChevronRight className="h-6 w-6" /> </Button>
+                  <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 flex space-x-2">
+                    {activeSocialCommerceItems.map((_, index) => (
+                      <button
+                        key={`social-dot-${index}`}
+                        onClick={() => goToSocialCommerceSlide(index)}
+                        className={cn(
+                          "h-2 w-2 rounded-full transition-all",
+                          currentSocialCommerceSlide === index ? "bg-primary scale-125 w-4" : "bg-muted-foreground/50 hover:bg-primary/70"
+                        )}
+                        aria-label={`Go to social post ${index + 1}`}
                       />
-                       <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-3">
-                          <Instagram className="h-5 w-5 text-white" />
-                       </div>
-                    </AspectRatio>
-                  </InteractiveExternalLink>
-                </Card>
-              ))}
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
           ) : (
-            <div className="text-center py-10">
-              <p className="text-muted-foreground">No social posts to display at the moment. Add some in the Admin Panel! (Admin &gt; Content &gt; Homepage)</p>
-            </div>
+            <p className="text-center text-muted-foreground py-8">No social posts to display at the moment. Add some in the Admin Panel! (Admin &gt; Content &gt; Homepage)</p>
           )}
         </section>
       )}
