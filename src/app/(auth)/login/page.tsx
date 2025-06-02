@@ -31,14 +31,45 @@ function LoginClientContent() {
   const [isSubmitting, setIsSubmitting] = useState(false); // Local submitting state for the form
   const router = useRouter();
   const searchParams = useSearchParams(); // This is safe here
+  const [redirectAttempted, setRedirectAttempted] = useState(false);
+
 
   useEffect(() => {
-    if (!authIsLoading && isAuthenticated) {
-      const redirectPath = searchParams.get('redirect') || '/account/dashboard';
-      console.log(`[Login Page] User authenticated, redirecting to ${redirectPath}`);
-      router.push(redirectPath);
+    if (!authIsLoading && isAuthenticated && !redirectAttempted) {
+      const redirectParam = searchParams.get('redirect');
+      let targetPath: string;
+
+      if (redirectParam) {
+        try {
+          const decodedRedirectParam = decodeURIComponent(redirectParam);
+          // Prevent redirecting to login or register page itself
+          if (decodedRedirectParam === '/login' || decodedRedirectParam.startsWith('/login?') || decodedRedirectParam === '/register' || decodedRedirectParam.startsWith('/register?')) {
+            console.warn(`[Login Page] Original redirect was to auth page ('${decodedRedirectParam}'). Defaulting to dashboard.`);
+            targetPath = '/account/dashboard';
+          } else {
+            targetPath = decodedRedirectParam;
+          }
+        } catch (e) {
+          console.error("[Login Page] Error decoding redirect param:", e, "Original param:", redirectParam);
+          targetPath = '/account/dashboard'; // Fallback on decoding error
+        }
+      } else {
+        targetPath = '/account/dashboard';
+      }
+
+      console.log(`[Login Page] User authenticated. Attempting redirect to: ${targetPath}`);
+      setRedirectAttempted(true); 
+      router.push(targetPath);
     }
-  }, [isAuthenticated, authIsLoading, router, searchParams]);
+  }, [isAuthenticated, authIsLoading, router, searchParams, redirectAttempted]);
+
+  // Reset redirectAttempted if the user logs out or auth state changes to unauthenticated while on this page
+  useEffect(() => {
+    if (!isAuthenticated && !authIsLoading) {
+      setRedirectAttempted(false);
+    }
+  }, [isAuthenticated, authIsLoading]);
+
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -58,9 +89,11 @@ function LoginClientContent() {
       form.resetField("password");
     }
     // If login is successful, the useEffect above will handle the redirect.
+    // We set redirectAttempted to false here so the effect can run if login succeeds
+    setRedirectAttempted(false); 
   };
 
-  if (authIsLoading) {
+  if (authIsLoading && !isAuthenticated) { // Show loading only if not already authenticated and loading
     return (
       <div className="flex min-h-screen flex-col items-center justify-center p-4">
         <LocalLoader className="h-12 w-12 animate-spin text-primary" />
@@ -69,15 +102,28 @@ function LoginClientContent() {
     );
   }
   
-  // This check might be redundant if the useEffect above handles redirect, but good for immediate UI feedback
-  if (isAuthenticated && !authIsLoading) {
+  // If already authenticated and redirect hasn't been attempted yet, it might show a brief loading for redirect
+  if (isAuthenticated && !redirectAttempted && !authIsLoading) {
      return (
       <div className="flex min-h-screen flex-col items-center justify-center p-4">
         <LocalLoader className="h-12 w-12 animate-spin text-primary" />
-        <p className="mt-4 text-muted-foreground">Login successful. Redirecting to dashboard...</p>
+        <p className="mt-4 text-muted-foreground">Login successful. Redirecting...</p>
       </div>
     );
   }
+  // If redirect has been attempted, and user is still on login page (e.g. redirect failed client-side or was to self)
+  // or if not authenticated and not loading, show the form.
+  if (redirectAttempted && isAuthenticated) {
+    // This case should ideally not be reached if router.push works,
+    // but if it does, it means the redirect logic finished but they are still here.
+    // Could indicate a problem with the targetPath or router.
+     return (
+      <div className="flex min-h-screen flex-col items-center justify-center p-4">
+        <p className="mt-4 text-muted-foreground">Redirecting... If you are not redirected, click <Link href="/account/dashboard" className="underline text-primary">here</Link>.</p>
+      </div>
+    );
+  }
+
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-br from-background to-muted/30 p-4">
