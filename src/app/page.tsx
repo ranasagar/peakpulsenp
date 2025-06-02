@@ -22,6 +22,7 @@ import { ProductCard } from '@/components/product/product-card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { UserPostDetailModal } from '@/components/community/user-post-detail-modal';
 import { useAuth } from '@/hooks/use-auth';
+import { Separator } from '@/components/ui/separator';
 
 
 const fallbackHeroSlide: HeroSlide = {
@@ -447,7 +448,7 @@ function HomePageContent() {
         const errorData = await response.json(); throw new Error(errorData.message || 'Failed to update bookmark status.');
       }
       await refreshUserProfile(); 
-      const updatedPost = await response.json(); 
+      // const updatedPost = await response.json(); // Not strictly needed if just refreshing profile
       toast({ title: "Bookmark status updated!" });
     } catch (error) {
       toast({ title: "Error", description: (error as Error).message, variant: "destructive" });
@@ -730,10 +731,10 @@ function HomePageContent() {
               <div className="overflow-hidden">
                 <div
                   className="flex transition-transform duration-700 ease-in-out"
-                  style={{ transform: `translateX(-${currentSocialCommerceSlide * 100 / (activeSocialCommerceItems.length > 0 ? Math.min(activeSocialCommerceItems.length, 1) : 1)}%)` }} // Adjust for number of visible items if changing
+                  style={{ transform: `translateX(-${currentSocialCommerceSlide * 100 / (activeSocialCommerceItems.length > 0 ? Math.min(activeSocialCommerceItems.length, 1) : 1)}%)` }} 
                 >
                   {activeSocialCommerceItems.map((item, index) => (
-                    <div key={item.id || `scs-slide-${index}`} className="w-full flex-shrink-0 px-2 md:px-4"> {/* Ensure full width and padding for spacing */}
+                    <div key={item.id || `scs-slide-${index}`} className="w-full flex-shrink-0 px-2 md:px-4"> 
                       <Card className="overflow-hidden rounded-xl shadow-lg group mx-auto max-w-md">
                         <InteractiveExternalLink href={item.linkUrl} target="_blank" rel="noopener noreferrer" showDialog={true}>
                           <div className="relative">
@@ -791,9 +792,10 @@ function HomePageContent() {
         </section>
       )}
 
-      {isLoadingCollaborations ? ( <section className="section-padding container-wide relative z-[1] bg-muted/30"><div className="flex justify-center items-center py-10"><Loader2 className="h-10 w-10 animate-spin text-primary" /></div></section>
+      {isLoadingCollaborations ? ( <section className="section-padding container-wide relative z-[1] bg-background"><div className="flex justify-center items-center py-10"><Loader2 className="h-10 w-10 animate-spin text-primary" /></div></section>
       ): featuredCollaborations.length > 0 && (
-        <section className="section-padding container-wide relative z-[1] bg-muted/30">
+        <section className="section-padding container-wide relative z-[1] bg-background">
+          <Separator className="my-0 mb-16" />
           <div className="text-center mb-12">
             <Handshake className="h-10 w-10 text-primary mx-auto mb-3" />
             <h2 className="text-3xl font-bold text-foreground">Featured Collaborations</h2>
@@ -803,7 +805,7 @@ function HomePageContent() {
             {featuredCollaborations.map(collab => (
               <Link key={collab.id} href={`/collaborations/${collab.slug}`} className="block group">
                 <Card className="overflow-hidden rounded-xl shadow-lg hover:shadow-2xl transition-all duration-300 ease-in-out transform hover:-translate-y-1 h-full flex flex-col">
-                  <AspectRatio ratio={16/10} className="relative bg-background">
+                  <AspectRatio ratio={16/10} className="relative bg-card">
                     {collab.cover_image_url ? ( <Image src={collab.cover_image_url} alt={collab.title || 'Collaboration cover image'} fill sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw" className="object-cover transition-transform duration-500 group-hover:scale-105" data-ai-hint={collab.ai_cover_image_prompt || collab.title.toLowerCase() || 'design art gallery'} />
                     ) : ( <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-accent/10 to-secondary/10"> <PaletteIcon className="w-16 h-16 text-accent/30" /> </div> )}
                   </AspectRatio>
@@ -840,7 +842,7 @@ function HomePageContent() {
                 {userPosts.slice(0, 4).map(post => {
                     const hasLiked = user?.id && post.liked_by_user_ids?.includes(user.id);
                     const userNameDisplay = post.user_name || 'Anonymous';
-                    const userProfileLink = `/users/${post.user_id}`;
+                    const userProfileLink = post.user_id ? `/users/${post.user_id}` : '#'; // Fallback href
 
                     return (
                     <Card 
@@ -864,9 +866,13 @@ function HomePageContent() {
                                     <AvatarImage src={post.user_avatar_url || undefined} alt={userNameDisplay} data-ai-hint="user avatar small"/>
                                     <AvatarFallback>{userNameDisplay.charAt(0).toUpperCase()}</AvatarFallback>
                                 </Avatar>
-                                <Link href={userProfileLink} className="text-xs font-medium text-foreground hover:text-primary truncate" onClick={(e) => e.stopPropagation()}>
-                                    {userNameDisplay}
-                                </Link>
+                                {post.user_id ? (
+                                  <Link href={userProfileLink} className="text-xs font-medium text-foreground hover:text-primary truncate" onClick={(e) => e.stopPropagation()}>
+                                      {userNameDisplay}
+                                  </Link>
+                                ) : (
+                                  <span className="text-xs font-medium text-foreground truncate">{userNameDisplay}</span>
+                                )}
                             </div>
                             {post.caption && <p className="text-xs text-muted-foreground line-clamp-2 mb-1.5">{post.caption}</p>}
                              <div className="flex items-center justify-between text-xs text-muted-foreground">
