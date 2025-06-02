@@ -85,22 +85,38 @@ export default function ProfilePage() {
           });
         } else {
           const errorData = await response.json().catch(() => ({}));
-           throw new Error(errorData.message || errorData.rawSupabaseError?.message || `Failed to fetch profile: ${response.statusText}`);
+          const errorMessage = errorData.message || errorData.rawSupabaseError?.message || `Failed to fetch profile details: ${response.statusText}`;
+          console.warn(`[ProfilePage] fetchFullProfileData: API call failed. UID: ${authUser?.id}. Error: ${errorMessage}`);
+          toast({ title: "Profile Partially Loaded", description: "Could not fetch full profile details. Some information might be from cache or incomplete. Please ensure database schema is up to date if issues persist.", variant: "default", duration: 7000 });
+          // Do not throw here; let the finally block handle fallback to authUser.
         }
       } catch (error) {
-        console.error("Error fetching profile:", error);
-        toast({ title: "Error Loading Profile", description: (error as Error).message, variant: "destructive" });
-        if (authUser) { // Fallback to authUser if API fails
-            setProfileData(authUser);
-            profileForm.reset({ name: authUser.name || '', email: authUser.email || '', avatarUrl: authUser.avatarUrl || '', bio: authUser.bio || '' });
-        }
+        console.error("[ProfilePage] Error in fetchFullProfileData's try-catch:", error);
+        const desc = (error as Error).message || "An unknown error occurred while loading your detailed profile information.";
+        toast({ title: "Error Loading Profile Details", description: desc, variant: "destructive" });
+        // Fallback to authUser data will be handled in `finally` if `profileData` wasn't set.
       } finally {
+        // Ensure profileData is set to authUser if it hasn't been successfully fetched
+        // and authUser exists. This handles the case where the API failed but authUser is available.
+        if (!profileData && authUser) { // Check if profileData was NOT set by a successful API call
+            setProfileData(authUser); // Use the potentially less complete authUser from context
+            profileForm.reset({
+                name: authUser.name || '',
+                email: authUser.email || '',
+                avatarUrl: authUser.avatarUrl || '',
+                bio: authUser.bio || '', // authUser.bio might be undefined, which is fine
+            });
+        }
         setIsFetchingProfileDetails(false);
       }
     } else if (!authLoading && !authUser) {
+        // If authUser is null and not loading, there's no profile to fetch.
+        // This case should ideally be handled by a redirect or a "please login" message
+        // if the page is accessed directly without auth.
+        console.warn("[ProfilePage] fetchFullProfileData: authUser is null and not loading. Cannot fetch profile.");
         setIsFetchingProfileDetails(false);
     }
-  }, [authUser, authLoading, toast, profileForm]);
+  }, [authUser, authLoading, toast, profileForm, profileData]); // Added profileData to deps
 
   useEffect(() => {
     if (!authLoading) fetchFullProfileData();
@@ -184,9 +200,9 @@ export default function ProfilePage() {
         name: data.name,
         avatarUrl: data.avatarUrl || null,
         bio: data.bio || null,
-        email: authUser.email, // Email is fixed from authUser
-        roles: profileData?.roles || authUser.roles, // Preserve roles
-        wishlist: profileData?.wishlist || authUser.wishlist, // Preserve wishlist
+        email: authUser.email, 
+        roles: profileData?.roles || authUser.roles, 
+        wishlist: profileData?.wishlist || authUser.wishlist, 
       };
       const response = await fetch('/api/account/profile', {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
@@ -196,10 +212,15 @@ export default function ProfilePage() {
         throw new Error(errorData.message || errorData.rawSupabaseError?.message || 'Failed to update profile');
       }
       const updatedProfileResponse = await response.json();
-      await refreshUserProfile();
+      await refreshUserProfile(); 
       toast({ title: "Profile Updated", description: "Your information has been saved.", action: <CheckCircle className="text-green-500" /> });
-      setProfileData(updatedProfileResponse.user);
-      profileForm.reset(updatedProfileResponse.user);
+      // The profileData state will be updated via refreshUserProfile and subsequent re-render of useAuth context,
+      // which triggers fetchFullProfileData again.
+      // Or, directly set it if API returns the full user object:
+      if (updatedProfileResponse.user) {
+        setProfileData(updatedProfileResponse.user);
+        profileForm.reset(updatedProfileResponse.user);
+      }
     } catch (error) {
       console.error("Error updating profile:", error);
       toast({ title: "Update Failed", description: (error as Error).message, variant: "destructive" });
@@ -220,8 +241,8 @@ export default function ProfilePage() {
   if (authLoading || isFetchingProfileDetails) {
       return <div className="container-wide section-padding text-center flex items-center justify-center min-h-[50vh]"><Loader2 className="h-12 w-12 animate-spin text-primary" /> <span className="ml-4 text-lg">Loading profile...</span></div>
   }
-  if (!authUser) { 
-      return <div className="container-wide section-padding text-center text-destructive">User not found or not logged in. Please try logging in again.</div>
+  if (!currentDisplayUser) { 
+      return <div className="container-wide section-padding text-center text-destructive">User profile could not be loaded. Please try logging in again or refresh the page.</div>
   }
 
   return (
@@ -362,3 +383,4 @@ export default function ProfilePage() {
     </div>
   );
 }
+
