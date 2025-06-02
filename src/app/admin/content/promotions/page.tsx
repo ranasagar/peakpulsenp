@@ -95,10 +95,22 @@ export default function AdminPromotionalPostsPage() {
     setEditingPost(post);
     form.reset({
       ...post,
+      title: post.title || '',
+      slug: post.slug || '',
+      description: post.description || '',
+      imageUrl: post.imageUrl || '',
+      imageAltText: post.imageAltText || '',
+      dataAiHint: post.dataAiHint || '',
+      ctaText: post.ctaText || '',
+      ctaLink: post.ctaLink || '',
       price: post.price === undefined ? null : post.price,
       discountPrice: post.discountPrice === undefined ? null : post.discountPrice,
-      validFrom: post.validFrom ? formatInputDate(post.validFrom) : null,
-      validUntil: post.validUntil ? formatInputDate(post.validUntil) : null,
+      validFrom: post.validFrom ? formatInputDate(post.validFrom) : '',
+      validUntil: post.validUntil ? formatInputDate(post.validUntil) : '',
+      isActive: post.isActive === undefined ? true : post.isActive,
+      displayOrder: post.displayOrder === undefined ? 0 : post.displayOrder,
+      backgroundColor: post.backgroundColor || '',
+      textColor: post.textColor || '',
     });
     setIsFormOpen(true);
   };
@@ -108,8 +120,8 @@ export default function AdminPromotionalPostsPage() {
     form.reset({
       title: `New Promo ${Date.now()}`, slug: '', description: '', imageUrl: '', imageAltText: '', dataAiHint: '',
       ctaText: 'Shop Now', ctaLink: '/products', price: null, discountPrice: null,
-      validFrom: formatInputDate(new Date()), validUntil: null, isActive: true, displayOrder: (posts.length + 1) * 10,
-      backgroundColor: '#E0F2FE', textColor: '#0C4A6E', // Example: Light Blue BG, Dark Blue text
+      validFrom: formatInputDate(new Date()), validUntil: '', isActive: true, displayOrder: (posts.length + 1) * 10,
+      backgroundColor: '#E0F2FE', textColor: '#0C4A6E', 
     });
     setIsFormOpen(true);
   };
@@ -122,8 +134,17 @@ export default function AdminPromotionalPostsPage() {
     const payload = {
       ...data,
       slug: data.slug?.trim() || data.title.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, ''),
-      validFrom: data.validFrom || null, // Ensure empty strings become null
+      validFrom: data.validFrom || null, 
       validUntil: data.validUntil || null,
+      // Ensure all optional fields that should be null if empty are explicitly set to null
+      description: data.description || null,
+      imageAltText: data.imageAltText || null,
+      dataAiHint: data.dataAiHint || null,
+      ctaText: data.ctaText || null,
+      ctaLink: data.ctaLink || null,
+      sku: data.sku || null, // Assuming sku was part of schema, though not in current form
+      backgroundColor: data.backgroundColor || null,
+      textColor: data.textColor || null,
     };
 
     try {
@@ -198,7 +219,7 @@ export default function AdminPromotionalPostsPage() {
                       <div className="flex-grow">
                         <h3 className="font-semibold text-lg text-foreground">{post.title} <Badge variant={post.isActive ? "default" : "outline"}>{post.isActive ? 'Active' : 'Inactive'}</Badge></h3>
                         <p className="text-xs text-muted-foreground line-clamp-1">Slug: {post.slug} | Order: {post.displayOrder}</p>
-                        {post.price && <p className="text-xs text-muted-foreground">Price: रू{post.price}{post.discountPrice && <span className="line-through ml-1"> रू{post.discountPrice}</span>}</p>}
+                        {post.price != null && <p className="text-xs text-muted-foreground">Price: रू{post.price}{post.discountPrice != null && <span className="line-through ml-1"> रू{post.discountPrice}</span>}</p>}
                          <div className="flex items-center gap-1 mt-1">
                             <div style={{ backgroundColor: post.backgroundColor || 'transparent', color: post.textColor || 'inherit' }} className="text-xs px-2 py-0.5 rounded-full border border-border">Preview Style</div>
                         </div>
@@ -222,17 +243,17 @@ export default function AdminPromotionalPostsPage() {
           <ScrollArea className="max-h-[70vh] p-1 -mx-1"><div className="p-5">
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                <FormField control={form.control} name="title" render={({ field }) => (<FormItem><FormLabel>Title*</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
-                <FormField control={form.control} name="slug" render={({ field }) => (<FormItem><FormLabel>Slug</FormLabel><FormControl><Input {...field} placeholder="auto-generated from title" /></FormControl><FormDescription>Lowercase, hyphens only.</FormDescription><FormMessage /></FormItem>)} />
-                <FormField control={form.control} name="description" render={({ field }) => (<FormItem><FormLabel>Description</FormLabel><FormControl><Textarea {...field} rows={3} /></FormControl><FormMessage /></FormItem>)} />
-                <FormField control={form.control} name="imageUrl" render={({ field }) => (<FormItem><FormLabel>Image URL*</FormLabel><FormControl><Input {...field} placeholder="https://example.com/promo.jpg" /></FormControl><FormMessage /></FormItem>)} />
+                <FormField control={form.control} name="title" render={({ field }) => (<FormItem><FormLabel>Title*</FormLabel><FormControl><Input {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>)} />
+                <FormField control={form.control} name="slug" render={({ field }) => (<FormItem><FormLabel>Slug</FormLabel><FormControl><Input {...field} value={field.value || ''} placeholder="auto-generated from title" /></FormControl><FormDescription>Lowercase, hyphens only.</FormDescription><FormMessage /></FormItem>)} />
+                <FormField control={form.control} name="description" render={({ field }) => (<FormItem><FormLabel>Description</FormLabel><FormControl><Textarea {...field} value={field.value || ''} rows={3} /></FormControl><FormMessage /></FormItem>)} />
+                <FormField control={form.control} name="imageUrl" render={({ field }) => (<FormItem><FormLabel>Image URL*</FormLabel><FormControl><Input {...field} value={field.value || ''} placeholder="https://example.com/promo.jpg" /></FormControl><FormMessage /></FormItem>)} />
                 <div className="grid grid-cols-2 gap-4">
-                    <FormField control={form.control} name="imageAltText" render={({ field }) => (<FormItem><FormLabel>Image Alt Text</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
-                    <FormField control={form.control} name="dataAiHint" render={({ field }) => (<FormItem><FormLabel>Image AI Hint</FormLabel><FormControl><Input {...field} placeholder="e.g. sale banner modern" /></FormControl><FormMessage /></FormItem>)} />
+                    <FormField control={form.control} name="imageAltText" render={({ field }) => (<FormItem><FormLabel>Image Alt Text</FormLabel><FormControl><Input {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>)} />
+                    <FormField control={form.control} name="dataAiHint" render={({ field }) => (<FormItem><FormLabel>Image AI Hint</FormLabel><FormControl><Input {...field} value={field.value || ''} placeholder="e.g. sale banner modern" /></FormControl><FormMessage /></FormItem>)} />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
-                    <FormField control={form.control} name="ctaText" render={({ field }) => (<FormItem><FormLabel>CTA Button Text</FormLabel><FormControl><Input {...field} placeholder="e.g., Shop Now" /></FormControl><FormMessage /></FormItem>)} />
-                    <FormField control={form.control} name="ctaLink" render={({ field }) => (<FormItem><FormLabel>CTA Button Link</FormLabel><FormControl><Input {...field} placeholder="/products or https://..." /></FormControl><FormMessage /></FormItem>)} />
+                    <FormField control={form.control} name="ctaText" render={({ field }) => (<FormItem><FormLabel>CTA Button Text</FormLabel><FormControl><Input {...field} value={field.value || ''} placeholder="e.g., Shop Now" /></FormControl><FormMessage /></FormItem>)} />
+                    <FormField control={form.control} name="ctaLink" render={({ field }) => (<FormItem><FormLabel>CTA Button Link</FormLabel><FormControl><Input {...field} value={field.value || ''} placeholder="/products or https://..." /></FormControl><FormMessage /></FormItem>)} />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                     <FormField control={form.control} name="price" render={({ field }) => (<FormItem><FormLabel>Original Price (Optional)</FormLabel><FormControl><Input type="number" step="0.01" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? null : parseFloat(e.target.value))} /></FormControl><FormMessage /></FormItem>)} />
@@ -243,11 +264,11 @@ export default function AdminPromotionalPostsPage() {
                     <FormField control={form.control} name="validUntil" render={({ field }) => (<FormItem><FormLabel className="flex items-center"><CalendarDays className="mr-1.5 h-4 w-4 text-muted-foreground"/>Valid Until</FormLabel><FormControl><Input type="date" {...field} value={field.value ?? ''}/></FormControl><FormMessage /></FormItem>)} />
                 </div>
                  <div className="grid grid-cols-2 gap-4 items-end">
-                    <FormField control={form.control} name="backgroundColor" render={({ field }) => (<FormItem><FormLabel className="flex items-center"><Palette className="mr-1.5 h-4 w-4 text-muted-foreground"/>Background Color</FormLabel><FormControl><Input {...field} placeholder="#RRGGBB or bg-blue-500" /></FormControl><FormDescription>Hex or Tailwind class.</FormDescription><FormMessage /></FormItem>)} />
-                    <FormField control={form.control} name="textColor" render={({ field }) => (<FormItem><FormLabel className="flex items-center"><Palette className="mr-1.5 h-4 w-4 text-muted-foreground"/>Text Color</FormLabel><FormControl><Input {...field} placeholder="#RRGGBB or text-white" /></FormControl><FormDescription>Hex or Tailwind class.</FormDescription><FormMessage /></FormItem>)} />
+                    <FormField control={form.control} name="backgroundColor" render={({ field }) => (<FormItem><FormLabel className="flex items-center"><Palette className="mr-1.5 h-4 w-4 text-muted-foreground"/>Background Color</FormLabel><FormControl><Input {...field} value={field.value || ''} placeholder="#RRGGBB or bg-blue-500" /></FormControl><FormDescription>Hex or Tailwind class.</FormDescription><FormMessage /></FormItem>)} />
+                    <FormField control={form.control} name="textColor" render={({ field }) => (<FormItem><FormLabel className="flex items-center"><Palette className="mr-1.5 h-4 w-4 text-muted-foreground"/>Text Color</FormLabel><FormControl><Input {...field} value={field.value || ''} placeholder="#RRGGBB or text-white" /></FormControl><FormDescription>Hex or Tailwind class.</FormDescription><FormMessage /></FormItem>)} />
                 </div>
                 <div className="grid grid-cols-2 gap-4 items-end">
-                    <FormField control={form.control} name="displayOrder" render={({ field }) => (<FormItem><FormLabel>Display Order</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormDescription>Lower numbers appear first.</FormDescription><FormMessage /></FormItem>)} />
+                    <FormField control={form.control} name="displayOrder" render={({ field }) => (<FormItem><FormLabel>Display Order</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? 0} onChange={e => field.onChange(parseInt(e.target.value, 10) || 0)} /></FormControl><FormDescription>Lower numbers appear first.</FormDescription><FormMessage /></FormItem>)} />
                     <FormField control={form.control} name="isActive" render={({ field }) => (<FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-3 shadow-sm h-10"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><FormLabel className="font-normal cursor-pointer">Active</FormLabel></FormItem>)} />
                 </div>
                 <DialogFooter className="pt-4">
@@ -269,3 +290,5 @@ export default function AdminPromotionalPostsPage() {
     </>
   );
 }
+
+    
