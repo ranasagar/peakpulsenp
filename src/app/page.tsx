@@ -136,6 +136,7 @@ function HomePageContent() {
   const [isArtisanalPlaying, setIsArtisanalPlaying] = useState(true);
 
   const [currentSocialCommerceSlide, setCurrentSocialCommerceSlide] = useState(0);
+  const [isSocialCommerceHovered, setIsSocialCommerceHovered] = useState(false); // New state for hover
 
   const { toast } = useToast();
 
@@ -346,14 +347,14 @@ function HomePageContent() {
     }
   };
   
-  // Autoplay for Social Commerce Carousel
+  // Autoplay for Social Commerce Carousel, with hover pause
   useEffect(() => {
     let socialInterval: NodeJS.Timeout | undefined;
-    if (activeSocialCommerceItems.length > 1) {
+    if (activeSocialCommerceItems.length > 1 && !isSocialCommerceHovered) {
       socialInterval = setInterval(nextSocialCommerceSlide, 6000); // Change slide every 6 seconds
     }
     return () => { if (socialInterval) clearInterval(socialInterval); };
-  }, [activeSocialCommerceItems.length, nextSocialCommerceSlide]);
+  }, [activeSocialCommerceItems.length, nextSocialCommerceSlide, isSocialCommerceHovered]);
 
 
   if (isLoadingContent || isLoadingFeaturedProducts || isLoadingCategories || isLoadingCollaborations || (content.promotionalPostsSection?.enabled && isLoadingPromotionalPosts) || isLoadingUserPosts) {
@@ -593,7 +594,11 @@ function HomePageContent() {
 
       {/* Social Commerce Section (#PeakPulseStyle) - Carousel */}
       {!isLoadingContent && (
-        <section className="section-padding container-wide relative z-[1] bg-muted/30 overflow-hidden">
+        <section 
+          className="section-padding container-wide relative z-[1] bg-muted/30 overflow-hidden"
+          onMouseEnter={() => setIsSocialCommerceHovered(true)}
+          onMouseLeave={() => setIsSocialCommerceHovered(false)}
+        >
           <div className="text-center mb-12">
             <Instagram className="h-10 w-10 text-pink-600 mx-auto mb-3" />
             <h2 className="text-3xl font-bold text-foreground">#PeakPulseStyle on Social</h2>
@@ -606,14 +611,14 @@ function HomePageContent() {
               <div className="overflow-hidden">
                 <div
                   className="flex transition-transform duration-500 ease-in-out"
-                  style={{ transform: `translateX(-${currentSocialCommerceSlide * 100}%)` }}
+                  style={{ transform: `translateX(-${currentSocialCommerceSlide * 100 / (Math.min(activeSocialCommerceItems.length, 1))}%)` }}
                 >
                   {activeSocialCommerceItems.map(item => (
-                    <div key={item.id} className="w-full flex-shrink-0 px-2 md:px-4">
+                    <div key={item.id} className="w-full flex-shrink-0 px-2 md:px-4" style={{ minWidth: `calc(100% / ${Math.min(activeSocialCommerceItems.length, 1)})`}}>
                       <Card className="overflow-hidden rounded-xl shadow-lg group mx-auto max-w-md">
                         <InteractiveExternalLink href={item.linkUrl} target="_blank" rel="noopener noreferrer" showDialog={true}>
                           <div className="relative">
-                            <AspectRatio ratio={1/1} className="relative bg-card"> {/* Ensure relative positioning for Image */}
+                            <AspectRatio ratio={1/1} className="relative bg-card">
                               <Image 
                                 src={item.imageUrl} 
                                 alt={item.altText || "Peak Pulse style on social media"}
@@ -662,7 +667,7 @@ function HomePageContent() {
               )}
             </div>
           ) : (
-            <p className="text-center text-muted-foreground py-8">No social posts to display at the moment. Add some in the Admin Panel! (Admin &gt; Content &gt; Homepage)</p>
+             <p className="text-center text-muted-foreground py-8">No social posts to display at the moment. Add some in the Admin Panel! (Admin &gt; Content &gt; Homepage)</p>
           )}
         </section>
       )}
