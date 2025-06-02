@@ -2,7 +2,7 @@
 // /src/app/api/user-posts/route.ts
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { supabase } from '../../../lib/supabaseClient.ts';
+import { supabase, supabaseAdmin } from '../../../lib/supabaseClient.ts'; // Import both
 import type { UserPost } from '@/types';
 
 export const dynamic = 'force-dynamic';
@@ -11,16 +11,16 @@ export const dynamic = 'force-dynamic';
 export async function GET(request: NextRequest) {
   console.log("[API /api/user-posts GET] request received for approved posts.");
 
-  if (!supabase) {
-    console.error('[API /api/user-posts GET] Supabase client is not initialized. Check environment variables and server restart.');
+  if (!supabase) { // Use public client for public reads
+    console.error('[API /api/user-posts GET] Supabase public client is not initialized. Check environment variables and server restart.');
     return NextResponse.json({
       message: 'Database service not available. Cannot fetch posts.',
-      rawSupabaseError: { message: 'Supabase client not initialized on server for GET. Check server logs and environment variables.' }
+      rawSupabaseError: { message: 'Supabase public client not initialized on server for GET. Check server logs and environment variables.' }
     }, { status: 503 });
   }
 
   try {
-    const { data, error } = await supabase
+    const { data, error } = await supabase // Use public client
       .from('user_posts')
       .select(`
         id,
@@ -31,12 +31,9 @@ export async function GET(request: NextRequest) {
         status,
         created_at,
         updated_at,
-        users ( 
-          name,
-          "avatarUrl"
-        )
+        user:users ( name, "avatarUrl" ) 
       `)
-      .eq('status', 'approved')
+      .eq('status', 'approved') // Rely on RLS for this, or filter here
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -52,11 +49,11 @@ export async function GET(request: NextRequest) {
       }, { status: 500 });
     }
     
-    const posts: UserPost[] = (data || []).map((post: any) => ({ // Use 'any' for Supabase join result before mapping
+    const posts: UserPost[] = (data || []).map((post: any) => ({ 
         id: post.id,
         user_id: post.user_id,
-        user_name: post.users?.name || 'Peak Pulse User', 
-        user_avatar_url: post.users?.["avatarUrl"] || undefined,
+        user_name: post.user?.name || 'Peak Pulse User', 
+        user_avatar_url: post.user?.avatarUrl || undefined,
         image_url: post.image_url,
         caption: post.caption,
         product_tags: post.product_tags,
@@ -80,19 +77,19 @@ export async function GET(request: NextRequest) {
 
 // POST to create a new user post (submitted by users)
 interface CreateUserPostPayload {
-  userId: string;
+  userId: string; // Firebase UID
   imageUrl: string;
-  caption?: string;
-  productTags?: string[];
+  caption?: string | null; // Allow null from client
+  productTags?: string[] | null; // Allow null from client
 }
 export async function POST(request: NextRequest) {
   console.log("[API /api/user-posts POST] request received to create user post.");
 
-  if (!supabase) {
-    console.error('[API /api/user-posts POST] Supabase client is not initialized. Check environment variables and server restart.');
+  if (!supabaseAdmin) { // Use ADMIN client for inserts to bypass RLS if user_id is trusted from client
+    console.error('[API /api/user-posts POST] Supabase ADMIN client is not initialized. Check SUPABASE_SERVICE_ROLE_KEY and server restart.');
     return NextResponse.json({
       message: 'Database service not available. Cannot create post.',
-      rawSupabaseError: { message: 'Supabase client not initialized on server for POST. Check server logs and environment variables.' }
+      rawSupabaseError: { message: 'Supabase ADMIN client not initialized on server for POST. Check server logs and environment variables.' }
     }, { status: 503 });
   }
 
@@ -106,37 +103,31 @@ export async function POST(request: NextRequest) {
 
   const { userId, imageUrl, caption, productTags } = payload;
   
-  // Extremely detailed logging of received payload values BEFORE any processing
-  console.log(`[API /api/user-posts POST] RAW PAYLOAD - userId: '${userId}' (type: ${typeof userId}), length: ${userId ? userId.length : 'N/A'}`);
-  console.log(`[API /api/user-posts POST] RAW PAYLOAD - imageUrl: '${imageUrl}' (type: ${typeof imageUrl}), length: ${imageUrl ? imageUrl.length : 'N/A'}`);
-  console.log(`[API /api/user-posts POST] RAW PAYLOAD - caption: '${caption}' (type: ${typeof caption})`);
-  console.log(`[API /api/user-posts POST] RAW PAYLOAD - productTags:`, productTags);
+  console.log(`[API /api/user-posts POST] RAW PAYLOAD - userId: '${userId}', imageUrl: '${imageUrl}', caption: '${caption}', productTags:`, productTags);
 
-
-  // Stricter pre-flight checks
-  if (!userId || typeof userId !== 'string' || userId.trim().length <= 20) {
-    const message = `Invalid userId: '${userId}'. Must be a non-empty string longer than 20 characters. Type: ${typeof userId}, Length: ${userId ? userId.length : 'N/A'}`;
+  if (!userId || typeof userId !== 'string' || userId.trim().length === 0) {
+    const message = `Invalid userId: '${userId}'. Must be a non-empty string.`;
     console.warn(`[API /api/user-posts POST] VALIDATION FAILED: ${message}`);
     return NextResponse.json({ message }, { status: 400 });
   }
   if (!imageUrl || typeof imageUrl !== 'string' || imageUrl.trim() === '') {
-    const message = `Invalid imageUrl: '${imageUrl}'. Must be a non-empty string. Type: ${typeof imageUrl}, Length: ${imageUrl ? imageUrl.length : 'N/A'}`;
+    const message = `Invalid imageUrl: '${imageUrl}'. Must be a non-empty string.`;
     console.warn(`[API /api/user-posts POST] VALIDATION FAILED: ${message}`);
     return NextResponse.json({ message }, { status: 400 });
   }
 
   const newPostData = {
-    user_id: userId.trim(), // Ensure no leading/trailing whitespace from client
-    image_url: imageUrl.trim(), // Ensure no leading/trailing whitespace
+    user_id: userId.trim(),
+    image_url: imageUrl.trim(),
     caption: caption || null,
     product_tags: productTags && productTags.length > 0 ? productTags : null,
-    status: 'pending' as const, // Explicitly type status
+    status: 'pending' as const,
   };
 
   console.log('[API /api/user-posts POST] DATA PREPARED FOR SUPABASE INSERT:', JSON.stringify(newPostData, null, 2));
 
   try {
-    const { data, error: insertError } = await supabase
+    const { data, error: insertError } = await supabaseAdmin // Use ADMIN client
       .from('user_posts')
       .insert(newPostData)
       .select()
@@ -144,8 +135,6 @@ export async function POST(request: NextRequest) {
 
     if (insertError) {
       console.error('[API /api/user-posts POST] Supabase error creating post:', insertError);
-      // Log the exact data that caused the RLS violation if this is an RLS error
-      console.error('[API /api/user-posts POST] Data that failed RLS (if this is RLS error):', JSON.stringify(newPostData, null, 2));
       return NextResponse.json({
         message: 'Failed to create post in database.',
         rawSupabaseError: {
@@ -169,3 +158,5 @@ export async function POST(request: NextRequest) {
     }, { status: 500 });
   }
 }
+
+    

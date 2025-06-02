@@ -1,3 +1,4 @@
+
 // src/app/page.tsx
 "use client";
 
@@ -6,9 +7,9 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Icons } from '@/components/icons';
-import { ChevronLeft, ChevronRight, ShoppingBag, ArrowRight, Instagram, Send, Users, ImagePlus, Loader2, Play, Pause, LayoutGrid, Palette as PaletteIcon, Handshake, Sprout } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ShoppingBag, ArrowRight, Instagram, Send, Users, ImagePlus, Loader2, Play, Pause, LayoutGrid, Palette as PaletteIcon, Handshake, Sprout, ImagePlay as ImagePlayIcon } from 'lucide-react';
 import { NewsletterSignupForm } from '@/components/forms/newsletter-signup-form';
-import type { HomepageContent, Product, HeroSlide, AdminCategory as CategoryType, DesignCollaborationGallery, ArtisanalRootsSlide, SocialCommerceItem, PromotionalPost } from '@/types';
+import type { HomepageContent, Product, HeroSlide, AdminCategory as CategoryType, DesignCollaborationGallery, ArtisanalRootsSlide, SocialCommerceItem, PromotionalPost, UserPost } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent } from '@/components/ui/card';
 import { AspectRatio } from "@/components/ui/aspect-ratio";
@@ -17,6 +18,7 @@ import MainLayout from '@/components/layout/main-layout';
 import { formatDisplayDate } from '@/lib/dateUtils';
 import { cn } from '@/lib/utils';
 import { ProductCard } from '@/components/product/product-card';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 
 const fallbackHeroSlide: HeroSlide = {
@@ -41,7 +43,7 @@ const defaultHomepageContent: HomepageContent = {
   socialCommerceItems: [],
   heroVideoId: undefined,
   heroImageUrl: undefined,
-  promotionalPostsSection: { // Default config for promo section
+  promotionalPostsSection: { 
     enabled: false,
     title: "Special Offers",
     maxItems: 3,
@@ -95,7 +97,7 @@ async function getHomepageContent(): Promise<HomepageContent> {
         : defaultHomepageContent.socialCommerceItems || [],
       heroVideoId: jsonData.heroVideoId === null ? undefined : jsonData.heroVideoId,
       heroImageUrl: jsonData.heroImageUrl === null ? undefined : jsonData.heroImageUrl,
-      promotionalPostsSection: { // Merge promotionalPostsSection config
+      promotionalPostsSection: { 
         enabled: jsonData.promotionalPostsSection?.enabled ?? defaultHomepageContent.promotionalPostsSection!.enabled,
         title: jsonData.promotionalPostsSection?.title || defaultHomepageContent.promotionalPostsSection!.title,
         maxItems: jsonData.promotionalPostsSection?.maxItems || defaultHomepageContent.promotionalPostsSection!.maxItems,
@@ -124,6 +126,9 @@ function HomePageContent() {
   const [featuredCollaborations, setFeaturedCollaborations] = useState<DesignCollaborationGallery[]>([]);
   const [isLoadingCollaborations, setIsLoadingCollaborations] = useState(true);
 
+  const [userPosts, setUserPosts] = useState<UserPost[]>([]);
+  const [isLoadingUserPosts, setIsLoadingUserPosts] = useState(true);
+
   const [currentHeroSlide, setCurrentHeroSlide] = useState(0);
   const [isHeroPlaying, setIsHeroPlaying] = useState(true);
 
@@ -139,6 +144,7 @@ function HomePageContent() {
     setIsLoadingFeaturedProducts(true);
     setIsLoadingCategories(true);
     setIsLoadingCollaborations(true);
+    setIsLoadingUserPosts(true);
     
     const fetchedContent = await getHomepageContent();
     setContent(current => ({...current, ...fetchedContent, heroSlides: fetchedContent.heroSlides || current.heroSlides }));
@@ -152,11 +158,10 @@ function HomePageContent() {
     }
     setIsLoadingContent(false);
 
-    // Fetch promotional posts if enabled
     if (fetchedContent?.promotionalPostsSection?.enabled) {
       setIsLoadingPromotionalPosts(true);
       try {
-        const promosResponse = await fetch('/api/promotional-posts'); // Public endpoint
+        const promosResponse = await fetch('/api/promotional-posts'); 
         if (!promosResponse.ok) {
           let errorDetail = 'Failed to fetch promotional posts';
           try { const errorData = await promosResponse.json(); errorDetail = errorData.message || errorData.rawSupabaseError?.message || `${promosResponse.status} ${promosResponse.statusText}`; } catch (e) {/* ignore */}
@@ -227,6 +232,21 @@ function HomePageContent() {
       setIsLoadingCollaborations(false);
     }
 
+    try {
+      const userPostsResponse = await fetch('/api/user-posts');
+      if (!userPostsResponse.ok) {
+          let errorDetail = 'Failed to fetch user posts';
+          try { const errorData = await userPostsResponse.json(); errorDetail = errorData.message || errorData.rawSupabaseError?.message || `${userPostsResponse.status} ${userPostsResponse.statusText}`; } catch (e) {/* ignore */}
+          throw new Error(errorDetail);
+      }
+      const userPostsData: UserPost[] = await userPostsResponse.json();
+      setUserPosts(userPostsData);
+    } catch (err) {
+      toast({ title: "Error Loading Community Posts", description: (err as Error).message, variant: "destructive" });
+    } finally {
+      setIsLoadingUserPosts(false);
+    }
+
   }, [toast]);
 
   useEffect(() => {
@@ -246,8 +266,7 @@ function HomePageContent() {
           dataAiHint: promo.dataAiHint || 'promotion offer sale',
           ctaText: promo.ctaText || 'Learn More',
           ctaLink: promo.ctaLink || `/products?promo=${promo.slug}`,
-          videoId: undefined, // Assuming promotional posts don't have videos for hero
-          // Optional: Add specific styling/flags for promo slides if needed
+          videoId: undefined, 
           _isPromo: true,
           _backgroundColor: promo.backgroundColor,
           _textColor: promo.textColor,
@@ -264,7 +283,6 @@ function HomePageContent() {
 
   const activeHeroSlides = combinedHeroSlides;
   const activeArtisanalSlides = content.artisanalRoots?.slides && content.artisanalRoots.slides.length > 0 ? content.artisanalRoots.slides : [];
-
 
   const nextHeroSlide = useCallback(() => {
     if (activeHeroSlides.length > 0) {
@@ -328,7 +346,7 @@ function HomePageContent() {
     }
   };
 
-  if (isLoadingContent || isLoadingFeaturedProducts || isLoadingCategories || isLoadingCollaborations || (content.promotionalPostsSection?.enabled && isLoadingPromotionalPosts)) {
+  if (isLoadingContent || isLoadingFeaturedProducts || isLoadingCategories || isLoadingCollaborations || (content.promotionalPostsSection?.enabled && isLoadingPromotionalPosts) || isLoadingUserPosts) {
     return (
         <div className="flex items-center justify-center min-h-screen bg-background">
             <div className="flex flex-col items-center">
@@ -340,14 +358,12 @@ function HomePageContent() {
   }
   
   const currentDisplayedHeroSlide = activeHeroSlides[currentHeroSlide];
-  // Fallback to general hero video/image if current slide doesn't have specific ones
   const heroVideoId = currentDisplayedHeroSlide?.videoId || content.heroVideoId; 
   const heroImageUrl = currentDisplayedHeroSlide?.imageUrl || content.heroImageUrl;
 
 
   return (
     <>
-      {/* Hero Section */}
       <section style={{ backgroundColor: 'black' }} className="relative h-screen w-full overflow-hidden">
         <div className="absolute inset-0 z-0 pointer-events-none">
           {activeHeroSlides.map((slide, index) => (
@@ -391,7 +407,7 @@ function HomePageContent() {
               )}
             </div>
           ))}
-           {activeHeroSlides.length === 0 && heroVideoId && ( // Fallback if NO slides are defined at all
+           {activeHeroSlides.length === 0 && heroVideoId && ( 
              <>
                 <iframe
                     className="absolute top-1/2 left-1/2 w-full h-full min-w-[177.77vh] min-h-[56.25vw] transform -translate-x-1/2 -translate-y-1/2"
@@ -601,93 +617,52 @@ function HomePageContent() {
         </section>
       )}
 
-      {/* Social Commerce Section (#PeakPulseStyle) */}
-      <section className="section-padding container-wide relative z-[1] bg-card">
-        <h2 className="text-3xl font-bold text-center mb-12 text-foreground">
-          #PeakPulseStyle <Instagram className="inline-block ml-2 h-7 w-7 text-pink-500" />
-        </h2>
-        {isLoadingContent ? (
-          <div className="relative w-full max-w-xl mx-auto">
-            <AspectRatio ratio={1/1} className="bg-muted rounded-xl shadow-lg animate-pulse" />
-            <div className="flex justify-center mt-4 space-x-2">
-              {Array(3).fill(0).map((_, i) => ( <div key={i} className="h-2.5 w-2.5 bg-muted rounded-full animate-pulse" /> ))}
-            </div>
-          </div>
-        ) : activeSocialCommerceItems.length > 0 ? (
-          <div className="relative w-full max-w-xl mx-auto">
-            <div className="overflow-hidden rounded-xl shadow-2xl">
-              <div
-                className="flex transition-transform duration-700 ease-in-out"
-                style={{ transform: `translateX(-${currentSocialCommerceSlide * 100}%)` }}
-              >
-                {activeSocialCommerceItems.map((item) => (
-                  <div key={item.id || item.imageUrl} className="min-w-full shrink-0">
-                    <InteractiveExternalLink href={item.linkUrl} className="block group relative" showDialog={true}>
-                      <AspectRatio ratio={1/1} className="bg-background">
-                        <Image
-                          src={item.imageUrl || `https://placehold.co/600x600.png?text=User+Post`}
-                          alt={item.altText || `Peak Pulse style by a user`}
-                          fill
-                          sizes="(max-width: 768px) 100vw, 600px"
-                          className="object-cover" 
-                          data-ai-hint={item.dataAiHint || "instagram fashion user"}
-                        />
-                        <div
-                          className="absolute inset-0 opacity-0 group-hover:opacity-40 transition-all duration-500 ease-in-out
-                                     bg-gradient-to-br from-white/50 via-white/25 to-transparent
-                                     mix-blend-overlay group-hover:backdrop-blur-[2px] pointer-events-none"
-                        ></div>
-                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col items-center justify-center text-white p-4">
-                          <Instagram className="h-10 w-10 mb-2" />
-                          <span className="text-sm font-medium text-center">View on Instagram</span>
-                        </div>
-                      </AspectRatio>
-                    </InteractiveExternalLink>
-                  </div>
+      <section className="bg-card section-padding relative z-[1]">
+        <div className="text-center mb-12">
+            <ImagePlayIcon className="h-10 w-10 text-primary mx-auto mb-3" />
+            <h2 className="text-3xl font-bold text-foreground">Community Spotlights</h2>
+            <p className="text-muted-foreground mt-1 max-w-xl mx-auto">See how others are styling Peak Pulse. Share your look with #PeakPulseStyle!</p>
+        </div>
+        {isLoadingUserPosts ? (
+            <div className="flex justify-center items-center py-10"><Loader2 className="h-10 w-10 animate-spin text-primary" /></div>
+        ) : userPosts.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 md:gap-8">
+                {userPosts.slice(0, 4).map(post => ( // Display up to 4 posts
+                    <Card key={post.id} className="overflow-hidden rounded-xl shadow-lg group hover:shadow-2xl transition-shadow">
+                        <AspectRatio ratio={1/1} className="relative bg-muted">
+                            <Image 
+                                src={post.image_url} 
+                                alt={post.caption || `Style post by ${post.user_name}`}
+                                fill
+                                sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                                className="object-cover transition-transform duration-500 group-hover:scale-105"
+                                data-ai-hint="user fashion style"
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 p-3 flex flex-col justify-end">
+                                <div className="flex items-center space-x-2 mb-1">
+                                    <Avatar className="h-6 w-6 border-2 border-white">
+                                        <AvatarImage src={post.user_avatar_url || 'https://placehold.co/40x40.png'} alt={post.user_name} data-ai-hint="user avatar"/>
+                                        <AvatarFallback>{post.user_name ? post.user_name.charAt(0).toUpperCase() : 'P'}</AvatarFallback>
+                                    </Avatar>
+                                    <span className="text-xs font-medium text-white truncate">{post.user_name}</span>
+                                </div>
+                                {post.caption && <p className="text-xs text-neutral-200 line-clamp-2">{post.caption}</p>}
+                            </div>
+                        </AspectRatio>
+                    </Card>
                 ))}
-              </div>
             </div>
-            {activeSocialCommerceItems.length > 1 && (
-              <>
-                <Button
-                  variant="outline" size="icon"
-                  className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 md:-translate-x-full z-10 h-10 w-10 rounded-full bg-card/80 hover:bg-card shadow-md"
-                  onClick={prevSocialCommerceSlide} aria-label="Previous Social Post"
-                > <ChevronLeft className="h-5 w-5" /> </Button>
-                <Button
-                  variant="outline" size="icon"
-                  className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 md:translate-x-full z-10 h-10 w-10 rounded-full bg-card/80 hover:bg-card shadow-md"
-                  onClick={nextSocialCommerceSlide} aria-label="Next Social Post"
-                > <ChevronRight className="h-5 w-5" /> </Button>
-                <div className="absolute bottom-[-20px] left-1/2 -translate-x-1/2 z-10 flex items-center space-x-2 mt-4">
-                  {activeSocialCommerceItems.map((_, index) => (
-                    <button
-                      key={`scs-dot-${index}`}
-                      onClick={() => goToSocialCommerceSlide(index)}
-                      className={cn(
-                        "h-2.5 w-2.5 rounded-full cursor-pointer transition-all duration-300 ease-in-out hover:bg-primary/70",
-                        currentSocialCommerceSlide === index ? 'bg-primary scale-125' : 'bg-muted-foreground/40'
-                      )}
-                      aria-label={`Go to social post ${index + 1}`}
-                    />
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
         ) : (
-          <p className="text-center text-muted-foreground">Follow us on Instagram! Posts shared by our community will appear here.</p>
+            <p className="text-center text-muted-foreground py-8">No community posts yet. Be the first to share your style!</p>
         )}
-        <div className="text-center mt-16">
-            <InteractiveExternalLink href="https://instagram.com/peakpulsenp" showDialog={true}>
-                <Button variant="outline" className="transition-all duration-300 ease-in-out hover:scale-105 hover:shadow-lg hover:bg-pink-100 dark:hover:bg-pink-500/20 hover:text-pink-600 dark:hover:text-pink-400 border-pink-300 dark:border-pink-500/50 text-pink-600 dark:text-pink-400" >
-                    <span className="flex items-center">Follow us on Instagram <Instagram className="ml-2 h-4 w-4" /></span>
-                </Button>
-            </InteractiveExternalLink>
+        <div className="text-center mt-12">
+            <Link href="/community/create-post" className={cn(buttonVariants({ variant: "default", size: "lg", className: "text-base" }))}>
+                 <ImagePlus className="mr-2 h-5 w-5" /> Share Your Style
+            </Link>
         </div>
       </section>
       
-      <section className="bg-card section-padding relative z-[1]">
+      <section className="bg-background section-padding relative z-[1]">
         <div className="container-slim text-center">
           <Send className="h-12 w-12 text-primary mx-auto mb-4" />
           <h2 className="text-3xl font-bold mb-4 text-foreground">Join the Peak Pulse Community</h2>
@@ -706,3 +681,5 @@ export default function RootPage() {
     </MainLayout>
   );
 }
+
+    

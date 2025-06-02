@@ -27,7 +27,7 @@ type UserPostFormValues = z.infer<typeof userPostSchema>;
 
 export default function CreateUserPostPage() {
   const { toast } = useToast();
-  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
+  const { user, isAuthenticated, isLoading: authIsLoading } = useAuth();
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -54,10 +54,10 @@ export default function CreateUserPostPage() {
         : [];
 
       const payload = {
-        userId: user.id,
+        userId: user.id, // This now comes from the authenticated user context
         imageUrl: data.imageUrl,
-        caption: data.caption,
-        productTags: productTagsArray,
+        caption: data.caption || null, // Send null if empty
+        productTags: productTagsArray.length > 0 ? productTagsArray : null, // Send null if empty
       };
 
       const response = await fetch('/api/user-posts', {
@@ -88,6 +88,8 @@ export default function CreateUserPostPage() {
         description: "Your style has been submitted for review. Thank you for sharing!",
       });
       form.reset();
+      // Optionally redirect or show a success message that stays
+      // router.push('/community'); // Example redirect
     } catch (error) {
       toast({
         title: "Submission Failed",
@@ -99,7 +101,7 @@ export default function CreateUserPostPage() {
     }
   };
 
-  if (authLoading) {
+  if (authIsLoading) {
     return (
       <MainLayout>
         <div className="container-slim section-padding flex justify-center items-center min-h-[60vh]">
@@ -109,7 +111,7 @@ export default function CreateUserPostPage() {
     );
   }
 
-  if (!isAuthenticated && !authLoading) {
+  if (!isAuthenticated && !authIsLoading) {
     return (
       <MainLayout>
         <div className="container-slim section-padding text-center">
@@ -196,4 +198,5 @@ export default function CreateUserPostPage() {
     </MainLayout>
   );
 }
+
     

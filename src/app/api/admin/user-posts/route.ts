@@ -1,7 +1,8 @@
+
 // /src/app/api/admin/user-posts/route.ts
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { supabaseAdmin } from '../../../../lib/supabaseClient'; // Use admin client for all operations
+import { supabaseAdmin } from '../../../../lib/supabaseClient'; 
 import type { UserPost } from '@/types';
 
 export const dynamic = 'force-dynamic';
@@ -30,7 +31,7 @@ export async function GET(request: NextRequest) {
         status,
         created_at,
         updated_at,
-        user:users ( name, "avatarUrl" )
+        user:users ( name, "avatarUrl" ) 
       `)
       .order('created_at', { ascending: false });
 
@@ -46,7 +47,7 @@ export async function GET(request: NextRequest) {
         id: post.id,
         user_id: post.user_id,
         user_name: post.user?.name || 'Unknown User', 
-        user_avatar_url: post.user?.["avatarUrl"] || undefined,
+        user_avatar_url: post.user?.avatarUrl || undefined,
         image_url: post.image_url,
         caption: post.caption,
         product_tags: post.product_tags,
@@ -64,3 +65,5 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ message: 'Server error fetching user posts for admin.', errorName: error.name, errorMessage: error.message }, { status: 500 });
   }
 }
+
+    

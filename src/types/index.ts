@@ -253,7 +253,7 @@ export interface HomepageContent {
     slides?: ArtisanalRootsSlide[];
   };
   socialCommerceItems?: SocialCommerceItem[];
-  promotionalPostsSection?: { 
+  promotionalPostsSection?: {
     enabled?: boolean;
     title?: string;
     maxItems?: number;
@@ -310,7 +310,7 @@ export interface SiteSettings {
   storePhone?: string;
   storeAddress?: string;
   socialLinks?: SocialLink[];
-  showExternalLinkWarning?: boolean; // Added new setting
+  showExternalLinkWarning?: boolean;
 }
 
 export interface PageContent {
@@ -438,3 +438,19 @@ export interface PromotionalPost {
   createdAt?: string;
   updatedAt?: string;
 }
+
+// User-submitted Style Post / Community Spotlight Post
+export interface UserPost {
+  id: string; // uuid from Supabase
+  user_id: string; // FK to users.id (Firebase UID)
+  user_name?: string; // Denormalized from users table
+  user_avatar_url?: string; // Denormalized from users table
+  image_url: string;
+  caption?: string;
+  product_tags?: string[]; // Array of product IDs or SKUs mentioned
+  status: 'pending' | 'approved' | 'rejected';
+  created_at: string; // ISO string
+  updated_at: string; // ISO string
+}
+
+    

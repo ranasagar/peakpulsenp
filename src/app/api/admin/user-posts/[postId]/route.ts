@@ -1,3 +1,4 @@
+
 // /src/app/api/admin/user-posts/[postId]/route.ts
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
@@ -8,7 +9,6 @@ export const dynamic = 'force-dynamic';
 
 interface UpdateUserPostPayload {
   status?: UserPost['status'];
-  // Potentially other fields an admin might edit, e.g., caption
   caption?: string;
 }
 
@@ -38,12 +38,12 @@ export async function PUT(
   console.log(`[API /api/admin/user-posts/${postId} PUT] Payload:`, payload);
 
   const { status, caption } = payload;
-  const dataToUpdate: Partial<UserPost> = {};
+  const dataToUpdate: Partial<Pick<UserPost, 'status' | 'caption'>> = {};
 
   if (status && ['pending', 'approved', 'rejected'].includes(status)) {
     dataToUpdate.status = status;
   }
-  if (caption !== undefined) { // Allow setting caption to empty string or null
+  if (caption !== undefined) { 
     dataToUpdate.caption = caption;
   }
 
@@ -113,3 +113,5 @@ export async function DELETE(
     return NextResponse.json({ message: 'Server error deleting post.', errorName: error.name, errorMessage: error.message }, { status: 500 });
   }
 }
+
+    
