@@ -122,9 +122,6 @@ export default function AdminLayout({
                       <Button variant="ghost" className="w-full justify-start text-sm font-normal h-9 pl-2 pr-3 py-2" asChild>
                         <Link href="/admin/content/site-pages"><FileText className="mr-2 h-4 w-4" /> Site Pages</Link>
                       </Button>
-                       <Button variant="ghost" className="w-full justify-start text-sm font-normal h-9 pl-2 pr-3 py-2" asChild>
-                        <Link href="/admin/content/user-posts"><Users className="mr-2 h-4 w-4" /> User Posts</Link>
-                      </Button>
                     </AccordionContent>
                   </AccordionItem>
                   
