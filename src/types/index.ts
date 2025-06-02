@@ -228,7 +228,9 @@ export interface HeroSlide {
   ctaText?: string;
   ctaLink?: string;
   duration?: number; 
-  displayOrder?: number; // Added displayOrder for main hero slides
+  displayOrder?: number;
+  youtubeAuthorName?: string; // New field for YouTube author name
+  youtubeAuthorLink?: string; // New field for YouTube author channel link
   _isPromo?: boolean; 
   _backgroundColor?: string; 
   _textColor?: string; 
@@ -252,8 +254,8 @@ export interface ArtisanalRootsSlide {
 
 export interface HomepageContent {
   heroSlides?: HeroSlide[];
-  heroVideoId?: string;
-  heroImageUrl?: string;
+  heroVideoId?: string; // Fallback if no slides
+  heroImageUrl?: string; // Fallback if no slides
   artisanalRoots?: {
     title: string;
     description: string;
@@ -265,7 +267,7 @@ export interface HomepageContent {
     title?: string;
     maxItems?: number;
   };
-  error?: string;
+  error?: string; // For conveying errors from API to component if needed
 }
 
 export interface OurStorySection {
@@ -322,7 +324,7 @@ export interface SiteSettings {
 
 export interface PageContent {
   content: string;
-  error?: string;
+  error?: string; // Optional error message
 }
 
 export interface FilterOptionValue {
@@ -476,6 +478,7 @@ export interface PostComment {
   updated_at: string; 
 }
 
+// --- Notification System Types ---
 export interface NotificationDataNewMessage {
   senderId: string;
   senderName: string;
@@ -488,19 +491,25 @@ export interface NotificationDataOrderUpdate {
   newStatus: OrderStatus | PaymentStatus; 
   productName?: string; 
 }
+// Add more specific data types for other notifications as needed
+// e.g., NewFollower, LikedPost, NewProductDrop, etc.
 export type NotificationData = NotificationDataNewMessage | NotificationDataOrderUpdate | { [key: string]: any };
 export const NotificationType = {
   NEW_MESSAGE: 'new_message',
   ORDER_UPDATE: 'order_update',
+  // Add more types here
+  // e.g., NEW_FOLLOWER: 'new_follower',
+  // LIKED_POST: 'liked_post',
 } as const;
 export type NotificationTypeValues = typeof NotificationType[keyof typeof NotificationType];
 
 export interface Notification {
-  id: string;
-  user_id: string;
-  type: NotificationTypeValues;
-  data: NotificationData;
-  link?: string;
+  id: string; // UUID
+  user_id: string; // Recipient User ID
+  type: NotificationTypeValues; // Type of notification
+  data: NotificationData; // JSONB data specific to the notification type
+  link?: string; // Optional link for navigation (e.g., to order, to message)
   is_read: boolean;
-  created_at: string;
+  created_at: string; // ISO timestamp
 }
+// --- End Notification System Types ---

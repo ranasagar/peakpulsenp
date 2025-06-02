@@ -18,7 +18,9 @@ const defaultHeroSlideStructure: Omit<HeroSlide, 'id'> = {
   ctaText: "Shop Now",
   ctaLink: "/products",
   duration: 7000, 
-  displayOrder: 0, // Added default displayOrder
+  displayOrder: 0,
+  youtubeAuthorName: undefined,
+  youtubeAuthorLink: undefined,
 };
 
 const defaultArtisanalRootsSlideStructure: Omit<ArtisanalRootsSlide, 'id'> = {
@@ -87,7 +89,9 @@ export async function GET() {
             ...defaultHeroSlideStructure, ...slide, id: slide.id || `hs-db-${Date.now()}-${index}`,
             audioUrl: slide.audioUrl || undefined, 
             duration: slide.duration === undefined ? defaultHeroSlideStructure.duration : Number(slide.duration) || defaultHeroSlideStructure.duration,
-            displayOrder: slide.displayOrder === undefined ? index * 10 : Number(slide.displayOrder) || 0, // Handle displayOrder
+            displayOrder: slide.displayOrder === undefined ? index * 10 : Number(slide.displayOrder) || 0,
+            youtubeAuthorName: slide.youtubeAuthorName || undefined,
+            youtubeAuthorLink: slide.youtubeAuthorLink || undefined,
           })
         ),
         artisanalRoots: {
@@ -162,7 +166,9 @@ export async function POST(request: NextRequest) {
       ctaText: slide.ctaText || '',
       ctaLink: slide.ctaLink || '',
       duration: slide.duration === undefined || slide.duration === null || Number(slide.duration) < 1000 ? defaultHeroSlideStructure.duration : Number(slide.duration),
-      displayOrder: slide.displayOrder === undefined ? index * 10 : Number(slide.displayOrder) || 0, // Save displayOrder
+      displayOrder: slide.displayOrder === undefined ? index * 10 : Number(slide.displayOrder) || 0,
+      youtubeAuthorName: slide.youtubeAuthorName || undefined,
+      youtubeAuthorLink: slide.youtubeAuthorLink || undefined,
     })),
     artisanalRoots: {
       title: newDataFromRequest.artisanalRoots?.title || defaultHomepageContentData.artisanalRoots!.title,

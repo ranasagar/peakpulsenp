@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Save, Youtube, Image as ImageIconLucide, PlusCircle, Trash2, Package, Tv, BookOpen, ExternalLink, ListCollapse, Sprout, Palette as PaletteIcon, ImagePlay, Percent, Clock, Music, ArrowUpDown } from 'lucide-react';
+import { Loader2, Save, Youtube, Image as ImageIconLucide, PlusCircle, Trash2, Package, Tv, BookOpen, ExternalLink, ListCollapse, Sprout, Palette as PaletteIcon, ImagePlay, Percent, Clock, Music, ArrowUpDown, User as UserIcon } from 'lucide-react';
 import type { HomepageContent, HeroSlide, SocialCommerceItem, ArtisanalRootsSlide } from '@/types';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -33,6 +33,8 @@ const heroSlideSchema = z.object({
   }).or(z.literal('')),
   duration: z.coerce.number().int().min(0, "Duration must be a positive number or 0 for default.").optional().nullable(),
   displayOrder: z.coerce.number().int().optional().default(0),
+  youtubeAuthorName: z.string().optional().or(z.literal('')), // New field
+  youtubeAuthorLink: z.string().url({ message: "Must be a valid YouTube channel URL or empty." }).optional().or(z.literal('')), // New field
 });
 
 const artisanalRootsSlideSchema = z.object({
@@ -74,7 +76,7 @@ const homepageContentSchema = z.object({
 type HomepageContentFormValues = z.infer<typeof homepageContentSchema>;
 
 const defaultHeroSlide: Omit<HeroSlide, 'id'> = {
-  title: 'New Slide Title', description: 'Compelling description for the new slide.', videoId: '', imageUrl: '', audioUrl: '', altText: 'Hero slide image', dataAiHint: 'fashion background', ctaText: 'Shop Now', ctaLink: '/products', duration: 7000, displayOrder: 0,
+  title: 'New Slide Title', description: 'Compelling description for the new slide.', videoId: '', imageUrl: '', audioUrl: '', altText: 'Hero slide image', dataAiHint: 'fashion background', ctaText: 'Shop Now', ctaLink: '/products', duration: 7000, displayOrder: 0, youtubeAuthorName: '', youtubeAuthorLink: ''
 };
 const defaultArtisanalRootsSlide: Omit<ArtisanalRootsSlide, 'id'> = {
   imageUrl: '', altText: 'Artisanal background slide', dataAiHint: 'craft culture texture'
@@ -135,6 +137,8 @@ export default function AdminHomepageContentPage() {
             audioUrl: slide.audioUrl || '', 
             duration: slide.duration === undefined ? null : slide.duration,
             displayOrder: slide.displayOrder === undefined ? index * 10 : slide.displayOrder,
+            youtubeAuthorName: slide.youtubeAuthorName || '',
+            youtubeAuthorLink: slide.youtubeAuthorLink || '',
         })),
         artisanalRootsTitle: data.artisanalRoots?.title || defaultHomepageFormValues.artisanalRootsTitle,
         artisanalRootsDescription: data.artisanalRoots?.description || defaultHomepageFormValues.artisanalRootsDescription,
@@ -168,6 +172,8 @@ export default function AdminHomepageContentPage() {
           audioUrl: slide.audioUrl || undefined,
           duration: slide.duration === null || slide.duration === undefined || Number(slide.duration) < 1000 ? defaultHeroSlide.duration : Number(slide.duration),
           displayOrder: Number(slide.displayOrder) || 0,
+          youtubeAuthorName: slide.youtubeAuthorName || undefined,
+          youtubeAuthorLink: slide.youtubeAuthorLink || undefined,
         })),
         artisanalRoots: {
           title: data.artisanalRootsTitle || '',
@@ -292,11 +298,28 @@ export default function AdminHomepageContentPage() {
                             <FormMessage />
                           </FormItem>
                         )} />
+                        {/* New YouTube Author Fields */}
+                        <FormField control={form.control} name={`heroSlides.${index}.youtubeAuthorName`} render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="flex items-center"><UserIcon className="mr-2 h-4 w-4 text-muted-foreground"/>YouTube Author Name (Optional)</FormLabel>
+                            <FormControl><Input {...field} placeholder="e.g., Creator Name" value={field.value || ''} /></FormControl>
+                            <FormDescription>Display credit if using a YouTube video as background.</FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )} />
+                        <FormField control={form.control} name={`heroSlides.${index}.youtubeAuthorLink`} render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="flex items-center"><ExternalLink className="mr-2 h-4 w-4 text-muted-foreground"/>YouTube Author Channel Link (Optional)</FormLabel>
+                            <FormControl><Input {...field} placeholder="e.g. https://youtube.com/channel/..." value={field.value || ''} /></FormControl>
+                            <FormDescription>Full URL to the author's YouTube channel.</FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )} />
                         <FormField control={form.control} name={`heroSlides.${index}.audioUrl`} render={({ field }) => (
                           <FormItem>
                             <FormLabel className="flex items-center"><Music className="mr-2 h-4 w-4 text-muted-foreground"/> Audio URL (Optional, for MP3/etc.)</FormLabel>
                             <FormControl><Input {...field} placeholder="e.g. https://example.com/hero-audio.mp3" value={field.value || ''} /></FormControl>
-                            <FormDescription>Direct link to an audio file (e.g., .mp3, .wav). This is for background music. If a YouTube video is also on this slide, the video will be muted. This audio is controlled by the UI Mute button.</FormDescription>
+                            <FormDescription>Direct link to an audio file. This is for background music. If a YouTube video is also on this slide, the video will be muted. This audio is controlled by the UI Mute button.</FormDescription>
                             <FormMessage />
                           </FormItem>
                         )} />

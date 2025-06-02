@@ -7,7 +7,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Icons } from '@/components/icons';
-import { ChevronLeft, ChevronRight, ShoppingBag, ArrowRight, Instagram, Send, Users, ImagePlus, Loader2, Play, Pause, LayoutGrid, Palette as PaletteIcon, Handshake, Sprout, ImagePlay as ImagePlayIcon, Heart as HeartIcon, Clock, Music, Volume2, VolumeX } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ShoppingBag, ArrowRight, Instagram, Send, Users, ImagePlus, Loader2, Play, Pause, LayoutGrid, Palette as PaletteIcon, Handshake, Sprout, ImagePlay as ImagePlayIcon, Heart as HeartIcon, Clock, Music, Volume2, VolumeX, Youtube as YoutubeIcon } from 'lucide-react';
 import { NewsletterSignupForm } from '@/components/forms/newsletter-signup-form';
 import type { HomepageContent, Product, HeroSlide, AdminCategory as CategoryType, DesignCollaborationGallery, ArtisanalRootsSlide, SocialCommerceItem, PromotionalPost, UserPost, PostComment } from '@/types';
 import { useToast } from '@/hooks/use-toast';
@@ -39,6 +39,8 @@ const fallbackHeroSlide: HeroSlide = {
   audioUrl: undefined,
   duration: 7000,
   displayOrder: 0,
+  youtubeAuthorName: undefined,
+  youtubeAuthorLink: undefined,
 };
 
 const defaultHomepageContent: HomepageContent = {
@@ -96,6 +98,8 @@ async function getHomepageContent(): Promise<HomepageContent> {
             audioUrl: (slide.audioUrl && slide.audioUrl.trim() !== "") ? slide.audioUrl.trim() : undefined,
             duration: slide.duration === undefined || slide.duration === null || Number(slide.duration) < 1000 ? fallbackHeroSlide.duration : Number(slide.duration),
             displayOrder: slide.displayOrder === undefined ? index * 10 : Number(slide.displayOrder || 0),
+            youtubeAuthorName: (slide.youtubeAuthorName && slide.youtubeAuthorName.trim() !== "") ? slide.youtubeAuthorName.trim() : undefined,
+            youtubeAuthorLink: (slide.youtubeAuthorLink && slide.youtubeAuthorLink.trim() !== "") ? slide.youtubeAuthorLink.trim() : undefined,
           }))
         : defaultHomepageContent.heroSlides, 
       artisanalRoots: {
@@ -319,10 +323,11 @@ function HomePageContent() {
   }, [loadPageData]);
   
   const combinedHeroSlides = useMemo(() => {
-    const baseSlides = (content.heroSlides || [])
+    const sortedBaseSlides = (content.heroSlides || [])
+      .filter(slide => slide.id) // Ensure slides have an ID
       .sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
     
-    const adaptedPromoSlides = (content.promotionalPostsSection?.enabled && promotionalPosts.length > 0) 
+    const sortedAdaptedPromoSlides = (content.promotionalPostsSection?.enabled && promotionalPosts.length > 0) 
       ? promotionalPosts
           .slice(0, content.promotionalPostsSection.maxItems || promotionalPosts.length)
           .sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0)) 
@@ -337,15 +342,17 @@ function HomePageContent() {
             ctaLink: promo.ctaLink || `/products?promo=${promo.slug}`,
             videoId: undefined, 
             audioUrl: undefined, 
-            duration: promo.displayOrder && promo.displayOrder > 1000 ? promo.displayOrder : 7000, 
-            displayOrder: (baseSlides.length * 10) + (promo.displayOrder || index * 10), 
+            duration: promo.displayOrder && promo.displayOrder > 1000 ? promo.displayOrder : 7000, // Bit of a hack for duration from promo displayOrder
+            displayOrder: (sortedBaseSlides.length * 10) + (promo.displayOrder || index * 10), // Ensure promo slides appear after base slides
+            youtubeAuthorName: undefined,
+            youtubeAuthorLink: undefined,
             _isPromo: true,
             _backgroundColor: promo.backgroundColor,
             _textColor: promo.textColor,
           }))
       : [];
     
-    const slides = [...baseSlides, ...adaptedPromoSlides];
+    const slides = [...sortedBaseSlides, ...sortedAdaptedPromoSlides];
     return slides.length > 0 ? slides : [fallbackHeroSlide];
   }, [content.heroSlides, content.promotionalPostsSection, promotionalPosts]);
 
@@ -384,7 +391,6 @@ function HomePageContent() {
       heroIntervalRef.current = setInterval(nextHeroSlide, currentSlideDuration);
     }
     
-    // Audio logic
     const currentSlide = activeHeroSlides[currentHeroSlide];
     const directAudioUrl = currentSlide?.audioUrl;
     const youtubeVideoIdForAudio = currentSlide?.videoId; 
@@ -398,11 +404,7 @@ function HomePageContent() {
           audioRef.current.load(); 
         }
         audioRef.current.play().catch(error => console.warn("Direct audio play failed:", error));
-      } else if (youtubeVideoIdForAudio && !currentSlide?.imageUrl) { 
-        // console.log(`[Hero Audio] YouTube video is visual & audio source. HTML5 <audio> tag paused.`);
-        audioRef.current.pause();
-        audioRef.current.currentTime = 0;
-      } else if (youtubeVideoIdForAudio && currentSlide?.imageUrl) {
+      } else if (youtubeVideoIdForAudio && currentSlide?.imageUrl) { 
         // console.log(`[Hero Audio] YouTube video is HIDDEN audio source. HTML5 <audio> tag paused.`);
         audioRef.current.pause();
         audioRef.current.currentTime = 0;
@@ -589,7 +591,6 @@ function HomePageContent() {
   }
   
   const currentDisplayedHeroSlide = activeHeroSlides[currentHeroSlide];
-  // This fallback logic is for the standalone hero image/video if carousel is empty
   const heroVideoIdForVisuals = currentDisplayedHeroSlide?.videoId || content.heroVideoId; 
   const heroImageUrlForVisuals = currentDisplayedHeroSlide?.imageUrl || content.heroImageUrl;
 
@@ -601,23 +602,28 @@ function HomePageContent() {
         <div className="absolute inset-0 z-0 pointer-events-none">
           {activeHeroSlides.map((slide, index) => {
             const isCurrent = index === currentHeroSlide;
-            // Determine visual source for THIS slide in the carousel
-            const useYouTubeForVisual = !slide.imageUrl && slide.videoId;
             const useImageForVisual = !!slide.imageUrl;
-            const useYouTubeForAudioOnly = !!slide.imageUrl && !!slide.videoId && !slide.audioUrl; // Image is visual, YT is hidden audio
+            const useYouTubeForVisual = !slide.imageUrl && !!slide.videoId;
+            const useYouTubeForAudioOnly = !!slide.imageUrl && !!slide.videoId && !slide.audioUrl; 
+            const useDirectAudio = !!slide.audioUrl;
 
-            // Debug log for each slide's properties
-             if (isCurrent) {
-              console.log(`[Hero Slide ${index} (Current)] Properties:`, 
-                `imageUrl: "${slide.imageUrl}" (Type: ${typeof slide.imageUrl})`, 
-                `videoId: "${slide.videoId}" (Type: ${typeof slide.videoId})`, 
-                `audioUrl: "${slide.audioUrl}" (Type: ${typeof slide.audioUrl})`,
-                `useImageForVisual: ${useImageForVisual}`,
-                `useYouTubeForVisual: ${useYouTubeForVisual}`,
-                `useYouTubeForAudioOnly: ${useYouTubeForAudioOnly}`
-              );
+            // if (isCurrent) { 
+            //   console.log(`[Hero Slide ${index} (Current)] Properties:`, 
+            //     `imageUrl: "${slide.imageUrl}" (Type: ${typeof slide.imageUrl})`, 
+            //     `videoId: "${slide.videoId}" (Type: ${typeof slide.videoId})`, 
+            //     `audioUrl: "${slide.audioUrl}" (Type: ${typeof slide.audioUrl})`,
+            //     `useImageForVisual: ${useImageForVisual}`,
+            //     `useYouTubeForVisual: ${useYouTubeForVisual}`,
+            //     `useYouTubeForAudioOnly: ${useYouTubeForAudioOnly}`
+            //   );
+            // }
+
+            let iframeSrc = '';
+            if (useYouTubeForVisual && slide.videoId) {
+                iframeSrc = `https://www.youtube.com/embed/${slide.videoId}?autoplay=1&mute=1&loop=1&playlist=${slide.videoId}&controls=0&showinfo=0&autohide=1&modestbranding=1&playsinline=1&enablejsapi=1`;
+            } else if (useYouTubeForAudioOnly && slide.videoId) {
+                iframeSrc = `https://www.youtube.com/embed/${slide.videoId}?autoplay=1&mute=0&loop=1&playlist=${slide.videoId}&controls=0&showinfo=0&autohide=1&modestbranding=1&playsinline=1&enablejsapi=1`;
             }
-
 
             return (
               <div
@@ -642,22 +648,22 @@ function HomePageContent() {
                     {!slide._isPromo && <div className="absolute inset-0 bg-black/30 z-[1]" />}
                   </>
                 )}
-                {useYouTubeForVisual && slide.videoId && ( // YouTube as VISUAL background
+                {useYouTubeForVisual && slide.videoId && (
                   <>
                     <iframe
                       className="absolute top-1/2 left-1/2 w-full h-full min-w-[177.77vh] min-h-[56.25vw] transform -translate-x-1/2 -translate-y-1/2"
-                      src={`https://www.youtube.com/embed/${slide.videoId}?autoplay=1&mute=${slide.audioUrl ? 1 : 0}&loop=1&playlist=${slide.videoId}&controls=0&showinfo=0&autohide=1&modestbranding=1&playsinline=1&enablejsapi=1`}
+                      src={iframeSrc}
                       title={slide.altText || "Peak Pulse Background Video"}
                       frameBorder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen={false}
                     />
                     {!slide._isPromo && <div className="absolute inset-0 bg-black/30 z-[1]" />}
                   </>
                 )}
-                {useYouTubeForAudioOnly && slide.videoId && ( // YouTube as HIDDEN audio source
+                {useYouTubeForAudioOnly && slide.videoId && ( 
                     <iframe
-                        className="absolute -left-[9999px] -top-[9999px] opacity-0 pointer-events-none" 
-                        style={{width: '1px', height: '1px'}} // Minimal dimensions that might help browsers allow audio
-                        src={`https://www.youtube.com/embed/${slide.videoId}?autoplay=1&mute=0&loop=1&playlist=${slide.videoId}&controls=0&showinfo=0&autohide=1&modestbranding=1&playsinline=1&enablejsapi=1`}
+                        className="absolute -left-[9999px] -top-[9999px]" 
+                        style={{width: '1px', height: '1px', opacity: 0, pointerEvents: 'none'}}
+                        src={iframeSrc}
                         title={`Audio for ${slide.altText || "Peak Pulse Background"}`}
                         frameBorder="0" allow="autoplay;"
                     />
@@ -666,7 +672,6 @@ function HomePageContent() {
               </div>
             );
           })}
-           {/* Fallback visual if activeHeroSlides is empty but standalone heroVideoIdForVisuals or heroImageUrlForVisuals exist */}
            {activeHeroSlides.length === 0 && heroVideoIdForVisuals && ( 
              <>
                 <iframe
@@ -699,35 +704,47 @@ function HomePageContent() {
            )}
         </div>
 
-        {activeHeroSlides.map((slide, index) => (
-          <div
-            key={slide.id || `hero-content-${index}`}
-            className={cn(
-                "absolute inset-0 transition-opacity duration-1000 ease-in-out",
-                index === currentHeroSlide ? "opacity-100" : "opacity-0 pointer-events-none"
-            )}
-            style={{ 
-                pointerEvents: index === currentHeroSlide ? 'auto' : 'none',
-                color: slide._isPromo ? (slide._textColor || 'white') : 'white'
-            }}
-          >
-            <div className="relative z-20 flex flex-col items-center justify-center h-full pt-[calc(theme(spacing.20)_+_theme(spacing.6))] pb-12 px-6 md:px-8 text-center max-w-3xl mx-auto">
-                <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-6 text-shadow-lg">
-                    {slide.title}
-                </h1>
-                <p className={cn("text-lg md:text-xl lg:text-2xl mb-10 max-w-2xl mx-auto text-shadow-lg", slide._isPromo && !(slide._backgroundColor && slide._textColor) ? 'text-neutral-100' : 'text-neutral-200')}>
-                    {slide.description}
-                </p>
-                {slide.ctaText && slide.ctaLink && (
-                    <Link href={slide.ctaLink} className={cn(buttonVariants({ size: "lg", className: "text-base md:text-lg py-3 px-8" }), slide._isPromo && !(slide._backgroundColor && slide._textColor) ? 'bg-white/90 text-black hover:bg-white' : '')}>
-                        <span className="flex items-center">
-                            {slide.ctaText} <ShoppingBag className="ml-2 h-5 w-5" />
-                        </span>
-                    </Link>
+        {activeHeroSlides.map((slide, index) => {
+            const isCurrent = index === currentHeroSlide;
+            const showVideoAttribution = isCurrent && !slide.imageUrl && slide.videoId && slide.youtubeAuthorName && slide.youtubeAuthorLink;
+            return (
+              <div
+                key={slide.id || `hero-content-${index}`}
+                className={cn(
+                    "absolute inset-0 transition-opacity duration-1000 ease-in-out",
+                    isCurrent ? "opacity-100" : "opacity-0 pointer-events-none"
                 )}
-            </div>
-          </div>
-        ))}
+                style={{ 
+                    pointerEvents: isCurrent ? 'auto' : 'none',
+                    color: slide._isPromo ? (slide._textColor || 'white') : 'white'
+                }}
+              >
+                <div className="relative z-20 flex flex-col items-center justify-center h-full pt-[calc(theme(spacing.20)_+_theme(spacing.6))] pb-12 px-6 md:px-8 text-center max-w-3xl mx-auto">
+                    <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-6 text-shadow-lg">
+                        {slide.title}
+                    </h1>
+                    <p className={cn("text-lg md:text-xl lg:text-2xl mb-10 max-w-2xl mx-auto text-shadow-lg", slide._isPromo && !(slide._backgroundColor && slide._textColor) ? 'text-neutral-100' : 'text-neutral-200')}>
+                        {slide.description}
+                    </p>
+                    {slide.ctaText && slide.ctaLink && (
+                        <Link href={slide.ctaLink} className={cn(buttonVariants({ size: "lg", className: "text-base md:text-lg py-3 px-8" }), slide._isPromo && !(slide._backgroundColor && slide._textColor) ? 'bg-white/90 text-black hover:bg-white' : '')}>
+                            <span className="flex items-center">
+                                {slide.ctaText} <ShoppingBag className="ml-2 h-5 w-5" />
+                            </span>
+                        </Link>
+                    )}
+
+                    {showVideoAttribution && (
+                      <div className="absolute bottom-20 left-1/2 -translate-x-1/2 md:bottom-24 lg:bottom-28 p-2 bg-black/40 backdrop-blur-sm rounded-md text-xs md:text-sm">
+                        <InteractiveExternalLink href={slide.youtubeAuthorLink!} className="text-neutral-300 hover:text-white transition-colors flex items-center" target="_blank" rel="noopener noreferrer" showDialog={true}>
+                           <YoutubeIcon className="h-4 w-4 mr-1.5" /> Video by: {slide.youtubeAuthorName}
+                        </InteractiveExternalLink>
+                      </div>
+                    )}
+                </div>
+              </div>
+            );
+        })}
         
         {activeHeroSlides.length > 1 && (
           <>
@@ -750,7 +767,7 @@ function HomePageContent() {
                     ${currentHeroSlide === index ? 'bg-white scale-125 ring-2 ring-white/30 ring-offset-1 ring-offset-transparent p-0.5 w-5 md:w-6' : 'bg-white/40 hover:bg-white/70'}`}
                   aria-label={`Go to slide ${index + 1}`} />
               ))}
-              {activeHeroSlides[currentHeroSlide]?.audioUrl && ( // Only show mute if direct audio URL is present
+              {activeHeroSlides[currentHeroSlide]?.audioUrl && ( 
                   <Button variant="ghost" size="icon" onClick={toggleAudioMute} className="h-7 w-7 text-white/70 hover:text-white p-1" aria-label={isAudioMuted ? "Unmute audio" : "Mute audio"}>
                       {isAudioMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
                   </Button>

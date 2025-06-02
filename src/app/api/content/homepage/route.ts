@@ -10,8 +10,8 @@ const HOMEPAGE_CONFIG_KEY = 'homepageContent';
 const defaultHeroSlideStructure: Omit<HeroSlide, 'id'> = {
   title: "Peak Pulse Collection",
   description: "Experience unique Nepali craftsmanship.",
-  imageUrl: undefined, // Explicitly undefined
-  videoId: undefined,  // Explicitly undefined
+  imageUrl: undefined, 
+  videoId: undefined,  
   audioUrl: undefined,
   altText: "Hero image",
   dataAiHint: "fashion model style",
@@ -19,13 +19,15 @@ const defaultHeroSlideStructure: Omit<HeroSlide, 'id'> = {
   ctaLink: "/products",
   duration: 7000,
   displayOrder: 0,
+  youtubeAuthorName: undefined,
+  youtubeAuthorLink: undefined,
 };
 
 const defaultHomepageContentData: HomepageContent = {
   heroSlides: [{ ...defaultHeroSlideStructure, id: `hs-default-fallback-${Date.now()}` }],
   artisanalRoots: {
     title: "Our Artisanal Roots (Default)",
-    description: "Default description about heritage and craftsmanship.",
+    description: "Default description about craftsmanship.",
     slides: [],
   },
   socialCommerceItems: [],
@@ -41,7 +43,6 @@ const defaultHomepageContentData: HomepageContent = {
 export async function GET() {
   console.log(`[API /api/content/homepage GET] Request received for key: ${HOMEPAGE_CONFIG_KEY}.`);
 
-  // Prefer Admin client if available for consistency in data fetching, otherwise public.
   const supabaseClientToUse = supabaseAdmin || fallbackSupabase;
   const clientTypeForLog = supabaseAdmin ? "ADMIN client (service_role)" : "FALLBACK public client";
 
@@ -82,18 +83,13 @@ export async function GET() {
 
       if (Array.isArray(dbContent.heroSlides)) {
         finalHeroSlides = dbContent.heroSlides.map((slideFromDb: Partial<HeroSlide>, index: number) => {
-          // More explicit handling for undefined vs empty string from DB for URLs
-          const dbImageUrl = slideFromDb.imageUrl;
-          const dbVideoId = slideFromDb.videoId;
-          const dbAudioUrl = slideFromDb.audioUrl;
-
           return {
             id: slideFromDb.id || `hs-db-${Date.now()}-${index}`,
             title: slideFromDb.title || defaultHeroSlideStructure.title,
             description: slideFromDb.description || defaultHeroSlideStructure.description,
-            imageUrl: (dbImageUrl && dbImageUrl.trim() !== "") ? dbImageUrl.trim() : undefined,
-            videoId: (dbVideoId && dbVideoId.trim() !== "") ? dbVideoId.trim() : undefined,
-            audioUrl: (dbAudioUrl && dbAudioUrl.trim() !== "") ? dbAudioUrl.trim() : undefined,
+            imageUrl: (slideFromDb.imageUrl === null || slideFromDb.imageUrl === '') ? undefined : (slideFromDb.imageUrl || defaultHeroSlideStructure.imageUrl),
+            videoId: (slideFromDb.videoId === null || slideFromDb.videoId === '') ? undefined : (slideFromDb.videoId || defaultHeroSlideStructure.videoId),
+            audioUrl: (slideFromDb.audioUrl === null || slideFromDb.audioUrl === '') ? undefined : (slideFromDb.audioUrl || defaultHeroSlideStructure.audioUrl),
             altText: slideFromDb.altText || defaultHeroSlideStructure.altText,
             dataAiHint: slideFromDb.dataAiHint || defaultHeroSlideStructure.dataAiHint,
             ctaText: slideFromDb.ctaText || defaultHeroSlideStructure.ctaText,
@@ -102,6 +98,8 @@ export async function GET() {
                         ? Number(slideFromDb.duration)
                         : defaultHeroSlideStructure.duration,
             displayOrder: slideFromDb.displayOrder !== undefined ? Number(slideFromDb.displayOrder) : (index * 10),
+            youtubeAuthorName: (slideFromDb.youtubeAuthorName === null || slideFromDb.youtubeAuthorName === '') ? undefined : (slideFromDb.youtubeAuthorName || defaultHeroSlideStructure.youtubeAuthorName),
+            youtubeAuthorLink: (slideFromDb.youtubeAuthorLink === null || slideFromDb.youtubeAuthorLink === '') ? undefined : (slideFromDb.youtubeAuthorLink || defaultHeroSlideStructure.youtubeAuthorLink),
             _isPromo: slideFromDb._isPromo,
             _backgroundColor: slideFromDb._backgroundColor,
             _textColor: slideFromDb._textColor,
@@ -127,8 +125,8 @@ export async function GET() {
           ? dbContent.socialCommerceItems.map((item: Partial<SocialCommerceItem>, index: number) => ({ id: item.id || `scs-db-${Date.now()}-${index}`, imageUrl: item.imageUrl || '', linkUrl: item.linkUrl || '#', altText: item.altText || '', dataAiHint: item.dataAiHint || '', displayOrder: item.displayOrder || 0}))
           : defaultHomepageContentData.socialCommerceItems || []
         ).sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0)),
-        heroVideoId: (dbContent.heroVideoId && dbContent.heroVideoId.trim() !== "") ? dbContent.heroVideoId.trim() : undefined,
-        heroImageUrl: (dbContent.heroImageUrl && dbContent.heroImageUrl.trim() !== "") ? dbContent.heroImageUrl.trim() : undefined,
+        heroVideoId: (dbContent.heroVideoId === null || dbContent.heroVideoId === '') ? undefined : (dbContent.heroVideoId || defaultHomepageContentData.heroVideoId),
+        heroImageUrl: (dbContent.heroImageUrl === null || dbContent.heroImageUrl === '') ? undefined : (dbContent.heroImageUrl || defaultHomepageContentData.heroImageUrl),
         promotionalPostsSection: {
           enabled: dbContent.promotionalPostsSection?.enabled ?? defaultHomepageContentData.promotionalPostsSection!.enabled,
           title: dbContent.promotionalPostsSection?.title || defaultHomepageContentData.promotionalPostsSection!.title,
