@@ -23,10 +23,12 @@ export async function GET() {
       .from('design_collaborations')
       .select(`
         *,
-        category:design_collaboration_categories (name)
+        category:design_collaboration_categories (name),
+        created_at, 
+        updated_at
       `)
       .order('collaboration_date', { ascending: false, nullsFirst: false })
-      .order('"createdAt"', { ascending: false });
+      .order('created_at', { ascending: false }); // Use created_at from the table itself
 
     if (error) {
       console.error('[API ADMIN DC GET] Supabase error fetching collaborations:', error);
@@ -36,18 +38,20 @@ export async function GET() {
       }, { status: 500 });
     }
 
-    const galleries = data?.map((g: any) => ({
+    const galleries: DesignCollaborationGallery[] = (data || []).map((g: any) => ({
       ...g,
       category_id: g.category_id,
-      category_name: g.category?.name,
+      category_name: g.category?.name || undefined,
       gallery_images: Array.isArray(g.gallery_images) ? g.gallery_images.map((img: Partial<GalleryImageItem>, index: number) => ({
         id: img.id || `img-loaded-${g.id}-${index}`,
         url: img.url || '',
         altText: img.altText || '',
         dataAiHint: img.dataAiHint || '',
         displayOrder: img.displayOrder === undefined ? index : Number(img.displayOrder)
-      })) : []
-    })) || [];
+      })) : [],
+      createdAt: g.created_at,
+      updatedAt: g.updated_at,
+    }));
     
     console.log(`[API ADMIN DC GET] Successfully fetched ${galleries.length} collaborations for admin.`);
     return NextResponse.json(galleries);
@@ -95,7 +99,7 @@ export async function POST(request: NextRequest) {
     artist_statement: body.artist_statement || null,
     gallery_images: Array.isArray(body.gallery_images) 
         ? body.gallery_images.map((img, index) => ({
-            id: img.id || `client-img-${Date.now()}-${index}`, // Ensure ID for client-side list keys, not critical for DB
+            id: img.id || `client-img-${Date.now()}-${index}`, 
             url: img.url,
             altText: img.altText || null,
             dataAiHint: img.dataAiHint || null,
@@ -104,7 +108,7 @@ export async function POST(request: NextRequest) {
         : [],
     is_published: body.is_published === undefined ? false : body.is_published,
     collaboration_date: body.collaboration_date || null,
-    // Supabase will handle "createdAt" and "updatedAt" by default/trigger
+    // Supabase will handle "created_at" and "updated_at" by default/trigger
   };
   console.log("[API ADMIN DC POST] Data to insert into Supabase:", JSON.stringify(galleryToInsert, null, 2).substring(0,1000)+"...");
 
@@ -112,7 +116,7 @@ export async function POST(request: NextRequest) {
     const { data: insertedData, error: insertError } = await clientForWrite
       .from('design_collaborations')
       .insert(galleryToInsert)
-      .select(`*, category:design_collaboration_categories (name)`)
+      .select(`*, category:design_collaboration_categories (name), created_at, updated_at`)
       .single();
 
     if (insertError) {
@@ -130,11 +134,20 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ message: 'Collaboration creation succeeded but no data returned from database.'}, { status: 500 });
     }
     
-    const responseData = {
+    const responseData: DesignCollaborationGallery = {
         ...insertedData,
         category_id: insertedData.category_id,
         // @ts-ignore
-        category_name: insertedData.category?.name
+        category_name: insertedData.category?.name || undefined,
+        createdAt: insertedData.created_at,
+        updatedAt: insertedData.updated_at,
+        gallery_images: Array.isArray(insertedData.gallery_images) ? insertedData.gallery_images.map((img: any, index: number) => ({
+          id: img.id || `img-inserted-${insertedData.id}-${index}`,
+          url: img.url || '',
+          altText: img.altText || '',
+          dataAiHint: img.dataAiHint || '',
+          displayOrder: img.displayOrder === undefined ? index : Number(img.displayOrder)
+        })) : []
     };
     console.log(`[API ADMIN DC POST] Collaboration "${responseData.title}" created successfully.`);
     return NextResponse.json(responseData, { status: 201 });
@@ -148,3 +161,5 @@ export async function POST(request: NextRequest) {
     }, { status: 500 });
   }
 }
+
+    

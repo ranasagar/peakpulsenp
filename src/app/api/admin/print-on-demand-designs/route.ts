@@ -22,19 +22,23 @@ export async function GET() {
       .from('print_on_demand_designs')
       .select(`
         *,
-        collaboration:design_collaborations (title)
+        collaboration:design_collaborations (title),
+        created_at, 
+        updated_at
       `)
-      .order('"createdAt"', { ascending: false });
+      .order('created_at', { ascending: false }); // Use created_at from the table
 
     if (error) {
       console.error('[API ADMIN POD GET] Supabase error fetching designs:', error);
       return NextResponse.json({ message: 'Failed to fetch print designs.', rawSupabaseError: error }, { status: 500 });
     }
     
-    const designs = data?.map((d: any) => ({
+    const designs: PrintOnDemandDesign[] = (data || []).map((d: any) => ({
         ...d,
-        collaboration_title: d.collaboration?.title || null
-    })) || [];
+        collaboration_title: d.collaboration?.title || undefined,
+        createdAt: d.created_at,
+        updatedAt: d.updated_at,
+    }));
 
     return NextResponse.json(designs);
   } catch (e: any) {
@@ -80,7 +84,7 @@ export async function POST(request: NextRequest) {
     is_for_sale: body.is_for_sale === undefined ? true : body.is_for_sale,
     sku: body.sku || null,
     collaboration_id: body.collaboration_id || null,
-    // "createdAt" and "updatedAt" will be handled by database defaults/trigger
+    // "created_at" and "updated_at" will be handled by database defaults/trigger
   };
   console.log("[API ADMIN POD POST] Data to insert:", designToInsert);
 
@@ -88,7 +92,7 @@ export async function POST(request: NextRequest) {
     const { data: insertedData, error: insertError } = await clientForWrite
       .from('print_on_demand_designs')
       .insert(designToInsert)
-      .select(`*, collaboration:design_collaborations (title)`)
+      .select(`*, collaboration:design_collaborations (title), created_at, updated_at`)
       .single();
 
     if (insertError) {
@@ -103,9 +107,11 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ message: 'Design creation succeeded but no data returned.'}, { status: 500 });
     }
     
-    const responseData = {
+    const responseData: PrintOnDemandDesign = {
         ...insertedData,
-        collaboration_title: (insertedData as any).collaboration?.title || null
+        collaboration_title: (insertedData as any).collaboration?.title || undefined,
+        createdAt: insertedData.created_at,
+        updatedAt: insertedData.updated_at,
     };
     console.log(`[API ADMIN POD POST] Design "${responseData.title}" created successfully.`);
     return NextResponse.json(responseData, { status: 201 });
@@ -115,3 +121,5 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ message: 'Server error creating print design.', errorDetails: e.message }, { status: 500 });
   }
 }
+
+    

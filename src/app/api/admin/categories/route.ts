@@ -1,4 +1,3 @@
-
 // /src/app/api/admin/categories/route.ts
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
@@ -18,7 +17,7 @@ export async function GET() {
   try {
     const { data, error } = await clientForRead
       .from('categories')
-      .select('*, parent_id, "displayOrder"') // Ensure displayOrder is selected
+      .select('*, parent_id, "displayOrder", created_at, updated_at') // Ensure displayOrder and timestamps are selected
       .order('"displayOrder"', { ascending: true, nullsLast: true })
       .order('name', { ascending: true });
 
@@ -30,7 +29,7 @@ export async function GET() {
       }, { status: 500 });
     }
     
-    const categories = data?.map(cat => ({
+    const categories: AdminCategory[] = (data || []).map(cat => ({
       id: cat.id,
       name: cat.name,
       slug: cat.slug,
@@ -39,9 +38,9 @@ export async function GET() {
       aiImagePrompt: cat.ai_image_prompt,
       parentId: cat.parent_id,
       displayOrder: cat.displayOrder,
-      createdAt: cat.createdAt || cat.created_at,
-      updatedAt: cat.updatedAt || cat.updated_at,
-    })) || [];
+      createdAt: cat.created_at, // Map from Supabase column
+      updatedAt: cat.updated_at, // Map from Supabase column
+    }));
     
     return NextResponse.json(categories);
   } catch (e: any) {
@@ -72,14 +71,14 @@ export async function POST(request: NextRequest) {
       ai_image_prompt: body.aiImagePrompt || null,
       parent_id: body.parentId || null,
       "displayOrder": body.displayOrder === undefined ? 0 : Number(body.displayOrder),
-      // "createdAt" and "updatedAt" will be handled by database defaults/triggers
+      // "created_at" and "updated_at" will be handled by database defaults/triggers
     };
     console.log("[API ADMIN CATEGORIES POST] Attempting to insert category with payload:", categoryToInsert);
 
     const { data: insertedData, error } = await supabaseService
       .from('categories')
       .insert(categoryToInsert)
-      .select('*, parent_id, "displayOrder"')
+      .select('*, parent_id, "displayOrder", created_at, updated_at')
       .single();
 
     if (error) {
@@ -104,8 +103,8 @@ export async function POST(request: NextRequest) {
       aiImagePrompt: insertedData.ai_image_prompt,
       parentId: insertedData.parent_id,
       displayOrder: insertedData.displayOrder,
-      createdAt: insertedData.createdAt || insertedData.created_at,
-      updatedAt: insertedData.updatedAt || insertedData.updated_at,
+      createdAt: insertedData.created_at, // Map from Supabase column
+      updatedAt: insertedData.updated_at, // Map from Supabase column
     };
     return NextResponse.json(responseCategory, { status: 201 });
   } catch (e: any) {
@@ -116,3 +115,5 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ message: `Failed to create category: ${e.message}` }, { status: 500 });
   }
 }
+
+    

@@ -21,7 +21,7 @@ import { cn } from '@/lib/utils';
 import type { NavItem } from '@/types';
 import { ShoppingCart, Search, LogOut, UserCircle, LayoutDashboard, Settings, Star, ShoppingBag as ShoppingBagIcon, Briefcase, LayoutGrid, Home as HomeIcon, BookOpenText, Mail, Handshake, Users } from 'lucide-react';
 import { ModeToggle } from './mode-toggle';
-import { FullscreenToggleButton } from '@/components/ui/fullscreen-toggle-button'; // Added import
+import { FullscreenToggleButton } from '@/components/ui/fullscreen-toggle-button';
 import { useCart } from '@/context/cart-context';
 
 // These are used for the mobile Sheet menu and User Dropdown
@@ -53,8 +53,8 @@ export function Header() { // Still named Header, but acts as TopBar
 
   // Mobile navigation links are generated from mainNavItems
   const mobileNavLinks = mainNavItems.map((item) => {
-    const isVipLink = item.href === '/vip-collection'; // Note: VIP link corrected if it exists
-    if (isVipLink && !isAuthenticated) return null;
+    const isVipLink = item.href === '/vip-collection';
+    if (isVipLink && !isAuthenticated) return null; // VIP link not shown if not authenticated
     return (
       <Link
         key={item.href}
@@ -192,7 +192,7 @@ export function Header() { // Still named Header, but acts as TopBar
             <span className="sr-only">Search</span>
           </Button>
           
-          {mounted && <FullscreenToggleButton />} {/* Added Fullscreen Toggle Button */}
+          {mounted && <FullscreenToggleButton />}
           {mounted && <ModeToggle />}
 
           <Button variant="ghost" size="icon" asChild>
@@ -240,3 +240,5 @@ export function Header() { // Still named Header, but acts as TopBar
     </header>
   );
 }
+
+    

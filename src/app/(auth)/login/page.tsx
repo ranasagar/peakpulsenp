@@ -1,5 +1,5 @@
 
-"use client"; // This top-level "use client" can remain if LoginPage itself needs client features, but LoginClientContent will also have it.
+"use client"; 
 
 import { useState, useEffect, Suspense } from 'react';
 import { useForm } from 'react-hook-form';
@@ -24,13 +24,13 @@ const loginSchema = z.object({
 type LoginFormValues = z.infer<typeof loginSchema>;
 
 function LoginClientContent() {
-  "use client"; // Ensure this child component is also marked as client
+  "use client"; 
 
   const { login, isAuthenticated, isLoading: authIsLoading } = useAuth();
   const [error, setError] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false); // Local submitting state for the form
+  const [isSubmitting, setIsSubmitting] = useState(false); 
   const router = useRouter();
-  const searchParams = useSearchParams(); // This is safe here
+  const searchParams = useSearchParams(); 
   const [redirectAttempted, setRedirectAttempted] = useState(false);
 
 
@@ -42,28 +42,22 @@ function LoginClientContent() {
       if (redirectParam) {
         try {
           const decodedRedirectParam = decodeURIComponent(redirectParam);
-          // Prevent redirecting to login or register page itself
-          if (decodedRedirectParam === '/login' || decodedRedirectParam.startsWith('/login?') || decodedRedirectParam === '/register' || decodedRedirectParam.startsWith('/register?')) {
-            console.warn(`[Login Page] Original redirect was to auth page ('${decodedRedirectParam}'). Defaulting to dashboard.`);
+          if (decodedRedirectParam.trim() === '' || decodedRedirectParam === '/login' || decodedRedirectParam.startsWith('/login?') || decodedRedirectParam === '/register' || decodedRedirectParam.startsWith('/register?')) {
             targetPath = '/account/dashboard';
           } else {
             targetPath = decodedRedirectParam;
           }
         } catch (e) {
-          console.error("[Login Page] Error decoding redirect param:", e, "Original param:", redirectParam);
-          targetPath = '/account/dashboard'; // Fallback on decoding error
+          targetPath = '/account/dashboard'; 
         }
       } else {
         targetPath = '/account/dashboard';
       }
-
-      console.log(`[Login Page] User authenticated. Attempting redirect to: ${targetPath}`);
       setRedirectAttempted(true); 
       router.push(targetPath);
     }
   }, [isAuthenticated, authIsLoading, router, searchParams, redirectAttempted]);
 
-  // Reset redirectAttempted if the user logs out or auth state changes to unauthenticated while on this page
   useEffect(() => {
     if (!isAuthenticated && !authIsLoading) {
       setRedirectAttempted(false);
@@ -88,12 +82,10 @@ function LoginClientContent() {
       setError(result.error || 'Invalid email or password. Please try again.');
       form.resetField("password");
     }
-    // If login is successful, the useEffect above will handle the redirect.
-    // We set redirectAttempted to false here so the effect can run if login succeeds
     setRedirectAttempted(false); 
   };
 
-  if (authIsLoading && !isAuthenticated) { // Show loading only if not already authenticated and loading
+  if (authIsLoading && !isAuthenticated) { 
     return (
       <div className="flex min-h-screen flex-col items-center justify-center p-4">
         <LocalLoader className="h-12 w-12 animate-spin text-primary" />
@@ -102,7 +94,6 @@ function LoginClientContent() {
     );
   }
   
-  // If already authenticated and redirect hasn't been attempted yet, it might show a brief loading for redirect
   if (isAuthenticated && !redirectAttempted && !authIsLoading) {
      return (
       <div className="flex min-h-screen flex-col items-center justify-center p-4">
@@ -111,12 +102,8 @@ function LoginClientContent() {
       </div>
     );
   }
-  // If redirect has been attempted, and user is still on login page (e.g. redirect failed client-side or was to self)
-  // or if not authenticated and not loading, show the form.
+  
   if (redirectAttempted && isAuthenticated) {
-    // This case should ideally not be reached if router.push works,
-    // but if it does, it means the redirect logic finished but they are still here.
-    // Could indicate a problem with the targetPath or router.
      return (
       <div className="flex min-h-screen flex-col items-center justify-center p-4">
         <p className="mt-4 text-muted-foreground">Redirecting... If you are not redirected, click <Link href="/account/dashboard" className="underline text-primary">here</Link>.</p>
@@ -194,7 +181,6 @@ function LoginClientContent() {
   );
 }
 
-// The default export is now simpler, just rendering Suspense and the client content.
 export default function LoginPage() {
   return (
     <Suspense fallback={<div className="flex min-h-screen flex-col items-center justify-center p-4"><LocalLoader className="h-12 w-12 animate-spin text-primary" /><p className="mt-4 text-muted-foreground">Loading login page...</p></div>}>
@@ -202,3 +188,5 @@ export default function LoginPage() {
     </Suspense>
   );
 }
+
+    

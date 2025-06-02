@@ -27,7 +27,7 @@ export async function GET(
   try {
     const { data, error } = await clientToUse
       .from('design_collaborations')
-      .select('*, category:design_collaboration_categories (id, name, slug)')
+      .select('*, category:design_collaboration_categories (id, name, slug), created_at, updated_at')
       .eq('id', collaborationId)
       .single();
 
@@ -46,17 +46,19 @@ export async function GET(
       return NextResponse.json({ message: 'Collaboration not found (no data returned).' }, { status: 404 });
     }
 
-    const gallery = {
+    const gallery: DesignCollaborationGallery = {
         ...data,
-        category_name: data.category?.name || null,
-        category_slug: data.category?.slug || null,
+        category_name: data.category?.name || undefined,
+        category_slug: data.category?.slug || undefined,
         gallery_images: Array.isArray(data.gallery_images) ? data.gallery_images.map((img: any, index: number) => ({
             id: img.id || `img-loaded-${data.id}-${index}`,
             url: img.url || '',
             altText: img.altText || '',
             dataAiHint: img.dataAiHint || '',
             displayOrder: img.displayOrder === undefined ? index : Number(img.displayOrder)
-        })) : []
+        })) : [],
+        createdAt: data.created_at,
+        updatedAt: data.updated_at,
     };
 
     return NextResponse.json(gallery);
@@ -124,27 +126,26 @@ export async function PUT(
   if (body.hasOwnProperty('gallery_images')) {
     galleryToUpdate.gallery_images = Array.isArray(body.gallery_images)
         ? body.gallery_images.map((img: any, index: number) => ({
-            id: img.id || `client-img-update-${Date.now()}-${index}`, // Client-side ID for keying, not for DB primary key
+            id: img.id || `client-img-update-${Date.now()}-${index}`, 
             url: img.url?.trim() || '',
             altText: img.altText?.trim() || null,
             dataAiHint: img.dataAiHint?.trim() || null,
             displayOrder: img.displayOrder === undefined || img.displayOrder === null ? index : Number(img.displayOrder)
-          })).filter(img => img.url) // Only include images with a URL
+          })).filter((img: GalleryImageItem) => img.url) 
         : [];
   }
 
   if (body.hasOwnProperty('is_published')) galleryToUpdate.is_published = body.is_published === undefined ? false : !!body.is_published;
   if (body.hasOwnProperty('collaboration_date')) galleryToUpdate.collaboration_date = body.collaboration_date?.trim() || null;
-
-  // DO NOT manually set "updatedAt" here. The database trigger handles it.
-  // The line galleryToUpdate."updatedAt" = new Date().toISOString(); has been removed.
+  
+  // updated_at is handled by Supabase trigger
 
   if (Object.keys(galleryToUpdate).length === 0) {
     console.log(`[API ADMIN DC PUT /${collaborationId}] No valid fields provided for update. Fetching current data.`);
      try {
         const { data: currentData, error: fetchError } = await clientToUse
             .from('design_collaborations')
-            .select('*, category:design_collaboration_categories (id, name, slug)')
+            .select('*, category:design_collaboration_categories (id, name, slug), created_at, updated_at')
             .eq('id', collaborationId)
             .single();
         if (fetchError) {
@@ -152,17 +153,19 @@ export async function PUT(
              return NextResponse.json({ message: 'Error fetching current data for no-op update.', rawSupabaseError: { message: fetchError.message, details: fetchError.details, hint: fetchError.hint, code: fetchError.code }}, { status: 500 });
         }
         if (!currentData) return NextResponse.json({ message: 'Collaboration not found for no-op update.'}, { status: 404 });
-        const responseData = {
+        const responseData: DesignCollaborationGallery = {
             ...currentData,
-            category_name: currentData.category?.name || null,
-            category_slug: currentData.category?.slug || null,
+            category_name: currentData.category?.name || undefined,
+            category_slug: currentData.category?.slug || undefined,
             gallery_images: Array.isArray(currentData.gallery_images) ? currentData.gallery_images.map((img: any, index: number) => ({
                 id: img.id || `img-current-${currentData.id}-${index}`,
                 url: img.url || '',
                 altText: img.altText || '',
                 dataAiHint: img.dataAiHint || '',
                 displayOrder: img.displayOrder === undefined ? index : Number(img.displayOrder)
-            })) : []
+            })) : [],
+            createdAt: currentData.created_at,
+            updatedAt: currentData.updated_at,
         };
         return NextResponse.json(responseData);
     } catch(e: any){
@@ -177,7 +180,7 @@ export async function PUT(
       .from('design_collaborations')
       .update(galleryToUpdate)
       .eq('id', collaborationId)
-      .select('*, category:design_collaboration_categories (id, name, slug)')
+      .select('*, category:design_collaboration_categories (id, name, slug), created_at, updated_at')
       .single();
 
     if (error) {
@@ -196,17 +199,19 @@ export async function PUT(
         return NextResponse.json({ message: 'Collaboration not found after update attempt (no data returned).' }, { status: 404 });
     }
 
-    const responseData = {
+    const responseData: DesignCollaborationGallery = {
         ...data,
-        category_name: data.category?.name || null,
-        category_slug: data.category?.slug || null,
+        category_name: data.category?.name || undefined,
+        category_slug: data.category?.slug || undefined,
         gallery_images: Array.isArray(data.gallery_images) ? data.gallery_images.map((img: any, index: number) => ({
             id: img.id || `img-updated-${data.id}-${index}`,
             url: img.url || '',
             altText: img.altText || '',
             dataAiHint: img.dataAiHint || '',
             displayOrder: img.displayOrder === undefined ? index : Number(img.displayOrder)
-        })) : []
+        })) : [],
+        createdAt: data.created_at,
+        updatedAt: data.updated_at,
     };
     console.log(`[API ADMIN DC PUT /${collaborationId}] Collaboration updated successfully.`);
     return NextResponse.json(responseData);

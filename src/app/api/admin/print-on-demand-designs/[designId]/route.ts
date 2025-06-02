@@ -28,7 +28,7 @@ export async function GET(
   try {
     const { data, error } = await clientToUse
       .from('print_on_demand_designs')
-      .select(`*, collaboration:design_collaborations (title)`)
+      .select(`*, collaboration:design_collaborations (title), created_at, updated_at`)
       .eq('id', designId)
       .single();
 
@@ -43,9 +43,11 @@ export async function GET(
       return NextResponse.json({ message: 'Print design not found (no data returned).' }, { status: 404 });
     }
     
-    const responseData = {
+    const responseData: PrintOnDemandDesign = {
         ...data,
-        collaboration_title: (data as any).collaboration?.title || null
+        collaboration_title: (data as any).collaboration?.title || undefined,
+        createdAt: data.created_at,
+        updatedAt: data.updated_at,
     };
     return NextResponse.json(responseData);
   } catch (e: any) {
@@ -101,7 +103,7 @@ export async function PUT(
   }
   
   if (body.hasOwnProperty('description')) designToUpdate.description = body.description || null;
-  if (body.hasOwnProperty('image_url')) designToUpdate.image_url = body.image_url; // Required, so should be present
+  if (body.image_url) designToUpdate.image_url = body.image_url; // Required, so should be present
   if (body.hasOwnProperty('ai_image_prompt')) designToUpdate.ai_image_prompt = body.ai_image_prompt || null;
   if (body.hasOwnProperty('price')) designToUpdate.price = Number(body.price); // Required
   if (body.hasOwnProperty('is_for_sale')) designToUpdate.is_for_sale = body.is_for_sale === undefined ? true : !!body.is_for_sale;
@@ -110,7 +112,7 @@ export async function PUT(
     designToUpdate.collaboration_id = body.collaboration_id === "__NONE_COLLAB__" || body.collaboration_id === '' ? null : body.collaboration_id;
   }
   
-  // "updatedAt" will be handled by the database trigger
+  // "updated_at" will be handled by the database trigger
   if (Object.keys(designToUpdate).length === 0) {
     return NextResponse.json({ message: "No valid fields provided for update." }, { status: 400 });
   }
@@ -121,7 +123,7 @@ export async function PUT(
       .from('print_on_demand_designs')
       .update(designToUpdate)
       .eq('id', designId)
-      .select(`*, collaboration:design_collaborations (title)`)
+      .select(`*, collaboration:design_collaborations (title), created_at, updated_at`)
       .single();
 
     if (error) {
@@ -139,9 +141,11 @@ export async function PUT(
       return NextResponse.json({ message: 'Design not found after update attempt.' }, { status: 404 });
     }
     
-    const responseData = {
+    const responseData: PrintOnDemandDesign = {
         ...data,
-        collaboration_title: (data as any).collaboration?.title || null
+        collaboration_title: (data as any).collaboration?.title || undefined,
+        createdAt: data.created_at,
+        updatedAt: data.updated_at,
     };
     console.log(`[API ADMIN POD PUT /${designId}] Design updated successfully.`);
     return NextResponse.json(responseData);
@@ -199,3 +203,5 @@ export async function DELETE(
     return NextResponse.json({ message: 'Server error deleting print design.', errorDetails: e.message }, { status: 500 });
   }
 }
+
+    

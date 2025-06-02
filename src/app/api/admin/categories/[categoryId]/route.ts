@@ -16,9 +16,9 @@ function isValidUUID(str: string | undefined | null): boolean {
 
 export async function GET(
   request: NextRequest,
-  params: { params: { categoryId: string } }
+  { params: routeParams }: { params: { categoryId: string } } // Renamed to avoid conflict
 ) {
-  const { categoryId } = params;
+  const { categoryId } = routeParams; // Use destructured routeParams
   const clientForRead = supabaseAdmin || fallbackSupabase;
 
   if (!clientForRead) {
@@ -28,11 +28,11 @@ export async function GET(
   if (!categoryId || !isValidUUID(categoryId)) {
     return NextResponse.json({ message: 'Valid Category ID is required.' }, { status: 400 });
   }
-  // console.log(`[API ADMIN CATEGORY GET /${categoryId}] Fetching category...`);
+  
   try {
     const { data, error } = await clientForRead
       .from('categories')
-      .select('*, parent_id, "displayOrder"')
+      .select('*, parent_id, "displayOrder", created_at, updated_at') // Explicitly select timestamp columns
       .eq('id', categoryId)
       .single();
 
@@ -60,8 +60,8 @@ export async function GET(
       aiImagePrompt: data.ai_image_prompt,
       parentId: data.parent_id,
       displayOrder: data.displayOrder,
-      createdAt: data.createdAt || data.created_at,
-      updatedAt: data.updatedAt || data.updated_at,
+      createdAt: data.created_at, // Map from Supabase column
+      updatedAt: data.updated_at, // Map from Supabase column
     };
     return NextResponse.json(responseCategory);
   } catch (e: any) {
@@ -72,9 +72,9 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { categoryId: string } }
+  { params: routeParams }: { params: { categoryId: string } } // Renamed
 ) {
-  const { categoryId } = params;
+  const { categoryId } = routeParams; // Use destructured routeParams
   const clientToUse = supabaseAdmin;
 
   if (!clientToUse) {
@@ -93,11 +93,9 @@ export async function PUT(
   try {
     body = await request.json();
   } catch (jsonError: any) {
-    // console.error(`[API ADMIN CATEGORY PUT /${categoryId}] Error parsing JSON:`, jsonError);
     return NextResponse.json({ message: "Invalid JSON in request body.", errorDetails: jsonError.message }, { status: 400 });
   }
-  // console.log(`[API ADMIN CATEGORY PUT /${categoryId}] Received body:`, JSON.stringify(body));
-
+  
   const categoryToUpdate: { [key: string]: any } = {};
 
   if (body.name !== undefined) {
@@ -108,19 +106,18 @@ export async function PUT(
 
   if (body.slug !== undefined) {
     if (body.slug.trim() === '') {
-      const nameToSlugify = categoryToUpdate.name || body.name; // Use updated name if available
+      const nameToSlugify = categoryToUpdate.name || body.name; 
       if (nameToSlugify && nameToSlugify.trim() !== '') {
         categoryToUpdate.slug = nameToSlugify.trim().toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, '');
       }
     } else {
       categoryToUpdate.slug = body.slug.trim().toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, '');
     }
-  } else if (categoryToUpdate.name) { // If slug not provided, generate from new name
+  } else if (categoryToUpdate.name) { 
       categoryToUpdate.slug = categoryToUpdate.name.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, '');
-  } else if (body.name && body.name.trim() !== '') { // Or from old name if name isn't changing
+  } else if (body.name && body.name.trim() !== '') { 
       categoryToUpdate.slug = body.name.trim().toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, '');
   }
-
 
   if (body.hasOwnProperty('description')) categoryToUpdate.description = body.description || null;
   if (body.hasOwnProperty('imageUrl')) categoryToUpdate.image_url = body.imageUrl || null;
@@ -136,30 +133,28 @@ export async function PUT(
     categoryToUpdate["displayOrder"] = Number(body.displayOrder);
     if(isNaN(categoryToUpdate["displayOrder"])) categoryToUpdate["displayOrder"] = 0;
   }
-
+  // Supabase trigger handles updated_at
+  
   if (Object.keys(categoryToUpdate).length === 0) {
-    // console.log(`[API ADMIN CATEGORY PUT /${categoryId}] No fields to update. Fetching current.`);
     try {
-        const { data: currentData } = await clientToUse.from('categories').select('*, parent_id, "displayOrder"').eq('id', categoryId).single();
+        const { data: currentData } = await clientToUse.from('categories').select('*, parent_id, "displayOrder", created_at, updated_at').eq('id', categoryId).single();
         if (!currentData) return NextResponse.json({ message: 'Category not found for no-op update.'}, { status: 404 });
-        const responseCat: AdminCategory = { ...currentData, parentId: currentData.parent_id, imageUrl: currentData.image_url, aiImagePrompt: currentData.ai_image_prompt, displayOrder: currentData.displayOrder, createdAt: currentData.createdAt || currentData.created_at, updatedAt: currentData.updatedAt || currentData.updated_at };
+        const responseCat: AdminCategory = { ...currentData, parentId: currentData.parent_id, imageUrl: currentData.image_url, aiImagePrompt: currentData.ai_image_prompt, displayOrder: currentData.displayOrder, createdAt: currentData.created_at, updatedAt: currentData.updated_at };
         return NextResponse.json(responseCat);
     } catch (e: any) {
         return NextResponse.json({ message: "No fields to update; error fetching current data.", rawSupabaseError: {message: e.message} }, { status: 400 });
     }
   }
-  // console.log(`[API ADMIN CATEGORY PUT /${categoryId}] Updating with:`, JSON.stringify(categoryToUpdate));
-
+  
   try {
     const { data: updatedData, error } = await clientToUse
       .from('categories')
       .update(categoryToUpdate)
       .eq('id', categoryId)
-      .select('*, parent_id, "displayOrder"')
+      .select('*, parent_id, "displayOrder", created_at, updated_at')
       .single();
 
     if (error) {
-      // console.error(`[API ADMIN CATEGORY PUT /${categoryId}] Supabase error:`, error);
       const status = error.code === 'PGRST116' ? 404 : error.code === '23505' ? 409 : 500;
       const message = error.code === 'PGRST116' ? 'Category not found.' :
                       error.code === '23505' ? `Update conflict: ${error.details || ''}` :
@@ -169,20 +164,18 @@ export async function PUT(
     if (!updatedData) {
         return NextResponse.json({ message: 'Category not found after update.' }, { status: 404 });
     }
-    const responseCategory: AdminCategory = { ...updatedData, parentId: updatedData.parent_id, imageUrl: updatedData.image_url, aiImagePrompt: updatedData.ai_image_prompt, displayOrder: updatedData.displayOrder, createdAt: updatedData.createdAt || updatedData.created_at, updatedAt: updatedData.updatedAt || updatedData.updated_at };
-    // console.log(`[API ADMIN CATEGORY PUT /${categoryId}] Updated successfully.`);
+    const responseCategory: AdminCategory = { ...updatedData, parentId: updatedData.parent_id, imageUrl: updatedData.image_url, aiImagePrompt: updatedData.ai_image_prompt, displayOrder: updatedData.displayOrder, createdAt: updatedData.created_at, updatedAt: updatedData.updated_at };
     return NextResponse.json(responseCategory);
   } catch (e: any) {
-    // console.error(`[API ADMIN CATEGORY PUT /${categoryId}] Unhandled error:`, e);
     return NextResponse.json({ message: e.message || "Update error.", rawSupabaseError: {message: e.message} }, { status: 500 });
   }
 }
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { categoryId: string } }
+  { params: routeParams }: { params: { categoryId: string } } // Renamed
 ) {
-  const { categoryId } = params;
+  const { categoryId } = routeParams; // Use destructured routeParams
   const clientForWrite = supabaseAdmin;
 
   if (!clientForWrite) {
@@ -192,28 +185,24 @@ export async function DELETE(
   if (!categoryId || !isValidUUID(categoryId)) {
     return NextResponse.json({ message: 'Valid Category ID required for delete.' }, { status: 400 });
   }
-  // console.log(`[API ADMIN CATEGORY DELETE /${categoryId}] Attempting delete.`);
-
+  
   try {
     const { data: rpcData, error: rpcError } = await clientForWrite.rpc('is_category_used_in_products', { p_category_id: categoryId });
     if (rpcError) {
-      // console.error(`[API ADMIN CATEGORY DELETE /${categoryId}] RPC error:`, rpcError);
       return NextResponse.json({ message: `DB error checking product links: ${rpcError.message}`, rawSupabaseError: rpcError }, { status: 500 });
     }
     if (rpcData === true) {
-      // console.warn(`[API ADMIN CATEGORY DELETE /${categoryId}] Category in use.`);
       return NextResponse.json({ message: 'Cannot delete: Category is linked to products.' }, { status: 409 });
     }
 
     const { error: deleteError } = await clientForWrite.from('categories').delete().eq('id', categoryId);
     if (deleteError) {
-      // console.error(`[API ADMIN CATEGORY DELETE /${categoryId}] Supabase error:`, deleteError);
       return NextResponse.json({ message: `DB error deleting: ${deleteError.message}`, rawSupabaseError: deleteError }, { status: 500 });
     }
-    // console.log(`[API ADMIN CATEGORY DELETE /${categoryId}] Deleted successfully.`);
     return NextResponse.json({ message: 'Category deleted successfully' }, { status: 200 });
   } catch (e: any) {
-    // console.error(`[API ADMIN CATEGORY DELETE /${categoryId}] Unhandled error:`, e);
     return NextResponse.json({ message: `Delete error: ${e.message}` }, { status: 500 });
   }
 }
+
+    

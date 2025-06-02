@@ -150,7 +150,8 @@ function HomePageContent() {
   const [isHeroPlaying, setIsHeroPlaying] = useState(true);
   const heroIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
-  const [isAudioMuted, setIsAudioMuted] = useState(false);
+  const [isAudioMuted, setIsAudioMuted] = useState(true); // Start audio muted
+  const [pretendYouTubeIsMuted, setPretendYouTubeIsMuted] = useState(true);
 
 
   const [currentArtisanalSlide, setCurrentArtisanalSlide] = useState(0);
@@ -324,7 +325,7 @@ function HomePageContent() {
   
   const combinedHeroSlides = useMemo(() => {
     const sortedBaseSlides = (content.heroSlides || [])
-      .filter(slide => slide.id) // Ensure slides have an ID
+      .filter(slide => slide.id) 
       .sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
     
     const sortedAdaptedPromoSlides = (content.promotionalPostsSection?.enabled && promotionalPosts.length > 0) 
@@ -342,8 +343,8 @@ function HomePageContent() {
             ctaLink: promo.ctaLink || `/products?promo=${promo.slug}`,
             videoId: undefined, 
             audioUrl: undefined, 
-            duration: promo.displayOrder && promo.displayOrder > 1000 ? promo.displayOrder : 7000, // Bit of a hack for duration from promo displayOrder
-            displayOrder: (sortedBaseSlides.length * 10) + (promo.displayOrder || index * 10), // Ensure promo slides appear after base slides
+            duration: promo.displayOrder && promo.displayOrder > 1000 ? promo.displayOrder : 7000, 
+            displayOrder: (sortedBaseSlides.length * 10) + (promo.displayOrder || index * 10), 
             youtubeAuthorName: undefined,
             youtubeAuthorLink: undefined,
             _isPromo: true,
@@ -375,12 +376,31 @@ function HomePageContent() {
     if (activeHeroSlides.length > 0) { setCurrentHeroSlide(index % activeHeroSlides.length); }
   };
   const toggleHeroPlayPause = () => setIsHeroPlaying(prev => !prev);
+  
   const toggleAudioMute = () => {
     if (audioRef.current) {
       audioRef.current.muted = !audioRef.current.muted;
       setIsAudioMuted(audioRef.current.muted);
     }
   };
+  
+  const handleMuteToggleClick = () => {
+    const currentSlide = activeHeroSlides[currentHeroSlide];
+    const isYouTubeVisual = !currentSlide?.imageUrl && currentSlide?.videoId;
+    const hasDirectAudio = !!currentSlide?.audioUrl;
+
+    if (hasDirectAudio) {
+      toggleAudioMute();
+    } else if (isYouTubeVisual) {
+      setPretendYouTubeIsMuted(prev => !prev);
+      toast({
+        title: "YouTube Audio Control",
+        description: "This button simulates mute/unmute. Actual YouTube video sound control requires interaction if initially muted by browser policies. Use browser/system volume for now.",
+        duration: 7000,
+      });
+    }
+  };
+
 
   useEffect(() => {
     if (heroIntervalRef.current) {
@@ -393,24 +413,15 @@ function HomePageContent() {
     
     const currentSlide = activeHeroSlides[currentHeroSlide];
     const directAudioUrl = currentSlide?.audioUrl;
-    const youtubeVideoIdForAudio = currentSlide?.videoId; 
 
     if (audioRef.current) {
-      // console.log(`[Hero Audio] Slide ${currentHeroSlide}: DirectAudio='${directAudioUrl}', YouTubeID for audio='${youtubeVideoIdForAudio}'`);
       if (directAudioUrl) {
-        // console.log(`[Hero Audio] Using DIRECT audio: ${directAudioUrl}`);
         if (audioRef.current.src !== directAudioUrl) {
           audioRef.current.src = directAudioUrl;
           audioRef.current.load(); 
         }
         audioRef.current.play().catch(error => console.warn("Direct audio play failed:", error));
-      } else if (youtubeVideoIdForAudio && currentSlide?.imageUrl) { 
-        // console.log(`[Hero Audio] YouTube video is HIDDEN audio source. HTML5 <audio> tag paused.`);
-        audioRef.current.pause();
-        audioRef.current.currentTime = 0;
-      }
-       else {
-        // console.log(`[Hero Audio] NO specific audio for this slide. HTML5 <audio> tag paused.`);
+      } else {
         audioRef.current.pause();
         audioRef.current.currentTime = 0;
       }
@@ -607,24 +618,16 @@ function HomePageContent() {
             const useYouTubeForAudioOnly = !!slide.imageUrl && !!slide.videoId && !slide.audioUrl; 
             const useDirectAudio = !!slide.audioUrl;
 
-            // if (isCurrent) { 
-            //   console.log(`[Hero Slide ${index} (Current)] Properties:`, 
-            //     `imageUrl: "${slide.imageUrl}" (Type: ${typeof slide.imageUrl})`, 
-            //     `videoId: "${slide.videoId}" (Type: ${typeof slide.videoId})`, 
-            //     `audioUrl: "${slide.audioUrl}" (Type: ${typeof slide.audioUrl})`,
-            //     `useImageForVisual: ${useImageForVisual}`,
-            //     `useYouTubeForVisual: ${useYouTubeForVisual}`,
-            //     `useYouTubeForAudioOnly: ${useYouTubeForAudioOnly}`
-            //   );
-            // }
+            let iframeSrcForVisual = '';
+            let iframeSrcForAudioOnly = '';
 
-            let iframeSrc = '';
             if (useYouTubeForVisual && slide.videoId) {
-                iframeSrc = `https://www.youtube.com/embed/${slide.videoId}?autoplay=1&mute=1&loop=1&playlist=${slide.videoId}&controls=0&showinfo=0&autohide=1&modestbranding=1&playsinline=1&enablejsapi=1`;
-            } else if (useYouTubeForAudioOnly && slide.videoId) {
-                iframeSrc = `https://www.youtube.com/embed/${slide.videoId}?autoplay=1&mute=0&loop=1&playlist=${slide.videoId}&controls=0&showinfo=0&autohide=1&modestbranding=1&playsinline=1&enablejsapi=1`;
+                iframeSrcForVisual = `https://www.youtube.com/embed/${slide.videoId}?autoplay=1&mute=1&loop=1&playlist=${slide.videoId}&controls=0&showinfo=0&autohide=1&modestbranding=1&playsinline=1&enablejsapi=1`;
             }
-
+            if (useYouTubeForAudioOnly && slide.videoId) {
+                iframeSrcForAudioOnly = `https://www.youtube.com/embed/${slide.videoId}?autoplay=1&mute=0&loop=1&playlist=${slide.videoId}&controls=0&showinfo=0&autohide=1&modestbranding=1&playsinline=1&enablejsapi=1`;
+            }
+            
             return (
               <div
                 key={slide.id || `hero-bg-${index}`}
@@ -648,22 +651,22 @@ function HomePageContent() {
                     {!slide._isPromo && <div className="absolute inset-0 bg-black/30 z-[1]" />}
                   </>
                 )}
-                {useYouTubeForVisual && slide.videoId && (
+                {useYouTubeForVisual && slide.videoId && iframeSrcForVisual && (
                   <>
                     <iframe
                       className="absolute top-1/2 left-1/2 w-full h-full min-w-[177.77vh] min-h-[56.25vw] transform -translate-x-1/2 -translate-y-1/2"
-                      src={iframeSrc}
+                      src={iframeSrcForVisual}
                       title={slide.altText || "Peak Pulse Background Video"}
                       frameBorder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen={false}
                     />
                     {!slide._isPromo && <div className="absolute inset-0 bg-black/30 z-[1]" />}
                   </>
                 )}
-                {useYouTubeForAudioOnly && slide.videoId && ( 
+                {useYouTubeForAudioOnly && slide.videoId && iframeSrcForAudioOnly && ( 
                     <iframe
                         className="absolute -left-[9999px] -top-[9999px]" 
                         style={{width: '1px', height: '1px', opacity: 0, pointerEvents: 'none'}}
-                        src={iframeSrc}
+                        src={iframeSrcForAudioOnly}
                         title={`Audio for ${slide.altText || "Peak Pulse Background"}`}
                         frameBorder="0" allow="autoplay;"
                     />
@@ -767,9 +770,11 @@ function HomePageContent() {
                     ${currentHeroSlide === index ? 'bg-white scale-125 ring-2 ring-white/30 ring-offset-1 ring-offset-transparent p-0.5 w-5 md:w-6' : 'bg-white/40 hover:bg-white/70'}`}
                   aria-label={`Go to slide ${index + 1}`} />
               ))}
-              {activeHeroSlides[currentHeroSlide]?.audioUrl && ( 
-                  <Button variant="ghost" size="icon" onClick={toggleAudioMute} className="h-7 w-7 text-white/70 hover:text-white p-1" aria-label={isAudioMuted ? "Unmute audio" : "Mute audio"}>
-                      {isAudioMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+              {(activeHeroSlides[currentHeroSlide]?.audioUrl || (!activeHeroSlides[currentHeroSlide]?.imageUrl && activeHeroSlides[currentHeroSlide]?.videoId)) && ( 
+                  <Button variant="ghost" size="icon" onClick={handleMuteToggleClick} className="h-7 w-7 text-white/70 hover:text-white p-1" 
+                      aria-label={(activeHeroSlides[currentHeroSlide]?.audioUrl && isAudioMuted) || (!activeHeroSlides[currentHeroSlide]?.audioUrl && pretendYouTubeIsMuted) ? "Unmute audio" : "Mute audio"}
+                  >
+                      {(activeHeroSlides[currentHeroSlide]?.audioUrl && isAudioMuted) || (!activeHeroSlides[currentHeroSlide]?.audioUrl && pretendYouTubeIsMuted) ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
                   </Button>
               )}
             </div>
@@ -1092,3 +1097,5 @@ export default function RootPage() {
     </MainLayout>
   );
 }
+
+    
