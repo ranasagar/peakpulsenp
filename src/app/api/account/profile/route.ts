@@ -9,10 +9,12 @@ export const dynamic = 'force-dynamic';
 interface ProfileUpdateRequestBody {
   id: string; // Firebase UID
   name?: string;
-  avatarUrl?: string | null;
+  avatarUrl?: string | null; // Client sends avatarUrl
+  bio?: string | null; // Client sends bio
   email: string; // Required for new profiles
   roles?: string[];
   wishlist?: string[];
+  bookmarked_post_ids?: string[];
 }
 
 // GET user profile
@@ -37,25 +39,31 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    // Attempt to select all known columns, including the potentially missing ones.
+    // Supabase will error if a column doesn't exist.
+    const baseSelectFields = 'id, email, name, avatar_url, bio, roles, wishlist, bookmarked_post_ids, "createdAt", "updatedAt"';
+    
     const { data: profile, error: fetchError } = await supabase
       .from('users')
-      .select('*')
+      .select(baseSelectFields)
       .eq('id', uidFromQuery)
       .single();
 
     if (fetchError) {
-      const isNotFound = fetchError.code === 'PGRST116';
-      const errorMessage = isNotFound ? 'Profile not found' : 'Error fetching profile from database.';
-      const specificMessage = isNotFound
-          ? `Profile not found. Supabase: ${fetchError.message}. Details: ${fetchError.details || 'N/A'}. Hint: ${fetchError.hint || 'N/A'}. Code: ${fetchError.code}.`
-          : `Error fetching profile. Supabase: ${fetchError.message}. Details: ${fetchError.details || 'N/A'}. Hint: ${fetchError.hint || 'N/A'}. Code: ${fetchError.code}.`;
+      const isNotFound = fetchError.code === 'PGRST116'; // "Fetched result consists of 0 rows"
+      const isUndefinedColumn = fetchError.code === '42703'; // "column does not exist"
       
-      console.error(`[API /api/account/profile GET] Supabase error fetching profile for uid ${uidFromQuery}${isNotFound ? ' (Profile not found)' : ''}:`, specificMessage, fetchError);
+      let errorMessage = 'Error fetching profile from database.';
+      if (isNotFound) errorMessage = 'Profile not found.';
+      if (isUndefinedColumn) errorMessage = `Database schema mismatch: ${fetchError.message}. Ensure migrations are run.`;
+      
+      const specificMessage = `Supabase: ${fetchError.message}. Details: ${fetchError.details || 'N/A'}. Hint: ${fetchError.hint || 'N/A'}. Code: ${fetchError.code}.`;
+      console.error(`[API /api/account/profile GET] Supabase error fetching profile for uid ${uidFromQuery}${isNotFound ? ' (Profile not found)' : isUndefinedColumn ? ' (Undefined column)' : ''}:`, specificMessage, fetchError);
       
       return NextResponse.json({
         message: errorMessage,
         rawSupabaseError: { message: fetchError.message, details: fetchError.details, hint: fetchError.hint, code: fetchError.code }
-      }, { status: isNotFound ? 404 : 500 });
+      }, { status: isNotFound ? 404 : (isUndefinedColumn ? 500 : 500) });
     }
     
     if (!profile) {
@@ -67,7 +75,18 @@ export async function GET(request: NextRequest) {
     }
 
     console.log(`[API /api/account/profile GET] Profile found for ${uidFromQuery} in Supabase.`);
-    const responseProfile = { ...profile, wishlist: profile.wishlist || [] };
+    const responseProfile: AuthUserType = {
+        id: profile.id,
+        email: profile.email,
+        name: profile.name,
+        avatarUrl: profile.avatar_url, // Map from db
+        bio: profile.bio,             // Map from db
+        roles: profile.roles || ['customer'],
+        wishlist: profile.wishlist || [],
+        bookmarked_post_ids: profile.bookmarked_post_ids || [],
+        createdAt: profile.createdAt || profile.created_at, // Handle potential casing
+        updatedAt: profile.updatedAt || profile.updated_at,
+    };
     return NextResponse.json(responseProfile);
 
   } catch (catchError: any) {
@@ -82,7 +101,7 @@ export async function GET(request: NextRequest) {
 
 // POST to create or update user profile
 export async function POST(request: NextRequest) {
-  const clientForWrite = supabaseAdmin || supabase; // Prefer admin client for writes to bypass RLS for this system op
+  const clientForWrite = supabaseAdmin || supabase; 
 
   if (!clientForWrite) {
      const errorMsg = supabaseAdmin ? '[API /api/account/profile POST] Admin Supabase client (service_role) is not initialized.' : '[API /api/account/profile POST] Public Supabase client (fallback) is not initialized.';
@@ -103,30 +122,29 @@ export async function POST(request: NextRequest) {
     console.error('[API /api/account/profile POST] Error parsing request JSON:', e);
     return NextResponse.json({ message: 'Invalid request body. Expected JSON.', errorDetails: (e as Error).message }, { status: 400 });
   }
-  console.log("[API /api/account/profile POST] Parsed request body (rawBody):", JSON.stringify(requestBody, null, 2));
+  console.log("[API /api/account/profile POST] Parsed request body:", JSON.stringify(requestBody, null, 2));
   
-  const userIdToProcess = requestBody.id; // Expect 'id' from client (Firebase UID)
-  const { name, avatarUrl, email, roles, wishlist } = requestBody;
+  const userIdToProcess = requestBody.id; 
+  const { name, avatarUrl, bio, email, roles, wishlist, bookmarked_post_ids } = requestBody;
 
   if (!userIdToProcess) {
     console.warn("[API /api/account/profile POST] User ID ('id' field) is required in request body.");
     return NextResponse.json({ message: "User ID ('id' field) is required for update/create" }, { status: 400 });
   }
-  if (!email) {
-      console.warn(`[API /api/account/profile POST] Email is required for profile creation/update (UID ${userIdToProcess}).`);
-      return NextResponse.json({ message: 'Email is required for profile.', rawSupabaseError: {message: 'Email is required.'} }, { status: 400 });
+  if (!email && !requestBody.hasOwnProperty('name')) { // Email is only strictly required for inserts if name isn't provided
+      console.warn(`[API /api/account/profile POST] Email is required for profile creation if name is not provided (UID ${userIdToProcess}).`);
+      return NextResponse.json({ message: 'Email is required for profile creation if name is not set.', rawSupabaseError: {message: 'Email or Name is required.'} }, { status: 400 });
   }
   console.log(`[API /api/account/profile POST] Processing request for user ID: ${userIdToProcess}. Using ${clientForWrite === supabaseAdmin ? "ADMIN client" : "PUBLIC client"}.`);
 
   try {
-    // Check if user already exists
     const { data: existingUser, error: selectError } = await clientForWrite
       .from('users')
-      .select('id, roles, wishlist') // Select only what's needed for merging logic
+      .select('id, roles, wishlist, bookmarked_post_ids, name, bio, avatar_url') 
       .eq('id', userIdToProcess)
       .maybeSingle();
 
-    if (selectError && selectError.code !== 'PGRST116') { // PGRST116 means 0 rows, which is fine for a new user
+    if (selectError && selectError.code !== 'PGRST116') { 
       console.error(`[API /api/account/profile POST] Supabase error selecting existing user ${userIdToProcess}:`, selectError);
       return NextResponse.json({
         message: 'Error checking existing user profile.',
@@ -138,52 +156,54 @@ export async function POST(request: NextRequest) {
     let operationType = '';
 
     if (existingUser) {
-      // User exists, prepare for update
       operationType = 'UPDATE';
-      const dataToUpdate: Partial<AuthUserType> & { updatedAt: string } = {
-        name: name || existingUser.name || email.split('@')[0],
-        "avatarUrl": avatarUrl === undefined ? existingUser.avatarUrl : avatarUrl, // Use existing if undefined, allow null to clear
-        email: email, // Keep email consistent, Firebase Auth is source of truth for email
-        // Retain existing roles and wishlist if not explicitly provided for update,
-        // or merge if new ones are provided (though client form doesn't send these for update)
-        roles: roles || existingUser.roles || ['customer'],
-        wishlist: wishlist || existingUser.wishlist || [],
-        updatedAt: new Date().toISOString(),
-      };
-      // Special handling for admin assignment
-      if (email === 'sagarrana@gmail.com' || email === 'sagarbikramrana7@gmail.com') {
-        dataToUpdate.roles = Array.from(new Set([...(dataToUpdate.roles || ['customer']), 'admin']));
+      const dataToUpdate: Partial<AuthUserType & { avatar_url?: string | null, bookmarked_post_ids?: string[], updatedAt?: string }> = {};
+
+      if (name !== undefined) dataToUpdate.name = name;
+      if (avatarUrl !== undefined) dataToUpdate.avatar_url = avatarUrl; // Map to db column
+      if (requestBody.hasOwnProperty('bio')) dataToUpdate.bio = bio; // Only include if key 'bio' is present
+      
+      // Email, roles, wishlist, bookmarked_post_ids are generally not updated through this specific profile form's save action.
+      // They are managed by Firebase Auth (email), admin panel (roles), or dedicated wishlist/bookmark actions.
+      // Only update them if explicitly part of a more comprehensive profile update payload.
+      if (roles !== undefined) dataToUpdate.roles = roles;
+      if (wishlist !== undefined) dataToUpdate.wishlist = wishlist;
+      if (bookmarked_post_ids !== undefined) dataToUpdate.bookmarked_post_ids = bookmarked_post_ids;
+
+
+      if (Object.keys(dataToUpdate).length > 0) {
+        dataToUpdate.updatedAt = new Date().toISOString(); // Handled by trigger, but explicit for clarity if needed
+        console.log(`[API /api/account/profile POST] Data for update for UID ${userIdToProcess}:`, JSON.stringify(dataToUpdate, null, 2));
+        const { data: updatedUser, error: updateError } = await clientForWrite
+          .from('users')
+          .update(dataToUpdate)
+          .eq('id', userIdToProcess)
+          .select() // Select all fields after update
+          .single();
+        if (updateError) throw updateError;
+        finalUserData = updatedUser;
+      } else {
+        console.log(`[API /api/account/profile POST] No updatable fields sent for existing user ${userIdToProcess}. Returning current profile.`);
+        finalUserData = existingUser; // Return existing data if nothing was actually changed
       }
 
-
-      console.log(`[API /api/account/profile POST] Data for update for UID ${userIdToProcess}:`, JSON.stringify(dataToUpdate, null, 2));
-      const { data: updatedUser, error: updateError } = await clientForWrite
-        .from('users')
-        .update(dataToUpdate)
-        .eq('id', userIdToProcess)
-        .select()
-        .single();
-      
-      if (updateError) throw updateError;
-      finalUserData = updatedUser;
-
     } else {
-      // User does not exist, prepare for insert
       operationType = 'INSERT';
       let initialRoles = roles || ['customer'];
-      if (email === 'sagarrana@gmail.com' || email === 'sagarbikramrana7@gmail.com') {
+      if (email && (email === 'sagarrana@gmail.com' || email === 'sagarbikramrana7@gmail.com')) {
         initialRoles = Array.from(new Set([...initialRoles, 'admin']));
       }
 
-      const dataToInsert: Omit<AuthUserType, 'wishlist'> & { wishlist: string[], createdAt: string, updatedAt: string } = {
+      const dataToInsert = {
         id: userIdToProcess,
-        email: email,
-        name: name || email.split('@')[0] || 'New User',
-        "avatarUrl": avatarUrl === undefined ? null : avatarUrl,
+        email: email, // Must have email for new user
+        name: name || email?.split('@')[0] || 'New User',
+        avatar_url: avatarUrl, // Map to db column
+        bio: bio,
         roles: initialRoles,
         wishlist: wishlist || [],
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        bookmarked_post_ids: bookmarked_post_ids || [],
+        // createdAt and updatedAt handled by db
       };
       console.log(`[API /api/account/profile POST] Data for insert for UID ${userIdToProcess}:`, JSON.stringify(dataToInsert, null, 2));
       const { data: insertedUser, error: insertError } = await clientForWrite
@@ -202,23 +222,35 @@ export async function POST(request: NextRequest) {
     }
     
     console.log(`[API /api/account/profile POST] Profile ${operationType.toLowerCase()}d successfully for UID ${userIdToProcess}.`);
-    const responseUser = { ...finalUserData, wishlist: finalUserData.wishlist || [] };
+    const responseUser: AuthUserType = {
+        id: finalUserData.id,
+        email: finalUserData.email,
+        name: finalUserData.name,
+        avatarUrl: finalUserData.avatar_url,
+        bio: finalUserData.bio,
+        roles: finalUserData.roles || ['customer'],
+        wishlist: finalUserData.wishlist || [],
+        bookmarked_post_ids: finalUserData.bookmarked_post_ids || [],
+        createdAt: finalUserData.createdAt || finalUserData.created_at,
+        updatedAt: finalUserData.updatedAt || finalUserData.updated_at,
+    };
     return NextResponse.json({ message: `Profile ${operationType.toLowerCase()}d successfully`, user: responseUser });
 
   } catch (error: any) {
-    console.error(`[API /api/account/profile POST] Error during profile ${requestBody.id ? 'update' : 'creation'} for user ID ${userIdToProcess}:`, error);
-    let errorMessage = 'Failed to create profile in database.';
-    let errorDetails = {};
+    console.error(`[API /api/account/profile POST] Error during profile ${userIdToProcess ? 'update/creation' : 'creation'}:`, error);
+    let errorMessage = `Failed to ${operationType ? operationType.toLowerCase() : 'process'} profile.`;
+    let errorDetails = { message: error.message, code: error.code, details: error.details, hint: error.hint };
 
     if (error.code) { // Likely a Supabase error
       errorMessage = `Supabase error: ${error.message}`;
-      errorDetails = { message: error.message, details: error.details, hint: error.hint, code: error.code };
-      if (error.code === '42501') { // RLS violation
-        errorMessage = 'Database Row Level Security (RLS) policy violation prevents profile creation. Please check INSERT policy for "anon" role on "users" table in Supabase.';
-      } else if (error.code === '23505' && error.message.includes('users_email_key')) { // Unique constraint on email
+      if (error.code === '42703') { // Undefined column
+          errorMessage = `Database schema error: ${error.message}. A required column might be missing (e.g., 'bio' or 'avatar_url'). Please ensure migrations are run.`;
+      } else if (error.code === '42501') { 
+        errorMessage = 'Database Row Level Security (RLS) policy violation. Check INSERT/UPDATE policy for "anon" or relevant role on "users" table in Supabase.';
+      } else if (error.code === '23505' && error.message.includes('users_email_key')) { 
         errorMessage = `Error: The email address '${email}' is already registered.`;
-      } else if (error.code === '23505' && error.message.includes('users_pkey')) { // Unique constraint on id (PK)
-        errorMessage = `Error: A profile for this user ID already exists.`;
+      } else if (error.code === '23505' && error.message.includes('users_pkey')) { 
+        errorMessage = `Error: A profile for user ID '${userIdToProcess}' already exists.`;
       }
     } else {
       errorMessage = error.message || errorMessage;

@@ -17,9 +17,9 @@ import { useToast } from '@/hooks/use-toast';
 import { useEffect, useState, useCallback } from 'react';
 import type { User as AuthUserType, Order, Product, Review as ReviewType, UserPost } from '@/types';
 import { ProductCard } from '@/components/product/product-card';
-import Image from 'next/image'; // For order item images
-import { Badge } from '@/components/ui/badge'; // For order status
-import { RatingStars } from '@/components/ui/rating-stars'; // For review display
+import Image from 'next/image'; 
+import { Badge } from '@/components/ui/badge'; 
+import { RatingStars } from '@/components/ui/rating-stars'; 
 
 const profileSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
@@ -49,7 +49,7 @@ export default function ProfilePage() {
   const [userOrders, setUserOrders] = useState<Order[]>([]);
   const [isLoadingOrders, setIsLoadingOrders] = useState(false);
   
-  const [allProducts, setAllProducts] = useState<Product[]>([]); // For wishlist
+  const [allProducts, setAllProducts] = useState<Product[]>([]); 
   const [wishlistItems, setWishlistItems] = useState<Product[]>([]);
   const [isLoadingWishlistProducts, setIsLoadingWishlistProducts] = useState(false);
 
@@ -70,7 +70,7 @@ export default function ProfilePage() {
   });
 
   const fetchFullProfileData = useCallback(async () => {
-    if (authUser && authUser.id) {
+    if (authUser?.id) {
       setIsFetchingProfileDetails(true);
       try {
         const response = await fetch(`/api/account/profile?uid=${authUser.id}`);
@@ -87,40 +87,30 @@ export default function ProfilePage() {
           const errorData = await response.json().catch(() => ({}));
           const errorMessage = errorData.message || errorData.rawSupabaseError?.message || `Failed to fetch profile details: ${response.statusText}`;
           console.warn(`[ProfilePage] fetchFullProfileData: API call failed. UID: ${authUser?.id}. Error: ${errorMessage}`);
-          toast({ title: "Profile Partially Loaded", description: "Could not fetch full profile details. Some information might be from cache or incomplete. Please ensure database schema is up to date if issues persist.", variant: "default", duration: 7000 });
-          // Do not throw here; let the finally block handle fallback to authUser.
+          toast({ title: "Profile Partially Loaded", description: `Could not fetch full profile details. Some information might be from cache or incomplete. ${errorMessage.includes("column") ? "Database schema might need update." : ""}`, variant: "default", duration: 7000 });
+          // No throw here, fallback to authUser handled in finally
         }
       } catch (error) {
         console.error("[ProfilePage] Error in fetchFullProfileData's try-catch:", error);
         const desc = (error as Error).message || "An unknown error occurred while loading your detailed profile information.";
         toast({ title: "Error Loading Profile Details", description: desc, variant: "destructive" });
-        // Fallback to authUser data will be handled in `finally` if `profileData` wasn't set.
       } finally {
-        // Ensure profileData is set to authUser if it hasn't been successfully fetched
-        // and authUser exists. This handles the case where the API failed but authUser is available.
-        if (!profileData && authUser) { // Check if profileData was NOT set by a successful API call
-            setProfileData(authUser); // Use the potentially less complete authUser from context
+        if (!profileData && authUser) { 
+            setProfileData(authUser); 
             profileForm.reset({
                 name: authUser.name || '',
                 email: authUser.email || '',
                 avatarUrl: authUser.avatarUrl || '',
-                bio: authUser.bio || '', // authUser.bio might be undefined, which is fine
+                bio: authUser.bio || '',
             });
         }
         setIsFetchingProfileDetails(false);
       }
     } else if (!authLoading && !authUser) {
-        // If authUser is null and not loading, there's no profile to fetch.
-        // This case should ideally be handled by a redirect or a "please login" message
-        // if the page is accessed directly without auth.
         console.warn("[ProfilePage] fetchFullProfileData: authUser is null and not loading. Cannot fetch profile.");
         setIsFetchingProfileDetails(false);
     }
-  }, [authUser, authLoading, toast, profileForm, profileData]); // Added profileData to deps
-
-  useEffect(() => {
-    if (!authLoading) fetchFullProfileData();
-  }, [authLoading, fetchFullProfileData]);
+  }, [authUser, authLoading, toast, profileForm]); // Removed profileData from deps to avoid re-fetch loop on partial load
 
   const fetchOrdersForProfile = useCallback(async () => {
     if (authUser?.id) {
@@ -155,6 +145,7 @@ export default function ProfilePage() {
       }
     } else {
       setWishlistItems([]);
+      setIsLoadingWishlistProducts(false); // Ensure loading is false even if no wishlist
     }
   }, [authUser, toast]);
 
@@ -169,13 +160,13 @@ export default function ProfilePage() {
               ]);
               if (postsRes.ok) {
                   const postsData: UserPost[] = await postsRes.json();
-                  setUserSubmittedPosts(postsData.filter(p => p.status === 'approved')); // Show only approved posts
+                  setUserSubmittedPosts(postsData.filter(p => p.status === 'approved'));
               } else {
                   toast({title: "Error", description: "Could not load your community posts.", variant: "destructive"});
               }
               if (reviewsRes.ok) {
                   const reviewsData: ReviewType[] = await reviewsRes.json();
-                  setUserReviews(reviewsData.filter(r => r.status === 'approved')); // Show only approved reviews
+                  setUserReviews(reviewsData.filter(r => r.status === 'approved'));
               } else {
                    toast({title: "Error", description: "Could not load your reviews.", variant: "destructive"});
               }
@@ -188,6 +179,15 @@ export default function ProfilePage() {
       }
   }, [authUser, toast]);
 
+  useEffect(() => {
+    if (!authLoading && authUser) {
+      fetchFullProfileData();
+      fetchOrdersForProfile();
+      fetchAllProductsForWishlist();
+      fetchUserSubmissions();
+    }
+  }, [authLoading, authUser, fetchFullProfileData, fetchOrdersForProfile, fetchAllProductsForWishlist, fetchUserSubmissions]);
+
 
   const onProfileSubmit = async (data: ProfileFormValues) => {
     if (!authUser || !authUser.id) {
@@ -198,28 +198,31 @@ export default function ProfilePage() {
       const payload = {
         id: authUser.id,
         name: data.name,
-        avatarUrl: data.avatarUrl || null,
-        bio: data.bio || null,
-        email: authUser.email, 
-        roles: profileData?.roles || authUser.roles, 
-        wishlist: profileData?.wishlist || authUser.wishlist, 
+        avatarUrl: data.avatarUrl || null, 
+        bio: data.bio || null,           
+        email: authUser.email, // Email is needed by API for new profile creation logic or identity
+        // Roles and wishlist are not part of this form's submission
       };
       const response = await fetch('/api/account/profile', {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
       });
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ message: 'Failed to update profile. Server returned non-JSON response.' }));
-        throw new Error(errorData.message || errorData.rawSupabaseError?.message || 'Failed to update profile');
+        const detailMessage = errorData.message || errorData.rawSupabaseError?.message || 'Failed to update profile';
+        const hint = errorData.rawSupabaseError?.hint || '';
+        throw new Error(`${detailMessage}${hint ? ` Hint: ${hint}` : ''}`);
       }
       const updatedProfileResponse = await response.json();
       await refreshUserProfile(); 
       toast({ title: "Profile Updated", description: "Your information has been saved.", action: <CheckCircle className="text-green-500" /> });
-      // The profileData state will be updated via refreshUserProfile and subsequent re-render of useAuth context,
-      // which triggers fetchFullProfileData again.
-      // Or, directly set it if API returns the full user object:
       if (updatedProfileResponse.user) {
-        setProfileData(updatedProfileResponse.user);
-        profileForm.reset(updatedProfileResponse.user);
+        setProfileData(updatedProfileResponse.user); // Update local state with the full user object from API
+        profileForm.reset({ // Reset form with the potentially more complete data from API
+            name: updatedProfileResponse.user.name || '',
+            email: updatedProfileResponse.user.email || '',
+            avatarUrl: updatedProfileResponse.user.avatarUrl || '',
+            bio: updatedProfileResponse.user.bio || '',
+        });
       }
     } catch (error) {
       console.error("Error updating profile:", error);
@@ -234,7 +237,7 @@ export default function ProfilePage() {
   
   const currentDisplayUser = profileData || authUser;
   const ordersCount = userOrders.length;
-  const wishlistCount = authUser?.wishlist?.length || 0;
+  const wishlistCount = wishlistItems.length; // Use length of filtered items for display
   const submissionsCount = userSubmittedPosts.length + userReviews.length;
 
 
@@ -276,9 +279,10 @@ export default function ProfilePage() {
 
         <Tabs defaultValue="submissions" 
               onValueChange={(value) => {
-                if(value === 'orders' && userOrders.length === 0) fetchOrdersForProfile();
-                if(value === 'wishlist' && wishlistItems.length === 0) fetchAllProductsForWishlist();
-                if(value === 'submissions' && userSubmittedPosts.length === 0 && userReviews.length === 0) fetchUserSubmissions();
+                // Data is now fetched on initial load, this can be for explicit refresh if needed
+                if(value === 'orders' && userOrders.length === 0 && !isLoadingOrders) fetchOrdersForProfile();
+                if(value === 'wishlist' && wishlistItems.length === 0 && !isLoadingWishlistProducts) fetchAllProductsForWishlist();
+                if(value === 'submissions' && userSubmittedPosts.length === 0 && userReviews.length === 0 && !isLoadingUserPosts && !isLoadingUserReviews) fetchUserSubmissions();
               }}>
           <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 mb-6">
             <TabsTrigger value="submissions">My Submissions</TabsTrigger>
