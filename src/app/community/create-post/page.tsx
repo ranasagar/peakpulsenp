@@ -186,7 +186,7 @@ export default function CreateUserPostPage() {
                     </FormItem>
                   )}
                 />
-                <Button type="submit" className="w-full" disabled={isSubmitting || authLoading}>
+                <Button type="submit" className="w-full" disabled={isSubmitting || authIsLoading}>
                   {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
                   Submit Your Style
                 </Button>
@@ -199,4 +199,3 @@ export default function CreateUserPostPage() {
   );
 }
 
-    
