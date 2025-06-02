@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Save, Youtube, Image as ImageIconLucide, PlusCircle, Trash2, Package, Tv, BookOpen, ExternalLink, ListCollapse, Sprout, Palette as PaletteIcon, ImagePlay, Percent, Clock, Music } from 'lucide-react';
+import { Loader2, Save, Youtube, Image as ImageIconLucide, PlusCircle, Trash2, Package, Tv, BookOpen, ExternalLink, ListCollapse, Sprout, Palette as PaletteIcon, ImagePlay, Percent, Clock, Music, ArrowUpDown } from 'lucide-react';
 import type { HomepageContent, HeroSlide, SocialCommerceItem, ArtisanalRootsSlide } from '@/types';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -24,7 +24,7 @@ const heroSlideSchema = z.object({
     message: "Must be a valid YouTube Video ID (11 characters) or empty.",
   }).or(z.literal('')),
   imageUrl: z.string().url({ message: "Must be a valid URL or empty." }).optional().or(z.literal('')),
-  audioUrl: z.string().url({ message: "Must be a valid URL or empty." }).optional().or(z.literal('')), // New field
+  audioUrl: z.string().url({ message: "Must be a valid URL or empty." }).optional().or(z.literal('')),
   altText: z.string().optional().or(z.literal('')),
   dataAiHint: z.string().optional().or(z.literal('')),
   ctaText: z.string().optional().or(z.literal('')),
@@ -32,6 +32,7 @@ const heroSlideSchema = z.object({
     message: "CTA link must be a relative path (e.g., /products), an anchor (#id), or a full URL."
   }).or(z.literal('')),
   duration: z.coerce.number().int().min(0, "Duration must be a positive number or 0 for default.").optional().nullable(),
+  displayOrder: z.coerce.number().int().optional().default(0), // Added displayOrder
 });
 
 const artisanalRootsSlideSchema = z.object({
@@ -73,7 +74,7 @@ const homepageContentSchema = z.object({
 type HomepageContentFormValues = z.infer<typeof homepageContentSchema>;
 
 const defaultHeroSlide: Omit<HeroSlide, 'id'> = {
-  title: 'New Slide Title', description: 'Compelling description for the new slide.', videoId: '', imageUrl: '', audioUrl: '', altText: 'Hero slide image', dataAiHint: 'fashion background', ctaText: 'Shop Now', ctaLink: '/products', duration: 7000,
+  title: 'New Slide Title', description: 'Compelling description for the new slide.', videoId: '', imageUrl: '', audioUrl: '', altText: 'Hero slide image', dataAiHint: 'fashion background', ctaText: 'Shop Now', ctaLink: '/products', duration: 7000, displayOrder: 0,
 };
 const defaultArtisanalRootsSlide: Omit<ArtisanalRootsSlide, 'id'> = {
   imageUrl: '', altText: 'Artisanal background slide', dataAiHint: 'craft culture texture'
@@ -127,7 +128,14 @@ export default function AdminHomepageContentPage() {
       }
       const data: HomepageContent = await response.json();
       form.reset({
-        heroSlides: (data.heroSlides || []).map(slide => ({ ...defaultHeroSlide, ...slide, id: slide.id || `hs-loaded-${Date.now()}-${Math.random()}`, audioUrl: slide.audioUrl || '', duration: slide.duration === undefined ? null : slide.duration })),
+        heroSlides: (data.heroSlides || []).map((slide, index) => ({ 
+            ...defaultHeroSlide, 
+            ...slide, 
+            id: slide.id || `hs-loaded-${Date.now()}-${Math.random()}`, 
+            audioUrl: slide.audioUrl || '', 
+            duration: slide.duration === undefined ? null : slide.duration,
+            displayOrder: slide.displayOrder === undefined ? index * 10 : slide.displayOrder, // Default displayOrder
+        })),
         artisanalRootsTitle: data.artisanalRoots?.title || defaultHomepageFormValues.artisanalRootsTitle,
         artisanalRootsDescription: data.artisanalRoots?.description || defaultHomepageFormValues.artisanalRootsDescription,
         artisanalRootsSlides: (data.artisanalRoots?.slides || []).map(slide => ({ ...defaultArtisanalRootsSlide, ...slide, id: slide.id || `ars-loaded-${Date.now()}-${Math.random()}` })),
@@ -157,8 +165,9 @@ export default function AdminHomepageContentPage() {
           id: slide.id || `hs-submit-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
           videoId: slide.videoId || undefined,
           imageUrl: slide.imageUrl || undefined,
-          audioUrl: slide.audioUrl || undefined, // Add audioUrl to payload
+          audioUrl: slide.audioUrl || undefined,
           duration: slide.duration === null || slide.duration === undefined || Number(slide.duration) < 1000 ? defaultHeroSlide.duration : Number(slide.duration),
+          displayOrder: Number(slide.displayOrder) || 0, // Ensure displayOrder is a number
         })),
         artisanalRoots: {
           title: data.artisanalRootsTitle || '',
@@ -234,7 +243,7 @@ export default function AdminHomepageContentPage() {
 
               <div className="space-y-6 p-4 border border-border rounded-lg shadow-sm bg-card">
                 <h3 className="text-xl font-semibold text-foreground flex items-center">
-                  <ListCollapse className="mr-3 h-5 w-5 text-primary" /> Hero Section Carousel Slides
+                  <ListCollapse className="mr-3 h-5 w-5 text-primary" /> Main Hero Section Carousel Slides
                 </h3>
                 <div className="space-y-4 p-1">
                     {heroSlidesFields.map((field, index) => (
@@ -245,6 +254,14 @@ export default function AdminHomepageContentPage() {
                             <Trash2 className="mr-1 h-4 w-4" /> Remove Slide
                           </Button>
                         </div>
+                        <FormField control={form.control} name={`heroSlides.${index}.displayOrder`} render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="flex items-center"><ArrowUpDown className="mr-2 h-4 w-4 text-muted-foreground"/>Display Order</FormLabel>
+                            <FormControl><Input type="number" {...field} placeholder="e.g., 10, 20, 30" value={field.value ?? 0} onChange={e => field.onChange(parseInt(e.target.value, 10) || 0)} /></FormControl>
+                            <FormDescription>Lower numbers appear first.</FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )} />
                         <FormField control={form.control} name={`heroSlides.${index}.title`} render={({ field }) => (
                           <FormItem><FormLabel>Title</FormLabel><FormControl><Input {...field} placeholder="e.g., New Collection Arrived" value={field.value || ''} /></FormControl><FormMessage /></FormItem>
                         )} />
@@ -275,9 +292,9 @@ export default function AdminHomepageContentPage() {
                         )} />
                         <FormField control={form.control} name={`heroSlides.${index}.audioUrl`} render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="flex items-center"><Music className="mr-2 h-4 w-4 text-muted-foreground"/> Audio URL (Optional)</FormLabel>
+                            <FormLabel className="flex items-center"><Music className="mr-2 h-4 w-4 text-muted-foreground"/> Audio URL (Optional, for MP3/etc.)</FormLabel>
                             <FormControl><Input {...field} placeholder="e.g. https://example.com/hero-audio.mp3" value={field.value || ''} /></FormControl>
-                            <FormDescription>Link to a copyright-free audio file (mp3, wav, ogg).</FormDescription>
+                            <FormDescription>Direct link to audio file. Takes priority over YouTube audio if set. YouTube video (if any) will be muted.</FormDescription>
                             <FormMessage />
                           </FormItem>
                         )} />
@@ -291,15 +308,15 @@ export default function AdminHomepageContentPage() {
                           <FormItem>
                             <FormLabel className="flex items-center"><Clock className="mr-2 h-4 w-4 text-muted-foreground"/> Slide Duration (ms)</FormLabel>
                             <FormControl><Input type="number" {...field} placeholder="e.g., 7000 (for 7 seconds)" value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? null : parseInt(e.target.value, 10))} /></FormControl>
-                            <FormDescription>Leave empty or 0 for default duration. Min 1000ms.</FormDescription>
+                            <FormDescription>Leave empty or 0 for default duration. Min 1000ms (1 second).</FormDescription>
                             <FormMessage />
                           </FormItem>
                         )} />
                       </Card>
                     ))}
                 </div>
-                <Button type="button" variant="outline" size="sm" onClick={() => appendHeroSlide({ ...defaultHeroSlide, id: `slide-${Date.now()}-${Math.random().toString(36).substr(2, 5)}` })} className="mt-4">
-                  <PlusCircle className="mr-2 h-4 w-4" /> Add Hero Slide
+                <Button type="button" variant="outline" size="sm" onClick={() => appendHeroSlide({ ...defaultHeroSlide, displayOrder: (heroSlidesFields.length + 1) * 10, id: `slide-${Date.now()}-${Math.random().toString(36).substr(2,5)}` })} className="mt-4">
+                  <PlusCircle className="mr-2 h-4 w-4" /> Add Main Hero Slide
                 </Button>
               </div>
 
@@ -383,7 +400,7 @@ export default function AdminHomepageContentPage() {
                       </div>
                       <FormField control={form.control} name={`socialCommerceItems.${index}.displayOrder`} render={({ field }) => (
                           <FormItem>
-                          <FormLabel className="flex items-center"><PaletteIcon size={14} className="mr-1.5 text-muted-foreground"/> Display Order</FormLabel>
+                          <FormLabel className="flex items-center"><ArrowUpDown size={14} className="mr-1.5 text-muted-foreground"/> Display Order</FormLabel>
                           <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value,10) || 0)} value={field.value ?? 0} /></FormControl>
                           <FormMessage />
                           </FormItem>

@@ -222,12 +222,13 @@ export interface HeroSlide {
   description: string;
   imageUrl?: string;
   videoId?: string;
-  audioUrl?: string; // Added field for audio URL
+  audioUrl?: string; 
   altText?: string;
   dataAiHint?: string;
   ctaText?: string;
   ctaLink?: string;
-  duration?: number; // in milliseconds
+  duration?: number; 
+  displayOrder?: number; // Added displayOrder for main hero slides
   _isPromo?: boolean; 
   _backgroundColor?: string; 
   _textColor?: string; 
@@ -381,15 +382,15 @@ export interface DesignCollaborationGallery {
   slug: string;
   description?: string;
   category_id?: string | null;
-  category_name?: string; // For display, joined in API
-  category_slug?: string; // For linking, joined in API
+  category_name?: string; 
+  category_slug?: string; 
   cover_image_url?: string;
   ai_cover_image_prompt?: string;
   artist_name?: string;
   artist_statement?: string;
   gallery_images?: GalleryImageItem[];
   is_published?: boolean;
-  collaboration_date?: string; // ISO Date string
+  collaboration_date?: string; 
   createdAt?: string;
   updatedAt?: string;
 }
@@ -405,7 +406,7 @@ export interface PrintOnDemandDesign {
   is_for_sale?: boolean;
   sku?: string;
   collaboration_id?: string | null;
-  collaboration_title?: string; // For display
+  collaboration_title?: string; 
   createdAt?: string;
   updatedAt?: string;
 }
@@ -429,15 +430,15 @@ export interface PromotionalPost {
   title: string;
   slug: string;
   description?: string;
-  imageUrl: string; // Renamed from image_url to match form field
+  imageUrl: string; 
   imageAltText?: string;
   dataAiHint?: string;
   ctaText?: string;
   ctaLink?: string;
   price?: number;
   discountPrice?: number;
-  validFrom?: string; // ISO Date string
-  validUntil?: string; // ISO Date string
+  validFrom?: string; 
+  validUntil?: string; 
   isActive: boolean;
   displayOrder?: number;
   backgroundColor?: string; 
@@ -446,34 +447,33 @@ export interface PromotionalPost {
   updatedAt?: string;
 }
 
-// User-submitted Style Post / Community Spotlight Post
 export interface UserPost {
-  id: string; // uuid from Supabase
-  user_id: string; // FK to users.id (Firebase UID)
-  user_name?: string; // Denormalized from users table
-  user_avatar_url?: string; // Denormalized from users table
+  id: string; 
+  user_id: string; 
+  user_name?: string; 
+  user_avatar_url?: string; 
   image_url: string;
   caption?: string;
-  product_tags?: string[]; // Array of product names or SKUs mentioned
+  product_tags?: string[]; 
   status: 'pending' | 'approved' | 'rejected';
   like_count?: number;
-  liked_by_user_ids?: string[]; // Array of user IDs who liked the post
+  liked_by_user_ids?: string[]; 
   comment_count?: number;
-  comments?: PostComment[]; // Optional: to hold comments when fetching a single post
-  created_at: string; // ISO string
-  updated_at: string; // ISO string
+  comments?: PostComment[]; 
+  created_at: string; 
+  updated_at: string; 
 }
 
 export interface PostComment {
-  id: string; // uuid from Supabase
-  post_id: string; // FK to user_posts.id
-  user_id: string; // FK to users.id (Firebase UID)
-  user_name?: string; // Denormalized from users table for display
-  user_avatar_url?: string; // Denormalized
+  id: string; 
+  post_id: string; 
+  user_id: string; 
+  user_name?: string; 
+  user_avatar_url?: string; 
   comment_text: string;
-  parent_comment_id?: string | null; // For threaded comments
-  created_at: string; // ISO string
-  updated_at: string; // ISO string
+  parent_comment_id?: string | null; 
+  created_at: string; 
+  updated_at: string; 
 }
 
 export interface NotificationDataNewMessage {
@@ -485,8 +485,8 @@ export interface NotificationDataNewMessage {
 }
 export interface NotificationDataOrderUpdate {
   orderId: string;
-  newStatus: OrderStatus | PaymentStatus; // Or a combined status message
-  productName?: string; // Main product from order if relevant
+  newStatus: OrderStatus | PaymentStatus; 
+  productName?: string; 
 }
 export type NotificationData = NotificationDataNewMessage | NotificationDataOrderUpdate | { [key: string]: any };
 export const NotificationType = {

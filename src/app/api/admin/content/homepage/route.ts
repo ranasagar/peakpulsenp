@@ -12,12 +12,13 @@ const defaultHeroSlideStructure: Omit<HeroSlide, 'id'> = {
   description: "Discover the latest arrivals.",
   imageUrl: undefined,
   videoId: undefined,
-  audioUrl: undefined, // Added audioUrl
+  audioUrl: undefined, 
   altText: "Hero image",
   dataAiHint: "fashion background",
   ctaText: "Shop Now",
   ctaLink: "/products",
-  duration: 7000, // Default duration
+  duration: 7000, 
+  displayOrder: 0, // Added default displayOrder
 };
 
 const defaultArtisanalRootsSlideStructure: Omit<ArtisanalRootsSlide, 'id'> = {
@@ -84,8 +85,9 @@ export async function GET() {
         heroSlides: (Array.isArray(dbContent.heroSlides) ? dbContent.heroSlides : defaultHomepageContentData.heroSlides!).map(
           (slide: Partial<HeroSlide>, index: number) => ({
             ...defaultHeroSlideStructure, ...slide, id: slide.id || `hs-db-${Date.now()}-${index}`,
-            audioUrl: slide.audioUrl || undefined, // Ensure audioUrl is handled
+            audioUrl: slide.audioUrl || undefined, 
             duration: slide.duration === undefined ? defaultHeroSlideStructure.duration : Number(slide.duration) || defaultHeroSlideStructure.duration,
+            displayOrder: slide.displayOrder === undefined ? index * 10 : Number(slide.displayOrder) || 0, // Handle displayOrder
           })
         ),
         artisanalRoots: {
@@ -154,12 +156,13 @@ export async function POST(request: NextRequest) {
       description: slide.description || '',
       imageUrl: slide.imageUrl || undefined,
       videoId: slide.videoId || undefined,
-      audioUrl: slide.audioUrl || undefined, // Handle audioUrl
+      audioUrl: slide.audioUrl || undefined, 
       altText: slide.altText || '',
       dataAiHint: slide.dataAiHint || '',
       ctaText: slide.ctaText || '',
       ctaLink: slide.ctaLink || '',
       duration: slide.duration === undefined || slide.duration === null || Number(slide.duration) < 1000 ? defaultHeroSlideStructure.duration : Number(slide.duration),
+      displayOrder: slide.displayOrder === undefined ? index * 10 : Number(slide.displayOrder) || 0, // Save displayOrder
     })),
     artisanalRoots: {
       title: newDataFromRequest.artisanalRoots?.title || defaultHomepageContentData.artisanalRoots!.title,

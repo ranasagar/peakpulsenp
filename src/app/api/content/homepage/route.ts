@@ -16,8 +16,9 @@ const defaultHeroSlideStructure: Omit<HeroSlide, 'id'> = {
   ctaText: "Explore Collections",
   ctaLink: "/products",
   videoId: undefined,
-  audioUrl: undefined, // Added audioUrl
-  duration: 7000, // Default duration
+  audioUrl: undefined, 
+  duration: 7000, 
+  displayOrder: 0, // Added default displayOrder
 };
 
 const defaultArtisanalRootsSlideStructure: Omit<ArtisanalRootsSlide, 'id'> = {
@@ -87,8 +88,9 @@ export async function GET() {
               ...defaultHeroSlideStructure, 
               ...slide, 
               id: slide.id || `hs-db-${Date.now()}-${index}`,
-              audioUrl: slide.audioUrl || undefined, // Ensure audioUrl is handled
+              audioUrl: slide.audioUrl || undefined, 
               duration: slide.duration === undefined ? defaultHeroSlideStructure.duration : Number(slide.duration) || defaultHeroSlideStructure.duration,
+              displayOrder: slide.displayOrder === undefined ? index * 10 : Number(slide.displayOrder) || 0, // Handle displayOrder
             }))
           : defaultHomepageContentData.heroSlides
         ),

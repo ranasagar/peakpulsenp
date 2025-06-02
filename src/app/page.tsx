@@ -38,6 +38,7 @@ const fallbackHeroSlide: HeroSlide = {
   videoId: undefined,
   audioUrl: undefined,
   duration: 7000,
+  displayOrder: 0,
 };
 
 const defaultHomepageContent: HomepageContent = {
@@ -92,6 +93,7 @@ async function getHomepageContent(): Promise<HomepageContent> {
             id: slide.id || `hs-fetched-${Date.now()}-${index}`,
             audioUrl: slide.audioUrl || undefined,
             duration: slide.duration === undefined || slide.duration === null || Number(slide.duration) < 1000 ? fallbackHeroSlide.duration : Number(slide.duration),
+            displayOrder: slide.displayOrder === undefined ? index * 10 : Number(slide.displayOrder || 0),
           }))
         : defaultHomepageContent.heroSlides, 
       artisanalRoots: {
@@ -314,35 +316,37 @@ function HomePageContent() {
     loadPageData();
   }, [loadPageData]);
   
-  const adaptedPromotionalSlides: HeroSlide[] = useMemo(() => {
-    if (content.promotionalPostsSection?.enabled && promotionalPosts.length > 0) {
-      return promotionalPosts
-        .slice(0, content.promotionalPostsSection.maxItems || promotionalPosts.length)
-        .map((promo, index) => ({
-          id: promo.id || `promo-slide-${index}`,
-          title: promo.title,
-          description: promo.description || '',
-          imageUrl: promo.imageUrl,
-          altText: promo.imageAltText || promo.title,
-          dataAiHint: promo.dataAiHint || 'promotion offer sale',
-          ctaText: promo.ctaText || 'Learn More',
-          ctaLink: promo.ctaLink || `/products?promo=${promo.slug}`,
-          videoId: undefined, 
-          audioUrl: undefined, // Promos currently don't have separate audio
-          duration: promo.displayOrder && promo.displayOrder > 1000 ? promo.displayOrder : 7000, // Example: use displayOrder as duration if set, else default
-          _isPromo: true,
-          _backgroundColor: promo.backgroundColor,
-          _textColor: promo.textColor,
-        }));
-    }
-    return [];
-  }, [content.promotionalPostsSection, promotionalPosts]);
-
   const combinedHeroSlides = useMemo(() => {
-    const baseSlides = content.heroSlides && content.heroSlides.length > 0 ? content.heroSlides : [];
-    const slides = [...adaptedPromotionalSlides, ...baseSlides];
+    const baseSlides = (content.heroSlides || [])
+      .sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
+    
+    const adaptedPromoSlides = (content.promotionalPostsSection?.enabled && promotionalPosts.length > 0) 
+      ? promotionalPosts
+          .slice(0, content.promotionalPostsSection.maxItems || promotionalPosts.length)
+          .sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0)) // Sort promos by their own displayOrder
+          .map((promo, index) => ({
+            id: promo.id || `promo-slide-${index}`,
+            title: promo.title,
+            description: promo.description || '',
+            imageUrl: promo.imageUrl,
+            altText: promo.imageAltText || promo.title,
+            dataAiHint: promo.dataAiHint || 'promotion offer sale',
+            ctaText: promo.ctaText || 'Learn More',
+            ctaLink: promo.ctaLink || `/products?promo=${promo.slug}`,
+            videoId: undefined, 
+            audioUrl: undefined, 
+            duration: promo.displayOrder && promo.displayOrder > 1000 ? promo.displayOrder : 7000, 
+            displayOrder: (baseSlides.length * 10) + (promo.displayOrder || index * 10), // Ensure promo slides come after base slides
+            _isPromo: true,
+            _backgroundColor: promo.backgroundColor,
+            _textColor: promo.textColor,
+          }))
+      : [];
+    
+    const slides = [...baseSlides, ...adaptedPromoSlides];
     return slides.length > 0 ? slides : [fallbackHeroSlide];
-  }, [content.heroSlides, adaptedPromotionalSlides]);
+  }, [content.heroSlides, content.promotionalPostsSection, promotionalPosts]);
+
 
   const activeHeroSlides = combinedHeroSlides;
   const activeArtisanalSlides = content.artisanalRoots?.slides && content.artisanalRoots.slides.length > 0 ? content.artisanalRoots.slides : [];
@@ -378,18 +382,29 @@ function HomePageContent() {
       heroIntervalRef.current = setInterval(nextHeroSlide, currentSlideDuration);
     }
     
-    // Handle audio for the current slide
     if (audioRef.current) {
-      const currentAudioUrl = activeHeroSlides[currentHeroSlide]?.audioUrl;
-      if (currentAudioUrl) {
-        if (audioRef.current.src !== currentAudioUrl) {
-          audioRef.current.src = currentAudioUrl;
-          audioRef.current.load(); // Important to load new source
+      const currentDirectAudioUrl = activeHeroSlides[currentHeroSlide]?.audioUrl;
+      const currentVideoId = activeHeroSlides[currentHeroSlide]?.videoId;
+
+      if (currentDirectAudioUrl) { // Prioritize direct audioUrl
+        console.log(`[Hero Audio] Slide ${currentHeroSlide}: Using DIRECT audio: ${currentDirectAudioUrl}`);
+        if (audioRef.current.src !== currentDirectAudioUrl) {
+          audioRef.current.src = currentDirectAudioUrl;
+          audioRef.current.load();
         }
-        audioRef.current.play().catch(error => console.warn("Audio play failed:", error)); // Autoplay might be blocked
-      } else {
+        audioRef.current.play().catch(error => console.warn("Direct audio play failed:", error));
+      } else if (currentVideoId && !activeHeroSlides[currentHeroSlide]?.imageUrl) { // YouTube audio ONLY if no image (video is background)
+         console.log(`[Hero Audio] Slide ${currentHeroSlide}: YouTube video is background, its audio will play (controlled by iframe params). Pausing <audio> tag.`);
+         audioRef.current.pause();
+         audioRef.current.currentTime = 0;
+      } else if (currentVideoId && activeHeroSlides[currentHeroSlide]?.imageUrl) { // YouTube is hidden audio source
+        console.log(`[Hero Audio] Slide ${currentHeroSlide}: Using HIDDEN YOUTUBE audio from videoId: ${currentVideoId}. Pausing <audio> tag.`);
         audioRef.current.pause();
-        audioRef.current.currentTime = 0; // Reset for next play
+        audioRef.current.currentTime = 0;
+      } else { // No audio for this slide
+        console.log(`[Hero Audio] Slide ${currentHeroSlide}: NO audio for this slide. Pausing <audio> tag.`);
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
       }
     }
 
@@ -568,8 +583,8 @@ function HomePageContent() {
   }
   
   const currentDisplayedHeroSlide = activeHeroSlides[currentHeroSlide];
-  const heroVideoId = currentDisplayedHeroSlide?.videoId || content.heroVideoId; 
-  const heroImageUrl = currentDisplayedHeroSlide?.imageUrl || content.heroImageUrl;
+  const heroVideoIdForVisuals = currentDisplayedHeroSlide?.videoId; 
+  const heroImageUrlForVisuals = currentDisplayedHeroSlide?.imageUrl;
 
 
   return (
@@ -577,52 +592,63 @@ function HomePageContent() {
       <section style={{ backgroundColor: 'black' }} className="relative h-screen w-full overflow-hidden">
         <audio ref={audioRef} loop muted={isAudioMuted} className="hidden" />
         <div className="absolute inset-0 z-0 pointer-events-none">
-          {activeHeroSlides.map((slide, index) => (
-            <div
-              key={slide.id || `hero-bg-${index}`}
-              className={cn(
-                "absolute inset-0 transition-opacity duration-1000 ease-in-out",
-                index === currentHeroSlide ? "opacity-100" : "opacity-0"
-              )}
-              style={{ 
-                backgroundColor: slide._isPromo ? (slide._backgroundColor || 'rgba(0,0,0,0.3)') : 'transparent' 
-              }}
-            >
-              {slide.videoId ? (
-                <>
-                  <iframe
-                    className="absolute top-1/2 left-1/2 w-full h-full min-w-[177.77vh] min-h-[56.25vw] transform -translate-x-1/2 -translate-y-1/2"
-                    src={`https://www.youtube.com/embed/${slide.videoId}?autoplay=1&mute=1&loop=1&playlist=${slide.videoId}&controls=0&showinfo=0&autohide=1&modestbranding=1&playsinline=1&enablejsapi=1`}
-                    title={slide.altText || "Peak Pulse Background Video"}
-                    frameBorder="0"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowFullScreen={false}
-                  />
-                  {!slide._isPromo && <div className="absolute inset-0 bg-black/30 z-[1]" />}
-                </>
-              ) : slide.imageUrl ? (
-                <>
-                  <Image
-                    src={slide.imageUrl}
-                    alt={slide.altText || "Peak Pulse Hero Background"}
-                    fill
-                    sizes="100vw"
-                    priority={index === 0}
-                    className="absolute inset-0 w-full h-full object-cover"
-                    data-ai-hint={slide.dataAiHint || "fashion mountains nepal"}
-                  />
-                  {!slide._isPromo && <div className="absolute inset-0 bg-black/30 z-[1]" />}
-                </>
-              ) : (
-                 <div className="absolute inset-0 bg-black" /> 
-              )}
-            </div>
-          ))}
-           {activeHeroSlides.length === 0 && heroVideoId && ( 
+          {activeHeroSlides.map((slide, index) => {
+            const isCurrent = index === currentHeroSlide;
+            const useYouTubeForVisual = !slide.imageUrl && slide.videoId;
+            const useImageForVisual = !!slide.imageUrl;
+            const useYouTubeForAudioOnly = !!slide.imageUrl && !!slide.videoId && !slide.audioUrl;
+
+            return (
+              <div
+                key={slide.id || `hero-bg-${index}`}
+                className={cn(
+                  "absolute inset-0 transition-opacity duration-1000 ease-in-out",
+                  isCurrent ? "opacity-100" : "opacity-0"
+                )}
+                style={{ 
+                  backgroundColor: slide._isPromo ? (slide._backgroundColor || 'rgba(0,0,0,0.3)') : 'transparent' 
+                }}
+              >
+                {useImageForVisual && (
+                  <>
+                    <Image
+                      src={slide.imageUrl!}
+                      alt={slide.altText || "Peak Pulse Hero Background"}
+                      fill sizes="100vw" priority={index === 0}
+                      className="absolute inset-0 w-full h-full object-cover"
+                      data-ai-hint={slide.dataAiHint || "fashion mountains nepal"}
+                    />
+                    {!slide._isPromo && <div className="absolute inset-0 bg-black/30 z-[1]" />}
+                  </>
+                )}
+                {useYouTubeForVisual && slide.videoId && (
+                  <>
+                    <iframe
+                      className="absolute top-1/2 left-1/2 w-full h-full min-w-[177.77vh] min-h-[56.25vw] transform -translate-x-1/2 -translate-y-1/2"
+                      src={`https://www.youtube.com/embed/${slide.videoId}?autoplay=1&mute=${slide.audioUrl ? 1 : 0}&loop=1&playlist=${slide.videoId}&controls=0&showinfo=0&autohide=1&modestbranding=1&playsinline=1&enablejsapi=1`}
+                      title={slide.altText || "Peak Pulse Background Video"}
+                      frameBorder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen={false}
+                    />
+                    {!slide._isPromo && <div className="absolute inset-0 bg-black/30 z-[1]" />}
+                  </>
+                )}
+                {useYouTubeForAudioOnly && slide.videoId && ( // Hidden iframe for YouTube audio when image is primary visual
+                    <iframe
+                        className="absolute -left-[9999px] -top-[9999px] w-[1px] h-[1px] opacity-0 pointer-events-none" // Visually hidden
+                        src={`https://www.youtube.com/embed/${slide.videoId}?autoplay=1&mute=0&loop=1&playlist=${slide.videoId}&controls=0&showinfo=0&autohide=1&modestbranding=1&playsinline=1&enablejsapi=1`}
+                        title={`Audio for ${slide.altText || "Peak Pulse Background"}`}
+                        frameBorder="0" allow="autoplay;"
+                    />
+                )}
+                {!useImageForVisual && !useYouTubeForVisual && <div className="absolute inset-0 bg-black" /> }
+              </div>
+            );
+          })}
+           {activeHeroSlides.length === 0 && heroVideoIdForVisuals && ( 
              <>
                 <iframe
                     className="absolute top-1/2 left-1/2 w-full h-full min-w-[177.77vh] min-h-[56.25vw] transform -translate-x-1/2 -translate-y-1/2"
-                    src={`https://www.youtube.com/embed/${heroVideoId}?autoplay=1&mute=1&loop=1&playlist=${heroVideoId}&controls=0&showinfo=0&autohide=1&modestbranding=1&playsinline=1&enablejsapi=1`}
+                    src={`https://www.youtube.com/embed/${heroVideoIdForVisuals}?autoplay=1&mute=1&loop=1&playlist=${heroVideoIdForVisuals}&controls=0&showinfo=0&autohide=1&modestbranding=1&playsinline=1&enablejsapi=1`}
                     title={"Peak Pulse Background Video"}
                     frameBorder="0"
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
@@ -631,10 +657,10 @@ function HomePageContent() {
                 <div className="absolute inset-0 bg-black/30 z-[1]" />
              </>
            )}
-           {activeHeroSlides.length === 0 && !heroVideoId && heroImageUrl && (
+           {activeHeroSlides.length === 0 && !heroVideoIdForVisuals && heroImageUrlForVisuals && (
                 <>
                     <Image
-                        src={heroImageUrl}
+                        src={heroImageUrlForVisuals}
                         alt={"Peak Pulse Hero Background"}
                         fill
                         sizes="100vw"
@@ -645,7 +671,7 @@ function HomePageContent() {
                     <div className="absolute inset-0 bg-black/30 z-[1]" />
                 </>
            )}
-           {activeHeroSlides.length === 0 && !heroVideoId && !heroImageUrl && (
+           {activeHeroSlides.length === 0 && !heroVideoIdForVisuals && !heroImageUrlForVisuals && (
                 <div className="absolute inset-0 bg-black" />
            )}
         </div>
