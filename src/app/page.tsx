@@ -23,6 +23,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { UserPostDetailModal } from '@/components/community/user-post-detail-modal';
 import { useAuth } from '@/hooks/use-auth';
 import { Separator } from '@/components/ui/separator';
+import { usePathname } from 'next/navigation';
 
 
 const fallbackHeroSlide: HeroSlide = {
@@ -135,15 +136,15 @@ function HomePageContent() {
 
   const [currentHeroSlide, setCurrentHeroSlide] = useState(0);
   const [isHeroPlaying, setIsHeroPlaying] = useState(true);
-  const [heroSlideDuration, setHeroSlideDuration] = useState(7000); // New state for hero duration
+  const [heroSlideDuration, setHeroSlideDuration] = useState(7000); 
 
   const [currentArtisanalSlide, setCurrentArtisanalSlide] = useState(0);
   const [isArtisanalPlaying, setIsArtisanalPlaying] = useState(true);
-  const [artisanalSlideDuration, setArtisanalSlideDuration] = useState(5000); // New state for artisanal duration
+  const [artisanalSlideDuration, setArtisanalSlideDuration] = useState(5000);
 
   const [currentSocialCommerceSlide, setCurrentSocialCommerceSlide] = useState(0);
   const [isSocialCommerceHovered, setIsSocialCommerceHovered] = useState(false);
-  const [socialCommerceSlideDuration, setSocialCommerceSlideDuration] = useState(6000); // New state for social commerce duration
+  const [socialCommerceSlideDuration, setSocialCommerceSlideDuration] = useState(6000);
 
   const { toast } = useToast();
   const { user, isAuthenticated, refreshUserProfile } = useAuth();
@@ -153,6 +154,50 @@ function HomePageContent() {
 
   const [selectedPostForModal, setSelectedPostForModal] = useState<UserPost | null>(null);
   const [isPostModalOpen, setIsPostModalOpen] = useState(false);
+
+  const [menusVisibleOnScroll, setMenusVisibleOnScroll] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
+  const pathname = usePathname();
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isMounted) return;
+
+    const scrollThreshold = 50;
+    const handleScroll = () => {
+      setMenusVisibleOnScroll(window.scrollY > scrollThreshold);
+    };
+
+    // Set initial state based on current scroll position
+    handleScroll();
+
+    window.addEventListener('scroll', handleScroll);
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+    };
+  }, [isMounted]);
+
+  useEffect(() => {
+    if (isMounted && pathname === '/') {
+      if (menusVisibleOnScroll) {
+        document.body.classList.remove('menus-hidden-on-hero');
+      } else {
+        document.body.classList.add('menus-hidden-on-hero');
+      }
+    } else {
+      // If not on homepage or not mounted yet, ensure class is removed
+      document.body.classList.remove('menus-hidden-on-hero');
+    }
+
+    return () => {
+      // Cleanup: always remove the class when HomePageContent unmounts
+      // or if the effect re-runs due to pathname change and it's no longer the homepage
+      document.body.classList.remove('menus-hidden-on-hero');
+    };
+  }, [menusVisibleOnScroll, isMounted, pathname]);
 
 
   const loadPageData = useCallback(async () => {
@@ -674,7 +719,7 @@ function HomePageContent() {
         <div className="container-slim text-center md:text-left relative z-10">
             <div className="md:w-1/2 lg:w-3/5">
                 <Sprout className="h-10 w-10 text-primary mb-4 mx-auto md:mx-0"/>
-                <h2 className="text-3xl font-bold mb-6 text-foreground">{content.artisanalRoots?.title || "Our Artisanal Roots"}</h2>
+                <h2 className="text-3xl font-bold tracking-tight mb-6 text-foreground">{content.artisanalRoots?.title || "Our Artisanal Roots"}</h2>
                 <p className="text-lg text-muted-foreground mb-8 leading-relaxed">{content.artisanalRoots?.description || "Details loading..."}</p>
                 <Link href="/our-story" className={cn(buttonVariants({ variant: "default", size: "lg", className: "text-base" }))}>
                     <span className="flex items-center">Discover Our Story <ArrowRight className="ml-2 h-5 w-5" /></span>

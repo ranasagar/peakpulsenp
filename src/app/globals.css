@@ -215,3 +215,17 @@ body {
     text-shadow: none;
   }
 }
+
+/* Styles for hiding menus on hero scroll */
+body.menus-hidden-on-hero header.sticky.top-0 { /* Targets Header in src/components/layout/header.tsx */
+  transform: translateY(-100%);
+  opacity: 0;
+}
+body.menus-hidden-on-hero nav.sticky.bottom-0 { /* Targets BottomNavigation in src/components/layout/bottom-navigation.tsx */
+  transform: translateY(100%);
+  opacity: 0;
+}
+
+header.sticky.top-0, nav.sticky.bottom-0 {
+  transition: transform 0.3s ease-in-out, opacity 0.3s ease-in-out;
+}
