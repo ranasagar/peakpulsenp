@@ -1,19 +1,17 @@
 
 // /src/app/api/content/homepage/route.ts
 import { NextResponse } from 'next/server';
-import { supabase } from '../../../../lib/supabaseClient.ts'; // Use the public client
+import { supabaseAdmin, supabase as fallbackSupabase } from '../../../../lib/supabaseClient.ts'; // Use the public client
 import type { HomepageContent, HeroSlide, SocialCommerceItem, ArtisanalRootsSlide } from '@/types';
 
 export const dynamic = 'force-dynamic';
 const HOMEPAGE_CONFIG_KEY = 'homepageContent';
 
-// This is the default structure for an individual slide IF fields are missing from the DB slide.
-// Critical fields like imageUrl and videoId are undefined here.
 const defaultHeroSlideStructure: Omit<HeroSlide, 'id'> = {
   title: "Peak Pulse Collection",
   description: "Experience unique Nepali craftsmanship.",
-  imageUrl: undefined,
-  videoId: undefined,
+  imageUrl: undefined, // Explicitly undefined
+  videoId: undefined,  // Explicitly undefined
   audioUrl: undefined,
   altText: "Hero image",
   dataAiHint: "fashion model style",
@@ -23,17 +21,16 @@ const defaultHeroSlideStructure: Omit<HeroSlide, 'id'> = {
   displayOrder: 0,
 };
 
-// This is the fallback for the ENTIRE homepage content if nothing is found in DB.
 const defaultHomepageContentData: HomepageContent = {
-  heroSlides: [{ ...defaultHeroSlideStructure, id: `hs-default-fallback-${Date.now()}` }], // One default slide if all else fails
+  heroSlides: [{ ...defaultHeroSlideStructure, id: `hs-default-fallback-${Date.now()}` }],
   artisanalRoots: {
     title: "Our Artisanal Roots (Default)",
     description: "Default description about heritage and craftsmanship.",
     slides: [],
   },
   socialCommerceItems: [],
-  heroVideoId: undefined, // Standalone fallback video
-  heroImageUrl: undefined, // Standalone fallback image
+  heroVideoId: undefined,
+  heroImageUrl: undefined,
   promotionalPostsSection: {
     enabled: false,
     title: "Special Offers",
@@ -44,18 +41,25 @@ const defaultHomepageContentData: HomepageContent = {
 export async function GET() {
   console.log(`[API /api/content/homepage GET] Request received for key: ${HOMEPAGE_CONFIG_KEY}.`);
 
-  if (!supabase) {
-    const errorMsg = '[API /api/content/homepage GET] CRITICAL: Supabase client (public) is not initialized.';
+  // Prefer Admin client if available for consistency in data fetching, otherwise public.
+  const supabaseClientToUse = supabaseAdmin || fallbackSupabase;
+  const clientTypeForLog = supabaseAdmin ? "ADMIN client (service_role)" : "FALLBACK public client";
+
+
+  if (!supabaseClientToUse) {
+    const errorMsg = '[API /api/content/homepage GET] CRITICAL: Supabase client (admin or public) is not initialized.';
     console.error(errorMsg);
     return NextResponse.json({
         ...defaultHomepageContentData,
         error: "Database client not configured on server.",
-        rawSupabaseError: { message: 'Supabase public client not initialized.' }
+        rawSupabaseError: { message: 'Supabase client not initialized on server for GET. Check server logs and environment variables.' }
     }, { status: 503 });
   }
+  console.log(`[API /api/content/homepage GET] Using ${clientTypeForLog}.`);
+
 
   try {
-    const { data, error: dbError } = await supabase
+    const { data, error: dbError } = await supabaseClientToUse
       .from('site_configurations')
       .select('value')
       .eq('config_key', HOMEPAGE_CONFIG_KEY)
@@ -74,18 +78,22 @@ export async function GET() {
 
     if (data && data.value && typeof data.value === 'object') {
       const dbContent = data.value as Partial<HomepageContent>;
-      console.log(`[API /api/content/homepage GET] Successfully fetched content for ${HOMEPAGE_CONFIG_KEY}. Raw DB heroSlides length: ${dbContent.heroSlides?.length}`);
+      console.log(`[API /api/content/homepage GET] Successfully fetched content for ${HOMEPAGE_CONFIG_KEY}.`);
 
       if (Array.isArray(dbContent.heroSlides)) {
-        // If heroSlides exists in DB and is an array (even if empty)
         finalHeroSlides = dbContent.heroSlides.map((slideFromDb: Partial<HeroSlide>, index: number) => {
+          // More explicit handling for undefined vs empty string from DB for URLs
+          const dbImageUrl = slideFromDb.imageUrl;
+          const dbVideoId = slideFromDb.videoId;
+          const dbAudioUrl = slideFromDb.audioUrl;
+
           return {
             id: slideFromDb.id || `hs-db-${Date.now()}-${index}`,
             title: slideFromDb.title || defaultHeroSlideStructure.title,
             description: slideFromDb.description || defaultHeroSlideStructure.description,
-            imageUrl: (slideFromDb.imageUrl && slideFromDb.imageUrl.trim() !== "") ? slideFromDb.imageUrl.trim() : undefined,
-            videoId: (slideFromDb.videoId && slideFromDb.videoId.trim() !== "") ? slideFromDb.videoId.trim() : undefined,
-            audioUrl: (slideFromDb.audioUrl && slideFromDb.audioUrl.trim() !== "") ? slideFromDb.audioUrl.trim() : undefined,
+            imageUrl: (dbImageUrl && dbImageUrl.trim() !== "") ? dbImageUrl.trim() : undefined,
+            videoId: (dbVideoId && dbVideoId.trim() !== "") ? dbVideoId.trim() : undefined,
+            audioUrl: (dbAudioUrl && dbAudioUrl.trim() !== "") ? dbAudioUrl.trim() : undefined,
             altText: slideFromDb.altText || defaultHeroSlideStructure.altText,
             dataAiHint: slideFromDb.dataAiHint || defaultHeroSlideStructure.dataAiHint,
             ctaText: slideFromDb.ctaText || defaultHeroSlideStructure.ctaText,
@@ -100,14 +108,13 @@ export async function GET() {
           };
         });
       } else {
-        // If heroSlides field is entirely missing or not an array in DB, use the global default.
         console.warn(`[API /api/content/homepage GET] dbContent.heroSlides is not an array or missing. Using global default slides.`);
         finalHeroSlides = defaultHomepageContentData.heroSlides!;
       }
       
       const artisanalRootsData = dbContent.artisanalRoots || defaultHomepageContentData.artisanalRoots!;
       const responseData: HomepageContent = {
-        heroSlides: finalHeroSlides,
+        heroSlides: finalHeroSlides.length > 0 ? finalHeroSlides : defaultHomepageContentData.heroSlides!,
         artisanalRoots: {
           title: artisanalRootsData.title || defaultHomepageContentData.artisanalRoots!.title,
           description: artisanalRootsData.description || defaultHomepageContentData.artisanalRoots!.description,
@@ -120,15 +127,15 @@ export async function GET() {
           ? dbContent.socialCommerceItems.map((item: Partial<SocialCommerceItem>, index: number) => ({ id: item.id || `scs-db-${Date.now()}-${index}`, imageUrl: item.imageUrl || '', linkUrl: item.linkUrl || '#', altText: item.altText || '', dataAiHint: item.dataAiHint || '', displayOrder: item.displayOrder || 0}))
           : defaultHomepageContentData.socialCommerceItems || []
         ).sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0)),
-        heroVideoId: dbContent.heroVideoId === null ? undefined : (dbContent.heroVideoId || defaultHomepageContentData.heroVideoId),
-        heroImageUrl: dbContent.heroImageUrl === null ? undefined : (dbContent.heroImageUrl || defaultHomepageContentData.heroImageUrl),
+        heroVideoId: (dbContent.heroVideoId && dbContent.heroVideoId.trim() !== "") ? dbContent.heroVideoId.trim() : undefined,
+        heroImageUrl: (dbContent.heroImageUrl && dbContent.heroImageUrl.trim() !== "") ? dbContent.heroImageUrl.trim() : undefined,
         promotionalPostsSection: {
           enabled: dbContent.promotionalPostsSection?.enabled ?? defaultHomepageContentData.promotionalPostsSection!.enabled,
           title: dbContent.promotionalPostsSection?.title || defaultHomepageContentData.promotionalPostsSection!.title,
           maxItems: dbContent.promotionalPostsSection?.maxItems || defaultHomepageContentData.promotionalPostsSection!.maxItems,
         }
       };
-      console.log(`[API /api/content/homepage GET] Processed and returning data for admin form. Number of hero slides: ${responseData.heroSlides?.length}`);
+      console.log(`[API /api/content/homepage GET] Processed. Number of hero slides in response: ${responseData.heroSlides?.length}`);
       return NextResponse.json(responseData);
 
     } else {
@@ -144,4 +151,3 @@ export async function GET() {
     }, { status: 500 });
   }
 }
-

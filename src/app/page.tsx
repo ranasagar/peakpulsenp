@@ -91,7 +91,9 @@ async function getHomepageContent(): Promise<HomepageContent> {
             ...fallbackHeroSlide, 
             ...slide, 
             id: slide.id || `hs-fetched-${Date.now()}-${index}`,
-            audioUrl: slide.audioUrl || undefined,
+            imageUrl: (slide.imageUrl && slide.imageUrl.trim() !== "") ? slide.imageUrl.trim() : undefined,
+            videoId: (slide.videoId && slide.videoId.trim() !== "") ? slide.videoId.trim() : undefined,
+            audioUrl: (slide.audioUrl && slide.audioUrl.trim() !== "") ? slide.audioUrl.trim() : undefined,
             duration: slide.duration === undefined || slide.duration === null || Number(slide.duration) < 1000 ? fallbackHeroSlide.duration : Number(slide.duration),
             displayOrder: slide.displayOrder === undefined ? index * 10 : Number(slide.displayOrder || 0),
           }))
@@ -106,8 +108,8 @@ async function getHomepageContent(): Promise<HomepageContent> {
       socialCommerceItems: Array.isArray(jsonData.socialCommerceItems) 
         ? jsonData.socialCommerceItems.map((item: Partial<SocialCommerceItem>, index: number) => ({ id: item.id || `scs-fetched-${Date.now()}-${index}`, imageUrl: item.imageUrl || '', linkUrl: item.linkUrl || '#', altText: item.altText || '', dataAiHint: item.dataAiHint || '', displayOrder: item.displayOrder || 0}))
         : defaultHomepageContent.socialCommerceItems || [],
-      heroVideoId: jsonData.heroVideoId === null ? undefined : jsonData.heroVideoId,
-      heroImageUrl: jsonData.heroImageUrl === null ? undefined : jsonData.heroImageUrl,
+      heroVideoId: (jsonData.heroVideoId && jsonData.heroVideoId.trim() !== "") ? jsonData.heroVideoId.trim() : undefined,
+      heroImageUrl: (jsonData.heroImageUrl && jsonData.heroImageUrl.trim() !== "") ? jsonData.heroImageUrl.trim() : undefined,
       promotionalPostsSection: { 
         enabled: jsonData.promotionalPostsSection?.enabled ?? defaultHomepageContent.promotionalPostsSection!.enabled,
         title: jsonData.promotionalPostsSection?.title || defaultHomepageContent.promotionalPostsSection!.title,
@@ -323,7 +325,7 @@ function HomePageContent() {
     const adaptedPromoSlides = (content.promotionalPostsSection?.enabled && promotionalPosts.length > 0) 
       ? promotionalPosts
           .slice(0, content.promotionalPostsSection.maxItems || promotionalPosts.length)
-          .sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0)) // Sort promos by their own displayOrder
+          .sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0)) 
           .map((promo, index) => ({
             id: promo.id || `promo-slide-${index}`,
             title: promo.title,
@@ -336,7 +338,7 @@ function HomePageContent() {
             videoId: undefined, 
             audioUrl: undefined, 
             duration: promo.displayOrder && promo.displayOrder > 1000 ? promo.displayOrder : 7000, 
-            displayOrder: (baseSlides.length * 10) + (promo.displayOrder || index * 10), // Ensure promo slides come after base slides
+            displayOrder: (baseSlides.length * 10) + (promo.displayOrder || index * 10), 
             _isPromo: true,
             _backgroundColor: promo.backgroundColor,
             _textColor: promo.textColor,
@@ -382,27 +384,31 @@ function HomePageContent() {
       heroIntervalRef.current = setInterval(nextHeroSlide, currentSlideDuration);
     }
     
-    if (audioRef.current) {
-      const currentDirectAudioUrl = activeHeroSlides[currentHeroSlide]?.audioUrl;
-      const currentVideoId = activeHeroSlides[currentHeroSlide]?.videoId;
+    // Audio logic
+    const currentSlide = activeHeroSlides[currentHeroSlide];
+    const directAudioUrl = currentSlide?.audioUrl;
+    const youtubeVideoIdForAudio = currentSlide?.videoId; 
 
-      if (currentDirectAudioUrl) { // Prioritize direct audioUrl
-        console.log(`[Hero Audio] Slide ${currentHeroSlide}: Using DIRECT audio: ${currentDirectAudioUrl}`);
-        if (audioRef.current.src !== currentDirectAudioUrl) {
-          audioRef.current.src = currentDirectAudioUrl;
-          audioRef.current.load();
+    if (audioRef.current) {
+      // console.log(`[Hero Audio] Slide ${currentHeroSlide}: DirectAudio='${directAudioUrl}', YouTubeID for audio='${youtubeVideoIdForAudio}'`);
+      if (directAudioUrl) {
+        // console.log(`[Hero Audio] Using DIRECT audio: ${directAudioUrl}`);
+        if (audioRef.current.src !== directAudioUrl) {
+          audioRef.current.src = directAudioUrl;
+          audioRef.current.load(); 
         }
         audioRef.current.play().catch(error => console.warn("Direct audio play failed:", error));
-      } else if (currentVideoId && !activeHeroSlides[currentHeroSlide]?.imageUrl) { // YouTube audio ONLY if no image (video is background)
-         console.log(`[Hero Audio] Slide ${currentHeroSlide}: YouTube video is background, its audio will play (controlled by iframe params). Pausing <audio> tag.`);
-         audioRef.current.pause();
-         audioRef.current.currentTime = 0;
-      } else if (currentVideoId && activeHeroSlides[currentHeroSlide]?.imageUrl) { // YouTube is hidden audio source
-        console.log(`[Hero Audio] Slide ${currentHeroSlide}: Using HIDDEN YOUTUBE audio from videoId: ${currentVideoId}. Pausing <audio> tag.`);
+      } else if (youtubeVideoIdForAudio && !currentSlide?.imageUrl) { 
+        // console.log(`[Hero Audio] YouTube video is visual & audio source. HTML5 <audio> tag paused.`);
         audioRef.current.pause();
         audioRef.current.currentTime = 0;
-      } else { // No audio for this slide
-        console.log(`[Hero Audio] Slide ${currentHeroSlide}: NO audio for this slide. Pausing <audio> tag.`);
+      } else if (youtubeVideoIdForAudio && currentSlide?.imageUrl) {
+        // console.log(`[Hero Audio] YouTube video is HIDDEN audio source. HTML5 <audio> tag paused.`);
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+      }
+       else {
+        // console.log(`[Hero Audio] NO specific audio for this slide. HTML5 <audio> tag paused.`);
         audioRef.current.pause();
         audioRef.current.currentTime = 0;
       }
@@ -583,8 +589,9 @@ function HomePageContent() {
   }
   
   const currentDisplayedHeroSlide = activeHeroSlides[currentHeroSlide];
-  const heroVideoIdForVisuals = currentDisplayedHeroSlide?.videoId; 
-  const heroImageUrlForVisuals = currentDisplayedHeroSlide?.imageUrl;
+  // This fallback logic is for the standalone hero image/video if carousel is empty
+  const heroVideoIdForVisuals = currentDisplayedHeroSlide?.videoId || content.heroVideoId; 
+  const heroImageUrlForVisuals = currentDisplayedHeroSlide?.imageUrl || content.heroImageUrl;
 
 
   return (
@@ -594,9 +601,23 @@ function HomePageContent() {
         <div className="absolute inset-0 z-0 pointer-events-none">
           {activeHeroSlides.map((slide, index) => {
             const isCurrent = index === currentHeroSlide;
+            // Determine visual source for THIS slide in the carousel
             const useYouTubeForVisual = !slide.imageUrl && slide.videoId;
             const useImageForVisual = !!slide.imageUrl;
-            const useYouTubeForAudioOnly = !!slide.imageUrl && !!slide.videoId && !slide.audioUrl;
+            const useYouTubeForAudioOnly = !!slide.imageUrl && !!slide.videoId && !slide.audioUrl; // Image is visual, YT is hidden audio
+
+            // Debug log for each slide's properties
+             if (isCurrent) {
+              console.log(`[Hero Slide ${index} (Current)] Properties:`, 
+                `imageUrl: "${slide.imageUrl}" (Type: ${typeof slide.imageUrl})`, 
+                `videoId: "${slide.videoId}" (Type: ${typeof slide.videoId})`, 
+                `audioUrl: "${slide.audioUrl}" (Type: ${typeof slide.audioUrl})`,
+                `useImageForVisual: ${useImageForVisual}`,
+                `useYouTubeForVisual: ${useYouTubeForVisual}`,
+                `useYouTubeForAudioOnly: ${useYouTubeForAudioOnly}`
+              );
+            }
+
 
             return (
               <div
@@ -609,10 +630,10 @@ function HomePageContent() {
                   backgroundColor: slide._isPromo ? (slide._backgroundColor || 'rgba(0,0,0,0.3)') : 'transparent' 
                 }}
               >
-                {useImageForVisual && (
+                {useImageForVisual && slide.imageUrl && (
                   <>
                     <Image
-                      src={slide.imageUrl!}
+                      src={slide.imageUrl}
                       alt={slide.altText || "Peak Pulse Hero Background"}
                       fill sizes="100vw" priority={index === 0}
                       className="absolute inset-0 w-full h-full object-cover"
@@ -621,7 +642,7 @@ function HomePageContent() {
                     {!slide._isPromo && <div className="absolute inset-0 bg-black/30 z-[1]" />}
                   </>
                 )}
-                {useYouTubeForVisual && slide.videoId && (
+                {useYouTubeForVisual && slide.videoId && ( // YouTube as VISUAL background
                   <>
                     <iframe
                       className="absolute top-1/2 left-1/2 w-full h-full min-w-[177.77vh] min-h-[56.25vw] transform -translate-x-1/2 -translate-y-1/2"
@@ -632,18 +653,20 @@ function HomePageContent() {
                     {!slide._isPromo && <div className="absolute inset-0 bg-black/30 z-[1]" />}
                   </>
                 )}
-                {useYouTubeForAudioOnly && slide.videoId && ( // Hidden iframe for YouTube audio when image is primary visual
+                {useYouTubeForAudioOnly && slide.videoId && ( // YouTube as HIDDEN audio source
                     <iframe
-                        className="absolute -left-[9999px] -top-[9999px] w-[1px] h-[1px] opacity-0 pointer-events-none" // Visually hidden
+                        className="absolute -left-[9999px] -top-[9999px] opacity-0 pointer-events-none" 
+                        style={{width: '1px', height: '1px'}} // Minimal dimensions that might help browsers allow audio
                         src={`https://www.youtube.com/embed/${slide.videoId}?autoplay=1&mute=0&loop=1&playlist=${slide.videoId}&controls=0&showinfo=0&autohide=1&modestbranding=1&playsinline=1&enablejsapi=1`}
                         title={`Audio for ${slide.altText || "Peak Pulse Background"}`}
                         frameBorder="0" allow="autoplay;"
                     />
                 )}
-                {!useImageForVisual && !useYouTubeForVisual && <div className="absolute inset-0 bg-black" /> }
+                {!useImageForVisual && !useYouTubeForVisual && !slide._isPromo && <div className="absolute inset-0 bg-black" /> }
               </div>
             );
           })}
+           {/* Fallback visual if activeHeroSlides is empty but standalone heroVideoIdForVisuals or heroImageUrlForVisuals exist */}
            {activeHeroSlides.length === 0 && heroVideoIdForVisuals && ( 
              <>
                 <iframe
@@ -727,7 +750,7 @@ function HomePageContent() {
                     ${currentHeroSlide === index ? 'bg-white scale-125 ring-2 ring-white/30 ring-offset-1 ring-offset-transparent p-0.5 w-5 md:w-6' : 'bg-white/40 hover:bg-white/70'}`}
                   aria-label={`Go to slide ${index + 1}`} />
               ))}
-              {activeHeroSlides[currentHeroSlide]?.audioUrl && (
+              {activeHeroSlides[currentHeroSlide]?.audioUrl && ( // Only show mute if direct audio URL is present
                   <Button variant="ghost" size="icon" onClick={toggleAudioMute} className="h-7 w-7 text-white/70 hover:text-white p-1" aria-label={isAudioMuted ? "Unmute audio" : "Mute audio"}>
                       {isAudioMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
                   </Button>
