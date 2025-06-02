@@ -220,6 +220,7 @@ body {
 body.menus-hidden-on-hero header.sticky.top-0 { /* Targets Header in src/components/layout/header.tsx */
   transform: translateY(-100%);
   opacity: 0;
+  margin-bottom: -5rem; /* Header height (h-20 is 5rem) to pull up next content */
 }
 body.menus-hidden-on-hero nav.sticky.bottom-0 { /* Targets BottomNavigation in src/components/layout/bottom-navigation.tsx */
   transform: translateY(100%);
@@ -227,5 +228,5 @@ body.menus-hidden-on-hero nav.sticky.bottom-0 { /* Targets BottomNavigation in s
 }
 
 header.sticky.top-0, nav.sticky.bottom-0 {
-  transition: transform 0.3s ease-in-out, opacity 0.3s ease-in-out;
+  transition: transform 0.3s ease-in-out, opacity 0.3s ease-in-out, margin-bottom 0.3s ease-in-out;
 }
