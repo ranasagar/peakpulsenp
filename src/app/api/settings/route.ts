@@ -14,7 +14,10 @@ const defaultSettings: SiteSettings = {
   storePhone: "+977-XXX-XXXXXX (Default)",
   storeAddress: "Kathmandu, Nepal (Default)",
   socialLinks: [],
-  showExternalLinkWarning: true, // Default for the new setting
+  showExternalLinkWarning: true,
+  whatsappNumber: "9862020757",
+  instagramUsername: "peakpulsenp",
+  facebookUsernameOrPageId: "peakpulsenp",
 };
 
 export async function GET() {
@@ -47,6 +50,9 @@ export async function GET() {
         storeAddress: dbSettings.storeAddress || defaultSettings.storeAddress,
         socialLinks: dbSettings.socialLinks || defaultSettings.socialLinks,
         showExternalLinkWarning: dbSettings.showExternalLinkWarning === undefined ? defaultSettings.showExternalLinkWarning : dbSettings.showExternalLinkWarning,
+        whatsappNumber: dbSettings.whatsappNumber || defaultSettings.whatsappNumber,
+        instagramUsername: dbSettings.instagramUsername || defaultSettings.instagramUsername,
+        facebookUsernameOrPageId: dbSettings.facebookUsernameOrPageId || defaultSettings.facebookUsernameOrPageId,
       };
       return NextResponse.json(responseSettings);
     } else {

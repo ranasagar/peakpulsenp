@@ -12,7 +12,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Save, Link as LinkIcon, PlusCircle, Trash2, Settings } from 'lucide-react';
+import { Loader2, Save, Link as LinkIcon, PlusCircle, Trash2, Settings, MessageCircle } from 'lucide-react'; // Added MessageCircle
 import type { SiteSettings, SocialLink } from '@/types';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
@@ -29,7 +29,10 @@ const siteGeneralSettingsSchema = z.object({
     platform: z.string(),
     url: z.string().url(),
   })).optional().default([]),
-  showExternalLinkWarning: z.boolean().optional().default(true), // New field
+  showExternalLinkWarning: z.boolean().optional().default(true),
+  whatsappNumber: z.string().optional().or(z.literal('')).default("9862020757"),
+  instagramUsername: z.string().optional().or(z.literal('')).default("peakpulsenp"),
+  facebookUsernameOrPageId: z.string().optional().or(z.literal('')).default("peakpulsenp"),
 });
 
 type SiteGeneralSettingsFormValues = z.infer<typeof siteGeneralSettingsSchema>;
@@ -41,7 +44,10 @@ const defaultGeneralSettings: SiteGeneralSettingsFormValues = {
   storePhone: "+977-XXX-XXXXXX",
   storeAddress: "Kathmandu, Nepal",
   socialLinks: [],
-  showExternalLinkWarning: true, // Default to true
+  showExternalLinkWarning: true,
+  whatsappNumber: "9862020757",
+  instagramUsername: "peakpulsenp",
+  facebookUsernameOrPageId: "peakpulsenp",
 };
 
 export default function AdminSettingsPage() {
@@ -76,6 +82,9 @@ export default function AdminSettingsPage() {
                 storeAddress: data.storeAddress || defaultGeneralSettings.storeAddress,
                 socialLinks: data.socialLinks || [],
                 showExternalLinkWarning: data.showExternalLinkWarning === undefined ? defaultGeneralSettings.showExternalLinkWarning : data.showExternalLinkWarning,
+                whatsappNumber: data.whatsappNumber || defaultGeneralSettings.whatsappNumber,
+                instagramUsername: data.instagramUsername || defaultGeneralSettings.instagramUsername,
+                facebookUsernameOrPageId: data.facebookUsernameOrPageId || defaultGeneralSettings.facebookUsernameOrPageId,
             });
         } catch (error) {
             toast({ title: "Error Loading Settings", description: (error as Error).message + ". Displaying defaults.", variant: "destructive" });
@@ -99,6 +108,9 @@ export default function AdminSettingsPage() {
         storeAddress: data.storeAddress,
         socialLinks: data.socialLinks || [],
         showExternalLinkWarning: data.showExternalLinkWarning,
+        whatsappNumber: data.whatsappNumber,
+        instagramUsername: data.instagramUsername,
+        facebookUsernameOrPageId: data.facebookUsernameOrPageId,
       }; 
 
       const response = await fetch('/api/admin/settings', {
@@ -160,6 +172,22 @@ export default function AdminSettingsPage() {
               )} />
               <FormField control={form.control} name="storeAddress" render={({ field }) => (
                 <FormItem><FormLabel>Store Address (Optional)</FormLabel><FormControl><Textarea {...field} rows={2} value={field.value || ''}/></FormControl><FormMessage /></FormItem>
+              )} />
+            </fieldset>
+
+            <fieldset className="space-y-4 p-4 border rounded-md bg-card">
+              <legend className="text-lg font-semibold px-1 -mt-7 bg-card flex items-center"><MessageCircle className="mr-2 h-5 w-5 text-primary"/>Social Messaging Links</legend>
+              <FormDescription>
+                Used for the floating social messaging widget.
+              </FormDescription>
+              <FormField control={form.control} name="whatsappNumber" render={({ field }) => (
+                <FormItem><FormLabel>WhatsApp Number</FormLabel><FormControl><Input {...field} value={field.value || ''} placeholder="e.g., 97798XXXXXXXX" /></FormControl><FormDescription>Include country code. Example: 9779862020757</FormDescription><FormMessage /></FormItem>
+              )} />
+              <FormField control={form.control} name="instagramUsername" render={({ field }) => (
+                <FormItem><FormLabel>Instagram Username</FormLabel><FormControl><Input {...field} value={field.value || ''} placeholder="e.g., peakpulsenp" /></FormControl><FormDescription>Your Instagram username (without @).</FormDescription><FormMessage /></FormItem>
+              )} />
+              <FormField control={form.control} name="facebookUsernameOrPageId" render={({ field }) => (
+                <FormItem><FormLabel>Facebook Username or Page ID</FormLabel><FormControl><Input {...field} value={field.value || ''} placeholder="e.g., peakpulsenp or 1000XXXXXXXXX" /></FormControl><FormDescription>Your Facebook username or numeric Page ID.</FormDescription><FormMessage /></FormItem>
               )} />
             </fieldset>
 

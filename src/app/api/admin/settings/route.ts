@@ -14,7 +14,10 @@ const defaultSettings: SiteSettings = {
   storePhone: "+977-000-000000",
   storeAddress: "Kathmandu, Nepal (Default Address)",
   socialLinks: [], 
-  showExternalLinkWarning: true, // Default for the new setting
+  showExternalLinkWarning: true,
+  whatsappNumber: "9862020757",
+  instagramUsername: "peakpulsenp",
+  facebookUsernameOrPageId: "peakpulsenp",
 };
 
 // GET current site settings for admin
@@ -49,6 +52,9 @@ export async function GET() {
         storeAddress: dbSettings.storeAddress || defaultSettings.storeAddress,
         socialLinks: dbSettings.socialLinks || defaultSettings.socialLinks,
         showExternalLinkWarning: dbSettings.showExternalLinkWarning === undefined ? defaultSettings.showExternalLinkWarning : dbSettings.showExternalLinkWarning,
+        whatsappNumber: dbSettings.whatsappNumber || defaultSettings.whatsappNumber,
+        instagramUsername: dbSettings.instagramUsername || defaultSettings.instagramUsername,
+        facebookUsernameOrPageId: dbSettings.facebookUsernameOrPageId || defaultSettings.facebookUsernameOrPageId,
       };
       return NextResponse.json(responseSettings);
     } else {
@@ -82,6 +88,9 @@ export async function POST(request: NextRequest) {
       storeAddress: newSettings.storeAddress || defaultSettings.storeAddress,
       socialLinks: newSettings.socialLinks || defaultSettings.socialLinks,
       showExternalLinkWarning: newSettings.showExternalLinkWarning === undefined ? defaultSettings.showExternalLinkWarning : newSettings.showExternalLinkWarning,
+      whatsappNumber: newSettings.whatsappNumber || defaultSettings.whatsappNumber,
+      instagramUsername: newSettings.instagramUsername || defaultSettings.instagramUsername,
+      facebookUsernameOrPageId: newSettings.facebookUsernameOrPageId || defaultSettings.facebookUsernameOrPageId,
     };
     
     const { error } = await client

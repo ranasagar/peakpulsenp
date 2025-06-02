@@ -7,7 +7,7 @@ import { Toaster } from '@/components/ui/toaster';
 import { AuthProvider } from '@/hooks/use-auth';
 import { ThemeProvider } from '@/components/layout/theme-provider';
 import { CartProvider } from '@/context/cart-context';
-import { SocialLinksWidget } from '@/components/social/social-links-widget'; // Added import
+import { SocialMessagingWidget } from '@/components/social/social-messaging-widget'; // Updated import
 
 export const metadata: Metadata = {
   title: {
@@ -56,7 +56,7 @@ export default function RootLayout({
             <CartProvider>
               {children}
               <Toaster />
-              <SocialLinksWidget /> {/* Added SocialLinksWidget */}
+              <SocialMessagingWidget /> {/* Updated to SocialMessagingWidget */}
             </CartProvider>
           </AuthProvider>
         </ThemeProvider>

@@ -4,9 +4,9 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { MessagesSquare, X, Instagram, MessageCircle, Facebook, Loader2 } from 'lucide-react'; // Changed Share2 to MessagesSquare, added MessageCircle for WhatsApp
+import { MessagesSquare, X, Instagram, MessageCircle, Facebook, Loader2 } from 'lucide-react'; 
 import { InteractiveExternalLink } from '@/components/interactive-external-link';
-import type { SiteSettings } from '@/types'; // Removed SocialLinkType as it's not directly used here anymore
+import type { SiteSettings } from '@/types'; 
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 
@@ -16,17 +16,17 @@ interface MessagingPlatformConfig {
   label: string;
   urlPattern: (id: string) => string;
   settingField: keyof Pick<SiteSettings, 'whatsappNumber' | 'instagramUsername' | 'facebookUsernameOrPageId'>;
-  idTransform?: (id: string) => string; // Optional: to clean up IDs like phone numbers
+  idTransform?: (id: string) => string; 
 }
 
 const messagingPlatforms: MessagingPlatformConfig[] = [
   {
     platformKey: 'whatsapp',
-    icon: MessageCircle, // Placeholder for WhatsApp
+    icon: MessageCircle, 
     label: 'WhatsApp',
     urlPattern: (id) => `https://wa.me/${id}`,
     settingField: 'whatsappNumber',
-    idTransform: (id) => id.replace(/\D/g, ''), // Remove non-digits
+    idTransform: (id) => id.replace(/\D/g, ''), 
   },
   {
     platformKey: 'instagram',
@@ -37,16 +37,16 @@ const messagingPlatforms: MessagingPlatformConfig[] = [
   },
   {
     platformKey: 'messenger',
-    icon: MessageSquare, // Using MessageSquare for FB Messenger to differentiate
+    icon: Facebook, // Using Facebook icon for Messenger for now, could be MessageSquare too
     label: 'Messenger',
     urlPattern: (id) => `https://m.me/${id}`,
     settingField: 'facebookUsernameOrPageId',
   },
 ];
 
-export function SocialMessagingWidget() { // Renamed component
+export function SocialMessagingWidget() { 
   const [isOpen, setIsOpen] = useState(false);
-  const [activeMessagingLinks, setActiveMessagingLinks] = useState<MessagingPlatformConfig[]>([]);
+  const [activeMessagingLinks, setActiveMessagingLinks] = useState<(MessagingPlatformConfig & { url: string })[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
 
@@ -67,7 +67,7 @@ export function SocialMessagingWidget() { // Renamed component
             return { ...platform, url: platform.urlPattern(finalId) };
           }
           return null;
-        }).filter(Boolean) as (MessagingPlatformConfig & { url: string })[]; // Filter out nulls and assert url is present
+        }).filter(Boolean) as (MessagingPlatformConfig & { url: string })[];
 
         setActiveMessagingLinks(configuredPlatforms);
 
@@ -102,7 +102,6 @@ export function SocialMessagingWidget() { // Renamed component
   }
 
   if (!isLoading && activeMessagingLinks.length === 0) {
-    // If no relevant links are configured, don't show the widget at all
     return null;
   }
 

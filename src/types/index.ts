@@ -229,8 +229,8 @@ export interface HeroSlide {
   ctaLink?: string;
   duration?: number; 
   displayOrder?: number;
-  youtubeAuthorName?: string; // New field for YouTube author name
-  youtubeAuthorLink?: string; // New field for YouTube author channel link
+  youtubeAuthorName?: string; 
+  youtubeAuthorLink?: string; 
   _isPromo?: boolean; 
   _backgroundColor?: string; 
   _textColor?: string; 
@@ -320,6 +320,9 @@ export interface SiteSettings {
   storeAddress?: string;
   socialLinks?: SocialLink[];
   showExternalLinkWarning?: boolean;
+  whatsappNumber?: string;
+  instagramUsername?: string;
+  facebookUsernameOrPageId?: string;
 }
 
 export interface PageContent {
