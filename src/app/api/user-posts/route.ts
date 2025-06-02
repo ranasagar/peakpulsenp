@@ -66,20 +66,36 @@ export async function GET(request: NextRequest) {
       }, { status: 500 });
     }
     
-    const posts: UserPost[] = (data || []).map((post: any) => ({ 
-        id: post.id,
-        user_id: post.user_id,
-        user_name: post.user?.name || (post.user?.email ? post.user.email.split('@')[0] : (post.user_id ? post.user_id.substring(0,8)+'...' : 'Anonymous')), 
-        user_avatar_url: post.user?.avatarUrl || undefined,
-        image_url: post.image_url,
-        caption: post.caption,
-        product_tags: post.product_tags,
-        status: post.status as UserPost['status'],
-        like_count: post.like_count || 0,
-        liked_by_user_ids: post.liked_by_user_ids || [],
-        created_at: post.created_at,
-        updated_at: post.updated_at,
-    }));
+    const posts: UserPost[] = (data || []).map((post: any) => {
+        // Priority:
+        // 1. Name from the joined 'users' table (this should be the Supabase profile name)
+        // 2. Fallback to email prefix if name is null/empty from users table
+        // 3. Fallback to user_id snippet if email also not available
+        // 4. Fallback to 'Anonymous'
+        let displayName = 'Anonymous';
+        if (post.user && post.user.name && post.user.name.trim() !== '') {
+            displayName = post.user.name;
+        } else if (post.user && post.user.email && post.user.email.trim() !== '') {
+            displayName = post.user.email.split('@')[0];
+        } else if (post.user_id) {
+            displayName = `${post.user_id.substring(0, 4)}...${post.user_id.substring(post.user_id.length - 4)}`;
+        }
+
+        return { 
+            id: post.id,
+            user_id: post.user_id,
+            user_name: displayName, 
+            user_avatar_url: post.user?.avatarUrl || undefined,
+            image_url: post.image_url,
+            caption: post.caption,
+            product_tags: post.product_tags,
+            status: post.status as UserPost['status'],
+            like_count: post.like_count || 0,
+            liked_by_user_ids: post.liked_by_user_ids || [],
+            created_at: post.created_at,
+            updated_at: post.updated_at,
+        };
+    });
 
     console.log(`[API /api/user-posts GET] Successfully fetched ${posts.length} posts. Params: userId=${userIdParam}, status=${statusParam}`);
     return NextResponse.json(posts);
@@ -129,7 +145,7 @@ export async function POST(request: NextRequest) {
     console.warn(`[API /api/user-posts POST] VALIDATION FAILED: ${message}`);
     return NextResponse.json({ message }, { status: 400 });
   }
-  if (!imageUrl || typeof imageUrl !== 'string' || imageUrl.trim() === '') {
+  if (!imageUrl || typeof imageUrl !== 'string' || imageUrl.trim().length === 0) {
     const message = `Invalid imageUrl: '${imageUrl}'. Must be a non-empty string.`;
     console.warn(`[API /api/user-posts POST] VALIDATION FAILED: ${message}`);
     return NextResponse.json({ message }, { status: 400 });
@@ -178,5 +194,3 @@ export async function POST(request: NextRequest) {
     }, { status: 500 });
   }
 }
-
-    
