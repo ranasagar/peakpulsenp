@@ -37,7 +37,7 @@ const messagingPlatforms: MessagingPlatformConfig[] = [
   },
   {
     platformKey: 'messenger',
-    icon: Facebook, // Using Facebook icon for Messenger for now, could be MessageSquare too
+    icon: Facebook, 
     label: 'Messenger',
     urlPattern: (id) => `https://m.me/${id}`,
     settingField: 'facebookUsernameOrPageId',
@@ -63,7 +63,8 @@ export function SocialMessagingWidget() {
         const configuredPlatforms = messagingPlatforms.map(platform => {
           const contactId = settings[platform.settingField];
           if (contactId && contactId.trim() !== '') {
-            const finalId = platform.idTransform ? platform.idTransform(contactId) : contactId;
+            const trimmedId = contactId.trim(); // Ensure ID is trimmed before use
+            const finalId = platform.idTransform ? platform.idTransform(trimmedId) : trimmedId;
             return { ...platform, url: platform.urlPattern(finalId) };
           }
           return null;
