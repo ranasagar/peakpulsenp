@@ -1,3 +1,4 @@
+
 // src/app/page.tsx
 "use client";
 
@@ -134,12 +135,15 @@ function HomePageContent() {
 
   const [currentHeroSlide, setCurrentHeroSlide] = useState(0);
   const [isHeroPlaying, setIsHeroPlaying] = useState(true);
+  const [heroSlideDuration, setHeroSlideDuration] = useState(7000); // New state for hero duration
 
   const [currentArtisanalSlide, setCurrentArtisanalSlide] = useState(0);
   const [isArtisanalPlaying, setIsArtisanalPlaying] = useState(true);
+  const [artisanalSlideDuration, setArtisanalSlideDuration] = useState(5000); // New state for artisanal duration
 
   const [currentSocialCommerceSlide, setCurrentSocialCommerceSlide] = useState(0);
   const [isSocialCommerceHovered, setIsSocialCommerceHovered] = useState(false);
+  const [socialCommerceSlideDuration, setSocialCommerceSlideDuration] = useState(6000); // New state for social commerce duration
 
   const { toast } = useToast();
   const { user, isAuthenticated, refreshUserProfile } = useAuth();
@@ -315,10 +319,10 @@ function HomePageContent() {
   useEffect(() => {
     let slideInterval: NodeJS.Timeout | undefined;
     if (isHeroPlaying && activeHeroSlides.length > 1) {
-      slideInterval = setInterval(nextHeroSlide, 7000); 
+      slideInterval = setInterval(nextHeroSlide, heroSlideDuration); 
     }
     return () => { if (slideInterval) { clearInterval(slideInterval); } };
-  }, [isHeroPlaying, nextHeroSlide, activeHeroSlides.length]);
+  }, [isHeroPlaying, nextHeroSlide, activeHeroSlides.length, heroSlideDuration]);
   
   const nextArtisanalSlide = useCallback(() => {
     if (activeArtisanalSlides.length > 0) {
@@ -329,14 +333,14 @@ function HomePageContent() {
   useEffect(() => {
     let artisanalSlideInterval: NodeJS.Timeout | undefined;
     if (isArtisanalPlaying && activeArtisanalSlides.length > 1) { 
-      artisanalSlideInterval = setInterval(nextArtisanalSlide, 5000); 
+      artisanalSlideInterval = setInterval(nextArtisanalSlide, artisanalSlideDuration); 
     }
     return () => {
       if (artisanalSlideInterval) {
         clearInterval(artisanalSlideInterval);
       }
     };
-  }, [isArtisanalPlaying, nextArtisanalSlide, activeArtisanalSlides.length]);
+  }, [isArtisanalPlaying, nextArtisanalSlide, activeArtisanalSlides.length, artisanalSlideDuration]);
   
   const activeSocialCommerceItems = content.socialCommerceItems || [];
 
@@ -361,10 +365,10 @@ function HomePageContent() {
   useEffect(() => {
     let socialInterval: NodeJS.Timeout | undefined;
     if (activeSocialCommerceItems.length > 1 && !isSocialCommerceHovered) {
-      socialInterval = setInterval(nextSocialCommerceSlide, 6000);
+      socialInterval = setInterval(nextSocialCommerceSlide, socialCommerceSlideDuration);
     }
     return () => { if (socialInterval) clearInterval(socialInterval); };
-  }, [activeSocialCommerceItems.length, nextSocialCommerceSlide, isSocialCommerceHovered]);
+  }, [activeSocialCommerceItems.length, nextSocialCommerceSlide, isSocialCommerceHovered, socialCommerceSlideDuration]);
 
   const handleCommunityPostClick = (post: UserPost) => {
     if (!isAuthenticated) {
@@ -941,3 +945,5 @@ export default function RootPage() {
     </MainLayout>
   );
 }
+
+    
