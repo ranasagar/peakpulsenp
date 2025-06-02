@@ -11,7 +11,7 @@ import { AspectRatio } from "@/components/ui/aspect-ratio"
 import { useCart } from '@/context/cart-context';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
-import { cn } from '@/lib/utils'; // Ensure cn is imported
+import { cn } from '@/lib/utils'; 
 import { useState, useEffect } from 'react';
 
 interface ProductCardProps {
@@ -58,13 +58,10 @@ export function ProductCard({ product, className }: ProductCardProps) {
         const errorData = await response.json();
         throw new Error(errorData.message || errorData.rawError || `Failed to ${isWishlisted ? 'remove from' : 'add to'} wishlist`);
       }
-      // const { wishlist: updatedWishlist } = await response.json(); // API returns the new wishlist
-      // setIsWishlisted(!isWishlisted); 
-      // Instead of relying on API response for direct new wishlist, refresh user context
-      await refreshUserProfile(); // This will re-fetch the user profile including the updated wishlist
+      await refreshUserProfile(); 
 
       toast({
-        title: !isWishlisted ? "Added to Wishlist" : "Removed from Wishlist", // Logic based on old isWishlisted state
+        title: !isWishlisted ? "Added to Wishlist" : "Removed from Wishlist", 
         description: `${product.name} has been ${!isWishlisted ? 'added to' : 'removed from'} your wishlist.`,
       });
     } catch (error) {
@@ -74,17 +71,9 @@ export function ProductCard({ product, className }: ProductCardProps) {
     }
   };
   
-  // This localCn is a workaround if global 'cn' causes SSR issues in specific components.
-  // If global 'cn' works fine, prefer using it.
-  const localCn = (...inputs: ClassValue[]): string => {
-    const { clsx } = require("clsx");
-    const { twMerge } = require("tailwind-merge");
-    return twMerge(clsx(inputs));
-  }
-
 
   return (
-    <Card className={localCn(`group relative overflow-hidden rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 border-border/60 flex flex-col h-full`, className)}>
+    <Card className={cn(`group relative overflow-hidden rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 border-border/60 flex flex-col h-full`, className)}>
       <Link href={`/products/${product.slug}`} className="block flex-shrink-0">
         <CardContent className="p-0">
           <AspectRatio ratio={3 / 4} className="bg-muted">

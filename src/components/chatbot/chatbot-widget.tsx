@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { MessageSquare, Send, X, Bot, User, Loader2, Trash2 } from 'lucide-react'; // Added Trash2
+import { MessageSquare, Send, X, Bot, User, Loader2, Trash2 } from 'lucide-react';
 import type { ChatMessage } from '@/types';
 import { aiChatbotConcierge } from '@/ai/flows/ai-chatbot-concierge';
 import type { AiChatbotConciergeInput } from '@/ai/flows/ai-chatbot-concierge';
@@ -24,7 +24,7 @@ export function ChatbotWidget() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const scrollViewportRef = useRef<HTMLDivElement>(null); // Ref for the viewport div
 
   useEffect(() => {
     if (isOpen && messages.length === 0) {
@@ -33,17 +33,15 @@ export function ChatbotWidget() {
   }, [isOpen, messages.length]);
   
   useEffect(() => {
-    if (scrollAreaRef.current) {
-      const scrollableView = scrollAreaRef.current.querySelector('div > div');
-      if (scrollableView) {
-        scrollableView.scrollTop = scrollableView.scrollHeight;
-      }
+    // When messages change, scroll to the bottom of the viewport
+    if (scrollViewportRef.current) {
+      scrollViewportRef.current.scrollTop = scrollViewportRef.current.scrollHeight;
     }
   }, [messages]);
 
   const handleClearChat = () => {
     setMessages([initialMessage]);
-    setInputValue(''); // Optionally clear input field as well
+    setInputValue(''); 
   };
 
   const handleSendMessage = async () => {
@@ -61,7 +59,7 @@ export function ChatbotWidget() {
     setIsLoading(true);
 
     try {
-      const aiInput: AiChatbotConciergeInput = { query: currentInputValue }; // Use captured input value
+      const aiInput: AiChatbotConciergeInput = { query: currentInputValue }; 
       const aiResponse = await aiChatbotConcierge(aiInput);
       
       const assistantMessage: ChatMessage = {
@@ -118,8 +116,9 @@ export function ChatbotWidget() {
         </div>
       </CardHeader>
       <CardContent className="flex-grow p-0 overflow-hidden">
-        <ScrollArea className="h-full p-4" ref={scrollAreaRef}>
-          <div className="space-y-4">
+        {/* Pass the ref to the ScrollArea's viewport's direct child for scrolling control */}
+        <ScrollArea className="h-full" viewportRef={scrollViewportRef}>
+          <div className="p-4 space-y-4">
             {messages.map(msg => (
               <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                 <div className={`flex items-end max-w-[80%] gap-2 ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
