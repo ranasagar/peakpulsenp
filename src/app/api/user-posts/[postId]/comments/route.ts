@@ -1,4 +1,3 @@
-
 // /src/app/api/user-posts/[postId]/comments/route.ts
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
@@ -31,7 +30,7 @@ export async function GET(
   try {
     const { data, error } = await supabaseAdmin
       .from('post_comments')
-      .select(`
+      .select(\`
         id,
         post_id,
         user_id,
@@ -40,7 +39,7 @@ export async function GET(
         created_at,
         updated_at,
         user:users (name, "avatarUrl")
-      `)
+      \`)
       .eq('post_id', postId)
       .order('created_at', { ascending: true });
 
