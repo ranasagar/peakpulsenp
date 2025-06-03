@@ -64,7 +64,8 @@ export function UserPostDetailModal({
             const data: PostComment[] = await response.json();
             setComments(data);
           } else {
-            toast({ title: "Error", description: "Could not load comments.", variant: "destructive" });
+            const errorData = await response.json().catch(() => ({ message: "Could not load comments."}));
+            toast({ title: "Error", description: errorData.message || "Could not load comments.", variant: "destructive" });
           }
         } catch (error) {
           toast({ title: "Error", description: "Failed to fetch comments.", variant: "destructive" });
@@ -99,20 +100,21 @@ export function UserPostDetailModal({
         body: JSON.stringify({ userId: currentUser.id, commentText: newCommentText }),
       });
       if (!response.ok) {
-        const errorData = await response.json();
+        const errorData = await response.json().catch(() => ({ message: "Failed to post comment." }));
         throw new Error(errorData.message || "Failed to post comment.");
       }
       const newCommentData: PostComment = await response.json();
       
-      onCommentPosted(post.id, {
+      onCommentPosted(post.id, { // Use the full comment data from server response for optimistic update
         ...newCommentData,
-        user_name: currentUser.name || 'You', 
-        user_avatar_url: currentUser.avatarUrl,
+        user_name: newCommentData.user_name || currentUser.name || 'You', 
+        user_avatar_url: newCommentData.user_avatar_url || currentUser.avatarUrl,
       });
+      // Also update local state with the same enriched data
       setComments(prev => [...prev, {
         ...newCommentData,
-        user_name: currentUser.name || 'You', 
-        user_avatar_url: currentUser.avatarUrl,
+        user_name: newCommentData.user_name || currentUser.name || 'You',
+        user_avatar_url: newCommentData.user_avatar_url || currentUser.avatarUrl,
       }]);
 
 
@@ -191,7 +193,7 @@ export function UserPostDetailModal({
                   </p>
                 </div>
               </div>
-              <DialogDescription className="sr-only"> {/* Added for accessibility */}
+              <DialogDescription className="sr-only"> 
                 User post by {post.user_name || 'Anonymous'} featuring their style.
               </DialogDescription>
             </DialogHeader>
@@ -291,3 +293,4 @@ export function UserPostDetailModal({
     </Dialog>
   );
 }
+
