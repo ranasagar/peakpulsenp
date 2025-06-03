@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
-import { BarChart3, Bot, Lightbulb, Loader2, TrendingDown, TrendingUp, Info, RefreshCcw } from 'lucide-react';
+import { BarChart3, Bot, Lightbulb, Loader2, TrendingDown, TrendingUp, Info, RefreshCcw, PlayCircle } from 'lucide-react'; // Added PlayCircle
 import { summarizeSiteAnalytics } from '@/ai/flows/site-analytics-flow';
 import type { SiteAnalyticsInput, SiteAnalyticsOutput } from '@/ai/flows/site-analytics-flow';
 import { useToast } from '@/hooks/use-toast';
@@ -23,13 +23,13 @@ const siteAnalyticsFormSchema = z.object({
   conversionRate: z.coerce.number().min(0).max(1, "Conversion rate must be between 0 (0%) and 1 (100%). E.g., 0.05 for 5%."),
   topPages: z.string().min(1, "Enter at least one top page/product, comma-separated."),
   newUsers: z.coerce.number().int().min(0, "New users must be non-negative."),
-  bounceRate: z.coerce.number().min(0).max(1, "Bounce rate must be between 0 (0%) and 1 (100%). E.g., 0.4 for 40%.").optional().or(z.literal('')), // Allow empty string for optional
+  bounceRate: z.coerce.number().min(0).max(1, "Bounce rate must be between 0 (0%) and 1 (100%). E.g., 0.4 for 40%.").optional().or(z.literal('')),
 });
 
 type SiteAnalyticsFormValues = z.infer<typeof siteAnalyticsFormSchema>;
 
-const defaultDemoData: SiteAnalyticsFormValues = {
-  period: "Last 30 Days",
+const manualDemoData: SiteAnalyticsFormValues = {
+  period: "Last 30 Days (Manual Demo)",
   totalPageViews: 15230,
   uniqueVisitors: 7850,
   newUsers: 3100,
@@ -38,9 +38,21 @@ const defaultDemoData: SiteAnalyticsFormValues = {
   topPages: "/, /products/himalayan-breeze-jacket, /our-story",
 };
 
+const automatedDemoMetrics: SiteAnalyticsInput = {
+  period: "Last 7 Days (Automated)",
+  totalPageViews: 8500,
+  uniqueVisitors: 4200,
+  newUsers: 1500,
+  conversionRate: 0.031, // 3.1%
+  bounceRate: 0.38, // 38%
+  topPages: ["/products/urban-nomad-pants", "/sale", "/community"],
+};
+
 export default function AdminAnalyticsPage() {
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingManual, setIsLoadingManual] = useState(false);
+  const [isLoadingAutomated, setIsLoadingAutomated] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<SiteAnalyticsOutput | null>(null);
+  const [analysisPeriod, setAnalysisPeriod] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
@@ -58,12 +70,12 @@ export default function AdminAnalyticsPage() {
   });
 
   const handleLoadDemoData = () => {
-    form.reset(defaultDemoData);
-    toast({ title: "Demo Data Loaded", description: "Form fields populated with sample analytics data." });
+    form.reset(manualDemoData);
+    toast({ title: "Demo Data Loaded", description: "Form fields populated with sample analytics data for manual submission." });
   };
 
-  const onSubmit = async (values: SiteAnalyticsFormValues) => {
-    setIsLoading(true);
+  const onManualSubmit = async (values: SiteAnalyticsFormValues) => {
+    setIsLoadingManual(true);
     setError(null);
     setAnalysisResult(null);
     try {
@@ -74,14 +86,34 @@ export default function AdminAnalyticsPage() {
       };
       const result = await summarizeSiteAnalytics(inputForAI);
       setAnalysisResult(result);
-      toast({ title: "Analysis Complete", description: "AI insights generated based on your input." });
+      setAnalysisPeriod(inputForAI.period);
+      toast({ title: "Analysis Complete", description: "AI insights generated based on your custom input." });
     } catch (err) {
-      console.error("Analytics flow error:", err);
-      const errorMessage = (err as Error).message || "Failed to generate AI analysis.";
+      console.error("Manual analytics flow error:", err);
+      const errorMessage = (err as Error).message || "Failed to generate AI analysis for custom data.";
       setError(errorMessage);
       toast({ title: "Analysis Failed", description: errorMessage, variant: "destructive" });
     } finally {
-      setIsLoading(false);
+      setIsLoadingManual(false);
+    }
+  };
+
+  const handleAutomatedAnalysis = async () => {
+    setIsLoadingAutomated(true);
+    setError(null);
+    setAnalysisResult(null);
+    try {
+      const result = await summarizeSiteAnalytics(automatedDemoMetrics);
+      setAnalysisResult(result);
+      setAnalysisPeriod(automatedDemoMetrics.period);
+      toast({ title: "Automated Analysis Complete", description: "AI insights generated using demo metrics." });
+    } catch (err) {
+      console.error("Automated analytics flow error:", err);
+      const errorMessage = (err as Error).message || "Failed to generate automated AI analysis.";
+      setError(errorMessage);
+      toast({ title: "Automated Analysis Failed", description: errorMessage, variant: "destructive" });
+    } finally {
+      setIsLoadingAutomated(false);
     }
   };
 
@@ -91,15 +123,23 @@ export default function AdminAnalyticsPage() {
         <CardHeader>
           <CardTitle className="text-2xl flex items-center">
             <BarChart3 className="mr-3 h-6 w-6 text-primary" />
-            AI-Powered Site Analytics
+            AI-Powered Site Analytics Demo
           </CardTitle>
           <CardDescription>
-            Input your site performance metrics to generate an AI-powered summary and recommendations.
+            Generate an AI-powered summary and recommendations. You can input custom metrics or run an automated analysis with demo data.
           </CardDescription>
         </CardHeader>
         <CardContent>
+            <Button onClick={handleAutomatedAnalysis} size="lg" className="w-full sm:w-auto mb-6 bg-green-600 hover:bg-green-700" disabled={isLoadingAutomated || isLoadingManual}>
+              {isLoadingAutomated ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <PlayCircle className="mr-2 h-5 w-5" />}
+              Run Automated Demo Analysis
+            </Button>
+
+          <p className="text-sm text-muted-foreground text-center my-4">OR</p>
+          
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            <form onSubmit={form.handleSubmit(onManualSubmit)} className="space-y-6">
+              <h4 className="text-lg font-medium text-foreground border-b pb-2">Input Custom Metrics:</h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormField control={form.control} name="period" render={({ field }) => (
                   <FormItem><FormLabel>Period*</FormLabel><FormControl><Input placeholder="e.g., Last 30 Days" {...field} /></FormControl><FormMessage /></FormItem>
@@ -139,12 +179,12 @@ export default function AdminAnalyticsPage() {
                 </FormItem>
               )} />
               <div className="flex flex-col sm:flex-row gap-3 pt-2">
-                <Button type="submit" size="lg" disabled={isLoading}>
-                  {isLoading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Bot className="mr-2 h-5 w-5" />}
-                  Generate AI Analysis
+                <Button type="submit" size="lg" disabled={isLoadingManual || isLoadingAutomated}>
+                  {isLoadingManual ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Bot className="mr-2 h-5 w-5" />}
+                  Analyze Custom Data
                 </Button>
-                <Button type="button" variant="outline" size="lg" onClick={handleLoadDemoData} disabled={isLoading}>
-                  <RefreshCcw className="mr-2 h-5 w-5" /> Load Demo Data
+                <Button type="button" variant="outline" size="lg" onClick={handleLoadDemoData} disabled={isLoadingManual || isLoadingAutomated}>
+                  <RefreshCcw className="mr-2 h-5 w-5" /> Load Manual Demo Data
                 </Button>
               </div>
             </form>
@@ -159,11 +199,20 @@ export default function AdminAnalyticsPage() {
         </CardContent>
       </Card>
 
+      {(isLoadingManual || isLoadingAutomated) && !analysisResult && (
+         <Card className="shadow-lg mt-8">
+            <CardContent className="p-8 text-center">
+                <Loader2 className="mx-auto h-10 w-10 animate-spin text-primary mb-3" />
+                <p className="text-muted-foreground">AI is analyzing the data, please wait...</p>
+            </CardContent>
+         </Card>
+      )}
+
       {analysisResult && (
         <Card className="shadow-lg mt-8">
           <CardHeader>
             <CardTitle className="text-xl flex items-center"><Lightbulb className="mr-2 h-5 w-5 text-primary"/>AI Analysis & Recommendations</CardTitle>
-            <CardDescription>Based on the metrics for: {form.getValues("period")}</CardDescription>
+            <CardDescription>Based on the metrics for: {analysisPeriod || "the provided data"}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             <div>
