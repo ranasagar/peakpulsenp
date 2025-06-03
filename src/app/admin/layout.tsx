@@ -76,7 +76,7 @@ export default function AdminLayout({
                   </Link>
                 </Button>
                 
-                <Accordion type="multiple" defaultValue={['store-management', 'content-management', 'design-hub', 'accounting']} className="w-full">
+                <Accordion type="multiple" defaultValue={['store-management', 'content-management']} className="w-full">
                   <AccordionItem value="store-management" className="border-b-0">
                     <AccordionTrigger className="py-2 px-3 hover:bg-accent hover:text-accent-foreground rounded-md text-sm font-medium hover:no-underline [&[data-state=open]>svg]:text-primary">
                       <div className="flex items-center">
@@ -113,7 +113,7 @@ export default function AdminLayout({
                         <Link href="/admin/content/our-story"><PenSquare className="mr-2 h-4 w-4" />Our Story</Link>
                       </Button>
                        <Button variant="ghost" className="w-full justify-start text-sm font-normal h-9 pl-2 pr-3 py-2" asChild>
-                        <Link href="/admin/content/promotions"><Percent className="mr-2 h-4 w-4" />Promotional Posts</Link>
+                        <Link href="/admin/content/promotional-posts"><Percent className="mr-2 h-4 w-4" />Promotional Posts</Link>
                       </Button>
                       <Button variant="ghost" className="w-full justify-start text-sm font-normal h-9 pl-2 pr-3 py-2" asChild>
                         <Link href="/admin/content/user-posts"><ImagePlay className="mr-2 h-4 w-4" />User Posts</Link>
