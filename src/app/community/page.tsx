@@ -120,7 +120,7 @@ export default function CommunityPage() {
       const response = await fetch(`/api/user-posts/${postId}/bookmark`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: loggedInUser.id }),
       });
-      if (!response.ok) { const errorData = await response.json(); throw new Error(errorData.message || 'Failed to update bookmark.'); }
+      if (!response.ok) { const errorData = await response.json(); throw new Error(errorData.message || 'Failed to update bookmark status.'); }
       await refreshUserProfile(); 
       toast({ title: "Bookmark status updated!" });
     } catch (errorCatch) {
@@ -196,19 +196,8 @@ export default function CommunityPage() {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 md:gap-8">
             {posts.map((post) => {
-                let userNameDisplay = post.user_name || 'Anonymous';
-                const idSnippetPattern = /^[a-zA-Z0-9]{4}\.\.\.[a-zA-Z0-9]{4}$/;
-
-                if (loggedInUser && post.user_id === loggedInUser.id && loggedInUser.name && loggedInUser.name.trim() !== '') {
-                    if (!idSnippetPattern.test(loggedInUser.name)) { 
-                         userNameDisplay = loggedInUser.name;
-                    } else if (post.user_name && !idSnippetPattern.test(post.user_name)) {
-                        userNameDisplay = post.user_name;
-                    }
-                }
-                
+                const userNameDisplay = post.user_name || 'Anonymous'; // Directly use user_name from API
                 const userProfileLink = `/users/${post.user_id}`;
-
                 const hasLiked = loggedInUser?.id && post.liked_by_user_ids?.includes(loggedInUser.id);
 
                 return (
@@ -281,5 +270,3 @@ export default function CommunityPage() {
 
 // Added for Next.js App Router to correctly handle dynamic params if any were used (not in this page specifically but good practice for child dynamic pages)
 export const dynamic = 'force-dynamic'; 
-
-    

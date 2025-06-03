@@ -155,7 +155,7 @@ export default function HomePageContent() {
 
   const [currentHeroSlide, setCurrentHeroSlide] = useState(0);
   const [isHeroPlaying, setIsHeroPlaying] = useState(true);
-  const [isInitialSlidePaused, setIsInitialSlidePaused] = useState(true);
+  const [isInitialSlidePaused, setIsInitialSlidePaused] = useState(true); 
   const heroIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const minPlayTimeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -302,9 +302,9 @@ export default function HomePageContent() {
   useEffect(() => {
     if (siteSettings && !isLoadingSiteSettings) {
         setIsHeroPlaying(siteSettings.heroVideoAutoplay !== false);
-        setIsInitialSlidePaused(siteSettings.heroVideoAutoplay !== false); // Initially pause if autoplay is on
+        setIsInitialSlidePaused(siteSettings.heroVideoAutoplay !== false);
         if (siteSettings.heroVideoAutoplay === false) {
-            setInitialAutoplayTriggered(true); // If autoplay is off, no need to trigger it
+            setInitialAutoplayTriggered(true); 
         }
     }
   }, [siteSettings, isLoadingSiteSettings]);
@@ -350,6 +350,7 @@ export default function HomePageContent() {
   const toggleHeroPlayPause = () => {
     if (isInitialSlidePaused && currentHeroSlide === 0) {
         setIsInitialSlidePaused(false);
+        if (!initialAutoplayTriggered) setInitialAutoplayTriggered(true);
     }
     setIsHeroPlaying(prev => !prev);
   };
@@ -445,7 +446,7 @@ export default function HomePageContent() {
           if (minPlayTimeTimeoutRef.current) clearTimeout(minPlayTimeTimeoutRef.current);
           const effectiveDuration = Math.max(5000, currentSlideData.duration || 7000);
           minPlayTimeTimeoutRef.current = setTimeout(() => {
-            if (isHeroPlaying) nextHeroSlide();
+            if (isHeroPlaying && initialAutoplayTriggered) nextHeroSlide();
           }, effectiveDuration);
         }
       }
@@ -496,7 +497,7 @@ export default function HomePageContent() {
               onReady: (event: any) => {
                 const readyPlayer = event.target;
                 playerRefs.current[index] = readyPlayer;
-                readyPlayer.mute(); // Always start muted visually
+                readyPlayer.mute(); 
 
                 const shouldInitialPlayerBeMutedAudio = isYouTubePlayerMuted || (slideData.audioUrl && audioRef.current && !audioRef.current.paused);
                 if (shouldInitialPlayerBeMutedAudio) readyPlayer.mute(); else readyPlayer.unMute();
@@ -742,7 +743,11 @@ export default function HomePageContent() {
       <section className="bg-card section-padding relative z-[1]">
         <div className="text-center mb-12"> <ImagePlayIcon className="h-10 w-10 text-primary mx-auto mb-3" /> <h2 className="text-3xl font-bold tracking-tight text-foreground">Community Spotlights</h2> <p className="text-muted-foreground mt-1 max-w-xl mx-auto">See how others are styling Peak Pulse. Share your look with #PeakPulseStyle!</p> </div>
         {isLoadingUserPosts ? ( <div className="flex justify-center items-center py-10"><Loader2 className="h-10 w-10 animate-spin text-primary" /></div>
-        ) : userPosts.length > 0 ? ( <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 md:gap-8"> {userPosts.slice(0, 4).map(post => { const hasLiked = user?.id && post.liked_by_user_ids?.includes(user.id); const userNameDisplay = post.user_name || 'Anonymous'; const userProfileLink = post.user_id ? `/users/${post.user_id}` : '#'; return ( <Card key={post.id} className="overflow-hidden rounded-xl shadow-lg group hover:shadow-2xl transition-shadow cursor-pointer" onClick={() => handleCommunityPostClick(post)}> <AspectRatio ratio={1/1} className="relative bg-muted"> <Image src={post.image_url} alt={post.caption || `Style post by ${post.user_name}`} fill sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw" className="object-cover transition-transform duration-500 group-hover:scale-105" data-ai-hint="user fashion style" /> </AspectRatio> <div className="p-3 bg-background/80 backdrop-blur-sm"> <div className="flex items-center space-x-2 mb-1.5"> <Avatar className="h-7 w-7 border-border"> <AvatarImage src={post.user_avatar_url || undefined} alt={userNameDisplay} data-ai-hint="user avatar small"/> <AvatarFallback>{userNameDisplay.charAt(0).toUpperCase()}</AvatarFallback> </Avatar> {post.user_id ? ( <Link href={userProfileLink} className="text-xs font-medium text-foreground hover:text-primary truncate" onClick={(e) => e.stopPropagation()}> {userNameDisplay} </Link> ) : ( <span className="text-xs font-medium text-foreground truncate">{userNameDisplay}</span> )} </div> {post.caption && <p className="text-xs text-muted-foreground line-clamp-2 mb-1.5">{post.caption}</p>} <div className="flex items-center justify-between text-xs text-muted-foreground"> <button onClick={(e) => { e.stopPropagation(); handleLikeToggle(post.id); }} disabled={isLikingPostId === post.id || !isAuthenticated} className={cn( "flex items-center gap-1 hover:text-destructive p-1 -ml-1 rounded-md transition-colors", hasLiked ? "text-destructive" : "text-muted-foreground" )} aria-label={hasLiked ? "Unlike post" : "Like post"} > {isLikingPostId === post.id ? <Loader2 className="h-3.5 w-3.5 animate-spin"/> : <HeartIcon className={cn("h-3.5 w-3.5", hasLiked && "fill-destructive")}/>} <span>{post.like_count || 0}</span> </button> <span>{formatDistanceToNow(new Date(post.created_at), { addSuffix: true, includeSeconds: false })}</span> </div> </div> </Card> ); })} </div>
+        ) : userPosts.length > 0 ? ( <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 md:gap-8"> {userPosts.slice(0, 4).map(post => { 
+            const userNameDisplay = post.user_name || 'Anonymous'; // Use user_name from API
+            const userProfileLink = post.user_id ? `/users/${post.user_id}` : '#'; 
+            const hasLiked = user?.id && post.liked_by_user_ids?.includes(user.id); 
+            return ( <Card key={post.id} className="overflow-hidden rounded-xl shadow-lg group hover:shadow-2xl transition-shadow cursor-pointer" onClick={() => handleCommunityPostClick(post)}> <AspectRatio ratio={1/1} className="relative bg-muted"> <Image src={post.image_url} alt={post.caption || `Style post by ${userNameDisplay}`} fill sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw" className="object-cover transition-transform duration-500 group-hover:scale-105" data-ai-hint="user fashion style" /> </AspectRatio> <div className="p-3 bg-background/80 backdrop-blur-sm"> <div className="flex items-center space-x-2 mb-1.5"> <Avatar className="h-7 w-7 border-border"> <AvatarImage src={post.user_avatar_url || undefined} alt={userNameDisplay} data-ai-hint="user avatar small"/> <AvatarFallback>{userNameDisplay.charAt(0).toUpperCase()}</AvatarFallback> </Avatar> {post.user_id ? ( <Link href={userProfileLink} className="text-xs font-medium text-foreground hover:text-primary truncate" onClick={(e) => e.stopPropagation()}> {userNameDisplay} </Link> ) : ( <span className="text-xs font-medium text-foreground truncate">{userNameDisplay}</span> )} </div> {post.caption && <p className="text-xs text-muted-foreground line-clamp-2 mb-1.5">{post.caption}</p>} <div className="flex items-center justify-between text-xs text-muted-foreground"> <button onClick={(e) => { e.stopPropagation(); handleLikeToggle(post.id); }} disabled={isLikingPostId === post.id || !isAuthenticated} className={cn( "flex items-center gap-1 hover:text-destructive p-1 -ml-1 rounded-md transition-colors", hasLiked ? "text-destructive" : "text-muted-foreground" )} aria-label={hasLiked ? "Unlike post" : "Like post"} > {isLikingPostId === post.id ? <Loader2 className="h-3.5 w-3.5 animate-spin"/> : <HeartIcon className={cn("h-3.5 w-3.5", hasLiked && "fill-destructive")}/>} <span>{post.like_count || 0}</span> </button> <span>{formatDistanceToNow(new Date(post.created_at), { addSuffix: true, includeSeconds: false })}</span> </div> </div> </Card> ); })} </div>
         ) : ( <p className="text-center text-muted-foreground py-8">No community posts yet. Be the first to share your style!</p> )}
         <div className="text-center mt-12"> <Link href="/community" className={cn(buttonVariants({ variant: "outline", size: "lg", className: "text-base mr-4" }))}> Explore Community </Link> <Link href="/community/create-post" className={cn(buttonVariants({ variant: "default", size: "lg", className: "text-base" }))}> <ImagePlus className="mr-2 h-5 w-5" /> Share Your Style </Link> </div>
       </section>
@@ -755,4 +760,3 @@ export default function HomePageContent() {
     </>
   );
 }
-

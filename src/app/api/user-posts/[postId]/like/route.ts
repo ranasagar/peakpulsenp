@@ -78,18 +78,16 @@ export async function POST(
     if (userHasLiked) {
       // User is unliking
       updatedLikedBy = currentLikedBy.filter((id) => id !== userId);
-      updatedLikeCount = Math.max(0, (postData.like_count || 0) - 1); // Ensure count doesn't go below 0
     } else {
       // User is liking
       updatedLikedBy = [...currentLikedBy, userId];
-      updatedLikeCount = (postData.like_count || 0) + 1;
     }
-    // Ensure like_count matches the array length if there's a discrepancy (more robust)
+    // Ensure like_count matches the array length
     updatedLikeCount = updatedLikedBy.length;
 
 
     // Step 2: Update the post with new like_count and liked_by_user_ids
-    const { data: updatedPost, error: updateError } = await supabaseAdmin
+    const { data: updatedPostFull, error: updateError } = await supabaseAdmin
       .from('user_posts')
       .update({
         liked_by_user_ids: updatedLikedBy,
@@ -97,33 +95,46 @@ export async function POST(
         // updated_at will be handled by the database trigger
       })
       .eq('id', postId)
-      .select('id, like_count, liked_by_user_ids, user:users(name, "avatarUrl"), image_url, caption, product_tags, status, created_at, updated_at, user_id') // Select more fields for optimistic update
+      .select('id, like_count, liked_by_user_ids, user:users(name, email, "avatarUrl"), image_url, caption, product_tags, status, created_at, updated_at, user_id') // Select more fields for optimistic update
       .single();
 
     if (updateError) {
       console.error(`[API /api/user-posts/${postId}/like POST] Supabase error updating post likes:`, updateError);
       return NextResponse.json({ message: 'Failed to update like status.', rawSupabaseError: updateError }, { status: 500 });
     }
-    if (!updatedPost) {
+    if (!updatedPostFull) {
        console.error(`[API /api/user-posts/${postId}/like POST] Update returned no data for post ${postId}.`);
        return NextResponse.json({ message: 'Failed to update like status, post not found after update.' }, { status: 404 });
     }
     
+    // Derive user_name consistently
+    let displayName = 'Anonymous';
+    // @ts-ignore
+    if (updatedPostFull.user && updatedPostFull.user.name && updatedPostFull.user.name.trim() !== '') {
+        // @ts-ignore
+        displayName = updatedPostFull.user.name;
+    // @ts-ignore
+    } else if (updatedPostFull.user && updatedPostFull.user.email && updatedPostFull.user.email.trim() !== '') {
+        // @ts-ignore
+        displayName = updatedPostFull.user.email.split('@')[0];
+    } else if (updatedPostFull.user_id) {
+        displayName = `${updatedPostFull.user_id.substring(0, 4)}...${updatedPostFull.user_id.substring(updatedPostFull.user_id.length - 4)}`;
+    }
+    
     const responsePost: UserPost = {
-        id: updatedPost.id,
-        user_id: updatedPost.user_id,
+        id: updatedPostFull.id,
+        user_id: updatedPostFull.user_id,
+        user_name: displayName,
         // @ts-ignore
-        user_name: updatedPost.user?.name || 'Anonymous',
-        // @ts-ignore
-        user_avatar_url: updatedPost.user?.avatarUrl,
-        image_url: updatedPost.image_url,
-        caption: updatedPost.caption,
-        product_tags: updatedPost.product_tags,
-        status: updatedPost.status as UserPost['status'],
-        like_count: updatedPost.like_count,
-        liked_by_user_ids: updatedPost.liked_by_user_ids,
-        created_at: updatedPost.created_at,
-        updated_at: updatedPost.updated_at,
+        user_avatar_url: updatedPostFull.user?.avatarUrl,
+        image_url: updatedPostFull.image_url,
+        caption: updatedPostFull.caption,
+        product_tags: updatedPostFull.product_tags,
+        status: updatedPostFull.status as UserPost['status'],
+        like_count: updatedPostFull.like_count,
+        liked_by_user_ids: updatedPostFull.liked_by_user_ids,
+        created_at: updatedPostFull.created_at,
+        updated_at: updatedPostFull.updated_at,
     };
 
 
