@@ -216,7 +216,7 @@ export default function AdminPromotionalPostsPage() {
                         alt={post.title} 
                         width={100} 
                         height={60} 
-                        className="rounded-md object-cover bg-muted" 
+                        className="rounded-md object-cover bg-muted" // Removed aspect-video
                         data-ai-hint={post.dataAiHint || 'promotion marketing'} 
                       />
                       <div className="flex-grow">
@@ -244,7 +244,7 @@ export default function AdminPromotionalPostsPage() {
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>{editingPost ? 'Edit Promotional Post' : 'Add New Promotional Post'}</DialogTitle>
-            <DialogFormDescription> {/* Added description for accessibility */}
+            <DialogFormDescription> 
               {editingPost ? `Modifying details for "${editingPost.title}".` : 'Fill in the details for the new promotional post.'}
             </DialogFormDescription>
           </DialogHeader>
