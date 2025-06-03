@@ -301,13 +301,12 @@ export default function HomePageContent() {
   
   useEffect(() => {
     if (siteSettings && !isLoadingSiteSettings) {
-        // @ts-ignore // TODO: Properly type siteSettings.heroVideoAutoplay
-        setIsHeroPlaying(siteSettings.heroVideoAutoplay !== false);
-        // @ts-ignore
-        setIsInitialSlidePaused(siteSettings.heroVideoAutoplay !== false); 
-        // @ts-ignore
-        if (siteSettings.heroVideoAutoplay === false) {
-            setInitialAutoplayTriggered(true); 
+        // @ts-ignore 
+        const globalAutoplay = siteSettings?.heroVideoAutoplay !== false;
+        setIsHeroPlaying(globalAutoplay);
+        setIsInitialSlidePaused(!globalAutoplay); // If autoplay is off, start paused. If on, start unpaused.
+        if (!globalAutoplay) {
+            setInitialAutoplayTriggered(true); // If autoplay is off, consider it "triggered" as not waiting for it.
         }
     }
   }, [siteSettings, isLoadingSiteSettings]);
@@ -380,7 +379,7 @@ export default function HomePageContent() {
 
   useEffect(() => {
     if (!isMounted || isLoadingSiteSettings || initialAutoplayTriggered) return;
-    // @ts-ignore
+    // @ts-ignore 
     const globalAutoplayEnabled = siteSettings?.heroVideoAutoplay !== false;
 
     if (currentHeroSlide === 0 && isHeroPlaying && globalAutoplayEnabled && isInitialSlidePaused) {
@@ -391,7 +390,9 @@ export default function HomePageContent() {
         }
       }, 200); 
       return () => clearTimeout(initialPlayTimeout);
-    } else if (!isInitialSlidePaused && !initialAutoplayTriggered) {
+    } else if (!isInitialSlidePaused && !initialAutoplayTriggered && globalAutoplayEnabled) {
+        // If not initial slide paused (meaning it was likely manually started or autoplay was off and then turned on)
+        // and initialAutoplay not yet triggered, trigger it now.
         setInitialAutoplayTriggered(true); 
     }
   }, [isMounted, isLoadingSiteSettings, siteSettings, isHeroPlaying, currentHeroSlide, isInitialSlidePaused, initialAutoplayTriggered]);
@@ -403,16 +404,17 @@ export default function HomePageContent() {
 
     const currentSlideData = activeHeroSlides[currentHeroSlide];
     if (!currentSlideData || isLoadingSiteSettings || !isMounted || !initialAutoplayTriggered) return;
+    
     // @ts-ignore
     const globalAutoplayEnabled = siteSettings?.heroVideoAutoplay !== false;
-    const isSlideshowEffectivelyPlaying = isHeroPlaying && globalAutoplayEnabled;
-
+    
     const currentSlideIsVideo = !!currentSlideData.videoId && !currentSlideData.imageUrl;
     const currentSlideIsAudio = !!currentSlideData.audioUrl;
     const activePlayerInstance = playerRefs.current[currentHeroSlide];
 
+    // HTML5 Audio control (linked to isHeroPlaying)
     if (audioRef.current) {
-      if (currentSlideIsAudio && isSlideshowEffectivelyPlaying) {
+      if (currentSlideIsAudio && isHeroPlaying && globalAutoplayEnabled) {
         if (audioRef.current.src !== currentSlideData.audioUrl) {
           audioRef.current.src = currentSlideData.audioUrl!;
           audioRef.current.load();
@@ -424,28 +426,33 @@ export default function HomePageContent() {
       }
     }
 
+    // YouTube Video Player control (plays if conditions met, independent of isHeroPlaying for its own play/pause)
     if (activePlayerInstance && typeof activePlayerInstance.playVideo === 'function') {
       if (currentSlideIsVideo) {
-        if (isSlideshowEffectivelyPlaying) {
+        const shouldVideoAutoplayNow = globalAutoplayEnabled && initialAutoplayTriggered;
+        if (shouldVideoAutoplayNow) {
           activePlayerInstance.playVideo();
         } else {
           activePlayerInstance.pauseVideo();
         }
         const shouldYouTubeBeMuted = isYouTubePlayerMuted || (currentSlideIsAudio && audioRef.current && !audioRef.current.paused);
         if (shouldYouTubeBeMuted) activePlayerInstance.mute(); else activePlayerInstance.unMute();
-      } else {
+      } else { // Not a video slide, ensure player is paused
         if (typeof activePlayerInstance.pauseVideo === 'function') activePlayerInstance.pauseVideo();
         if (typeof activePlayerInstance.mute === 'function') activePlayerInstance.mute();
       }
     }
 
-    if (isSlideshowEffectivelyPlaying) {
+    // Slideshow Interval Logic (depends on isHeroPlaying for auto-advancement)
+    if (isHeroPlaying && globalAutoplayEnabled && initialAutoplayTriggered) {
       const isNonVideoSlideControllingInterval = !currentSlideIsVideo;
       const isVideoSlideWithSeparateAudioControllingInterval = currentSlideIsVideo && currentSlideIsAudio;
 
       if (isNonVideoSlideControllingInterval || isVideoSlideWithSeparateAudioControllingInterval) {
         heroIntervalRef.current = setInterval(nextHeroSlide, currentSlideData.duration || 7000);
       } else if (currentSlideIsVideo && activePlayerInstance && typeof activePlayerInstance.getDuration === 'function') {
+        // For video-only slides, the onStateChange (ENDED) handler will manage nextHeroSlide if isHeroPlaying.
+        // However, we can set a failsafe/minimum display time here.
         if (activePlayerInstance.getPlayerState() === window.YT?.PlayerState?.PLAYING) {
           if (minPlayTimeTimeoutRef.current) clearTimeout(minPlayTimeTimeoutRef.current);
           const effectiveDuration = Math.max(5000, currentSlideData.duration || 7000);
@@ -456,6 +463,7 @@ export default function HomePageContent() {
       }
     }
 
+    // Pause and mute other non-active players
     playerRefs.current.forEach((player, idx) => {
       if (player && idx !== currentHeroSlide && typeof player.pauseVideo === 'function' && typeof player.mute === 'function') {
         try { player.pauseVideo(); player.mute(); }
@@ -496,41 +504,34 @@ export default function HomePageContent() {
             videoId: slideData.videoId,
             playerVars: {
               autoplay: 0, controls: 0, loop: 1, playlist: slideData.videoId, modestbranding: 1,
-              playsinline: 1, showinfo: 0, rel: 0, mute: 1,
+              playsinline: 1, showinfo: 0, rel: 0, mute: 1, // Start muted, main effect will unmute
             },
             events: {
               onReady: (event: any) => {
                 const readyPlayer = event.target;
                 playerRefs.current[index] = readyPlayer;
-                readyPlayer.mute(); 
+                readyPlayer.mute(); // Ensure it starts muted
 
-                const shouldInitialPlayerBeMutedAudio = isYouTubePlayerMuted || (slideData.audioUrl && audioRef.current && !audioRef.current.paused);
-                if (shouldInitialPlayerBeMutedAudio) readyPlayer.mute(); else readyPlayer.unMute();
-
-                if (isCurrentActiveSlide && isHeroPlaying && globalAutoplayEnabled && initialAutoplayTriggered) {
-                  readyPlayer.playVideo();
+                // The main useEffect will handle play/pause and unmute based on current slide and states
+                const shouldVideoAutoplayNow = globalAutoplayEnabled && initialAutoplayTriggered;
+                if (isCurrentActiveSlide && shouldVideoAutoplayNow) {
+                   // readyPlayer.playVideo(); // Let the main useEffect handle this based on all conditions
                 } else {
-                  readyPlayer.pauseVideo();
+                   // readyPlayer.pauseVideo(); // Let the main useEffect handle this
                 }
               },
               onStateChange: (event: any) => {
                 const playerInstance = event.target;
-                if (index === currentHeroSlide && event.data === window.YT?.PlayerState?.PLAYING) {
-                   if (!slideData.audioUrl) {
-                      if (minPlayTimeTimeoutRef.current) clearTimeout(minPlayTimeTimeoutRef.current);
-                      const effectiveDuration = Math.max(5000, slideData.duration || 7000);
-                      minPlayTimeTimeoutRef.current = setTimeout(() => {
-                          if (isHeroPlaying && initialAutoplayTriggered) nextHeroSlide();
-                      }, effectiveDuration);
-                   }
-                } else if (event.data === window.YT?.PlayerState?.ENDED) {
-                   playerInstance.seekTo(0);
-                   if (index === currentHeroSlide && isHeroPlaying && globalAutoplayEnabled && initialAutoplayTriggered && !slideData.audioUrl) {
+                if (index === currentHeroSlide && event.data === window.YT?.PlayerState?.ENDED) {
+                   playerInstance.seekTo(0); 
+                   // If slideshow is playing and no separate audio, then advance
+                   if (isHeroPlaying && globalAutoplayEnabled && initialAutoplayTriggered && !slideData.audioUrl) {
                       nextHeroSlide();
-                   } else if (index === currentHeroSlide && isHeroPlaying && globalAutoplayEnabled && initialAutoplayTriggered && slideData.audioUrl) {
+                   } else if (globalAutoplayEnabled && initialAutoplayTriggered) {
+                       // If main slideshow not set to play, or if there's audio, just loop video
                        playerInstance.playVideo();
                    } else {
-                       playerInstance.pauseVideo();
+                        playerInstance.pauseVideo(); // Otherwise, pause at end
                    }
                 }
               }
@@ -538,16 +539,8 @@ export default function HomePageContent() {
           });
           playerRefs.current[index] = player;
         } else if (player && typeof player.getPlayerState === 'function') {
-          const isSlideshowEffectivelyPlaying = isCurrentActiveSlide && isHeroPlaying && globalAutoplayEnabled && initialAutoplayTriggered;
-          if (isSlideshowEffectivelyPlaying) {
-              if (player.getPlayerState() !== window.YT?.PlayerState?.PLAYING) player.playVideo();
-          } else {
-              if (player.getPlayerState() === window.YT?.PlayerState?.PLAYING) player.pauseVideo();
-          }
-          if (isCurrentActiveSlide) {
-               const shouldYouTubeBeMuted = isYouTubePlayerMuted || (slideData.audioUrl && audioRef.current && !audioRef.current.paused);
-               if (shouldYouTubeBeMuted) player.mute(); else player.unMute();
-          }
+            // This block might run if player exists but needs state update (e.g. mute/unmute due to direct audio)
+            // The main useEffect already handles active player's play/pause and mute state.
         }
       } else if (player && !useVideoForVisual) {
         if (typeof player.destroy === 'function') {
@@ -556,7 +549,7 @@ export default function HomePageContent() {
         }
       }
     });
-  }, [currentHeroSlide, activeHeroSlides, isYouTubeApiReady, isHeroPlaying, siteSettings, nextHeroSlide, initialAutoplayTriggered, isMounted, isLoadingSiteSettings, isYouTubePlayerMuted]);
+  }, [currentHeroSlide, activeHeroSlides, isYouTubeApiReady, siteSettings, nextHeroSlide, initialAutoplayTriggered, isMounted, isLoadingSiteSettings, isYouTubePlayerMuted, isHeroPlaying]);
 
 
   const nextArtisanalSlide = useCallback(() => {
@@ -761,6 +754,3 @@ export default function HomePageContent() {
     </>
   );
 }
-
-    
-  
