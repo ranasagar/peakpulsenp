@@ -2,7 +2,7 @@
 // /src/app/api/user-posts/[postId]/comments/route.ts
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabaseClient'; // Corrected import path
+import { supabaseAdmin } from '@/lib/supabaseClient'; // CORRECTED IMPORT PATH
 import type { PostComment } from '@/types';
 
 export const dynamic = 'force-dynamic';
@@ -31,7 +31,7 @@ export async function GET(
   try {
     const { data, error } = await supabaseAdmin
       .from('post_comments')
-      .select(`
+      .select(\`
         id,
         post_id,
         user_id,
@@ -40,12 +40,12 @@ export async function GET(
         created_at,
         updated_at,
         user:users (name, "avatarUrl")
-      `)
+      \`)
       .eq('post_id', postId)
       .order('created_at', { ascending: true });
 
     if (error) {
-      console.error(`[API /api/user-posts/${postId}/comments GET] Supabase error fetching comments:`, error);
+      console.error(\`[API /api/user-posts/\${postId}/comments GET] Supabase error fetching comments:\`, error);
       return NextResponse.json({ message: 'Failed to fetch comments.', rawSupabaseError: error }, { status: 500 });
     }
 
@@ -61,10 +61,10 @@ export async function GET(
       updated_at: c.updated_at,
     }));
     
-    console.log(`[API /api/user-posts/${postId}/comments GET] Fetched ${comments.length} comments.`);
+    console.log(\`[API /api/user-posts/\${postId}/comments GET] Fetched \${comments.length} comments.\`);
     return NextResponse.json(comments);
   } catch (e: any) {
-    console.error(`[API /api/user-posts/${postId}/comments GET] Unhandled error:`, e);
+    console.error(\`[API /api/user-posts/\${postId}/comments GET] Unhandled error:\`, e);
     return NextResponse.json({ message: 'Server error fetching comments.', errorDetails: e.message }, { status: 500 });
   }
 }
@@ -75,10 +75,10 @@ export async function POST(
   { params }: { params: { postId: string } }
 ) {
   const { postId } = params;
-  console.log(`[API /api/user-posts/${postId}/comments POST] Request received.`);
+  console.log(\`[API /api/user-posts/\${postId}/comments POST] Request received.\`);
 
   if (!supabaseAdmin) {
-    console.error(`[API /api/user-posts/${postId}/comments POST] Supabase ADMIN client not initialized.`);
+    console.error(\`[API /api/user-posts/\${postId}/comments POST] Supabase ADMIN client not initialized.\`);
     return NextResponse.json({ message: 'Database admin service not available.' }, { status: 503 });
   }
 
@@ -98,7 +98,7 @@ export async function POST(
     return NextResponse.json({ message: 'User ID and comment text are required.' }, { status: 400 });
   }
   
-  console.log(`[API /api/user-posts/${postId}/comments POST] User ${userId} posting comment: "${commentText.substring(0,30)}..."`);
+  console.log(\`[API /api/user-posts/\${postId}/comments POST] User \${userId} posting comment: "\${commentText.substring(0,30)}..."\`);
 
   const commentToInsert = {
     post_id: postId,
@@ -111,7 +111,7 @@ export async function POST(
     const { data: insertedComment, error: insertError } = await supabaseAdmin
       .from('post_comments')
       .insert(commentToInsert)
-      .select(`
+      .select(\`
         id,
         post_id,
         user_id,
@@ -120,15 +120,15 @@ export async function POST(
         created_at,
         updated_at,
         user:users (name, "avatarUrl")
-      `)
+      \`)
       .single();
 
     if (insertError) {
-      console.error(`[API /api/user-posts/${postId}/comments POST] Supabase error inserting comment:`, insertError);
+      console.error(\`[API /api/user-posts/\${postId}/comments POST] Supabase error inserting comment:\`, insertError);
       return NextResponse.json({ message: 'Failed to post comment.', rawSupabaseError: insertError }, { status: 500 });
     }
     if (!insertedComment) {
-      console.error(`[API /api/user-posts/${postId}/comments POST] Insert succeeded but no data returned for comment on post ${postId}.`);
+      console.error(\`[API /api/user-posts/\${postId}/comments POST] Insert succeeded but no data returned for comment on post \${postId}.\`);
       return NextResponse.json({ message: 'Failed to create comment, no data returned.'}, {status: 500});
     }
 
@@ -144,10 +144,10 @@ export async function POST(
         updated_at: insertedComment.updated_at,
     };
 
-    console.log(`[API /api/user-posts/${postId}/comments POST] Comment posted successfully by ${userId}.`);
+    console.log(\`[API /api/user-posts/\${postId}/comments POST] Comment posted successfully by \${userId}.\`);
     return NextResponse.json(responseComment, { status: 201 });
   } catch (e: any) {
-    console.error(`[API /api/user-posts/${postId}/comments POST] Unhandled error:`, e);
+    console.error(\`[API /api/user-posts/\${postId}/comments POST] Unhandled error:\`, e);
     return NextResponse.json({ message: 'Server error posting comment.', errorDetails: e.message }, { status: 500 });
   }
 }
