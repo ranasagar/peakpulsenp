@@ -22,7 +22,7 @@ export function BottomNavigation() {
   const pathname = usePathname();
 
   return (
-    <nav className="hidden md:flex bg-card border-t border-border sticky bottom-0 z-40 shadow-top">
+    <nav className="hidden md:flex bg-card border-t border-border/80 sticky bottom-0 z-40 shadow-[0_-5px_15px_-5px_rgba(0,0,0,0.08)] dark:shadow-[0_-5px_15px_-5px_rgba(0,0,0,0.20)]">
       <div className="container-wide flex h-16 items-center justify-center space-x-6 lg:space-x-8">
         {mainNavItems.map((item) => (
           <Link
@@ -41,3 +41,4 @@ export function BottomNavigation() {
     </nav>
   );
 }
+    

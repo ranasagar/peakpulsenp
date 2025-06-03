@@ -9,7 +9,7 @@ import { Button, buttonVariants } from '@/components/ui/button';
 import { Icons } from '@/components/icons';
 import { ChevronLeft, ChevronRight, ShoppingBag, ArrowRight, Instagram, Send, Users, ImagePlus, Loader2, Play, Pause, LayoutGrid, Palette as PaletteIcon, Handshake, Sprout, ImagePlay as ImagePlayIcon, Heart as HeartIcon, Clock, Music, Volume2, VolumeX, Youtube as YoutubeIcon } from 'lucide-react';
 import { NewsletterSignupForm } from '@/components/forms/newsletter-signup-form';
-import type { HomepageContent, Product, HeroSlide, AdminCategory as CategoryType, DesignCollaborationGallery, ArtisanalRootsSlide, SocialCommerceItem, PromotionalPost, UserPost, PostComment } from '@/types';
+import type { HomepageContent, Product, HeroSlide, AdminCategory as CategoryType, DesignCollaborationGallery, ArtisanalRootsSlide, SocialCommerceItem, PromotionalPost, UserPost, PostComment, SiteSettings } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent } from '@/components/ui/card';
 import { AspectRatio } from "@/components/ui/aspect-ratio";
@@ -137,7 +137,10 @@ async function getHomepageContent(): Promise<HomepageContent> {
 
 function HomePageContent() {
   const [content, setContent] = useState<HomepageContent>(defaultHomepageContent);
+  const [siteSettings, setSiteSettings] = useState<SiteSettings | null>(null);
   const [isLoadingContent, setIsLoadingContent] = useState(true);
+  const [isLoadingSiteSettings, setIsLoadingSiteSettings] = useState(true);
+
 
   const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
   const [isLoadingFeaturedProducts, setIsLoadingFeaturedProducts] = useState(true);
@@ -155,8 +158,8 @@ function HomePageContent() {
   const [isLoadingUserPosts, setIsLoadingUserPosts] = useState(true);
 
   const [currentHeroSlide, setCurrentHeroSlide] = useState(0);
-  const [isHeroPlaying, setIsHeroPlaying] = useState(true);
-  const [isInitialSlidePaused, setIsInitialSlidePaused] = useState(true); // New state
+  const [isHeroPlaying, setIsHeroPlaying] = useState(true); 
+  const [isInitialSlidePaused, setIsInitialSlidePaused] = useState(true);
   const heroIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const minPlayTimeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -165,7 +168,7 @@ function HomePageContent() {
 
   const [isYouTubeApiReady, setIsYouTubeApiReady] = useState(false);
   const playerRefs = useRef<any[]>([]); 
-  const [isYouTubePlayerMuted, setIsYouTubePlayerMuted] = useState(false); 
+  const [isYouTubePlayerMuted, setIsYouTubePlayerMuted] = useState(true);
 
   const [currentArtisanalSlide, setCurrentArtisanalSlide] = useState(0);
   const [isArtisanalPlaying, setIsArtisanalPlaying] = useState(true);
@@ -223,83 +226,77 @@ function HomePageContent() {
 
   const loadPageData = useCallback(async () => {
     setIsLoadingContent(true);
+    setIsLoadingSiteSettings(true);
     setIsLoadingFeaturedProducts(true);
     setIsLoadingCategories(true);
     setIsLoadingCollaborations(true);
     setIsLoadingUserPosts(true);
 
-    const fetchedContent = await getHomepageContent();
-    setContent(current => ({...current, ...fetchedContent, heroSlides: fetchedContent.heroSlides || current.heroSlides }));
-    if (fetchedContent.error) {
-      toast({
-        title: "Error Loading Homepage Content",
-        description: `${fetchedContent.error}. Using default values.`,
-        variant: "destructive",
-        duration: 7000,
-      });
-    }
-    setIsLoadingContent(false);
+    try {
+      const [fetchedContent, fetchedSiteSettings] = await Promise.all([
+        getHomepageContent(),
+        fetch('/api/settings').then(res => res.ok ? res.json() : null)
+      ]);
+      
+      setContent(current => ({...current, ...fetchedContent, heroSlides: fetchedContent.heroSlides || current.heroSlides }));
+      if (fetchedContent.error) {
+        toast({ title: "Error Loading Homepage Visuals", description: `${fetchedContent.error}. Using defaults.`, variant: "destructive", duration: 7000 });
+      }
 
-    if (fetchedContent?.promotionalPostsSection?.enabled) {
-      setIsLoadingPromotionalPosts(true);
-      try {
-        const promosResponse = await fetch('/api/promotional-posts');
-        if (!promosResponse.ok) throw new Error('Failed to fetch promotional posts');
-        const promosData: PromotionalPost[] = await promosResponse.json();
-        setPromotionalPosts(promosData);
-      } catch (err) {
-        toast({ title: "Error Loading Promotions", description: (err as Error).message, variant: "destructive" });
-      } finally {
+      if (fetchedSiteSettings) {
+        setSiteSettings(fetchedSiteSettings);
+        // Initialize isHeroPlaying based on fetched admin setting
+        setIsHeroPlaying(fetchedSiteSettings.heroVideoAutoplay !== false);
+      } else {
+        toast({ title: "Error Loading Site Settings", description: "Could not load site settings. Autoplay defaults to on.", variant: "default" });
+        setIsHeroPlaying(true); // Default to true if settings fail
+      }
+      setIsLoadingSiteSettings(false);
+
+
+      if (fetchedContent?.promotionalPostsSection?.enabled) {
+        setIsLoadingPromotionalPosts(true);
+        fetch('/api/promotional-posts')
+          .then(res => res.ok ? res.json() : Promise.reject('Failed to fetch promotional posts'))
+          .then(data => setPromotionalPosts(data))
+          .catch(err => toast({ title: "Error Loading Promotions", description: (err as Error).message, variant: "destructive" }))
+          .finally(() => setIsLoadingPromotionalPosts(false));
+      } else {
+        setPromotionalPosts([]);
         setIsLoadingPromotionalPosts(false);
       }
-    } else {
-      setPromotionalPosts([]);
-      setIsLoadingPromotionalPosts(false);
-    }
 
-    try {
-      const productsResponse = await fetch('/api/products');
-      if (!productsResponse.ok) throw new Error('Failed to fetch products');
-      const allProducts: Product[] = await productsResponse.json();
-      const featured = allProducts.filter(p => p.isFeatured).slice(0, 3);
-      setFeaturedProducts(featured);
-    } catch (err) {
-      toast({ title: "Error Loading Featured Products", description: (err as Error).message, variant: "destructive" });
-    } finally {
-      setIsLoadingFeaturedProducts(false);
-    }
+      fetch('/api/products')
+        .then(res => res.ok ? res.json() : Promise.reject('Failed to fetch products'))
+        .then((allProducts: Product[]) => {
+          const featured = allProducts.filter(p => p.isFeatured).slice(0, 3);
+          setFeaturedProducts(featured);
+        })
+        .catch(err => toast({ title: "Error Loading Featured Products", description: (err as Error).message, variant: "destructive" }))
+        .finally(() => setIsLoadingFeaturedProducts(false));
 
-    try {
-      const categoriesResponse = await fetch('/api/categories');
-      if (!categoriesResponse.ok) throw new Error('Failed to fetch categories');
-      const categoriesData: CategoryType[] = await categoriesResponse.json();
-      setCategories(categoriesData);
-    } catch (err) {
-      toast({ title: "Error Loading Categories", description: (err as Error).message, variant: "destructive" });
-    } finally {
-      setIsLoadingCategories(false);
-    }
+      fetch('/api/categories')
+        .then(res => res.ok ? res.json() : Promise.reject('Failed to fetch categories'))
+        .then(data => setCategories(data))
+        .catch(err => toast({ title: "Error Loading Categories", description: (err as Error).message, variant: "destructive" }))
+        .finally(() => setIsLoadingCategories(false));
+      
+      fetch('/api/design-collaborations')
+        .then(res => res.ok ? res.json() : Promise.reject('Failed to fetch collaborations'))
+        .then(data => setFeaturedCollaborations(data.slice(0,3)))
+        .catch(err => toast({ title: "Error Loading Collaborations", description: (err as Error).message, variant: "destructive" }))
+        .finally(() => setIsLoadingCollaborations(false));
+      
+      fetch('/api/user-posts?status=approved')
+        .then(res => res.ok ? res.json() : Promise.reject('Failed to fetch user posts'))
+        .then(data => setUserPosts(data))
+        .catch(err => toast({ title: "Error Loading Community Posts", description: (err as Error).message, variant: "destructive" }))
+        .finally(() => setIsLoadingUserPosts(false));
 
-    try {
-      const collabsResponse = await fetch('/api/design-collaborations');
-      if (!collabsResponse.ok) throw new Error('Failed to fetch collaborations');
-      const collabsData: DesignCollaborationGallery[] = await collabsResponse.json();
-      setFeaturedCollaborations(collabsData.slice(0,3));
-    } catch(err) {
-      toast({ title: "Error Loading Collaborations", description: (err as Error).message, variant: "destructive" });
+    } catch (error) {
+       toast({ title: "Major Error Loading Page Data", description: (error as Error).message, variant: "destructive" });
     } finally {
-      setIsLoadingCollaborations(false);
-    }
-
-    try {
-      const userPostsResponse = await fetch('/api/user-posts?status=approved');
-      if (!userPostsResponse.ok) throw new Error('Failed to fetch user posts');
-      const userPostsData: UserPost[] = await userPostsResponse.json();
-      setUserPosts(userPostsData);
-    } catch (err) {
-      toast({ title: "Error Loading Community Posts", description: (err as Error).message, variant: "destructive" });
-    } finally {
-      setIsLoadingUserPosts(false);
+      setIsLoadingContent(false); 
     }
   }, [toast]);
 
@@ -312,7 +309,7 @@ function HomePageContent() {
             id: promo.id || `promo-slide-${index}`, title: promo.title, description: promo.description || '', imageUrl: promo.imageUrl,
             altText: promo.imageAltText || promo.title, dataAiHint: promo.dataAiHint || 'promotion offer sale',
             ctaText: promo.ctaText || 'Learn More', ctaLink: promo.ctaLink || `/products?promo=${promo.slug}`,
-            videoId: undefined, audioUrl: undefined, duration: promo.displayOrder && promo.displayOrder > 1000 ? promo.displayOrder : 7000,
+            videoId: undefined, audioUrl: undefined, duration: fallbackHeroSlide.duration, // Fixed duration for promo slides
             displayOrder: (sortedBaseSlides.length * 10) + (promo.displayOrder || index * 10),
             youtubeAuthorName: undefined, youtubeAuthorLink: undefined, _isPromo: true,
             _backgroundColor: promo.backgroundColor, _textColor: promo.textColor,
@@ -326,7 +323,7 @@ function HomePageContent() {
   const activeArtisanalSlides = content.artisanalRoots?.slides && content.artisanalRoots.slides.length > 0 ? content.artisanalRoots.slides : [];
 
   const nextHeroSlide = useCallback(() => {
-    if (isInitialSlidePaused && currentHeroSlide === 0) { // If interaction comes from timer on first slide
+    if (isInitialSlidePaused && currentHeroSlide === 0) {
       setIsInitialSlidePaused(false);
     }
     if (activeHeroSlides.length > 0) {
@@ -366,37 +363,46 @@ function HomePageContent() {
   };
 
 
-  useEffect(() => { 
+  useEffect(() => { // Main slideshow progression and media control
     if (heroIntervalRef.current) clearInterval(heroIntervalRef.current);
     if (minPlayTimeTimeoutRef.current) clearTimeout(minPlayTimeTimeoutRef.current);
 
-    if (!isHeroPlaying || (isInitialSlidePaused && currentHeroSlide === 0)) {
-      if (audioRef.current) audioRef.current.pause();
-      const currentPlayerInstance = playerRefs.current[currentHeroSlide];
-      if (currentPlayerInstance && typeof currentPlayerInstance.pauseVideo === 'function') {
-          try { currentPlayerInstance.pauseVideo(); } catch(e) { console.warn("Error pausing YT player:", e); }
-      }
-      return;
-    }
-    
     const currentSlideData = activeHeroSlides[currentHeroSlide];
-    if (!currentSlideData) return;
+    if (!currentSlideData || isLoadingSiteSettings) return; // Wait for settings
 
+    // Determine if this slide should play based on global setting and slideshow state
+    const shouldBePlayingMedia = isHeroPlaying && siteSettings?.heroVideoAutoplay !== false && !(isInitialSlidePaused && currentHeroSlide === 0);
+
+    // HTML5 Audio Control
     if (currentSlideData.audioUrl && audioRef.current) {
-        if (audioRef.current.src !== currentSlideData.audioUrl) {
-          audioRef.current.src = currentSlideData.audioUrl;
-          audioRef.current.load();
-        }
-        audioRef.current.muted = isDirectAudioMuted;
+      if (audioRef.current.src !== currentSlideData.audioUrl) {
+        audioRef.current.src = currentSlideData.audioUrl;
+        audioRef.current.load();
+      }
+      audioRef.current.muted = isDirectAudioMuted;
+      if (shouldBePlayingMedia) {
         audioRef.current.play().catch(error => console.warn("Direct audio play failed:", error));
-    } else if (audioRef.current && !currentSlideData.audioUrl) {
+      } else {
         audioRef.current.pause();
-        audioRef.current.currentTime = 0;
+      }
+    } else if (audioRef.current && !currentSlideData.audioUrl) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
     }
 
-    if (!currentSlideData.imageUrl && currentSlideData.videoId) {
-      // YouTube video handling is now primarily in the player's onStateChange for timeouts
-    } else { // Image or color-only slide
+    // YouTube Player Control (if it's the active player)
+    const currentPlayerInstance = playerRefs.current[currentHeroSlide];
+    if (currentSlideData.videoId && !currentSlideData.imageUrl && currentPlayerInstance && typeof currentPlayerInstance.playVideo === 'function') {
+      if (shouldBePlayingMedia) {
+        isYouTubePlayerMuted || currentSlideData.audioUrl ? currentPlayerInstance.mute() : currentPlayerInstance.unMute();
+        currentPlayerInstance.playVideo();
+      } else {
+        currentPlayerInstance.pauseVideo();
+      }
+    }
+
+    // Image slide interval (only if no video is primary visual and slideshow is playing)
+    if (!currentSlideData.videoId && currentSlideData.imageUrl && isHeroPlaying && !(isInitialSlidePaused && currentHeroSlide === 0)) {
       heroIntervalRef.current = setInterval(nextHeroSlide, currentSlideData.duration || 7000);
     }
 
@@ -404,80 +410,109 @@ function HomePageContent() {
       if (heroIntervalRef.current) clearInterval(heroIntervalRef.current);
       if (minPlayTimeTimeoutRef.current) clearTimeout(minPlayTimeTimeoutRef.current);
     };
-  }, [isHeroPlaying, nextHeroSlide, activeHeroSlides, currentHeroSlide, isDirectAudioMuted, isInitialSlidePaused]);
+  }, [isHeroPlaying, nextHeroSlide, activeHeroSlides, currentHeroSlide, isDirectAudioMuted, isInitialSlidePaused, siteSettings, isLoadingSiteSettings, isYouTubePlayerMuted]);
 
 
-  useEffect(() => { 
-    if (!isYouTubeApiReady || activeHeroSlides.length === 0) return;
+  useEffect(() => {  // YouTube Player Creation/Management
+    if (!isYouTubeApiReady || activeHeroSlides.length === 0 || !isMounted || isLoadingSiteSettings) return;
 
-    const currentSlideData = activeHeroSlides[currentHeroSlide];
-    const targetDivId = `youtube-player-${currentHeroSlide}`;
-    const existingPlayer = playerRefs.current[currentHeroSlide];
-    
-    const shouldPlayerBeActive = currentSlideData?.videoId && !currentSlideData.imageUrl;
-    const shouldAutoplayVideo = isHeroPlaying && !(isInitialSlidePaused && currentHeroSlide === 0);
+    activeHeroSlides.forEach((slideData, index) => {
+      const targetDivId = `youtube-player-${index}`;
+      const playerContainer = document.getElementById(targetDivId);
+      let player = playerRefs.current[index];
 
-    playerRefs.current.forEach((player, index) => {
-      if (player && (index !== currentHeroSlide || !shouldPlayerBeActive)) {
-        try { player.destroy(); } catch (e) { console.warn("Error destroying old YT player", e); }
-        playerRefs.current[index] = null;
-      }
-    });
+      const isCurrentActiveSlide = index === currentHeroSlide;
+      const useVideoForVisual = !slideData.imageUrl && slideData.videoId;
+      const globalAutoplayEnabled = siteSettings?.heroVideoAutoplay !== false;
 
-    if (shouldPlayerBeActive) {
-      if (!existingPlayer || existingPlayer.getVideoData?.()?.video_id !== currentSlideData.videoId) {
-        if (existingPlayer) { try { existingPlayer.destroy(); } catch(e) { console.warn("Error destroying existing YT player", e);} }
-        
-        const newPlayer = new window.YT.Player(targetDivId, {
-          videoId: currentSlideData.videoId,
-          playerVars: {
-            autoplay: shouldAutoplayVideo ? 1 : 0,
-            controls: 0, loop: 1, playlist: currentSlideData.videoId, 
-            modestbranding: 1, playsinline: 1, showinfo: 0, rel: 0,
-            mute: (currentSlideData.audioUrl || !shouldAutoplayVideo) ? 1 : (isYouTubePlayerMuted ? 1 : 0), 
-          },
-          events: {
-            onReady: (event: any) => {
-              if (shouldAutoplayVideo) event.target.playVideo();
-              if (currentSlideData.audioUrl || !shouldAutoplayVideo) {
-                event.target.mute();
-              } else {
-                isYouTubePlayerMuted ? event.target.mute() : event.target.unMute();
-              }
+      if (useVideoForVisual && playerContainer) {
+        if (!player || player.getVideoData?.()?.video_id !== slideData.videoId) {
+          if (player && typeof player.destroy === 'function') {
+            try { player.destroy(); } catch (e) { console.warn(`Error destroying old player for slide ${index}`, e); }
+          }
+          player = new window.YT.Player(targetDivId, {
+            videoId: slideData.videoId,
+            playerVars: {
+              autoplay: 0, controls: 0, loop: 1, playlist: slideData.videoId, modestbranding: 1,
+              playsinline: 1, showinfo: 0, rel: 0, mute: 1,
             },
-            onStateChange: (event: any) => {
-              if (event.data === window.YT.PlayerState.PLAYING) {
-                 if (isHeroPlaying && !(isInitialSlidePaused && currentHeroSlide === 0)) {
+            events: {
+              onReady: (event: any) => {
+                const readyPlayer = event.target;
+                playerRefs.current[index] = readyPlayer;
+                readyPlayer.mute(); // Always start muted
+
+                if (isCurrentActiveSlide && isInitialSlidePaused && index === 0 && globalAutoplayEnabled) {
+                   setTimeout(() => { // Small delay before playing
+                     if (readyPlayer && typeof readyPlayer.playVideo === 'function') readyPlayer.playVideo();
+                   }, 150);
+                  console.log(`[YT onReady Slide ${index}] First slide special init: muted & will attempt play.`);
+                } else if (isCurrentActiveSlide && isHeroPlaying && globalAutoplayEnabled) {
+                  isYouTubePlayerMuted || slideData.audioUrl ? readyPlayer.mute() : readyPlayer.unMute();
+                  readyPlayer.playVideo();
+                } else {
+                  readyPlayer.pauseVideo();
+                }
+              },
+              onStateChange: (event: any) => {
+                if (index === currentHeroSlide && event.data === window.YT.PlayerState.PLAYING) {
+                  if (isHeroPlaying && globalAutoplayEnabled && !(isInitialSlidePaused && index === 0)) {
                     if (minPlayTimeTimeoutRef.current) clearTimeout(minPlayTimeTimeoutRef.current);
-                    const effectiveDuration = Math.max(5000, currentSlideData.duration || 7000);
+                    const effectiveDuration = Math.max(5000, slideData.duration || 7000);
                     minPlayTimeTimeoutRef.current = setTimeout(() => {
                       if (isHeroPlaying) nextHeroSlide();
                     }, effectiveDuration);
-                 }
-              } else if (event.data === window.YT.PlayerState.PAUSED) {
+                  }
+                } else if (event.data === window.YT.PlayerState.PAUSED) {
                   if (minPlayTimeTimeoutRef.current) clearTimeout(minPlayTimeTimeoutRef.current);
-              } else if (event.data === window.YT.PlayerState.ENDED) {
-                event.target.seekTo(0); 
-                event.target.playVideo();
+                } else if (event.data === window.YT.PlayerState.ENDED) {
+                  event.target.seekTo(0);
+                  if (index === currentHeroSlide && isHeroPlaying && globalAutoplayEnabled && !(isInitialSlidePaused && index === 0)){
+                     event.target.playVideo();
+                  }
+                }
               }
             }
-          },
-        });
-        playerRefs.current[currentHeroSlide] = newPlayer;
-      } else if (existingPlayer) { 
-        try {
-          if (shouldAutoplayVideo) {
-            if(existingPlayer.getPlayerState() !== window.YT.PlayerState.PLAYING) existingPlayer.playVideo();
-            isYouTubePlayerMuted ? existingPlayer.mute() : existingPlayer.unMute();
-            if (currentSlideData.audioUrl) existingPlayer.mute(); // Prioritize direct audio
-          } else {
-            if(existingPlayer.getPlayerState() === window.YT.PlayerState.PLAYING) existingPlayer.pauseVideo();
-            existingPlayer.mute(); // Mute if not supposed to be playing
-          }
-        } catch (e) { console.warn("Error controlling existing YT player state", e); }
+          });
+          playerRefs.current[index] = player;
+        } else if (player && typeof player.getPlayerState === 'function') {
+            try {
+                const shouldThisPlayerBePlaying = isCurrentActiveSlide && isHeroPlaying && globalAutoplayEnabled && !(isInitialSlidePaused && index === 0);
+                const isFirstSlideSpecialPlay = isCurrentActiveSlide && isInitialSlidePaused && index === 0 && globalAutoplayEnabled;
+
+                if (shouldThisPlayerBePlaying || isFirstSlideSpecialPlay) {
+                    if(player.getPlayerState() !== window.YT.PlayerState.PLAYING) player.playVideo();
+                    if (isFirstSlideSpecialPlay || isYouTubePlayerMuted || slideData.audioUrl) {
+                        player.mute();
+                    } else {
+                        player.unMute();
+                    }
+                } else {
+                    if(player.getPlayerState() === window.YT.PlayerState.PLAYING) player.pauseVideo();
+                    player.mute();
+                }
+            } catch(e) { console.warn(`Error controlling existing player state for slide ${index}`, e); }
+        }
+      } else if (player && useVideoForVisual === false) {
+        if (typeof player.destroy === 'function') {
+          try { player.destroy(); } catch (e) { console.warn(`Error destroying player for non-video slide ${index}`, e); }
+          playerRefs.current[index] = null;
+        }
       }
-    }
-  }, [currentHeroSlide, activeHeroSlides, isYouTubeApiReady, isHeroPlaying, isYouTubePlayerMuted, nextHeroSlide, isInitialSlidePaused]);
+    });
+    
+    // Ensure non-current players are paused and muted
+    playerRefs.current.forEach((p, idx) => {
+      if (p && idx !== currentHeroSlide && typeof p.pauseVideo === 'function' && typeof p.mute === 'function') {
+        try {
+          p.pauseVideo();
+          p.mute();
+        } catch (e) { console.warn(`Error pausing/muting non-current player ${idx}`, e); }
+      }
+    });
+
+
+  }, [currentHeroSlide, activeHeroSlides, isYouTubeApiReady, isHeroPlaying, isYouTubePlayerMuted, siteSettings, nextHeroSlide, isInitialSlidePaused, isMounted, isLoadingSiteSettings]);
 
 
   const nextArtisanalSlide = useCallback(() => {
@@ -530,7 +565,7 @@ function HomePageContent() {
   const handleCommentPosted = useCallback((postId: string, newComment: PostComment) => { setUserPosts(prevPosts => prevPosts.map(p => { if (p.id === postId) { return { ...p, comment_count: (p.comment_count || 0) + 1, comments: p.comments ? [...p.comments, newComment] : [newComment] }; } return p; })); if (selectedPostForModal?.id === postId) { setSelectedPostForModal(prev => prev ? ({ ...prev, comment_count: (prev.comment_count || 0) + 1, comments: prev.comments ? [...prev.comments, newComment] : [newComment] }) : null); } }, [selectedPostForModal]);
 
 
-  if (isLoadingContent || isLoadingFeaturedProducts || isLoadingCategories || isLoadingCollaborations || (content.promotionalPostsSection?.enabled && isLoadingPromotionalPosts) || isLoadingUserPosts) {
+  if (isLoadingContent || isLoadingSiteSettings || isLoadingFeaturedProducts || isLoadingCategories || isLoadingCollaborations || (content.promotionalPostsSection?.enabled && isLoadingPromotionalPosts) || isLoadingUserPosts) {
     return ( <div className="flex items-center justify-center min-h-screen bg-background"> <div className="flex flex-col items-center"> <Icons.Logo className="h-20 w-20 text-primary animate-pulse mb-4" /> <p className="text-muted-foreground">Loading Peak Pulse...</p> </div> </div> );
   }
 
@@ -558,7 +593,7 @@ function HomePageContent() {
               <div
                 key={slide.id || `hero-bg-${index}`}
                 className={cn( "absolute inset-0 transition-opacity duration-1000 ease-in-out", isCurrent ? "opacity-100" : "opacity-0" )}
-                style={{ backgroundColor: slide._isPromo ? (slide._backgroundColor || 'rgba(0,0,0,0.3)') : 'transparent' }}
+                style={{ backgroundColor: useYouTubeForVisual ? 'transparent' : (slide._isPromo ? (slide._backgroundColor || 'rgba(0,0,0,0.3)') : 'transparent') }}
               >
                 {useImageForVisual && slide.imageUrl && (
                   <>
@@ -597,11 +632,11 @@ function HomePageContent() {
             const isCurrent = index === currentHeroSlide;
             const showVideoAttribution = isCurrent && !slide.imageUrl && slide.videoId && slide.youtubeAuthorName && slide.youtubeAuthorLink;
             return (
-              <div key={slide.id || `hero-content-${index}`} className={cn("absolute inset-0 transition-opacity duration-1000 ease-in-out", isCurrent ? "opacity-100" : "opacity-0 pointer-events-none")} style={{ pointerEvents: isCurrent ? 'auto' : 'none', color: slide._isPromo ? (slide._textColor || 'white') : 'white' }}>
+              <div key={slide.id || `hero-content-${index}`} className={cn("absolute inset-0 transition-opacity duration-1000 ease-in-out", isCurrent ? "opacity-100" : "opacity-0 pointer-events-none")} style={{ pointerEvents: isCurrent ? 'auto' : 'none' }}>
                 <div className="relative z-20 flex flex-col items-center justify-center h-full pt-[calc(theme(spacing.20)_+_theme(spacing.6))] pb-12 px-6 md:px-8 text-center max-w-3xl mx-auto">
-                    <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-6 text-shadow-lg">{slide.title}</h1>
-                    <p className={cn("text-lg md:text-xl lg:text-2xl mb-10 max-w-2xl mx-auto text-shadow-lg", slide._isPromo && !(slide._backgroundColor && slide._textColor) ? 'text-neutral-100' : 'text-neutral-200')}>{slide.description}</p>
-                    {slide.ctaText && slide.ctaLink && ( <Link href={slide.ctaLink} className={cn(buttonVariants({ size: "lg", className: "text-base md:text-lg py-3 px-8" }), slide._isPromo && !(slide._backgroundColor && slide._textColor) ? 'bg-white/90 text-black hover:bg-white' : '')}> <span className="flex items-center"> {slide.ctaText} <ShoppingBag className="ml-2 h-5 w-5" /> </span> </Link> )}
+                    <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-6 text-white text-shadow-lg">{slide.title}</h1>
+                    <p className="text-lg md:text-xl lg:text-2xl mb-10 max-w-2xl mx-auto text-neutral-200 text-shadow-lg">{slide.description}</p>
+                    {slide.ctaText && slide.ctaLink && ( <Link href={slide.ctaLink} className={cn(buttonVariants({ size: "lg", className: "text-base md:text-lg py-3 px-8" }))}> <span className="flex items-center"> {slide.ctaText} <ShoppingBag className="ml-2 h-5 w-5" /> </span> </Link> )}
                     {showVideoAttribution && ( <div className="absolute bottom-20 left-1/2 -translate-x-1/2 md:bottom-24 lg:bottom-28 p-2 bg-black/40 backdrop-blur-sm rounded-md text-xs md:text-sm"> <InteractiveExternalLink href={slide.youtubeAuthorLink!} className="text-neutral-300 hover:text-white transition-colors flex items-center" target="_blank" rel="noopener noreferrer" showDialog={true}> <YoutubeIcon className="h-4 w-4 mr-1.5" /> Video by: {slide.youtubeAuthorName} </InteractiveExternalLink> </div> )}
                 </div>
               </div>
@@ -685,4 +720,4 @@ export default function RootPage() {
     </MainLayout>
   );
 }
-
+    
