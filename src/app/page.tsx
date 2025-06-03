@@ -245,11 +245,10 @@ function HomePageContent() {
 
       if (fetchedSiteSettings) {
         setSiteSettings(fetchedSiteSettings);
-        // Initialize isHeroPlaying based on fetched admin setting
         setIsHeroPlaying(fetchedSiteSettings.heroVideoAutoplay !== false);
       } else {
         toast({ title: "Error Loading Site Settings", description: "Could not load site settings. Autoplay defaults to on.", variant: "default" });
-        setIsHeroPlaying(true); // Default to true if settings fail
+        setIsHeroPlaying(true); 
       }
       setIsLoadingSiteSettings(false);
 
@@ -309,7 +308,7 @@ function HomePageContent() {
             id: promo.id || `promo-slide-${index}`, title: promo.title, description: promo.description || '', imageUrl: promo.imageUrl,
             altText: promo.imageAltText || promo.title, dataAiHint: promo.dataAiHint || 'promotion offer sale',
             ctaText: promo.ctaText || 'Learn More', ctaLink: promo.ctaLink || `/products?promo=${promo.slug}`,
-            videoId: undefined, audioUrl: undefined, duration: defaultHeroSlide.duration, 
+            videoId: undefined, audioUrl: undefined, duration: fallbackHeroSlide.duration, 
             displayOrder: (sortedBaseSlides.length * 10) + (promo.displayOrder || index * 10),
             youtubeAuthorName: undefined, youtubeAuthorLink: undefined, _isPromo: true,
             _backgroundColor: promo.backgroundColor, _textColor: promo.textColor,
@@ -374,44 +373,41 @@ function HomePageContent() {
     const isActuallyPlayingSlideshow = isHeroPlaying && !(isInitialSlidePaused && currentHeroSlide === 0);
     const currentSlideIsVideo = !!currentSlideData.videoId && !currentSlideData.imageUrl;
     const currentSlideIsAudio = !!currentSlideData.audioUrl;
+    const activePlayerInstance = playerRefs.current[currentHeroSlide];
 
-    // Manage HTML5 Audio
+    // HTML5 Audio
     if (audioRef.current) {
-        if (currentSlideIsAudio && isActuallyPlayingSlideshow && globalAutoplayEnabled) {
-            if (audioRef.current.src !== currentSlideData.audioUrl) {
-                audioRef.current.src = currentSlideData.audioUrl!;
-                audioRef.current.load();
-            }
-            audioRef.current.muted = isDirectAudioMuted;
-            audioRef.current.play().catch(e => console.warn("HTML5 audio play failed:", e));
-        } else {
-            audioRef.current.pause();
+      if (currentSlideIsAudio && isActuallyPlayingSlideshow && globalAutoplayEnabled) {
+        if (audioRef.current.src !== currentSlideData.audioUrl) {
+          audioRef.current.src = currentSlideData.audioUrl!;
+          audioRef.current.load();
         }
+        audioRef.current.muted = isDirectAudioMuted;
+        audioRef.current.play().catch(e => console.warn("HTML5 audio play failed:", e));
+      } else {
+        audioRef.current.pause();
+      }
     }
 
-    // Manage YouTube Player
-    const currentPlayerInstance = playerRefs.current[currentHeroSlide];
-    if (currentPlayerInstance && typeof currentPlayerInstance.playVideo === 'function') {
-        if (currentSlideIsVideo && isActuallyPlayingSlideshow && globalAutoplayEnabled) {
-            isYouTubePlayerMuted || currentSlideIsAudio ? currentPlayerInstance.mute() : currentPlayerInstance.unMute();
-            currentPlayerInstance.playVideo();
-        } else {
-            currentPlayerInstance.pauseVideo();
-        }
+    // YouTube Player
+    if (activePlayerInstance && typeof activePlayerInstance.playVideo === 'function') {
+      if (currentSlideIsVideo && isActuallyPlayingSlideshow && globalAutoplayEnabled) {
+        isYouTubePlayerMuted || currentSlideIsAudio ? activePlayerInstance.mute() : activePlayerInstance.unMute();
+        activePlayerInstance.playVideo();
+      } else {
+        activePlayerInstance.pauseVideo();
+      }
     }
     
-    // Manage slideshow interval for image-based slides or non-autoplayed video slides
-    if (isActuallyPlayingSlideshow && (!currentSlideIsVideo || !globalAutoplayEnabled)) {
+    // Slideshow Interval
+    if (isActuallyPlayingSlideshow && (!currentSlideIsVideo || !globalAutoplayEnabled || (currentSlideIsVideo && currentSlideIsAudio /* Image with separate audio also needs interval */)) ) {
         heroIntervalRef.current = setInterval(nextHeroSlide, currentSlideData.duration || 7000);
     }
     
-    // Ensure non-current players are paused and muted
     playerRefs.current.forEach((p, idx) => {
       if (p && idx !== currentHeroSlide && typeof p.pauseVideo === 'function' && typeof p.mute === 'function') {
-        try {
-          p.pauseVideo();
-          p.mute();
-        } catch (e) { console.warn(`Error pausing/muting non-current player ${idx}`, e); }
+        try { p.pauseVideo(); p.mute(); } 
+        catch (e) { console.warn(`Error managing non-current player ${idx}`, e); }
       }
     });
 
@@ -444,66 +440,60 @@ function HomePageContent() {
             videoId: slideData.videoId,
             playerVars: {
               autoplay: 0, controls: 0, loop: 1, playlist: slideData.videoId, modestbranding: 1,
-              playsinline: 1, showinfo: 0, rel: 0, mute: 1, // Start muted
+              playsinline: 1, showinfo: 0, rel: 0, mute: 1, 
             },
             events: {
               onReady: (event: any) => {
                 const readyPlayer = event.target;
-                playerRefs.current[index] = readyPlayer;
-                readyPlayer.mute(); // Ensure muted on ready
+                playerRefs.current[index] = readyPlayer; 
+                readyPlayer.mute(); 
 
                 if (isCurrentActiveSlide && index === 0 && isInitialSlidePaused && globalAutoplayEnabled) {
-                  // First slide, initial pause, but global autoplay is on: attempt visual play (muted)
-                  setTimeout(() => { // Small delay for stability
-                    if (readyPlayer && typeof readyPlayer.playVideo === 'function') readyPlayer.playVideo();
-                  }, 150);
-                  console.log(`[YT onReady Slide ${index}] Initial slide, global autoplay ON. Attempting muted visual play.`);
+                  readyPlayer.playVideo(); // Start visual playback muted
                 } else if (isCurrentActiveSlide && isHeroPlaying && globalAutoplayEnabled) {
-                  // Active slide, slideshow playing, global autoplay on: play it, respect audio mute state
                   isYouTubePlayerMuted || slideData.audioUrl ? readyPlayer.mute() : readyPlayer.unMute();
                   readyPlayer.playVideo();
                 } else {
-                  // Otherwise, ensure it's paused
                   readyPlayer.pauseVideo();
                 }
               },
               onStateChange: (event: any) => {
                 const playerInstance = event.target;
                 if (index === currentHeroSlide && event.data === window.YT.PlayerState.PLAYING) {
-                  if (isHeroPlaying && globalAutoplayEnabled && !(isInitialSlidePaused && index === 0)) {
+                   if (isHeroPlaying && globalAutoplayEnabled && !(isInitialSlidePaused && index === 0)) {
                     if (minPlayTimeTimeoutRef.current) clearTimeout(minPlayTimeTimeoutRef.current);
-                    const effectiveDuration = Math.max(5000, slideData.duration || 7000);
+                    const effectiveDuration = Math.max(5000, slideData.duration || 7000); // Ensure min 5s
                     minPlayTimeTimeoutRef.current = setTimeout(() => {
                       if (isHeroPlaying) nextHeroSlide();
                     }, effectiveDuration);
                   }
-                } else if (event.data === window.YT.PlayerState.PAUSED) {
-                  if (minPlayTimeTimeoutRef.current) clearTimeout(minPlayTimeTimeoutRef.current);
+                } else if (event.data === window.YT.PlayerState.PAUSED || event.data === window.YT.PlayerState.CUED) {
+                   if (minPlayTimeTimeoutRef.current) clearTimeout(minPlayTimeTimeoutRef.current);
                 } else if (event.data === window.YT.PlayerState.ENDED) {
-                   playerInstance.seekTo(0); // Loop it
+                   playerInstance.seekTo(0);
                    if (index === currentHeroSlide && isHeroPlaying && globalAutoplayEnabled && !(isInitialSlidePaused && index === 0)) {
                       playerInstance.playVideo();
                    } else {
-                      playerInstance.pauseVideo(); // If slideshow paused, keep video paused after looping
+                      playerInstance.pauseVideo();
                    }
                 }
               }
             }
           });
           playerRefs.current[index] = player;
-        } else if (player && typeof player.getPlayerState === 'function') { // Existing player logic
-            const shouldThisPlayerBePlaying = isCurrentActiveSlide && isHeroPlaying && globalAutoplayEnabled && !(isInitialSlidePaused && index === 0);
-            const isFirstSlideSpecialPlay = isCurrentActiveSlide && isInitialSlidePaused && index === 0 && globalAutoplayEnabled;
+        } else if (player && typeof player.getPlayerState === 'function') {
+            const shouldThisPlayerBeVisuallyPlaying = isCurrentActiveSlide && index === 0 && isInitialSlidePaused && globalAutoplayEnabled;
+            const shouldThisPlayerBePlayingRegularly = isCurrentActiveSlide && isHeroPlaying && globalAutoplayEnabled && !(isInitialSlidePaused && index === 0);
 
-            if (shouldThisPlayerBePlaying || isFirstSlideSpecialPlay) {
+            if (shouldThisPlayerBeVisuallyPlaying || shouldThisPlayerBePlayingRegularly) {
                 if (player.getPlayerState() !== window.YT.PlayerState.PLAYING) player.playVideo();
-                isYouTubePlayerMuted || slideData.audioUrl ? player.mute() : player.unMute();
+                (isYouTubePlayerMuted || slideData.audioUrl) ? player.mute() : player.unMute();
             } else {
                 if (player.getPlayerState() === window.YT.PlayerState.PLAYING) player.pauseVideo();
                 player.mute();
             }
         }
-      } else if (player && !useVideoForVisual) { // If slide no longer a video, destroy player
+      } else if (player && !useVideoForVisual) { 
         if (typeof player.destroy === 'function') {
           try { player.destroy(); } catch (e) { console.warn(`Error destroying player for non-video slide ${index}`, e); }
           playerRefs.current[index] = null;
@@ -596,13 +586,13 @@ function HomePageContent() {
                 {useImageForVisual && slide.imageUrl && (
                   <>
                     <Image src={slide.imageUrl} alt={slide.altText || "Peak Pulse Hero Background"} fill sizes="100vw" priority={index === 0} className="absolute inset-0 w-full h-full object-cover" data-ai-hint={slide.dataAiHint || "fashion mountains nepal"} />
-                    {!slide._isPromo && <div className="absolute inset-0 bg-black/30 z-[1]" />}
+                    <div className="absolute inset-0 bg-black/30 z-[1]" />
                   </>
                 )}
                 {useYouTubeForVisual && slide.videoId && (
                   <>
                     <div id={`youtube-player-${index}`} className={cn("absolute top-1/2 left-1/2 w-full h-full min-w-[177.77vh] min-h-[56.25vw] transform -translate-x-1/2 -translate-y-1/2", isCurrent ? "visible" : "invisible")} />
-                    {!slide._isPromo && <div className="absolute inset-0 bg-black/30 z-[1]" />}
+                    <div className="absolute inset-0 bg-black/30 z-[1]" />
                   </>
                 )}
                 {!useImageForVisual && !useYouTubeForVisual && !slide._isPromo && <div className="absolute inset-0 bg-black" /> }
@@ -629,9 +619,10 @@ function HomePageContent() {
         {activeHeroSlides.map((slide, index) => {
             const isCurrent = index === currentHeroSlide;
             const showVideoAttribution = isCurrent && !slide.imageUrl && slide.videoId && slide.youtubeAuthorName && slide.youtubeAuthorLink;
-            const slideTextColor = slide._isPromo && slide._textColor ? slide._textColor : 'text-white';
-            const slideDescriptionColor = slide._isPromo && slide._textColor ? slide._textColor : 'text-neutral-200';
-            const slideButtonVariant = slide._isPromo ? "default" : "default"; 
+             // Reverted conditional styling to consistent styling
+            const slideTextColor = 'text-white';
+            const slideDescriptionColor = 'text-neutral-200';
+            const slideButtonVariant = "default";
 
             return (
               <div key={slide.id || `hero-content-${index}`} className={cn("absolute inset-0 transition-opacity duration-1000 ease-in-out", isCurrent ? "opacity-100" : "opacity-0 pointer-events-none")} style={{ pointerEvents: isCurrent ? 'auto' : 'none' }}>
