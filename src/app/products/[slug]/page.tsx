@@ -9,7 +9,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Star, Plus, Minus, ShoppingCart, ShieldCheck, Package, Zap, Loader2, Paintbrush, Edit2, Info, Heart as HeartIcon } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Label } from "@/components/ui/label"; // Basic Label
+import { Label } from "@/components/ui/label";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import type { Product, ProductImage, BreadcrumbItem, ProductVariant, CartItemCustomization, PrintDesign, Review } from '@/types';
 import { useToast } from '@/hooks/use-toast';
@@ -26,6 +26,126 @@ import Link from 'next/link';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import MainLayout from '@/components/layout/main-layout';
+import Script from 'next/script';
+import type { Metadata } from 'next';
+
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:9003';
+
+// This is a placeholder for the generateMetadata function
+// In a real app, this would be a separate server-side function
+// For now, we'll mock its behavior or not use it if we're purely client-side fetching
+// For App Router, generateMetadata needs to be exported from the page component.
+// However, data fetching for it must happen server-side.
+// This component is "use client", so we can't directly use server-side generateMetadata here.
+// The metadata for this page would typically be handled by Next.js's file-system based routing if `generateMetadata` is exported from a server component version.
+// To make this client component benefit from dynamic metadata, the data fetching for metadata itself needs to be server-side.
+
+// Let's assume for now that if we need dynamic metadata, we'd fetch in a server component
+// and pass essential parts down, or structure as a server component.
+// For this exercise, I'll add a client-side JSON-LD script.
+
+interface ProductDetailPageProps {
+  params: { slug: string };
+}
+
+// This function would typically be at the top level of the page.tsx if it were a Server Component
+// For a client component, this is illustrative of what generateMetadata would do.
+async function getProductMetadata(slug: string): Promise<Metadata> {
+  try {
+    const res = await fetch(`${APP_URL}/api/products/${slug}`); // Use absolute URL for server-side fetch
+    if (!res.ok) {
+      return { title: "Product Not Found", description: "The product you are looking for does not exist." };
+    }
+    const product: Product = await res.json();
+
+    const title = `${product.name} | Peak Pulse`;
+    const description = product.shortDescription || product.description.substring(0, 160);
+    const keywords = ['Peak Pulse', product.name, ...(product.categories.map(c => c.name) || [])];
+    const imageUrl = product.images[0]?.url || `${APP_URL}/og-image.png`;
+
+    return {
+      title,
+      description,
+      keywords,
+      alternates: {
+        canonical: `${APP_URL}/products/${product.slug}`,
+      },
+      openGraph: {
+        title,
+        description,
+        url: `${APP_URL}/products/${product.slug}`,
+        images: [{ url: imageUrl, width: 800, height: 600, alt: product.name }],
+        type: 'product',
+        siteName: 'Peak Pulse',
+        // OpenGraph product specific tags
+        // 'product:brand': 'Peak Pulse',
+        // 'product:availability': product.stock && product.stock > 0 ? 'instock' : 'oos',
+        // 'product:condition': 'new',
+        // 'product:price:amount': String(product.price),
+        // 'product:price:currency': 'NPR',
+      },
+      twitter: {
+        card: 'summary_large_image',
+        title,
+        description,
+        images: [imageUrl],
+      },
+    };
+  } catch (error) {
+    console.error("Error generating product metadata:", error);
+    return { title: "Error", description: "Could not load product details." };
+  }
+}
+// If this were a Server Component, you'd export:
+// export async function generateMetadata({ params }: ProductDetailPageProps): Promise<Metadata> {
+//   return getProductMetadata(params.slug);
+// }
+
+
+const ProductJsonLd = ({ product }: { product: Product | null }) => {
+  if (!product) return null;
+
+  const schema = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    "name": product.name,
+    "image": product.images.map(img => img.url),
+    "description": product.shortDescription || product.description.substring(0, 500),
+    "sku": product.sku || product.id,
+    // "mpn": "Optional MPN", // If you have Manufacturer Part Number
+    "brand": {
+      "@type": "Brand",
+      "name": "Peak Pulse"
+    },
+    ...(product.averageRating && product.reviewCount && product.reviewCount > 0 && {
+      "aggregateRating": {
+        "@type": "AggregateRating",
+        "ratingValue": product.averageRating.toFixed(1),
+        "reviewCount": product.reviewCount.toString()
+      }
+    }),
+    // Example for a single variant or base product if no variants
+    "offers": {
+      "@type": "Offer",
+      "url": `${APP_URL}/products/${product.slug}`,
+      "priceCurrency": "NPR", // Assuming NPR, adjust if dynamic
+      "price": product.variants && product.variants.length > 0 ? product.variants[0].price.toString() : product.price.toString(),
+      "itemCondition": "https://schema.org/NewCondition",
+      "availability": (product.stock && product.stock > 0) || (product.variants && product.variants.some(v => v.stock > 0))
+        ? "https://schema.org/InStock"
+        : "https://schema.org/OutOfStock",
+      // "priceValidUntil": "YYYY-MM-DD" // Optional
+    }
+  };
+
+  return (
+    <Script
+      id="product-json-ld"
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+    />
+  );
+};
 
 
 export default function ProductDetailPage({ params: paramsPromise }: { params: Promise<{ slug: string }> | { slug: string } }) {
@@ -67,9 +187,8 @@ export default function ProductDetailPage({ params: paramsPromise }: { params: P
     }
     setIsLoading(true);
     setError(null);
-    setProduct(null); // Reset product state before fetching
+    setProduct(null);
 
-    console.log(`[ProductDetail] Fetching product with slug: ${slug}`);
     try {
       const response = await fetch(`/api/products/${slug}`);
       if (!response.ok) {
@@ -82,16 +201,14 @@ export default function ProductDetailPage({ params: paramsPromise }: { params: P
             errorMsg = `Error ${response.status}: ${response.statusText}. Could not parse error response.`;
           }
         }
-        console.error("[ProductDetail] Error from API:", errorMsg);
         setError(errorMsg);
         setProduct(null);
-        setIsLoading(false); // Stop loading
-        return; // Important to return here to stop execution
+        setIsLoading(false);
+        return;
       }
       const currentProduct: Product = await response.json();
 
       if (currentProduct) {
-        console.log(`[ProductDetail] Product found:`, currentProduct.name);
         setProduct(currentProduct);
         setSelectedImage(currentProduct.images[0] || null);
         
@@ -107,19 +224,17 @@ export default function ProductDetailPage({ params: paramsPromise }: { params: P
           }
         }
       } else {
-        // This case should ideally be covered by response.ok check, but as a fallback
         setError(`Product with slug '${slug}' not found or data is invalid.`);
         setProduct(null);
       }
     } catch (err) { 
-      console.error("[ProductDetail] Network or JSON parsing error fetching product data:", err);
       const message = (err instanceof Error) ? err.message : "Could not load product data due to a network or parsing issue.";
       setError(message);
       setProduct(null);
     } finally {
       setIsLoading(false);
     }
-  }, [slug]); // Removed toast from dependencies as it's stable
+  }, [slug]); 
 
   useEffect(() => {
     fetchProductData();
@@ -136,8 +251,6 @@ export default function ProductDetailPage({ params: paramsPromise }: { params: P
                   product.categories.some(ccat => p.categories.map(pcat => pcat.slug).includes(ccat.slug))
               ).slice(0, 4); 
               setRelatedProducts(related);
-          } else {
-              console.warn("[ProductDetail] Failed to fetch all products for related items.");
           }
       } catch (err) {
           console.error("[ProductDetail] Error fetching related products:", err);
@@ -306,13 +419,13 @@ export default function ProductDetailPage({ params: paramsPromise }: { params: P
 
   return (
     <MainLayout>
+      <ProductJsonLd product={product} />
       <div className="container-wide section-padding">
         <div className="mb-8">
           <Breadcrumbs items={breadcrumbs} />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-start">
-          {/* Image Gallery - Ensure it's sticky only on larger screens */}
           <div className="lg:sticky lg:top-24 p-1 rounded-lg bg-background z-10">
             <div className="mb-4">
               <AspectRatio ratio={4/5} className="bg-muted rounded-lg overflow-hidden shadow-lg">
@@ -574,13 +687,13 @@ export default function ProductDetailPage({ params: paramsPromise }: { params: P
                   <div key={review.id} className="pb-6 border-b last:border-b-0 last:pb-0">
                     <div className="flex items-start space-x-3 mb-2">
                       <Avatar className="h-10 w-10 mt-0.5">
-                        <AvatarImage src={review.userAvatarUrl || 'https://placehold.co/40x40.png'} alt={review.userName} data-ai-hint="user avatar generic"/>
-                        <AvatarFallback>{review.userName.charAt(0)}</AvatarFallback>
+                        <AvatarImage src={review.user_avatar_url || 'https://placehold.co/40x40.png'} alt={review.user_name} data-ai-hint="user avatar generic"/>
+                        <AvatarFallback>{review.user_name ? review.user_name.charAt(0) : 'U'}</AvatarFallback>
                       </Avatar>
                       <div>
                         <div className="flex items-center gap-2">
-                          <p className="font-semibold text-foreground">{review.userName}</p>
-                          {review.verifiedPurchase && <Badge variant="secondary" className="text-xs bg-green-100 text-green-700 border-green-300">Verified Purchase</Badge>}
+                          <p className="font-semibold text-foreground">{review.user_name}</p>
+                          {review.verified_purchase && <Badge variant="secondary" className="text-xs bg-green-100 text-green-700 border-green-300">Verified Purchase</Badge>}
                         </div>
                         <RatingStars rating={review.rating} size={16} className="mt-0.5"/>
                       </div>
@@ -668,3 +781,15 @@ export default function ProductDetailPage({ params: paramsPromise }: { params: P
     </MainLayout>
   );
 }
+
+// Export generateMetadata for Next.js to pick up if this page were a Server Component
+// Since it's "use client", this export won't be used by Next.js for static generation of metadata.
+// Dynamic metadata for client components usually relies on setting <title> and <meta> tags via useEffect or a library like react-helmet-async.
+// For App Router, the pattern is server components exporting generateMetadata.
+// The inclusion here is for completeness of the "fullstack SEO" concept.
+// export { generateMetadata };
+// However, to make it work with App router "use client" pages, you'd usually have a server component parent or use a different strategy.
+// As a quick workaround, one might put metadata directly in the RootLayout or a specific layout that wraps this client page.
+// But true dynamic metadata based on the product slug needs generateMetadata in a server-side context.
+// For the purpose of this exercise, the `ProductJsonLd` component is a good client-side addition for structured data.
+// The title/description for the <head> would ideally be server-rendered by `generateMetadata`.

@@ -14,6 +14,23 @@ import type { OurStoryContentData, OurStorySection } from '@/types';
 import { InteractiveExternalLink } from '@/components/interactive-external-link'; 
 import { Skeleton } from '@/components/ui/skeleton'; 
 import MainLayout from '@/components/layout/main-layout';
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'Our Story - The Heart of Peak Pulse',
+  description: 'Learn about the mission, values, and craftsmanship behind Peak Pulse. Discover our journey of blending Nepali heritage with contemporary fashion.',
+  keywords: ['Peak Pulse story', 'about Peak Pulse', 'Nepali craftsmanship', 'ethical fashion Nepal', 'our mission', 'our values'],
+  openGraph: {
+    title: 'Our Story - The Heart of Peak Pulse',
+    description: 'Discover the heritage, mission, and values that define Peak Pulse.',
+    url: '/our-story',
+    // images: specific OG image for this page
+  },
+  alternates: {
+    canonical: '/our-story',
+  },
+};
+
 
 const defaultSectionStructure: OurStorySection = { 
     title: 'Loading...', description: 'Please wait while we fetch the details.', paragraph1: '', paragraph2: '', imageUrl: '', imageAltText: '', imageAiHint: '' 
@@ -29,7 +46,6 @@ const fallbackContent: OurStoryContentData = {
 
 async function getOurStoryContent(): Promise<OurStoryContentData> {
   const fetchUrl = `/api/content/our-story`; 
-  // console.log(`[OurStory Page Client Fetch] Attempting to fetch from: ${fetchUrl}`);
   try {
     const res = await fetch(fetchUrl, { cache: 'no-store' });
 
@@ -54,7 +70,6 @@ async function getOurStoryContent(): Promise<OurStoryContentData> {
               errorBody = `Failed to parse error response and response body not readable: ${res.statusText}`;
           }
       }
-      // console.error(`[OurStory Page Client Fetch] Failed to fetch content. Status: ${res.status} ${res.statusText}. Body:`, errorBody);
       return {
           ...fallbackContent,
           hero: {...fallbackContent.hero, title: "Error Loading Story", description: `Failed: ${res.statusText}`},
@@ -62,8 +77,6 @@ async function getOurStoryContent(): Promise<OurStoryContentData> {
       };
     }
     const jsonData = await res.json();
-    // console.log("[OurStory Page Client Fetch] Successfully fetched Our Story content:", jsonData);
-    // Merge with defaults to ensure all parts of the structure are present
     const responseData: OurStoryContentData = {
       hero: { ...defaultSectionStructure, ...fallbackContent.hero, ...jsonData.hero },
       mission: { ...defaultSectionStructure, ...fallbackContent.mission, ...jsonData.mission },

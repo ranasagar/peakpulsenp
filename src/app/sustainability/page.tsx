@@ -7,6 +7,21 @@ import { AspectRatio } from '@/components/ui/aspect-ratio';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import MainLayout from '@/components/layout/main-layout'; 
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'Sustainability at Peak Pulse - Ethical & Eco-Friendly Fashion',
+  description: 'Learn about Peak Pulse\'s commitment to sustainability, ethical production, and mindful material sourcing. We strive to create fashion that respects both people and the planet.',
+  keywords: ['sustainability', 'ethical fashion Nepal', 'eco-friendly clothing', 'Peak Pulse values', 'sustainable materials', 'fair trade fashion'],
+  openGraph: {
+    title: 'Our Commitment to Sustainability | Peak Pulse',
+    description: 'Discover how Peak Pulse integrates sustainable and ethical practices into every step.',
+    url: '/sustainability',
+  },
+  alternates: {
+    canonical: '/sustainability',
+  },
+};
 
 export default function SustainabilityPage() {
   return (

@@ -16,13 +16,66 @@ import { Breadcrumbs } from '@/components/navigation/breadcrumbs';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import type { Metadata } from 'next';
+
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:9003';
+
+// This function would typically be at the top level of the page.tsx if it were a Server Component
+// For a client component, this is illustrative of what generateMetadata would do.
+// This component is "use client", so it cannot directly export an async generateMetadata.
+// Metadata for this page would be handled by a Server Component parent or a file-convention based approach.
+async function getCollaborationMetadata(slug: string): Promise<Metadata> {
+  try {
+    const res = await fetch(`${APP_URL}/api/design-collaborations/${slug}`);
+    if (!res.ok) {
+      return { title: "Collaboration Not Found", description: "This collaboration does not exist or is not available." };
+    }
+    const gallery: DesignCollaborationGallery = await res.json();
+    const title = `${gallery.title} - Collaboration | Peak Pulse`;
+    const description = gallery.description || `Explore the design collaboration: ${gallery.title} by ${gallery.artist_name || 'Peak Pulse'}.`;
+    const imageUrl = gallery.cover_image_url || `${APP_URL}/og-image.png`;
+
+    return {
+      title,
+      description,
+      alternates: {
+        canonical: `${APP_URL}/collaborations/${gallery.slug}`,
+      },
+      openGraph: {
+        title,
+        description,
+        url: `${APP_URL}/collaborations/${gallery.slug}`,
+        images: [{ url: imageUrl, width: 1200, height: 630, alt: gallery.title }],
+        type: 'article', // or 'website' depending on how you see these pages
+        siteName: 'Peak Pulse',
+        // For articles:
+        // publishedTime: gallery.createdAt || new Date().toISOString(),
+        // modifiedTime: gallery.updatedAt || new Date().toISOString(),
+        // authors: gallery.artist_name ? [gallery.artist_name] : ['Peak Pulse'],
+      },
+      twitter: {
+        card: 'summary_large_image',
+        title,
+        description,
+        images: [imageUrl],
+      },
+    };
+  } catch (error) {
+    console.error("Error generating collaboration metadata:", error);
+    return { title: "Error", description: "Could not load collaboration details." };
+  }
+}
+// If this were a Server Component, you'd export:
+// export async function generateMetadata({ params }: CollaborationDetailPageProps): Promise<Metadata> {
+//   return getCollaborationMetadata(params.slug);
+// }
 
 interface CollaborationDetailPageProps {
   params: { slug: string } | Promise<{ slug: string }>;
 }
 
 export default function CollaborationDetailPage({ params: paramsPromise }: CollaborationDetailPageProps) {
-  const params = React.use(paramsPromise as Promise<{ slug: string }>); // Resolve the params promise
+  const params = React.use(paramsPromise as Promise<{ slug: string }>); 
   const { slug } = params;
   
   const [gallery, setGallery] = useState<DesignCollaborationGallery | null>(null);
@@ -55,7 +108,6 @@ export default function CollaborationDetailPage({ params: paramsPromise }: Colla
       const data: DesignCollaborationGallery = await response.json();
       setGallery(data);
       if (data.gallery_images && data.gallery_images.length > 0) {
-        // Sort images by displayOrder, then by original index if displayOrder is missing or same
         const sortedImages = data.gallery_images.sort((a, b) => {
             const orderA = a.displayOrder === undefined ? Infinity : a.displayOrder;
             const orderB = b.displayOrder === undefined ? Infinity : b.displayOrder;
@@ -161,7 +213,6 @@ export default function CollaborationDetailPage({ params: paramsPromise }: Colla
           <h2 className="text-3xl font-semibold text-foreground mb-8 text-center">Gallery Showcase</h2>
           {(sortedGalleryImages.length > 0) ? (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              {/* Main selected image display */}
               <div className="md:col-span-2">
                 <Card className="overflow-hidden shadow-xl rounded-xl sticky top-24">
                   <AspectRatio ratio={4 / 3} className="bg-card">
@@ -185,9 +236,8 @@ export default function CollaborationDetailPage({ params: paramsPromise }: Colla
                 </Card>
               </div>
 
-              {/* Thumbnail list */}
               <div className="md:col-span-1">
-                <ScrollArea className="h-auto md:max-h-[calc(100vh-8rem)] md:pr-2"> {/* Adjust max-h as needed */}
+                <ScrollArea className="h-auto md:max-h-[calc(100vh-8rem)] md:pr-2"> 
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-2 gap-3">
                     {sortedGalleryImages.map((img) => (
                       <button
@@ -226,3 +276,4 @@ export default function CollaborationDetailPage({ params: paramsPromise }: Colla
     </MainLayout>
   );
 }
+

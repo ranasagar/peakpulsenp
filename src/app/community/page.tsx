@@ -11,13 +11,28 @@ import { AspectRatio } from '@/components/ui/aspect-ratio';
 import { Loader2, Users, ImagePlus, Heart as HeartIcon } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import MainLayout from '@/components/layout/main-layout';
-import type { UserPost, PostComment, User as AuthUserType, BreadcrumbItem } from '@/types';
+import type { UserPost, PostComment, User as AuthUserType, BreadcrumbItem, Metadata } from '@/types';
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { UserPostDetailModal } from '@/components/community/user-post-detail-modal';
 import { useAuth } from '@/hooks/use-auth';
 import { Breadcrumbs } from '@/components/navigation/breadcrumbs';
+
+export const metadata: Metadata = {
+  title: 'Community Showcase - Peak Pulse Style',
+  description: 'Explore how the Peak Pulse community styles our apparel. Get inspired by user-submitted photos and share your own look. #PeakPulseStyle',
+  keywords: ['Peak Pulse community', 'user generated content', 'fashion community', 'street style Nepal', '#PeakPulseStyle', 'customer photos'],
+  openGraph: {
+    title: 'Peak Pulse Community Showcase',
+    description: 'See real customer styles and share your own Peak Pulse look.',
+    url: '/community',
+    // images: specific OG image for community page
+  },
+  alternates: {
+    canonical: '/community',
+  },
+};
 
 async function fetchApprovedUserPosts(): Promise<UserPost[]> {
   const response = await fetch('/api/user-posts?status=approved');
@@ -197,15 +212,12 @@ export default function CommunityPage() {
                 let userNameDisplay = post.user_name || 'Anonymous';
                 const idSnippetPattern = /^[a-zA-Z0-9]{4}\.\.\.[a-zA-Z0-9]{4}$/;
 
-                // If this post is by the currently logged-in user, and their auth context name is better, use it.
                 if (loggedInUser && post.user_id === loggedInUser.id && loggedInUser.name && loggedInUser.name.trim() !== '') {
-                    if (!idSnippetPattern.test(loggedInUser.name)) { // Ensure loggedInUser.name isn't an ID snippet
+                    if (!idSnippetPattern.test(loggedInUser.name)) { 
                          userNameDisplay = loggedInUser.name;
                     } else if (post.user_name && !idSnippetPattern.test(post.user_name)) {
-                        // Fallback: if loggedInUser.name is an ID snippet, but post.user_name (from API) is better
                         userNameDisplay = post.user_name;
                     }
-                    // If both are ID snippets, or loggedInUser.name is bad, post.user_name (which might also be an ID snippet) remains from initial API fetch.
                 }
                 
                 const userProfileLink = `/users/${post.user_id}`;
@@ -279,3 +291,4 @@ export default function CommunityPage() {
     </MainLayout>
   );
 }
+

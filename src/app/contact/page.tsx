@@ -14,7 +14,21 @@ import { useToast } from '@/hooks/use-toast';
 import { InteractiveExternalLink } from '@/components/interactive-external-link';
 import MainLayout from '@/components/layout/main-layout'; 
 import { useState, useEffect } from 'react'; 
-import type { SiteSettings } from '@/types'; 
+import type { SiteSettings, Metadata } from '@/types'; 
+
+export const metadata: Metadata = {
+  title: 'Contact Peak Pulse',
+  description: 'Get in touch with Peak Pulse. Send us a message, find our store location, or contact us via email or phone. We are here to help with your inquiries.',
+  keywords: ['contact Peak Pulse', 'Peak Pulse support', 'customer service', 'store location Nepal'],
+  openGraph: {
+    title: 'Contact Peak Pulse',
+    description: 'Reach out to us for any inquiries or support.',
+    url: '/contact',
+  },
+  alternates: {
+    canonical: '/contact',
+  },
+};
 
 const contactSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
@@ -61,7 +75,6 @@ export default function ContactPage() {
   });
 
   const onSubmit = async (data: ContactFormValues) => {
-    // Mock API call
     console.log("Contact form data:", data);
     toast({
       title: "Message Sent!",

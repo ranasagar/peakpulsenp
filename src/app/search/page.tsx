@@ -9,7 +9,27 @@ import { Search as SearchIcon, XCircle, Loader2 } from 'lucide-react';
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
-import type { Product } from '@/types';
+import type { Product, Metadata } from '@/types';
+
+// Static metadata for the search page itself
+export const metadata: Metadata = {
+  title: 'Search Products - Peak Pulse',
+  description: 'Search for your favorite apparel and collections from Peak Pulse. Find unique Nepali craftsmanship blended with contemporary streetwear.',
+  keywords: ['search products', 'find Peak Pulse', 'product search', 'Nepali fashion search'],
+  openGraph: {
+    title: 'Search Products | Peak Pulse',
+    description: 'Find what you\'re looking for in our collections.',
+    url: '/search',
+  },
+  alternates: {
+    canonical: '/search',
+  },
+  robots: { // Search result pages are often noindexed if they are thin content, but a primary search page can be indexed.
+    index: true,
+    follow: true,
+  }
+};
+
 
 export default function SearchPage() {
   const router = useRouter();
@@ -22,11 +42,10 @@ export default function SearchPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [hasSearched, setHasSearched] = useState(false);
 
-  // Fetch all products on mount
   useEffect(() => {
     const fetchAllProducts = async () => {
       setIsLoading(true);
-      setHasSearched(false); // Reset search state on initial load
+      setHasSearched(false); 
       try {
         const response = await fetch('/api/products');
         if (!response.ok) {
@@ -35,13 +54,12 @@ export default function SearchPage() {
         const productsData: Product[] = await response.json();
         setAllProducts(productsData);
         
-        // Check for initial search query from URL
         const initialQuery = searchParams.get('q');
         if (initialQuery) {
           setSearchTerm(initialQuery);
           performSearch(initialQuery, productsData);
         } else {
-          setIsLoading(false); // Stop loading if no initial query
+          setIsLoading(false); 
         }
       } catch (error) {
         toast({
@@ -54,10 +72,11 @@ export default function SearchPage() {
       }
     };
     fetchAllProducts();
-  }, [searchParams]); // Depend on searchParams to re-trigger if 'q' changes externally
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]); 
 
   const performSearch = (query: string, productsToSearch: Product[]) => {
-    setIsLoading(true); // Show loading during search processing
+    setIsLoading(true); 
     setHasSearched(true);
     const lowerCaseQuery = query.toLowerCase().trim();
 
@@ -73,7 +92,6 @@ export default function SearchPage() {
       const descMatch = product.description.toLowerCase().includes(lowerCaseQuery);
       const categoryMatch = product.categories.some(cat => cat.name.toLowerCase().includes(lowerCaseQuery));
       const skuMatch = product.sku?.toLowerCase().includes(lowerCaseQuery);
-      // Add more fields to search if needed (e.g., tags, variant names)
       return nameMatch || shortDescMatch || descMatch || categoryMatch || skuMatch;
     });
 
@@ -84,11 +102,7 @@ export default function SearchPage() {
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const trimmedSearchTerm = searchTerm.trim();
-    // Update URL to reflect the search query
     router.push(`/search?q=${encodeURIComponent(trimmedSearchTerm)}`);
-    // performSearch will be called by useEffect due to searchParams change,
-    // or call it directly if you don't want to rely on useEffect for this specific interaction.
-    // For immediate feedback:
     performSearch(trimmedSearchTerm, allProducts); 
   };
   

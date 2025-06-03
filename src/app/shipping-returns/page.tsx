@@ -5,8 +5,22 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Truck, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import type { PageContent } from '@/types';
+import type { PageContent, Metadata } from '@/types';
 import MainLayout from '@/components/layout/main-layout'; 
+
+export const metadata: Metadata = {
+  title: 'Shipping & Returns Policy - Peak Pulse',
+  description: 'Find information about Peak Pulse\'s shipping process, delivery times, and our returns and exchange policy. We aim for a smooth shopping experience.',
+  keywords: ['shipping policy', 'returns policy', 'Peak Pulse delivery', 'exchange policy', 'customer support shipping'],
+  openGraph: {
+    title: 'Shipping & Returns | Peak Pulse',
+    description: 'Details on our shipping, delivery, and returns process.',
+    url: '/shipping-returns',
+  },
+  alternates: {
+    canonical: '/shipping-returns',
+  },
+};
 
 const PAGE_KEY = 'shippingReturnsPageContent';
 

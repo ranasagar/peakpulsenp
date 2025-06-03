@@ -1,3 +1,4 @@
+
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -5,6 +6,21 @@ import { Briefcase, Users, Sparkles } from 'lucide-react';
 import Link from 'next/link';
 import { AspectRatio } from '@/components/ui/aspect-ratio';
 import MainLayout from '@/components/layout/main-layout'; 
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'Careers at Peak Pulse - Join Our Team',
+  description: 'Explore career opportunities at Peak Pulse. We are looking for passionate individuals to help us redefine Nepali fashion. Join our creative and impactful team.',
+  keywords: ['careers', 'jobs Peak Pulse', 'fashion jobs Nepal', 'work with us', 'Nepali brand jobs'],
+  openGraph: {
+    title: 'Careers at Peak Pulse',
+    description: 'Join our team and help shape the future of Nepali fashion.',
+    url: '/careers',
+  },
+  alternates: {
+    canonical: '/careers',
+  },
+};
 
 export default function CareersPage() {
   const currentOpenings = [
@@ -116,3 +132,4 @@ export default function CareersPage() {
     </MainLayout>
   );
 }
+

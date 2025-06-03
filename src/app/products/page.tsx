@@ -15,8 +15,23 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import MainLayout from '@/components/layout/main-layout';
+import type { Metadata } from 'next';
 
 const PRODUCTS_PER_PAGE = 6;
+
+export const metadata: Metadata = {
+  title: 'Shop All Products - Peak Pulse',
+  description: 'Explore all collections from Peak Pulse. Discover unique Nepali craftsmanship blended with contemporary streetwear. High-quality, ethically made apparel.',
+  keywords: ['all products', 'shop', 'Peak Pulse collection', 'Nepali fashion', 'streetwear online'],
+  openGraph: {
+    title: 'All Products | Peak Pulse',
+    description: 'Browse the complete collection of Peak Pulse apparel.',
+    url: '/products',
+  },
+  alternates: {
+    canonical: '/products',
+  },
+};
 
 interface FilterSidebarContentProps {
   categories: CategoryType[];

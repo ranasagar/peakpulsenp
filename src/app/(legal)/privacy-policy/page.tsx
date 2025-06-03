@@ -5,7 +5,21 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ShieldCheck, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import type { PageContent } from '@/types';
+import type { PageContent, Metadata } from '@/types'; // Added Metadata
+
+export const metadata: Metadata = {
+  title: 'Privacy Policy - Peak Pulse',
+  description: 'Read the Peak Pulse Privacy Policy to understand how we collect, use, and protect your personal information when you use our website and services.',
+  keywords: ['privacy policy', 'Peak Pulse privacy', 'data protection', 'user data', 'information security'],
+  openGraph: {
+    title: 'Privacy Policy | Peak Pulse',
+    description: 'Learn how Peak Pulse handles your personal data.',
+    url: '/privacy-policy',
+  },
+  alternates: {
+    canonical: '/privacy-policy',
+  },
+};
 
 const PAGE_KEY = 'privacyPolicyPageContent'; // Key used in Supabase site_configurations
 

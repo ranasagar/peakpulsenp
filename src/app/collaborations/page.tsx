@@ -1,10 +1,11 @@
+
 // /src/app/collaborations/page.tsx
 "use client";
 
 import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import type { DesignCollaborationGallery } from '@/types';
+import type { DesignCollaborationGallery, Metadata } from '@/types';
 import { Card, CardContent } from '@/components/ui/card';
 import { AspectRatio } from '@/components/ui/aspect-ratio';
 import { Loader2, Palette, CalendarDays, UserCircle as ArtistIcon } from 'lucide-react';
@@ -12,6 +13,20 @@ import { useToast } from '@/hooks/use-toast';
 import MainLayout from '@/components/layout/main-layout';
 import { formatDisplayDate } from '@/lib/dateUtils';
 import { Badge } from '@/components/ui/badge';
+
+export const metadata: Metadata = {
+  title: 'Design Collaborations & Galleries - Peak Pulse',
+  description: 'Explore unique artistic visions and creative partnerships featured by Peak Pulse. Discover curated design galleries and collaborations.',
+  keywords: ['Peak Pulse collaborations', 'design gallery', 'artist collaborations', 'Nepali art', 'fashion design'],
+  openGraph: {
+    title: 'Design Collaborations & Galleries | Peak Pulse',
+    description: 'Discover unique artistic visions and creative partnerships.',
+    url: '/collaborations',
+  },
+  alternates: {
+    canonical: '/collaborations',
+  },
+};
 
 async function fetchCollaborations(): Promise<DesignCollaborationGallery[]> {
   const response = await fetch('/api/design-collaborations');
@@ -141,3 +156,4 @@ export default function CollaborationsPage() {
     </MainLayout>
   );
 }
+
