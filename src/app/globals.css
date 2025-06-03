@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -159,15 +160,15 @@ body {
     --radius: 0.75rem;
   }
 
-  /* Kathmandu Street Pulse Theme (Light) */
+  /* Kathmandu Street Pulse Theme (Light) - REVISED */
   html.kathmandu-street-pulse {
-    --background: 200 18% 90%;    /* Light Ash Gray (#E1E9EC) */
+    --background: 200 18% 70%;    /* Ash Gray (#B0BEC5) */
     --foreground: 0 0% 13%;       /* Midnight Black (#212121) */
 
-    --card: 200 18% 96%;          /* Very Light Ash Gray (#F0F4F5) */
+    --card: 0 0% 98%;             /* Off-white (#FAFAFA) */
     --card-foreground: 0 0% 13%;   /* Midnight Black */
 
-    --popover: 200 18% 96%;       /* Very Light Ash Gray */
+    --popover: 0 0% 98%;          /* Off-white */
     --popover-foreground: 0 0% 13%; /* Midnight Black */
 
     --primary: 222 100% 58%;      /* Electric Blue (#2979FF) */
@@ -176,8 +177,8 @@ body {
     --secondary: 122 39% 49%;     /* Moss Green (#4CAF50) */
     --secondary-foreground: 0 0% 100%; /* White */
 
-    --muted: 200 18% 85%;         /* Lighter Ash Gray (#D3DADE) */
-    --muted-foreground: 200 18% 45%; /* Darker Ash Gray (#6A7980) */
+    --muted: 200 18% 85%;         /* Lighter Ash Gray (#D9E0E3) */
+    --muted-foreground: 0 0% 30%;   /* Darker Gray (#4D4D4D) */
 
     --accent: 27 100% 50%;        /* Fiery Orange (#FF6F00) */
     --accent-foreground: 0 0% 100%; /* White */
@@ -185,54 +186,56 @@ body {
     --destructive: 0 62% 50%;     /* Rhododendron Red (#D32F2F) */
     --destructive-foreground: 0 0% 100%; /* White */
 
-    --border: 200 18% 68%;        /* Mid Ash Gray (#A2B0B5) */
-    --input: 200 18% 68%;         /* Mid Ash Gray */
+    --border: 200 18% 60%;        /* Darker Ash Gray for borders (#8FA0A8) */
+    --input: 200 18% 90%;         /* Light Ash Gray for input BG (#E1E9EC), to contrast with page BG */
     --ring: 222 100% 58%;         /* Electric Blue */
     
+    /* Chart colors remain as previously defined, using core vibrant colors */
     --chart-1: 222 100% 58%;      /* Electric Blue */
     --chart-2: 27 100% 50%;       /* Fiery Orange */
     --chart-3: 122 39% 49%;      /* Moss Green */
     --chart-4: 0 62% 50%;         /* Rhododendron Red */
-    --chart-5: 200 18% 60%;       /* Ash Gray variant */
+    --chart-5: 200 18% 60%;       /* Ash Gray variant (#8FA0A8) */
 
     --radius: 0.75rem;
   }
 
-  /* Kathmandu Street Pulse Theme (Dark) */
+  /* Kathmandu Street Pulse Theme (Dark) - REVISED */
   html.dark.kathmandu-street-pulse {
-    --background: 0 0% 10%;       /* Darker than Midnight Black (#1A1A1A) */
-    --foreground: 200 18% 85%;    /* Light Ash Gray (#D3DADE) */
+    --background: 0 0% 13%;       /* Midnight Black (#212121) */
+    --foreground: 200 18% 85%;    /* Light Ash Gray (#D9E0E3) */
 
-    --card: 0 0% 13%;             /* Midnight Black (#212121) */
+    --card: 0 0% 18%;             /* Very Dark Gray (#2E2E2E) */
     --card-foreground: 200 18% 85%; /* Light Ash Gray */
 
-    --popover: 0 0% 13%;          /* Midnight Black */
+    --popover: 0 0% 18%;          /* Very Dark Gray */
     --popover-foreground: 200 18% 85%; /* Light Ash Gray */
 
     --primary: 222 100% 68%;      /* Brighter Electric Blue (#5C9BFF) */
-    --primary-foreground: 0 0% 10%; /* Very Dark Gray/Black */
+    --primary-foreground: 0 0% 10%; /* Nearly Black (#1A1A1A) */
 
     --secondary: 122 39% 59%;     /* Brighter Moss Green (#6FCF73) */
-    --secondary-foreground: 0 0% 10%; /* Very Dark Gray/Black */
+    --secondary-foreground: 0 0% 10%; /* Nearly Black */
 
-    --muted: 0 0% 18%;            /* Dark Gray (#2E2E2E) */
-    --muted-foreground: 200 18% 60%; /* Mid Ash Gray (#8CA0A8) */
+    --muted: 0 0% 22%;            /* Dark Gray (#383838) */
+    --muted-foreground: 200 18% 65%; /* Mid-Light Ash Gray (#9BABBC) */
 
     --accent: 27 100% 60%;        /* Brighter Fiery Orange (#FF8C33) */
-    --accent-foreground: 0 0% 10%; /* Very Dark Gray/Black */
+    --accent-foreground: 0 0% 10%; /* Nearly Black */
 
     --destructive: 0 62% 60%;     /* Brighter Rhododendron Red (#E06161) */
     --destructive-foreground: 0 0% 100%; /* White */
 
-    --border: 0 0% 22%;           /* Dark Gray (#383838) */
-    --input: 0 0% 22%;            /* Dark Gray */
+    --border: 0 0% 25%;           /* Dark Gray border (#404040) */
+    --input: 0 0% 22%;            /* Dark Gray for input BG (#383838) */
     --ring: 222 100% 68%;         /* Brighter Electric Blue */
     
+    /* Chart colors remain as previously defined */
     --chart-1: 222 100% 68%;      /* Brighter Electric Blue */
     --chart-2: 27 100% 60%;       /* Brighter Fiery Orange */
     --chart-3: 122 39% 59%;      /* Brighter Moss Green */
     --chart-4: 0 62% 60%;         /* Brighter Rhododendron Red */
-    --chart-5: 200 18% 50%;       /* Mid-Dark Ash Gray */
+    --chart-5: 200 18% 50%;       /* Mid-Dark Ash Gray (#708090 - Slate Gray) */
 
     --radius: 0.75rem;
   }
@@ -308,3 +311,4 @@ body.menus-hidden-on-hero nav.sticky.bottom-0 { /* Targets BottomNavigation in s
 header.sticky.top-0, nav.sticky.bottom-0 {
   transition: transform 0.3s ease-in-out, opacity 0.3s ease-in-out, margin-bottom 0.3s ease-in-out;
 }
+
