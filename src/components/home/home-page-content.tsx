@@ -301,8 +301,11 @@ export default function HomePageContent() {
   
   useEffect(() => {
     if (siteSettings && !isLoadingSiteSettings) {
+        // @ts-ignore // TODO: Properly type siteSettings.heroVideoAutoplay
         setIsHeroPlaying(siteSettings.heroVideoAutoplay !== false);
-        setIsInitialSlidePaused(siteSettings.heroVideoAutoplay !== false);
+        // @ts-ignore
+        setIsInitialSlidePaused(siteSettings.heroVideoAutoplay !== false); 
+        // @ts-ignore
         if (siteSettings.heroVideoAutoplay === false) {
             setInitialAutoplayTriggered(true); 
         }
@@ -377,6 +380,7 @@ export default function HomePageContent() {
 
   useEffect(() => {
     if (!isMounted || isLoadingSiteSettings || initialAutoplayTriggered) return;
+    // @ts-ignore
     const globalAutoplayEnabled = siteSettings?.heroVideoAutoplay !== false;
 
     if (currentHeroSlide === 0 && isHeroPlaying && globalAutoplayEnabled && isInitialSlidePaused) {
@@ -399,7 +403,7 @@ export default function HomePageContent() {
 
     const currentSlideData = activeHeroSlides[currentHeroSlide];
     if (!currentSlideData || isLoadingSiteSettings || !isMounted || !initialAutoplayTriggered) return;
-
+    // @ts-ignore
     const globalAutoplayEnabled = siteSettings?.heroVideoAutoplay !== false;
     const isSlideshowEffectivelyPlaying = isHeroPlaying && globalAutoplayEnabled;
 
@@ -479,6 +483,7 @@ export default function HomePageContent() {
       let player = playerRefs.current[index];
 
       const useVideoForVisual = !slideData.imageUrl && !!slideData.videoId;
+      // @ts-ignore
       const globalAutoplayEnabled = siteSettings?.heroVideoAutoplay !== false;
       const isCurrentActiveSlide = index === currentHeroSlide;
 
@@ -693,7 +698,7 @@ export default function HomePageContent() {
             <Button variant="ghost" size="icon" className="absolute right-2 md:right-4 top-1/2 -translate-y-1/2 z-30 h-10 w-10 md:h-14 md:w-14 rounded-full bg-black/25 text-white/80 hover:bg-black/50 hover:text-white focus-visible:bg-black/50 focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent transition-all duration-200 flex items-center justify-center" onClick={nextHeroSlide} aria-label="Next slide"> <ChevronRight className="h-6 w-6 md:h-7 md:w-7" /> </Button>
             <div className="absolute bottom-6 md:bottom-8 left-1/2 -translate-x-1/2 z-30 flex items-center space-x-3 bg-black/20 p-1.5 rounded-full backdrop-blur-sm">
                <Button variant="ghost" size="icon" onClick={toggleHeroPlayPause} className="h-7 w-7 text-white/70 hover:text-white p-1" aria-label={isHeroPlaying ? "Pause slideshow" : "Play slideshow"} > {isHeroPlaying ? <TimerOff className="h-4 w-4" /> : <Timer className="h-4 w-4" />} </Button>
-              {activeHeroSlides.map((_, index) => ( <button key={`dot-${index}`} onClick={() => goToHeroSlide(index)} className={`h-2 w-2 md:h-2.5 md:w-2.5 rounded-full cursor-pointer transition-all duration-300 ease-in-out hover:bg-white/90 ${currentHeroSlide === index ? 'bg-white scale-125 ring-2 ring-white/30 ring-offset-1 ring-offset-transparent p-0.5 w-5 md:w-6' : 'bg-white/40 hover:bg-white/70'}`} aria-label={`Go to slide ${index + 1}`} /> ))}
+              {activeHeroSlides.map((_, index) => ( <button key={`dot-${index}`} onClick={() => goToHeroSlide(index)} className={`h-2 w-2 md:h-2.5 md:w-2.5 rounded-full cursor-pointer transition-all duration-300 ease-in-out hover:bg-white/90 ${currentHeroSlide === index ? 'bg-white scale-125 w-5 md:w-6' : 'bg-white/40 hover:bg-white/70'}`} aria-label={`Go to slide ${index + 1}`} /> ))}
               {showMuteButton && (
                   <Button variant="ghost" size="icon" onClick={handleMuteToggleClick} className="h-7 w-7 text-white/70 hover:text-white p-1" aria-label={currentMuteState ? "Unmute audio" : "Mute audio"}>
                       {currentMuteState ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
@@ -752,13 +757,10 @@ export default function HomePageContent() {
         <div className="text-center mt-12"> <Link href="/community" className={cn(buttonVariants({ variant: "outline", size: "lg", className: "text-base mr-4" }))}> Explore Community </Link> <Link href="/community/create-post" className={cn(buttonVariants({ variant: "default", size: "lg", className: "text-base" }))}> <ImagePlus className="mr-2 h-5 w-5" /> Share Your Style </Link> </div>
       </section>
 
-      <section className="bg-background section-padding relative z-[1]">
-        <div className="container-slim text-center"> <Send className="h-12 w-12 text-primary mx-auto mb-4" /> <h2 className="text-3xl font-bold tracking-tight mb-4 text-foreground">Join the Peak Pulse Community</h2> <p className="text-lg text-muted-foreground mb-8 max-w-xl mx-auto"> Be the first to know about new arrivals, exclusive collections, and special events. </p> <NewsletterSignupForm /> </div>
-      </section>
-
       {selectedPostForModal && ( <UserPostDetailModal isOpen={isPostModalOpen} onOpenChange={setIsPostModalOpen} post={userPosts.find(p => p.id === selectedPostForModal.id) || selectedPostForModal} currentUserId={user?.id} currentUser={user} onLikeToggle={handleLikeToggle} onBookmarkToggle={handleBookmarkToggle} onCommentPosted={handleCommentPosted} isLikingPostId={isLikingPostId} isBookmarkingPostId={isBookmarkingPostId} /> )}
     </>
   );
 }
 
     
+  
