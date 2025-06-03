@@ -12,23 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 import type { Product, Metadata } from '@/types';
 
 // Static metadata for the search page itself
-export const metadata: Metadata = {
-  title: 'Search Products - Peak Pulse',
-  description: 'Search for your favorite apparel and collections from Peak Pulse. Find unique Nepali craftsmanship blended with contemporary streetwear.',
-  keywords: ['search products', 'find Peak Pulse', 'product search', 'Nepali fashion search'],
-  openGraph: {
-    title: 'Search Products | Peak Pulse',
-    description: 'Find what you\'re looking for in our collections.',
-    url: '/search',
-  },
-  alternates: {
-    canonical: '/search',
-  },
-  robots: { // Search result pages are often noindexed if they are thin content, but a primary search page can be indexed.
-    index: true,
-    follow: true,
-  }
-};
+// Removed export const metadata block
 
 
 export default function SearchPage() {
