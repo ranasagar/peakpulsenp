@@ -82,7 +82,7 @@ body {
   }
 
   /* Sustainable Theme (Primarily Light) */
-  html.sustainable { /* Changed from html.theme-sustainable */
+  html.sustainable {
     --background: 88 56% 94%;    /* Off White (#F1F8E9) */
     --foreground: 200 18% 26%;   /* Charcoal (#37474F) */
 
@@ -121,7 +121,7 @@ body {
   }
 
   /* Dark variant of the Sustainable Theme */
-  html.dark.sustainable { /* Changed from html.dark.theme-sustainable */
+  html.dark.sustainable {
     --background: 200 18% 26%;   /* Charcoal (#37474F) */
     --foreground: 88 56% 94%;    /* Off White (#F1F8E9) */
 
@@ -156,6 +156,84 @@ body {
     --chart-4: 122 40% 80%;      /* Lighter Soft Moss */
     --chart-5: 30 80% 70%;       /* Light Ochre */
     
+    --radius: 0.75rem;
+  }
+
+  /* Kathmandu Street Pulse Theme (Light) */
+  html.kathmandu-street-pulse {
+    --background: 200 18% 90%;    /* Light Ash Gray (#E1E9EC) */
+    --foreground: 0 0% 13%;       /* Midnight Black (#212121) */
+
+    --card: 200 18% 96%;          /* Very Light Ash Gray (#F0F4F5) */
+    --card-foreground: 0 0% 13%;   /* Midnight Black */
+
+    --popover: 200 18% 96%;       /* Very Light Ash Gray */
+    --popover-foreground: 0 0% 13%; /* Midnight Black */
+
+    --primary: 222 100% 58%;      /* Electric Blue (#2979FF) */
+    --primary-foreground: 0 0% 100%; /* White */
+
+    --secondary: 122 39% 49%;     /* Moss Green (#4CAF50) */
+    --secondary-foreground: 0 0% 100%; /* White */
+
+    --muted: 200 18% 85%;         /* Lighter Ash Gray (#D3DADE) */
+    --muted-foreground: 200 18% 45%; /* Darker Ash Gray (#6A7980) */
+
+    --accent: 27 100% 50%;        /* Fiery Orange (#FF6F00) */
+    --accent-foreground: 0 0% 100%; /* White */
+
+    --destructive: 0 62% 50%;     /* Rhododendron Red (#D32F2F) */
+    --destructive-foreground: 0 0% 100%; /* White */
+
+    --border: 200 18% 68%;        /* Mid Ash Gray (#A2B0B5) */
+    --input: 200 18% 68%;         /* Mid Ash Gray */
+    --ring: 222 100% 58%;         /* Electric Blue */
+    
+    --chart-1: 222 100% 58%;      /* Electric Blue */
+    --chart-2: 27 100% 50%;       /* Fiery Orange */
+    --chart-3: 122 39% 49%;      /* Moss Green */
+    --chart-4: 0 62% 50%;         /* Rhododendron Red */
+    --chart-5: 200 18% 60%;       /* Ash Gray variant */
+
+    --radius: 0.75rem;
+  }
+
+  /* Kathmandu Street Pulse Theme (Dark) */
+  html.dark.kathmandu-street-pulse {
+    --background: 0 0% 10%;       /* Darker than Midnight Black (#1A1A1A) */
+    --foreground: 200 18% 85%;    /* Light Ash Gray (#D3DADE) */
+
+    --card: 0 0% 13%;             /* Midnight Black (#212121) */
+    --card-foreground: 200 18% 85%; /* Light Ash Gray */
+
+    --popover: 0 0% 13%;          /* Midnight Black */
+    --popover-foreground: 200 18% 85%; /* Light Ash Gray */
+
+    --primary: 222 100% 68%;      /* Brighter Electric Blue (#5C9BFF) */
+    --primary-foreground: 0 0% 10%; /* Very Dark Gray/Black */
+
+    --secondary: 122 39% 59%;     /* Brighter Moss Green (#6FCF73) */
+    --secondary-foreground: 0 0% 10%; /* Very Dark Gray/Black */
+
+    --muted: 0 0% 18%;            /* Dark Gray (#2E2E2E) */
+    --muted-foreground: 200 18% 60%; /* Mid Ash Gray (#8CA0A8) */
+
+    --accent: 27 100% 60%;        /* Brighter Fiery Orange (#FF8C33) */
+    --accent-foreground: 0 0% 10%; /* Very Dark Gray/Black */
+
+    --destructive: 0 62% 60%;     /* Brighter Rhododendron Red (#E06161) */
+    --destructive-foreground: 0 0% 100%; /* White */
+
+    --border: 0 0% 22%;           /* Dark Gray (#383838) */
+    --input: 0 0% 22%;            /* Dark Gray */
+    --ring: 222 100% 68%;         /* Brighter Electric Blue */
+    
+    --chart-1: 222 100% 68%;      /* Brighter Electric Blue */
+    --chart-2: 27 100% 60%;       /* Brighter Fiery Orange */
+    --chart-3: 122 39% 59%;      /* Brighter Moss Green */
+    --chart-4: 0 62% 60%;         /* Brighter Rhododendron Red */
+    --chart-5: 200 18% 50%;       /* Mid-Dark Ash Gray */
+
     --radius: 0.75rem;
   }
 }

@@ -2,7 +2,7 @@
 "use client"
 
 import * as React from "react"
-import { Moon, Sun, Leaf, Laptop } from "lucide-react" // Added Laptop
+import { Moon, Sun, Leaf, Laptop, Palette } from "lucide-react" // Added Palette
 import { useTheme } from "next-themes"
 
 import { Button } from "@/components/ui/button"
@@ -37,6 +37,10 @@ export function ModeToggle() {
         <DropdownMenuItem onClick={() => setTheme("sustainable")}>
           <Leaf className="mr-2 h-4 w-4" />
           Sustainable
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => setTheme("kathmandu-street-pulse")}>
+          <Palette className="mr-2 h-4 w-4" />
+          Kathmandu Street Pulse
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => setTheme("system")}>
           <Laptop className="mr-2 h-4 w-4" />
