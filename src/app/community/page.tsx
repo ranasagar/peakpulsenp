@@ -11,7 +11,7 @@ import { AspectRatio } from '@/components/ui/aspect-ratio';
 import { Loader2, Users, ImagePlus, Heart as HeartIcon } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import MainLayout from '@/components/layout/main-layout';
-import type { UserPost, PostComment, User as AuthUserType, BreadcrumbItem, Metadata } from '@/types';
+import type { UserPost, PostComment, User as AuthUserType, BreadcrumbItem } from '@/types';
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -19,20 +19,7 @@ import { UserPostDetailModal } from '@/components/community/user-post-detail-mod
 import { useAuth } from '@/hooks/use-auth';
 import { Breadcrumbs } from '@/components/navigation/breadcrumbs';
 
-export const metadata: Metadata = {
-  title: 'Community Showcase - Peak Pulse Style',
-  description: 'Explore how the Peak Pulse community styles our apparel. Get inspired by user-submitted photos and share your own look. #PeakPulseStyle',
-  keywords: ['Peak Pulse community', 'user generated content', 'fashion community', 'street style Nepal', '#PeakPulseStyle', 'customer photos'],
-  openGraph: {
-    title: 'Peak Pulse Community Showcase',
-    description: 'See real customer styles and share your own Peak Pulse look.',
-    url: '/community',
-    // images: specific OG image for community page
-  },
-  alternates: {
-    canonical: '/community',
-  },
-};
+// Metadata export removed as this is a client component
 
 async function fetchApprovedUserPosts(): Promise<UserPost[]> {
   const response = await fetch('/api/user-posts?status=approved');
