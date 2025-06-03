@@ -27,7 +27,7 @@ const nextConfig: NextConfig = {
       // Rule specific to font files under /_next/static/media/
       // This rule should come first to ensure it's prioritized.
       {
-        source: '/_next/static/media/:file(.+\\.(woff2|woff|ttf|otf|eot)$)',
+        source: '/_next/static/media/:file(.+\\.(?:woff2|woff|ttf|otf|eot)$)', // Changed (woff2|...) to (?:woff2|...)
         headers: [
           { key: 'Access-Control-Allow-Origin', value: '*' },
           { key: 'Access-Control-Allow-Methods', value: 'GET, OPTIONS' }, // Fonts primarily need GET and OPTIONS for preflight
@@ -60,3 +60,4 @@ const nextConfig: NextConfig = {
 };
 
 export default nextConfig;
+
