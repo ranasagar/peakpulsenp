@@ -14,20 +14,17 @@ import type { OurStoryContentData, OurStorySection } from '@/types';
 import { InteractiveExternalLink } from '@/components/interactive-external-link'; 
 import { Skeleton } from '@/components/ui/skeleton'; 
 import MainLayout from '@/components/layout/main-layout';
-// Removed Metadata import
-
-// Removed export const metadata block
 
 const defaultSectionStructure: OurStorySection = { 
     title: 'Loading...', description: 'Please wait while we fetch the details.', paragraph1: '', paragraph2: '', imageUrl: '', imageAltText: '', imageAiHint: '' 
 };
 
 const fallbackContent: OurStoryContentData = {
-  hero: { ...defaultSectionStructure, title: "Our Story", description: "Weaving together heritage and vision." },
-  mission: { ...defaultSectionStructure, title: "Our Mission", paragraph1: "Elevating craftsmanship and connecting cultures through unique apparel.", paragraph2: "Every piece tells a story of tradition and modernity." },
-  craftsmanship: { ...defaultSectionStructure, title: "The Art of Creation", paragraph1: "Honoring ancient techniques with a commitment to quality.", paragraph2: "Sustainably sourced materials form the heart of our designs." },
+  hero: { ...defaultSectionStructure, title: "Our Story", description: "<p>Weaving together heritage and vision.</p>" },
+  mission: { ...defaultSectionStructure, title: "Our Mission", paragraph1: "<p>Elevating craftsmanship and connecting cultures through unique apparel.</p>", paragraph2: "<p>Every piece tells a story of tradition and modernity.</p>" },
+  craftsmanship: { ...defaultSectionStructure, title: "The Art of Creation", paragraph1: "<p>Honoring ancient techniques with a commitment to quality.</p>", paragraph2: "<p>Sustainably sourced materials form the heart of our designs.</p>" },
   valuesSection: { ...defaultSectionStructure, title: "Our Values: Beyond the Seams" },
-  joinJourneySection: { ...defaultSectionStructure, title: "Join Our Journey", description: "Follow us for updates and be part of the Peak Pulse story." }
+  joinJourneySection: { ...defaultSectionStructure, title: "Join Our Journey", description: "<p>Follow us for updates and be part of the Peak Pulse story.</p>" }
 };
 
 async function getOurStoryContent(): Promise<OurStoryContentData> {
@@ -58,7 +55,7 @@ async function getOurStoryContent(): Promise<OurStoryContentData> {
       }
       return {
           ...fallbackContent,
-          hero: {...fallbackContent.hero, title: "Error Loading Story", description: `Failed: ${res.statusText}`},
+          hero: {...fallbackContent.hero, title: "Error Loading Story", description: `<p>Failed: ${res.statusText}</p>`},
           error: `API Error fetching Our Story content: ${res.status} ${res.statusText}. Details: ${errorBody.substring(0, 200)}`
       };
     }
@@ -179,12 +176,8 @@ export default function OurStoryPage() {
         )}
         <div className="container-wide text-center relative z-10">
           <Mountain className="h-16 w-16 text-primary mx-auto mb-6" />
-          <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-foreground mb-6">
-            {content.hero?.title || "The Heart of Peak Pulse"}
-          </h1>
-          <p className="text-lg md:text-xl text-muted-foreground max-w-3xl mx-auto">
-            {content.hero?.description || "Weaving together heritage and vision."}
-          </p>
+          <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-foreground mb-6" dangerouslySetInnerHTML={{ __html: content.hero?.title || "The Heart of Peak Pulse" }} />
+          <div className="text-lg md:text-xl text-muted-foreground max-w-3xl mx-auto prose dark:prose-invert" dangerouslySetInnerHTML={{ __html: content.hero?.description || "<p>Weaving together heritage and vision.</p>" }} />
         </div>
       </section>
 
@@ -192,13 +185,9 @@ export default function OurStoryPage() {
         <section className="mb-16 md:mb-24">
             <div className="grid md:grid-cols-2 gap-12 items-center">
                 <div>
-                    <h2 className="text-3xl font-semibold text-foreground mb-6">{content.mission?.title || "Our Mission"}</h2>
-                    <p className="text-lg text-muted-foreground mb-4 leading-relaxed">
-                    {content.mission?.paragraph1 || "Elevating craftsmanship."}
-                    </p>
-                    <p className="text-lg text-muted-foreground leading-relaxed">
-                    {content.mission?.paragraph2 || "Connecting cultures."}
-                    </p>
+                    <h2 className="text-3xl font-semibold text-foreground mb-6" dangerouslySetInnerHTML={{ __html: content.mission?.title || "Our Mission" }} />
+                    <div className="text-lg text-muted-foreground mb-4 leading-relaxed prose dark:prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: content.mission?.paragraph1 || "<p>Elevating craftsmanship.</p>" }} />
+                    <div className="text-lg text-muted-foreground leading-relaxed prose dark:prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: content.mission?.paragraph2 || "<p>Connecting cultures.</p>" }} />
                 </div>
                  {renderSectionImage(content.mission, "artisans nepal craft")}
             </div>
@@ -209,13 +198,9 @@ export default function OurStoryPage() {
         <section className="mb-16 md:mb-24">
             <div className="grid md:grid-cols-2 gap-12 items-center">
                 <div className="md:order-2">
-                    <h2 className="text-3xl font-semibold text-foreground mb-6">{content.craftsmanship?.title || "The Art of Creation"}</h2>
-                    <p className="text-lg text-muted-foreground mb-4 leading-relaxed">
-                    {content.craftsmanship?.paragraph1 || "Honoring traditions."}
-                    </p>
-                    <p className="text-lg text-muted-foreground leading-relaxed">
-                    {content.craftsmanship?.paragraph2 || "Sourcing quality."}
-                    </p>
+                    <h2 className="text-3xl font-semibold text-foreground mb-6" dangerouslySetInnerHTML={{ __html: content.craftsmanship?.title || "The Art of Creation" }} />
+                    <div className="text-lg text-muted-foreground mb-4 leading-relaxed prose dark:prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: content.craftsmanship?.paragraph1 || "<p>Honoring traditions.</p>" }} />
+                    <div className="text-lg text-muted-foreground leading-relaxed prose dark:prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: content.craftsmanship?.paragraph2 || "<p>Sourcing quality.</p>" }} />
                 </div>
                 <div className="md:order-1">
                  {renderSectionImage(content.craftsmanship, "textile fabric detail")}
@@ -226,7 +211,7 @@ export default function OurStoryPage() {
         <Separator className="my-16 md:my-24" />
         
         <section className="text-center mb-16 md:mb-24">
-            <h2 className="text-3xl font-semibold text-foreground mb-12">{content.valuesSection?.title || "Our Values: Beyond the Seams"}</h2>
+            <h2 className="text-3xl font-semibold text-foreground mb-12" dangerouslySetInnerHTML={{ __html: content.valuesSection?.title || "Our Values: Beyond the Seams" }} />
             <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
                 <Card className="p-8 bg-card hover:shadow-xl transition-shadow">
                     <Handshake className="h-12 w-12 text-primary mx-auto mb-5" />
@@ -260,10 +245,8 @@ export default function OurStoryPage() {
                 </div>
             )}
             <div className="text-center relative z-10">
-                <h2 className="text-3xl font-semibold text-foreground mb-6">{content.joinJourneySection?.title || "Join Our Journey"}</h2>
-                <p className="text-lg text-muted-foreground mb-8 max-w-2xl mx-auto">
-                {content.joinJourneySection?.description || "Follow us for updates."}
-                </p>
+                <h2 className="text-3xl font-semibold text-foreground mb-6" dangerouslySetInnerHTML={{ __html: content.joinJourneySection?.title || "Join Our Journey" }} />
+                <div className="text-lg text-muted-foreground mb-8 max-w-2xl mx-auto prose dark:prose-invert" dangerouslySetInnerHTML={{ __html: content.joinJourneySection?.description || "<p>Follow us for updates.</p>" }} />
                 <div className="flex justify-center space-x-4">
                     <InteractiveExternalLink href="https://instagram.com/peakpulsenp" showDialog={true}>
                         <Button variant="outline" className="bg-background/80 hover:bg-card"><Instagram className="mr-2 h-5 w-5" /> Instagram</Button>
@@ -281,6 +264,3 @@ export default function OurStoryPage() {
     </MainLayout>
   );
 }
-    
-
-    

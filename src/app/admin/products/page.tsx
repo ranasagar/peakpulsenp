@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel as RHFFormLabel, FormMessage, FormDescription } from '@/components/ui/form'; // Renamed FormLabel to RHFFormLabel to avoid conflict
-import { Label } from "@/components/ui/label"; // <<< ADDED THIS IMPORT
+import { Label } from "@/components/ui/label";
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Save, PlusCircle, Trash2, Edit, XCircle, Paintbrush, Package, Tags } from 'lucide-react';
 import type { Product, ProductImage, Category as ProductCategoryType, ProductVariant, PrintDesign, ProductCustomizationConfig, AdminCategory } from '@/types';
@@ -27,6 +27,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Checkbox } from '@/components/ui/checkbox';
 import Image from 'next/image';
 import Link from 'next/link';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
 
 const imageSchema = z.object({
@@ -356,267 +357,290 @@ export default function AdminProductsPage() {
             <div className="p-5">
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                <fieldset className="space-y-4 p-4 border rounded-md">
-                  <legend className="text-lg font-semibold px-1 -mt-7 bg-card">Basic Information</legend>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField control={form.control} name="name" render={({ field }) => (
-                      <FormItem><RHFFormLabel>Name*</RHFFormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                    )} />
-                    <FormField control={form.control} name="slug" render={({ field }) => (
-                      <FormItem><RHFFormLabel>Slug</RHFFormLabel><FormControl><Input {...field} placeholder="auto-generated if empty" /></FormControl><FormDescription>Lowercase, hyphens only.</FormDescription><FormMessage /></FormItem>
-                    )} />
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <FormField control={form.control} name="price" render={({ field }) => (
-                          <FormItem><RHFFormLabel>Price (NPR)*</RHFFormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
-                      )} />
-                      <FormField control={form.control} name="compareAtPrice" render={({ field }) => (
-                          <FormItem><RHFFormLabel>Compare At Price (Optional)</RHFFormLabel><FormControl><Input type="number" step="0.01" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? null : parseFloat(e.target.value))} /></FormControl><FormMessage /></FormItem>
-                      )} />
-                       <FormField control={form.control} name="costPrice" render={({ field }) => (
-                          <FormItem><RHFFormLabel>Cost Price (NPR)</RHFFormLabel><FormControl><Input type="number" step="0.01" {...field} value={field.value ?? ''}  onChange={e => field.onChange(e.target.value === '' ? null : parseFloat(e.target.value))}/></FormControl><FormMessage /></FormItem>
-                      )} />
-                  </div>
+                <Accordion type="multiple" defaultValue={['basic-info', 'descriptions', 'images', 'categories']} className="w-full">
+                  <AccordionItem value="basic-info">
+                    <AccordionTrigger className="text-lg font-semibold">Basic Information</AccordionTrigger>
+                    <AccordionContent className="pt-4 space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <FormField control={form.control} name="name" render={({ field }) => (
+                          <FormItem><RHFFormLabel>Name*</RHFFormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                        )} />
+                        <FormField control={form.control} name="slug" render={({ field }) => (
+                          <FormItem><RHFFormLabel>Slug</RHFFormLabel><FormControl><Input {...field} placeholder="auto-generated if empty" /></FormControl><FormDescription>Lowercase, hyphens only.</FormDescription><FormMessage /></FormItem>
+                        )} />
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          <FormField control={form.control} name="price" render={({ field }) => (
+                              <FormItem><RHFFormLabel>Price (NPR)*</RHFFormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
+                          )} />
+                          <FormField control={form.control} name="compareAtPrice" render={({ field }) => (
+                              <FormItem><RHFFormLabel>Compare At Price (Optional)</RHFFormLabel><FormControl><Input type="number" step="0.01" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? null : parseFloat(e.target.value))} /></FormControl><FormMessage /></FormItem>
+                          )} />
+                           <FormField control={form.control} name="costPrice" render={({ field }) => (
+                              <FormItem><RHFFormLabel>Cost Price (NPR)</RHFFormLabel><FormControl><Input type="number" step="0.01" {...field} value={field.value ?? ''}  onChange={e => field.onChange(e.target.value === '' ? null : parseFloat(e.target.value))}/></FormControl><FormMessage /></FormItem>
+                          )} />
+                      </div>
 
-                  {!hasVariants && (
-                       <FormField control={form.control} name="stock" render={({ field }) => (
-                          <FormItem><RHFFormLabel>Base Stock (if no variants)</RHFFormLabel><FormControl><Input type="number" {...field} value={field.value ?? 0} onChange={e => field.onChange(e.target.value === '' ? null : parseInt(e.target.value, 10))} /></FormControl><FormMessage /></FormItem>
+                      {!hasVariants && (
+                           <FormField control={form.control} name="stock" render={({ field }) => (
+                              <FormItem><RHFFormLabel>Base Stock (if no variants)</RHFFormLabel><FormControl><Input type="number" {...field} value={field.value ?? 0} onChange={e => field.onChange(e.target.value === '' ? null : parseInt(e.target.value, 10))} /></FormControl><FormMessage /></FormItem>
+                          )} />
+                      )}
+                       <FormField control={form.control} name="isFeatured" render={({ field }) => (
+                          <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-3 shadow-sm">
+                              <FormControl><Checkbox checked={!!field.value} onCheckedChange={field.onChange} /></FormControl>
+                              <div className="space-y-0.5 leading-none">
+                                <RHFFormLabel className="font-normal cursor-pointer">Mark as Featured Product</RHFFormLabel>
+                              </div>
+                          </FormItem>
+                        )} />
+                    </AccordionContent>
+                  </AccordionItem>
+                  
+                  <AccordionItem value="descriptions">
+                    <AccordionTrigger className="text-lg font-semibold">Descriptions</AccordionTrigger>
+                    <AccordionContent className="pt-4 space-y-4">
+                      <FormField control={form.control} name="shortDescription" render={({ field }) => (
+                        <FormItem><RHFFormLabel>Short Description</RHFFormLabel><FormControl><Textarea {...field} rows={2} /></FormControl><FormMessage /></FormItem>
                       )} />
-                  )}
-                   <FormField control={form.control} name="isFeatured" render={({ field }) => (
-                      <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-3 shadow-sm">
-                          <FormControl><Checkbox checked={!!field.value} onCheckedChange={field.onChange} /></FormControl>
-                          <div className="space-y-0.5 leading-none">
-                            <RHFFormLabel className="font-normal cursor-pointer">Mark as Featured Product</RHFFormLabel>
-                          </div>
-                      </FormItem>
-                    )} />
-                </fieldset>
-
-                <fieldset className="space-y-4 p-4 border rounded-md">
-                  <legend className="text-lg font-semibold px-1 -mt-7 bg-card">Descriptions</legend>
-                  <FormField control={form.control} name="shortDescription" render={({ field }) => (
-                    <FormItem><RHFFormLabel>Short Description</RHFFormLabel><FormControl><Textarea {...field} rows={2} /></FormControl><FormMessage /></FormItem>
-                  )} />
-                  <FormField control={form.control} name="description" render={({ field }) => (
-                    <FormItem><RHFFormLabel>Full Description (HTML allowed)</RHFFormLabel><FormControl><Textarea {...field} rows={5} /></FormControl><FormMessage /></FormItem>
-                  )} />
-                </fieldset>
-
-                <fieldset className="space-y-3 p-4 border rounded-md">
-                  <legend className="text-lg font-semibold px-1 -mt-7 bg-card">Images (First image is main)</legend>
-                  {imagesFields.map((field, index) => (
-                    <Card key={field.id} className="p-3 space-y-2 bg-muted/30">
-                      <RHFFormLabel className="text-sm">Image {index + 1}</RHFFormLabel>
-                      <FormField control={form.control} name={`images.${index}.url`} render={({ field }) => (
+                      <FormField control={form.control} name="description" render={({ field }) => (
                         <FormItem>
-                            <RHFFormLabel className="text-xs">Image URL*</RHFFormLabel>
-                            <FormControl><Input {...field} placeholder="https://example.com/image.jpg" /></FormControl>
-                            <FormDescription>Tip: Use ImgBB.com or Postimages.org for free uploads. Paste the "Direct link".</FormDescription>
-                            <FormMessage />
+                          <RHFFormLabel>Full Description</RHFFormLabel>
+                          <FormControl><Textarea {...field} rows={5} /></FormControl>
+                          <FormDescription>HTML is allowed for rich formatting.</FormDescription>
+                          <FormMessage />
                         </FormItem>
                       )} />
-                      <div className="grid grid-cols-2 gap-2">
-                        <FormField control={form.control} name={`images.${index}.altText`} render={({ field }) => (
-                            <FormItem><RHFFormLabel className="text-xs">Alt Text</RHFFormLabel><FormControl><Input {...field} placeholder="Descriptive alt text" /></FormControl></FormItem>
-                        )} />
-                        <FormField control={form.control} name={`images.${index}.dataAiHint`} render={({ field }) => (
-                            <FormItem><RHFFormLabel className="text-xs">AI Hint</RHFFormLabel><FormControl><Input {...field} placeholder="e.g. jacket fashion" /></FormControl></FormItem>
-                        )} />
-                      </div>
-                      <Button type="button" variant="destructive" size="xs" onClick={() => removeImage(index)} disabled={imagesFields.length <= 1}><Trash2 className="mr-1 h-3 w-3"/>Remove Image</Button>
-                    </Card>
-                  ))}
-                  <Button type="button" variant="outline" size="sm" onClick={() => appendImage({...defaultImage, id: `img-${Date.now()}-${Math.random()}`})}><PlusCircle className="mr-2 h-4 w-4"/>Add Image</Button>
-                </fieldset>
+                    </AccordionContent>
+                  </AccordionItem>
 
-                <fieldset className="space-y-3 p-4 border rounded-md">
-                    <legend className="text-lg font-semibold px-1 -mt-7 bg-card flex items-center"><Tags className="mr-2 h-5 w-5 text-primary" />Select Product Categories*</legend>
-                    {isLoadingCategories ? <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /> :
-                      availableCategories.length > 0 ? (
-                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 max-h-48 overflow-y-auto p-1 border rounded-md">
-                          {availableCategories.map(category => (
-                            <FormField
-                              key={category.id}
-                              control={form.control}
-                              name="categories"
-                              render={() => ( // No 'field' needed directly here for a group of checkboxes
-                                <FormItem className="flex flex-row items-center space-x-2 space-y-0">
-                                  <FormControl>
-                                    <Checkbox
-                                      checked={selectedCategoryIds.includes(category.id)}
-                                      onCheckedChange={(checked) => {
-                                        handleCategorySelection(category.id, category.name, category.slug, !!checked);
-                                      }}
-                                      id={`category-select-${category.id}`}
-                                    />
-                                  </FormControl>
-                                  <Label htmlFor={`category-select-${category.id}`} className="text-sm font-normal cursor-pointer">
-                                    {category.name}
-                                  </Label>
-                                </FormItem>
-                              )}
-                            />
-                          ))}
-                        </div>
-                      ) : <p className="text-sm text-muted-foreground">No categories available. Please <Link href="/admin/categories" className="text-primary hover:underline">create categories</Link> first.</p>
-                    }
-                     <FormMessage>{form.formState.errors.categories?.message || form.formState.errors.categories?.root?.message}</FormMessage>
-                     <FormDescription>Select at least one category for this product.</FormDescription>
-                </fieldset>
+                  <AccordionItem value="images">
+                    <AccordionTrigger className="text-lg font-semibold">Images (First image is main)</AccordionTrigger>
+                    <AccordionContent className="pt-4 space-y-3">
+                      {imagesFields.map((field, index) => (
+                        <Card key={field.id} className="p-3 space-y-2 bg-muted/30">
+                          <RHFFormLabel className="text-sm">Image {index + 1}</RHFFormLabel>
+                          <FormField control={form.control} name={`images.${index}.url`} render={({ field }) => (
+                            <FormItem>
+                                <RHFFormLabel className="text-xs">Image URL*</RHFFormLabel>
+                                <FormControl><Input {...field} placeholder="https://example.com/image.jpg" /></FormControl>
+                                <FormDescription>Tip: Use ImgBB.com or Postimages.org for free uploads. Paste the "Direct link".</FormDescription>
+                                <FormMessage />
+                            </FormItem>
+                          )} />
+                          <div className="grid grid-cols-2 gap-2">
+                            <FormField control={form.control} name={`images.${index}.altText`} render={({ field }) => (
+                                <FormItem><RHFFormLabel className="text-xs">Alt Text</RHFFormLabel><FormControl><Input {...field} placeholder="Descriptive alt text" /></FormControl></FormItem>
+                            )} />
+                            <FormField control={form.control} name={`images.${index}.dataAiHint`} render={({ field }) => (
+                                <FormItem><RHFFormLabel className="text-xs">AI Hint</RHFFormLabel><FormControl><Input {...field} placeholder="e.g. jacket fashion" /></FormControl></FormItem>
+                            )} />
+                          </div>
+                          <Button type="button" variant="destructive" size="xs" onClick={() => removeImage(index)} disabled={imagesFields.length <= 1}><Trash2 className="mr-1 h-3 w-3"/>Remove Image</Button>
+                        </Card>
+                      ))}
+                      <Button type="button" variant="outline" size="sm" onClick={() => appendImage({...defaultImage, id: `img-${Date.now()}-${Math.random()}`})}><PlusCircle className="mr-2 h-4 w-4"/>Add Image</Button>
+                    </AccordionContent>
+                  </AccordionItem>
 
-                <fieldset className="space-y-4 p-4 border rounded-md">
-                  <legend className="text-lg font-semibold px-1 -mt-7 bg-card">Additional Details</legend>
-                  <FormField control={form.control} name="fabricDetails" render={({ field }) => (
-                    <FormItem><RHFFormLabel>Fabric Details</RHFFormLabel><FormControl><Textarea {...field} rows={2} /></FormControl><FormMessage /></FormItem>
-                  )} />
-                  <FormField control={form.control} name="careInstructions" render={({ field }) => (
-                    <FormItem><RHFFormLabel>Care Instructions</RHFFormLabel><FormControl><Textarea {...field} rows={2} /></FormControl><FormMessage /></FormItem>
-                  )} />
-                  <FormField control={form.control} name="sustainabilityMetrics" render={({ field }) => (
-                    <FormItem><RHFFormLabel>Sustainability Metrics</RHFFormLabel><FormControl><Textarea {...field} rows={2} /></FormControl><FormMessage /></FormItem>
-                  )} />
-                  <FormField control={form.control} name="fitGuide" render={({ field }) => (
-                    <FormItem><RHFFormLabel>Fit Guide</RHFFormLabel><FormControl><Textarea {...field} rows={2} /></FormControl><FormMessage /></FormItem>
-                  )} />
-                </fieldset>
-
-                <fieldset className="space-y-3 p-4 border rounded-md">
-                  <legend className="text-lg font-semibold px-1 -mt-7 bg-card">Variants (Optional)</legend>
-                  {variantsFields.map((field, index) => (
-                    <Card key={field.id} className="p-3 space-y-2 bg-muted/30">
-                      <RHFFormLabel className="text-sm">Variant {index + 1}</RHFFormLabel>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                        <FormField control={form.control} name={`variants.${index}.name`} render={({ field }) => (
-                          <FormItem><RHFFormLabel className="text-xs">Type (e.g. Size)*</RHFFormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                        )} />
-                        <FormField control={form.control} name={`variants.${index}.value`} render={({ field }) => (
-                          <FormItem><RHFFormLabel className="text-xs">Value (e.g. M)*</RHFFormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                        )} />
-                        <FormField control={form.control} name={`variants.${index}.sku`} render={({ field }) => (
-                          <FormItem><RHFFormLabel className="text-xs">SKU</RHFFormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                        )} />
-                        <FormField control={form.control} name={`variants.${index}.price`} render={({ field }) => (
-                          <FormItem><RHFFormLabel className="text-xs">Variant Price*</RHFFormLabel><FormControl><Input type="number" step="0.01" {...field} value={field.value ?? 0} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} placeholder="Overrides base price if set" /></FormControl><FormMessage /></FormItem>
-                        )} />
-                        <FormField control={form.control} name={`variants.${index}.costPrice`} render={({ field }) => (
-                          <FormItem><RHFFormLabel className="text-xs">Variant Cost Price</RHFFormLabel><FormControl><Input type="number" step="0.01" {...field} value={field.value ?? ''}  onChange={e => field.onChange(e.target.value === '' ? null : parseFloat(e.target.value))} /></FormControl><FormMessage /></FormItem>
-                        )} />
-                        <FormField control={form.control} name={`variants.${index}.stock`} render={({ field }) => (
-                          <FormItem><RHFFormLabel className="text-xs">Stock*</RHFFormLabel><FormControl><Input type="number" {...field} value={field.value ?? 0} onChange={e => field.onChange(parseInt(e.target.value, 10) || 0)} /></FormControl><FormMessage /></FormItem>
-                        )} />
-                        <FormField control={form.control} name={`variants.${index}.imageId`} render={({ field }) => (
-                          <FormItem><RHFFormLabel className="text-xs">Image ID (Optional)</RHFFormLabel><FormControl><Input {...field} placeholder="img-variant-id" /></FormControl><FormDescription>ID of an image from the main list above.</FormDescription><FormMessage /></FormItem>
-                        )} />
-                      </div>
-                      <Button type="button" variant="destructive" size="xs" onClick={() => removeVariant(index)}><Trash2 className="mr-1 h-3 w-3"/>Remove Variant</Button>
-                    </Card>
-                  ))}
-                  <Button type="button" variant="outline" size="sm" onClick={() => appendVariant({...defaultVariant, id: `var-${Date.now()}-${Math.random()}`})}><PlusCircle className="mr-2 h-4 w-4"/>Add Variant</Button>
-                   {hasVariants && <p className="text-xs text-muted-foreground p-1">If variants are used, their prices override the base product price. Variant stock is summed for total product stock. Base stock field will be ignored.</p>}
-                </fieldset>
-
-                <fieldset className="space-y-4 p-4 border rounded-md">
-                    <legend className="text-lg font-semibold px-1 -mt-7 bg-card flex items-center"><Paintbrush className="mr-2 h-5 w-5 text-primary"/>Product Customization Options</legend>
-                     <FormField
-                        control={form.control}
-                        name="customizationConfig.enabled"
-                        render={({ field }) => (
-                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm bg-muted/30">
-                            <div className="space-y-0.5">
-                            <RHFFormLabel className="cursor-pointer">Enable Customization for this Product</RHFFormLabel>
-                            <FormMessage />
-                            </div>
-                            <FormControl>
-                            <Checkbox checked={field.value} onCheckedChange={field.onChange} />
-                            </FormControl>
-                        </FormItem>
-                        )}
-                    />
-                    {customizationEnabled && (
-                        <div className="space-y-4 pl-4 border-l-2 border-primary/30 ml-2">
-                            <FormField
-                                control={form.control}
-                                name="customizationConfig.allowPredefinedDesigns"
-                                render={({ field }) => (
-                                <FormItem className="flex flex-row items-center space-x-3 space-y-0">
-                                    <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>
-                                    <RHFFormLabel className="font-normal cursor-pointer">Allow Predefined Designs</RHFFormLabel>
-                                </FormItem>
-                                )}
-                            />
-                            {form.watch("customizationConfig.allowPredefinedDesigns") && (
-                                <FormField control={form.control} name="customizationConfig.predefinedDesignsLabel" render={({ field }) => (
-                                    <FormItem className="ml-6">
-                                        <RHFFormLabel>Label for 'Signature Peak Design' Section</RHFFormLabel>
-                                        <FormControl><Input {...field} /></FormControl>
-                                        <FormDescription>This is the title shown above the selectable predefined designs on the product page (e.g., &quot;Choose a Signature Peak Design&quot;).</FormDescription>
-                                        <FormMessage />
+                  <AccordionItem value="categories">
+                    <AccordionTrigger className="text-lg font-semibold flex items-center"><Tags className="mr-2 h-5 w-5 text-primary" />Categories*</AccordionTrigger>
+                    <AccordionContent className="pt-4 space-y-3">
+                        {isLoadingCategories ? <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /> :
+                          availableCategories.length > 0 ? (
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 max-h-48 overflow-y-auto p-1 border rounded-md">
+                              {availableCategories.map(category => (
+                                <FormField
+                                  key={category.id}
+                                  control={form.control}
+                                  name="categories"
+                                  render={() => ( // No 'field' needed directly here for a group of checkboxes
+                                    <FormItem className="flex flex-row items-center space-x-2 space-y-0">
+                                      <FormControl>
+                                        <Checkbox
+                                          checked={selectedCategoryIds.includes(category.id)}
+                                          onCheckedChange={(checked) => {
+                                            handleCategorySelection(category.id, category.name, category.slug, !!checked);
+                                          }}
+                                          id={`category-select-${category.id}`}
+                                        />
+                                      </FormControl>
+                                      <Label htmlFor={`category-select-${category.id}`} className="text-sm font-normal cursor-pointer">
+                                        {category.name}
+                                      </Label>
                                     </FormItem>
-                                )} />
-                            )}
+                                  )}
+                                />
+                              ))}
+                            </div>
+                          ) : <p className="text-sm text-muted-foreground">No categories available. Please <Link href="/admin/categories" className="text-primary hover:underline">create categories</Link> first.</p>
+                        }
+                         <FormMessage>{form.formState.errors.categories?.message || form.formState.errors.categories?.root?.message}</FormMessage>
+                         <FormDescription>Select at least one category for this product.</FormDescription>
+                    </AccordionContent>
+                  </AccordionItem>
+                  
+                  <AccordionItem value="additional-details">
+                    <AccordionTrigger className="text-lg font-semibold">Additional Details</AccordionTrigger>
+                    <AccordionContent className="pt-4 space-y-4">
+                      <FormField control={form.control} name="fabricDetails" render={({ field }) => (
+                        <FormItem><RHFFormLabel>Fabric Details</RHFFormLabel><FormControl><Textarea {...field} rows={2} /></FormControl><FormMessage /></FormItem>
+                      )} />
+                      <FormField control={form.control} name="careInstructions" render={({ field }) => (
+                        <FormItem><RHFFormLabel>Care Instructions</RHFFormLabel><FormControl><Textarea {...field} rows={2} /></FormControl><FormMessage /></FormItem>
+                      )} />
+                      <FormField control={form.control} name="sustainabilityMetrics" render={({ field }) => (
+                        <FormItem><RHFFormLabel>Sustainability Metrics</RHFFormLabel><FormControl><Textarea {...field} rows={2} /></FormControl><FormMessage /></FormItem>
+                      )} />
+                      <FormField control={form.control} name="fitGuide" render={({ field }) => (
+                        <FormItem><RHFFormLabel>Fit Guide</RHFFormLabel><FormControl><Textarea {...field} rows={2} /></FormControl><FormMessage /></FormItem>
+                      )} />
+                    </AccordionContent>
+                  </AccordionItem>
 
-                            <FormField
-                                control={form.control}
-                                name="customizationConfig.allowCustomDescription"
-                                render={({ field }) => (
-                                <FormItem className="flex flex-row items-center space-x-3 space-y-0">
-                                    <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>
-                                    <RHFFormLabel className="font-normal cursor-pointer">Allow User Custom Design Description</RHFFormLabel>
-                                </FormItem>
+                  <AccordionItem value="variants">
+                    <AccordionTrigger className="text-lg font-semibold">Variants (Optional)</AccordionTrigger>
+                    <AccordionContent className="pt-4 space-y-3">
+                      {variantsFields.map((field, index) => (
+                        <Card key={field.id} className="p-3 space-y-2 bg-muted/30">
+                          <RHFFormLabel className="text-sm">Variant {index + 1}</RHFFormLabel>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                            <FormField control={form.control} name={`variants.${index}.name`} render={({ field }) => (
+                              <FormItem><RHFFormLabel className="text-xs">Type (e.g. Size)*</RHFFormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                            )} />
+                            <FormField control={form.control} name={`variants.${index}.value`} render={({ field }) => (
+                              <FormItem><RHFFormLabel className="text-xs">Value (e.g. M)*</RHFFormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                            )} />
+                            <FormField control={form.control} name={`variants.${index}.sku`} render={({ field }) => (
+                              <FormItem><RHFFormLabel className="text-xs">SKU</RHFFormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                            )} />
+                            <FormField control={form.control} name={`variants.${index}.price`} render={({ field }) => (
+                              <FormItem><RHFFormLabel className="text-xs">Variant Price*</RHFFormLabel><FormControl><Input type="number" step="0.01" {...field} value={field.value ?? 0} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} placeholder="Overrides base price if set" /></FormControl><FormMessage /></FormItem>
+                            )} />
+                            <FormField control={form.control} name={`variants.${index}.costPrice`} render={({ field }) => (
+                              <FormItem><RHFFormLabel className="text-xs">Variant Cost Price</RHFFormLabel><FormControl><Input type="number" step="0.01" {...field} value={field.value ?? ''}  onChange={e => field.onChange(e.target.value === '' ? null : parseFloat(e.target.value))} /></FormControl><FormMessage /></FormItem>
+                            )} />
+                            <FormField control={form.control} name={`variants.${index}.stock`} render={({ field }) => (
+                              <FormItem><RHFFormLabel className="text-xs">Stock*</RHFFormLabel><FormControl><Input type="number" {...field} value={field.value ?? 0} onChange={e => field.onChange(parseInt(e.target.value, 10) || 0)} /></FormControl><FormMessage /></FormItem>
+                            )} />
+                            <FormField control={form.control} name={`variants.${index}.imageId`} render={({ field }) => (
+                              <FormItem><RHFFormLabel className="text-xs">Image ID (Optional)</RHFFormLabel><FormControl><Input {...field} placeholder="img-variant-id" /></FormControl><FormDescription>ID of an image from the main list above.</FormDescription><FormMessage /></FormItem>
+                            )} />
+                          </div>
+                          <Button type="button" variant="destructive" size="xs" onClick={() => removeVariant(index)}><Trash2 className="mr-1 h-3 w-3"/>Remove Variant</Button>
+                        </Card>
+                      ))}
+                      <Button type="button" variant="outline" size="sm" onClick={() => appendVariant({...defaultVariant, id: `var-${Date.now()}-${Math.random()}`})}><PlusCircle className="mr-2 h-4 w-4"/>Add Variant</Button>
+                       {hasVariants && <p className="text-xs text-muted-foreground p-1">If variants are used, their prices override the base product price. Variant stock is summed for total product stock. Base stock field will be ignored.</p>}
+                    </AccordionContent>
+                  </AccordionItem>
+
+                  <AccordionItem value="customization">
+                    <AccordionTrigger className="text-lg font-semibold flex items-center"><Paintbrush className="mr-2 h-5 w-5 text-primary"/>Product Customization Options</AccordionTrigger>
+                    <AccordionContent className="pt-4 space-y-4">
+                         <FormField
+                            control={form.control}
+                            name="customizationConfig.enabled"
+                            render={({ field }) => (
+                            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm bg-muted/30">
+                                <div className="space-y-0.5">
+                                <RHFFormLabel className="cursor-pointer">Enable Customization for this Product</RHFFormLabel>
+                                <FormMessage />
+                                </div>
+                                <FormControl>
+                                <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                                </FormControl>
+                            </FormItem>
+                            )}
+                        />
+                        {customizationEnabled && (
+                            <div className="space-y-4 pl-4 border-l-2 border-primary/30 ml-2">
+                                <FormField
+                                    control={form.control}
+                                    name="customizationConfig.allowPredefinedDesigns"
+                                    render={({ field }) => (
+                                    <FormItem className="flex flex-row items-center space-x-3 space-y-0">
+                                        <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                                        <RHFFormLabel className="font-normal cursor-pointer">Allow Predefined Designs</RHFFormLabel>
+                                    </FormItem>
+                                    )}
+                                />
+                                {form.watch("customizationConfig.allowPredefinedDesigns") && (
+                                    <FormField control={form.control} name="customizationConfig.predefinedDesignsLabel" render={({ field }) => (
+                                        <FormItem className="ml-6">
+                                            <RHFFormLabel>Label for 'Signature Peak Design' Section</RHFFormLabel>
+                                            <FormControl><Input {...field} /></FormControl>
+                                            <FormDescription>This is the title shown above the selectable predefined designs on the product page (e.g., &quot;Choose a Signature Peak Design&quot;).</FormDescription>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )} />
                                 )}
-                            />
-                            {form.watch("customizationConfig.allowCustomDescription") && (
-                                <FormField control={form.control} name="customizationConfig.customDescriptionLabel" render={({ field }) => (
-                                     <FormItem className="ml-6"><RHFFormLabel>Label for Custom Design Description Input</RHFFormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                                )} />
-                            )}
 
-                            <FormField
-                                control={form.control}
-                                name="customizationConfig.allowInstructions"
-                                render={({ field }) => (
-                                <FormItem className="flex flex-row items-center space-x-3 space-y-0">
-                                    <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>
-                                    <RHFFormLabel className="font-normal cursor-pointer">Allow User Instructions</RHFFormLabel>
-                                </FormItem>
+                                <FormField
+                                    control={form.control}
+                                    name="customizationConfig.allowCustomDescription"
+                                    render={({ field }) => (
+                                    <FormItem className="flex flex-row items-center space-x-3 space-y-0">
+                                        <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                                        <RHFFormLabel className="font-normal cursor-pointer">Allow User Custom Design Description</RHFFormLabel>
+                                    </FormItem>
+                                    )}
+                                />
+                                {form.watch("customizationConfig.allowCustomDescription") && (
+                                    <FormField control={form.control} name="customizationConfig.customDescriptionLabel" render={({ field }) => (
+                                         <FormItem className="ml-6"><RHFFormLabel>Label for Custom Design Description Input</RHFFormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                                    )} />
                                 )}
-                            />
-                            {form.watch("customizationConfig.allowInstructions") && (
-                                <FormField control={form.control} name="customizationConfig.instructionsLabel" render={({ field }) => (
-                                     <FormItem className="ml-6"><RHFFormLabel>Label for Instructions Input</RHFFormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                                )} />
-                            )}
-                        </div>
-                    )}
-                </fieldset>
 
-                {customizationEnabled && form.watch("customizationConfig.allowPredefinedDesigns") && (
-                    <fieldset className="space-y-3 p-4 border rounded-md">
-                        <legend className="text-lg font-semibold px-1 -mt-7 bg-card">Available Predefined Print Designs</legend>
-                        {printDesignsFields.map((field, index) => (
-                            <Card key={field.id} className="p-3 space-y-2 bg-muted/30">
-                              <RHFFormLabel className="text-sm">Design {index + 1}</RHFFormLabel>
-                              <FormField control={form.control} name={`availablePrintDesigns.${index}.name`} render={({ field }) => (
-                                  <FormItem><RHFFormLabel className="text-xs">Design Name*</RHFFormLabel><FormControl><Input {...field} placeholder="e.g. Everest Peak Outline" /></FormControl><FormMessage /></FormItem>
-                              )} />
-                              <FormField control={form.control} name={`availablePrintDesigns.${index}.imageUrl`} render={({ field }) => (
-                                  <FormItem>
-                                    <RHFFormLabel className="text-xs">Design Image URL*</RHFFormLabel>
-                                    <FormControl><Input {...field} placeholder="https://example.com/design.png" /></FormControl>
-                                    <FormDescription>Tip: Use ImgBB.com or Postimages.org for free uploads. Paste the "Direct link".</FormDescription>
-                                    <FormMessage />
-                                  </FormItem>
-                              )} />
-                              <FormField control={form.control} name={`availablePrintDesigns.${index}.dataAiHint`} render={({ field }) => (
-                                  <FormItem><RHFFormLabel className="text-xs">AI Hint for Design Image</RHFFormLabel><FormControl><Input {...field} placeholder="e.g. mountain lineart" /></FormControl><FormMessage /></FormItem>
-                              )} />
-                              <Button type="button" variant="destructive" size="xs" onClick={() => removePrintDesign(index)}><Trash2 className="mr-1 h-3 w-3"/>Remove Design</Button>
-                            </Card>
-                        ))}
-                        <Button type="button" variant="outline" size="sm" onClick={() => appendPrintDesign({...defaultPrintDesign, id: `print-${Date.now()}-${Math.random()}`})}><PlusCircle className="mr-2 h-4 w-4"/>Add Predefined Design</Button>
-                    </fieldset>
-                )}
+                                <FormField
+                                    control={form.control}
+                                    name="customizationConfig.allowInstructions"
+                                    render={({ field }) => (
+                                    <FormItem className="flex flex-row items-center space-x-3 space-y-0">
+                                        <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                                        <RHFFormLabel className="font-normal cursor-pointer">Allow User Instructions</RHFFormLabel>
+                                    </FormItem>
+                                    )}
+                                />
+                                {form.watch("customizationConfig.allowInstructions") && (
+                                    <FormField control={form.control} name="customizationConfig.instructionsLabel" render={({ field }) => (
+                                         <FormItem className="ml-6"><RHFFormLabel>Label for Instructions Input</RHFFormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                                    )} />
+                                )}
+                            </div>
+                        )}
+                    </AccordionContent>
+                  </AccordionItem>
+
+                  {customizationEnabled && form.watch("customizationConfig.allowPredefinedDesigns") && (
+                      <AccordionItem value="predefined-designs">
+                          <AccordionTrigger className="text-lg font-semibold">Available Predefined Print Designs</AccordionTrigger>
+                          <AccordionContent className="pt-4 space-y-3">
+                            {printDesignsFields.map((field, index) => (
+                                <Card key={field.id} className="p-3 space-y-2 bg-muted/30">
+                                  <RHFFormLabel className="text-sm">Design {index + 1}</RHFFormLabel>
+                                  <FormField control={form.control} name={`availablePrintDesigns.${index}.name`} render={({ field }) => (
+                                      <FormItem><RHFFormLabel className="text-xs">Design Name*</RHFFormLabel><FormControl><Input {...field} placeholder="e.g. Everest Peak Outline" /></FormControl><FormMessage /></FormItem>
+                                  )} />
+                                  <FormField control={form.control} name={`availablePrintDesigns.${index}.imageUrl`} render={({ field }) => (
+                                      <FormItem>
+                                        <RHFFormLabel className="text-xs">Design Image URL*</RHFFormLabel>
+                                        <FormControl><Input {...field} placeholder="https://example.com/design.png" /></FormControl>
+                                        <FormDescription>Tip: Use ImgBB.com or Postimages.org for free uploads. Paste the "Direct link".</FormDescription>
+                                        <FormMessage />
+                                      </FormItem>
+                                  )} />
+                                  <FormField control={form.control} name={`availablePrintDesigns.${index}.dataAiHint`} render={({ field }) => (
+                                      <FormItem><RHFFormLabel className="text-xs">AI Hint for Design Image</RHFFormLabel><FormControl><Input {...field} placeholder="e.g. mountain lineart" /></FormControl><FormMessage /></FormItem>
+                                  )} />
+                                  <Button type="button" variant="destructive" size="xs" onClick={() => removePrintDesign(index)}><Trash2 className="mr-1 h-3 w-3"/>Remove Design</Button>
+                                </Card>
+                            ))}
+                            <Button type="button" variant="outline" size="sm" onClick={() => appendPrintDesign({...defaultPrintDesign, id: `print-${Date.now()}-${Math.random()}`})}><PlusCircle className="mr-2 h-4 w-4"/>Add Predefined Design</Button>
+                          </AccordionContent>
+                      </AccordionItem>
+                  )}
+                </Accordion>
 
                 <DialogFooter className="pt-4">
                   <DialogClose asChild>

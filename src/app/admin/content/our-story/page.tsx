@@ -14,6 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2, Save, BookOpenText, Image as ImageIconLucide } from 'lucide-react'; 
 import type { OurStoryContentData, OurStorySection } from '@/types';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
 // Updated Zod schema for a section
 const ourStorySectionSchema = z.object({
@@ -50,17 +51,16 @@ const defaultOurStoryFormValues: OurStoryContentFormValues = {
 interface SectionFormProps {
   control: any; // Control object from react-hook-form
   sectionName: keyof OurStoryContentFormValues; // e.g., "hero", "mission"
-  sectionDisplayName: string;
+  // sectionDisplayName: string; // No longer needed as AccordionTrigger will have this
   hasDescription?: boolean; // Does this section use 'description' field?
   hasParagraphs?: boolean;  // Does this section use 'paragraph1' and 'paragraph2'?
 }
 
 const SectionFormControl: React.FC<SectionFormProps> = ({ 
-  control, sectionName, sectionDisplayName, hasDescription = false, hasParagraphs = false 
+  control, sectionName, hasDescription = false, hasParagraphs = false 
 }) => {
   return (
-    <fieldset className="space-y-4 p-4 border rounded-md">
-      <legend className="text-lg font-semibold px-1 -mt-7 bg-card">{sectionDisplayName} Section</legend>
+    <>
       <FormField 
         control={control} 
         name={`${sectionName}.title`}
@@ -73,7 +73,12 @@ const SectionFormControl: React.FC<SectionFormProps> = ({
           control={control} 
           name={`${sectionName}.description`}
           render={({ field }) => (
-            <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea {...field} rows={3} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
+            <FormItem>
+              <FormLabel>Description</FormLabel>
+              <FormControl><Textarea {...field} rows={3} value={field.value || ''} /></FormControl>
+              <FormDescription>HTML is allowed for formatting.</FormDescription>
+              <FormMessage />
+            </FormItem>
           )} 
         />
       )}
@@ -83,14 +88,24 @@ const SectionFormControl: React.FC<SectionFormProps> = ({
             control={control} 
             name={`${sectionName}.paragraph1`}
             render={({ field }) => (
-              <FormItem><FormLabel>Paragraph 1</FormLabel><FormControl><Textarea {...field} rows={4} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
+              <FormItem>
+                <FormLabel>Paragraph 1</FormLabel>
+                <FormControl><Textarea {...field} rows={4} value={field.value || ''} /></FormControl>
+                <FormDescription>HTML is allowed for formatting.</FormDescription>
+                <FormMessage />
+              </FormItem>
             )} 
           />
           <FormField 
             control={control} 
             name={`${sectionName}.paragraph2`}
             render={({ field }) => (
-              <FormItem><FormLabel>Paragraph 2</FormLabel><FormControl><Textarea {...field} rows={4} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
+              <FormItem>
+                <FormLabel>Paragraph 2</FormLabel>
+                <FormControl><Textarea {...field} rows={4} value={field.value || ''} /></FormControl>
+                <FormDescription>HTML is allowed for formatting.</FormDescription>
+                <FormMessage />
+              </FormItem>
             )} 
           />
         </>
@@ -121,7 +136,7 @@ const SectionFormControl: React.FC<SectionFormProps> = ({
           <FormItem><FormLabel>Image AI Hint (for placeholder)</FormLabel><FormControl><Input {...field} placeholder="e.g., mountain landscape" value={field.value || ''}/></FormControl><FormMessage /></FormItem>
         )} 
       />
-    </fieldset>
+    </>
   );
 };
 
@@ -146,7 +161,6 @@ export default function AdminOurStoryContentPage() {
             throw new Error(errorData.message || errorData.rawSupabaseError?.message || 'Failed to fetch Our Story content');
         }
         const data: OurStoryContentData = await response.json();
-        // Ensure all sections exist in data before resetting form, providing defaults if not
         const formData: OurStoryContentFormValues = {
             hero: { ...defaultOurStoryFormValues.hero, ...data.hero },
             mission: { ...defaultOurStoryFormValues.mission, ...data.mission },
@@ -169,7 +183,7 @@ export default function AdminOurStoryContentPage() {
   const onSubmit = async (data: OurStoryContentFormValues) => {
     setIsSaving(true);
     try {
-       const payload: OurStoryContentData = { // Ensure payload matches expected API structure
+       const payload: OurStoryContentData = { 
         hero: data.hero,
         mission: data.mission,
         craftsmanship: data.craftsmanship,
@@ -220,13 +234,39 @@ export default function AdminOurStoryContentPage() {
       <CardContent className="flex-1 overflow-hidden p-0">
         <ScrollArea className="h-full p-6">
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-10">
-              
-              <SectionFormControl control={form.control} sectionName="hero" sectionDisplayName="Hero" hasDescription />
-              <SectionFormControl control={form.control} sectionName="mission" sectionDisplayName="Mission" hasParagraphs />
-              <SectionFormControl control={form.control} sectionName="craftsmanship" sectionDisplayName="Craftsmanship" hasParagraphs />
-              <SectionFormControl control={form.control} sectionName="valuesSection" sectionDisplayName="Values" />
-              <SectionFormControl control={form.control} sectionName="joinJourneySection" sectionDisplayName="Join Our Journey" hasDescription />
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              <Accordion type="multiple" defaultValue={['hero-section']} className="w-full">
+                <AccordionItem value="hero-section">
+                  <AccordionTrigger className="text-xl font-semibold">Hero Section</AccordionTrigger>
+                  <AccordionContent className="pt-4 space-y-4">
+                    <SectionFormControl control={form.control} sectionName="hero" hasDescription />
+                  </AccordionContent>
+                </AccordionItem>
+                <AccordionItem value="mission-section">
+                  <AccordionTrigger className="text-xl font-semibold">Mission Section</AccordionTrigger>
+                  <AccordionContent className="pt-4 space-y-4">
+                    <SectionFormControl control={form.control} sectionName="mission" hasParagraphs />
+                  </AccordionContent>
+                </AccordionItem>
+                <AccordionItem value="craftsmanship-section">
+                  <AccordionTrigger className="text-xl font-semibold">Craftsmanship Section</AccordionTrigger>
+                  <AccordionContent className="pt-4 space-y-4">
+                    <SectionFormControl control={form.control} sectionName="craftsmanship" hasParagraphs />
+                  </AccordionContent>
+                </AccordionItem>
+                <AccordionItem value="values-section">
+                  <AccordionTrigger className="text-xl font-semibold">Values Section</AccordionTrigger>
+                  <AccordionContent className="pt-4 space-y-4">
+                    <SectionFormControl control={form.control} sectionName="valuesSection" />
+                  </AccordionContent>
+                </AccordionItem>
+                <AccordionItem value="join-journey-section">
+                  <AccordionTrigger className="text-xl font-semibold">Join Our Journey Section</AccordionTrigger>
+                  <AccordionContent className="pt-4 space-y-4">
+                    <SectionFormControl control={form.control} sectionName="joinJourneySection" hasDescription />
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
             
             <Button type="submit" disabled={isSaving || isLoading} className="w-full sm:w-auto !mt-8" size="lg"> 
               {isSaving ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Save className="mr-2 h-5 w-5" />}
@@ -239,5 +279,3 @@ export default function AdminOurStoryContentPage() {
     </Card>
   );
 }
-
-    

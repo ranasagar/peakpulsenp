@@ -15,6 +15,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2, Save, Link as LinkIcon, PlusCircle, Trash2, Settings, MessageCircle } from 'lucide-react'; 
 import type { SiteSettings, SocialLink } from '@/types';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
 
 // Schema for general settings
@@ -150,72 +151,91 @@ export default function AdminSettingsPage() {
         ) : (
         <ScrollArea className="h-full p-6">
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-            
-            <fieldset className="space-y-4 p-4 border rounded-md bg-card">
-              <legend className="text-lg font-semibold px-1 -mt-7 bg-card">Site Metadata</legend>
-              <FormField control={form.control} name="siteTitle" render={({ field }) => (
-                <FormItem><FormLabel>Site Title</FormLabel><FormControl><Input {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
-              )} />
-              <FormField control={form.control} name="siteDescription" render={({ field }) => (
-                <FormItem><FormLabel>Site Description (for SEO)</FormLabel><FormControl><Textarea {...field} rows={3} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
-              )} />
-            </fieldset>
-
-            <fieldset className="space-y-4 p-4 border rounded-md bg-card">
-              <legend className="text-lg font-semibold px-1 -mt-7 bg-card">Store Contact Information</legend>
-              <FormField control={form.control} name="storeEmail" render={({ field }) => (
-                <FormItem><FormLabel>Contact Email</FormLabel><FormControl><Input type="email" {...field} value={field.value || ''}/></FormControl><FormMessage /></FormItem>
-              )} />
-              <FormField control={form.control} name="storePhone" render={({ field }) => (
-                <FormItem><FormLabel>Contact Phone (Optional)</FormLabel><FormControl><Input {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
-              )} />
-              <FormField control={form.control} name="storeAddress" render={({ field }) => (
-                <FormItem><FormLabel>Store Address (Optional)</FormLabel><FormControl><Textarea {...field} rows={2} value={field.value || ''}/></FormControl><FormMessage /></FormItem>
-              )} />
-            </fieldset>
-
-            <fieldset className="space-y-4 p-4 border rounded-md bg-card">
-              <legend className="text-lg font-semibold px-1 -mt-7 bg-card flex items-center"><MessageCircle className="mr-2 h-5 w-5 text-primary"/>Social Messaging Links</legend>
-              <FormDescription>
-                Used for the floating social messaging widget. Enter only the username or ID, not the full URL.
-              </FormDescription>
-              <FormField control={form.control} name="whatsappNumber" render={({ field }) => (
-                <FormItem><FormLabel>WhatsApp Number</FormLabel><FormControl><Input {...field} value={field.value || ''} placeholder="e.g., 97798XXXXXXXX" /></FormControl><FormDescription>Your WhatsApp phone number, including country code if applicable (e.g., 9779862020757). The widget will format the link: <code>https://wa.me/YOUR_NUMBER</code>.</FormDescription><FormMessage /></FormItem>
-              )} />
-              <FormField control={form.control} name="instagramUsername" render={({ field }) => (
-                <FormItem><FormLabel>Instagram Username</FormLabel><FormControl><Input {...field} value={field.value || ''} placeholder="e.g., peakpulsenp" /></FormControl><FormDescription>Your Instagram username (e.g., <code>peakpulsenp</code>), not the full profile URL. The widget will create the DM link: <code>https://ig.me/m/YOUR_USERNAME</code>.</FormDescription><FormMessage /></FormItem>
-              )} />
-              <FormField control={form.control} name="facebookUsernameOrPageId" render={({ field }) => (
-                <FormItem><FormLabel>Facebook Page Username or Page ID</FormLabel><FormControl><Input {...field} value={field.value || ''} placeholder="e.g., peakpulsenp or 1000XXXXXXXXX" /></FormControl><FormDescription>Your Facebook Page's username (e.g., <code>peakpulsenp</code>) or its numeric Page ID. The widget will create the Messenger link: <code>https://m.me/YOUR_ID</code>. Ensure your Page's messaging settings allow direct messages.</FormDescription><FormMessage /></FormItem>
-              )} />
-            </fieldset>
-
-            <fieldset className="space-y-4 p-4 border rounded-md bg-card">
-                <legend className="text-lg font-semibold px-1 -mt-7 bg-card">User Experience</legend>
-                <FormField
-                  control={form.control}
-                  name="showExternalLinkWarning"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm bg-muted/30">
-                      <div className="space-y-0.5">
-                        <FormLabel>External Link Warning</FormLabel>
-                        <FormDescription>
-                          Show a confirmation popup before navigating to external websites.
-                        </FormDescription>
-                      </div>
-                      <FormControl>
-                        <Checkbox
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            <Accordion type="multiple" defaultValue={['site-metadata', 'store-contact', 'social-messaging', 'ux-settings']} className="w-full">
+              <AccordionItem value="site-metadata">
+                <AccordionTrigger className="text-xl font-semibold">Site Metadata</AccordionTrigger>
+                <AccordionContent className="pt-4 space-y-4">
+                  <FormField control={form.control} name="siteTitle" render={({ field }) => (
+                    <FormItem><FormLabel>Site Title</FormLabel><FormControl><Input {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
+                  )} />
+                  <FormField control={form.control} name="siteDescription" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Site Description (for SEO)</FormLabel>
+                      <FormControl><Textarea {...field} rows={3} value={field.value || ''} /></FormControl>
+                      <FormDescription>This description is used for search engine results. Keep it concise (around 150-160 characters) and use plain text.</FormDescription>
+                      <FormMessage />
                     </FormItem>
-                  )}
-                />
-            </fieldset>
+                  )} />
+                </AccordionContent>
+              </AccordionItem>
+
+              <AccordionItem value="store-contact">
+                <AccordionTrigger className="text-xl font-semibold">Store Contact Information</AccordionTrigger>
+                <AccordionContent className="pt-4 space-y-4">
+                  <FormField control={form.control} name="storeEmail" render={({ field }) => (
+                    <FormItem><FormLabel>Contact Email</FormLabel><FormControl><Input type="email" {...field} value={field.value || ''}/></FormControl><FormMessage /></FormItem>
+                  )} />
+                  <FormField control={form.control} name="storePhone" render={({ field }) => (
+                    <FormItem><FormLabel>Contact Phone (Optional)</FormLabel><FormControl><Input {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
+                  )} />
+                  <FormField control={form.control} name="storeAddress" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Store Address (Optional)</FormLabel>
+                      <FormControl><Textarea {...field} rows={2} value={field.value || ''}/></FormControl>
+                      <FormDescription>Use '\n' for line breaks if needed (e.g., "Street Address\nCity, Country"). Avoid HTML here.</FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                </AccordionContent>
+              </AccordionItem>
+
+              <AccordionItem value="social-messaging">
+                <AccordionTrigger className="text-xl font-semibold flex items-center"><MessageCircle className="mr-2 h-5 w-5 text-primary"/>Social Messaging Links</AccordionTrigger>
+                <AccordionContent className="pt-4 space-y-4">
+                  <FormDescription>
+                    Used for the floating social messaging widget. Enter only the username or ID, not the full URL.
+                  </FormDescription>
+                  <FormField control={form.control} name="whatsappNumber" render={({ field }) => (
+                    <FormItem><FormLabel>WhatsApp Number</FormLabel><FormControl><Input {...field} value={field.value || ''} placeholder="e.g., 97798XXXXXXXX" /></FormControl><FormDescription>Your WhatsApp phone number, including country code if applicable (e.g., 9779862020757). The widget will format the link: <code>https://wa.me/YOUR_NUMBER</code>.</FormDescription><FormMessage /></FormItem>
+                  )} />
+                  <FormField control={form.control} name="instagramUsername" render={({ field }) => (
+                    <FormItem><FormLabel>Instagram Username</FormLabel><FormControl><Input {...field} value={field.value || ''} placeholder="e.g., peakpulsenp" /></FormControl><FormDescription>Your Instagram username (e.g., <code>peakpulsenp</code>), not the full profile URL. The widget will create the DM link: <code>https://ig.me/m/YOUR_USERNAME</code>.</FormDescription><FormMessage /></FormItem>
+                  )} />
+                  <FormField control={form.control} name="facebookUsernameOrPageId" render={({ field }) => (
+                    <FormItem><FormLabel>Facebook Page Username or Page ID</FormLabel><FormControl><Input {...field} value={field.value || ''} placeholder="e.g., peakpulsenp or 1000XXXXXXXXX" /></FormControl><FormDescription>Your Facebook Page's username (e.g., <code>peakpulsenp</code>) or its numeric Page ID. The widget will create the Messenger link: <code>https://m.me/YOUR_ID</code>. Ensure your Page's messaging settings allow direct messages.</FormDescription><FormMessage /></FormItem>
+                  )} />
+                </AccordionContent>
+              </AccordionItem>
+
+              <AccordionItem value="ux-settings">
+                <AccordionTrigger className="text-xl font-semibold">User Experience</AccordionTrigger>
+                <AccordionContent className="pt-4 space-y-4">
+                    <FormField
+                      control={form.control}
+                      name="showExternalLinkWarning"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm bg-muted/30">
+                          <div className="space-y-0.5">
+                            <FormLabel>External Link Warning</FormLabel>
+                            <FormDescription>
+                              Show a confirmation popup before navigating to external websites.
+                            </FormDescription>
+                          </div>
+                          <FormControl>
+                            <Checkbox
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                            />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
             
-            <Button type="submit" disabled={isSaving || isLoading} size="lg" className="w-full sm:w-auto">
+            <Button type="submit" disabled={isSaving || isLoading} size="lg" className="w-full sm:w-auto !mt-8">
               {isSaving ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Save className="mr-2 h-5 w-5" />}
               Save Settings
             </Button>
