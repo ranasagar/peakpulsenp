@@ -10,21 +10,7 @@ import { AspectRatio } from '@/components/ui/aspect-ratio';
 import { Loader2, LayoutGrid } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import MainLayout from '@/components/layout/main-layout'; 
-import type { Metadata } from 'next';
-
-export const metadata: Metadata = {
-  title: 'Product Categories - Peak Pulse',
-  description: 'Explore all product categories at Peak Pulse. Find collections of outerwear, tops, bottoms, and more, all blending Nepali craftsmanship with modern style.',
-  keywords: ['product categories', 'shop by category', 'Peak Pulse collections', 'Nepali fashion categories'],
-  openGraph: {
-    title: 'Product Categories | Peak Pulse',
-    description: 'Browse all product categories from Peak Pulse.',
-    url: '/categories',
-  },
-  alternates: {
-    canonical: '/categories',
-  },
-};
+// Removed Metadata import and export const metadata block
 
 async function fetchCategories(): Promise<CategoryType[]> {
   const response = await fetch('/api/categories'); 
