@@ -14,23 +14,9 @@ import type { OurStoryContentData, OurStorySection } from '@/types';
 import { InteractiveExternalLink } from '@/components/interactive-external-link'; 
 import { Skeleton } from '@/components/ui/skeleton'; 
 import MainLayout from '@/components/layout/main-layout';
-import type { Metadata } from 'next';
+// Removed Metadata import
 
-export const metadata: Metadata = {
-  title: 'Our Story - The Heart of Peak Pulse',
-  description: 'Learn about the mission, values, and craftsmanship behind Peak Pulse. Discover our journey of blending Nepali heritage with contemporary fashion.',
-  keywords: ['Peak Pulse story', 'about Peak Pulse', 'Nepali craftsmanship', 'ethical fashion Nepal', 'our mission', 'our values'],
-  openGraph: {
-    title: 'Our Story - The Heart of Peak Pulse',
-    description: 'Discover the heritage, mission, and values that define Peak Pulse.',
-    url: '/our-story',
-    // images: specific OG image for this page
-  },
-  alternates: {
-    canonical: '/our-story',
-  },
-};
-
+// Removed export const metadata block
 
 const defaultSectionStructure: OurStorySection = { 
     title: 'Loading...', description: 'Please wait while we fetch the details.', paragraph1: '', paragraph2: '', imageUrl: '', imageAltText: '', imageAiHint: '' 
@@ -295,5 +281,6 @@ export default function OurStoryPage() {
     </MainLayout>
   );
 }
+    
 
     
