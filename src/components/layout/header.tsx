@@ -18,11 +18,12 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/co
 import { Icons } from '@/components/icons';
 import { useAuth } from '@/hooks/use-auth';
 import { cn } from '@/lib/utils';
-import type { NavItem } from '@/types';
-import { ShoppingCart, Search, LogOut, UserCircle, LayoutDashboard, Settings, Star, ShoppingBag as ShoppingBagIcon, Briefcase, LayoutGrid, Home as HomeIcon, BookOpenText, Mail, Handshake, Users } from 'lucide-react';
+import type { NavItem, SiteSettings } from '@/types';
+import { ShoppingCart, Search, LogOut, UserCircle, LayoutDashboard, Settings, Star, ShoppingBag as ShoppingBagIcon, Briefcase, LayoutGrid, Home as HomeIcon, BookOpenText, Mail, Handshake, Users, Image as ImageIconLucide, Loader2 } from 'lucide-react';
 import { ModeToggle } from './mode-toggle';
 import { FullscreenToggleButton } from '@/components/ui/fullscreen-toggle-button';
 import { useCart } from '@/context/cart-context';
+import Image from 'next/image'; // Import next/image
 
 // These are used for the mobile Sheet menu and User Dropdown
 const mainNavItems: NavItem[] = [
@@ -48,10 +49,36 @@ export function Header() { // Still named Header, but acts as TopBar
   const pathname = usePathname();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [siteSettings, setSiteSettings] = useState<SiteSettings | null>(null);
+  const [isLoadingSettings, setIsLoadingSettings] = useState(true);
 
   useEffect(() => setMounted(true), []);
 
-  // Mobile navigation links are generated from mainNavItems
+  useEffect(() => {
+    const fetchSiteSettings = async () => {
+      setIsLoadingSettings(true);
+      try {
+        const response = await fetch('/api/settings');
+        if (response.ok) {
+          const data = await response.json();
+          setSiteSettings(data);
+        } else {
+          console.warn("Header: Failed to fetch site settings.");
+          setSiteSettings(null); // Or set to default settings
+        }
+      } catch (error) {
+        console.error("Header: Error fetching site settings:", error);
+        setSiteSettings(null);
+      } finally {
+        setIsLoadingSettings(false);
+      }
+    };
+    fetchSiteSettings();
+  }, []);
+
+  const displaySiteTitle = siteSettings?.headerSiteTitle || siteSettings?.siteTitle || "Peak Pulse";
+  const headerLogoUrl = siteSettings?.headerLogoUrl;
+
   const mobileNavLinks = mainNavItems.map((item) => {
     return (
       <Link
@@ -106,7 +133,6 @@ export function Header() { // Still named Header, but acts as TopBar
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/60 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container-wide flex h-20 items-center justify-between">
-        {/* Left Group: Mobile Menu Trigger & Desktop Logo */}
         <div className="flex items-center">
           <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
             <SheetTrigger asChild>
@@ -119,12 +145,16 @@ export function Header() { // Still named Header, but acts as TopBar
               <SheetHeader className="p-6 pb-2 border-b mb-2">
                   <SheetTitle className="sr-only">Main Navigation Menu</SheetTitle>
                   <Link href="/" className="mb-4 flex items-center gap-2 self-start" onClick={() => setIsMobileMenuOpen(false)}>
-                      <Icons.Logo className="h-7 w-7 text-primary" />
-                      <span className="font-bold text-lg text-foreground">Peak Pulse</span>
+                    {isLoadingSettings ? <Loader2 className="h-7 w-7 animate-spin text-primary"/> : headerLogoUrl ? (
+                        <Image src={headerLogoUrl} alt={`${displaySiteTitle} Logo`} width={28} height={28} className="object-contain h-7 w-auto"/>
+                    ) : (
+                        <Icons.Logo className="h-7 w-7 text-primary" />
+                    )}
+                    <span className="font-bold text-lg text-foreground">{displaySiteTitle}</span>
                   </Link>
               </SheetHeader>
               <div className="p-6">
-                <nav className="flex flex-col space-y-4"> {/* Adjusted spacing */}
+                <nav className="flex flex-col space-y-4">
                   {mobileNavLinks}
                   {isAuthenticated && (
                     <div className="pt-4 border-t border-border/60">
@@ -176,14 +206,17 @@ export function Header() { // Still named Header, but acts as TopBar
           </Sheet>
 
           <Link href="/" className="flex items-center space-x-2">
-            <Icons.Logo className="h-8 w-8 text-primary" />
+            {isLoadingSettings ? <Loader2 className="h-8 w-8 animate-spin text-primary"/> : headerLogoUrl ? (
+                <Image src={headerLogoUrl} alt={`${displaySiteTitle} Logo`} width={32} height={32} className="object-contain h-8 w-auto"/>
+            ) : (
+                <Icons.Logo className="h-8 w-8 text-primary" />
+            )}
             <span className="hidden lg:inline-block font-semibold text-xl text-foreground">
-              Peak Pulse
+              {displaySiteTitle}
             </span>
           </Link>
         </div>
 
-        {/* Right Group: Actions */}
         <div className="flex items-center space-x-1 md:space-x-2">
           <Button variant="ghost" size="icon" className="hidden md:inline-flex" asChild>
             <Link href="/search" aria-label="Search Page">

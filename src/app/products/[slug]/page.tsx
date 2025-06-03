@@ -637,7 +637,7 @@ export default function ProductDetailPage({ params: paramsPromise }: { params: P
             <Accordion type="single" collapsible defaultValue="description" className="w-full">
               <AccordionItem value="description">
                 <AccordionTrigger className="text-lg font-semibold hover:no-underline">Product Description</AccordionTrigger>
-                <AccordionContent className="prose dark:prose-invert max-w-none text-muted-foreground" dangerouslySetInnerHTML={{ __html: product.description }} />
+                <AccordionContent className="prose dark:prose-invert max-w-none text-muted-foreground" dangerouslySetInnerHTML={{ __html: product.description || '' }} />
               </AccordionItem>
               {product.fabricDetails && (
                 <AccordionItem value="fabric">

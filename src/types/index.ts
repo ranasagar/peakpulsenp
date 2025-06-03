@@ -222,18 +222,18 @@ export interface HeroSlide {
   description: string;
   imageUrl?: string;
   videoId?: string;
-  audioUrl?: string; 
+  audioUrl?: string;
   altText?: string;
   dataAiHint?: string;
   ctaText?: string;
   ctaLink?: string;
-  duration?: number; 
+  duration?: number;
   displayOrder?: number;
-  youtubeAuthorName?: string; 
-  youtubeAuthorLink?: string; 
-  _isPromo?: boolean; 
-  _backgroundColor?: string; 
-  _textColor?: string; 
+  youtubeAuthorName?: string;
+  youtubeAuthorLink?: string;
+  _isPromo?: boolean;
+  _backgroundColor?: string;
+  _textColor?: string;
 }
 
 export interface SocialCommerceItem {
@@ -326,6 +326,8 @@ export interface SiteSettings {
   whatsappNumber?: string;
   instagramUsername?: string;
   facebookUsernameOrPageId?: string;
+  headerLogoUrl?: string;
+  headerSiteTitle?: string;
 }
 
 export interface PageContent {
@@ -390,15 +392,15 @@ export interface DesignCollaborationGallery {
   slug: string;
   description?: string;
   category_id?: string | null;
-  category_name?: string; 
-  category_slug?: string; 
+  category_name?: string;
+  category_slug?: string;
   cover_image_url?: string;
   ai_cover_image_prompt?: string;
   artist_name?: string;
   artist_statement?: string;
   gallery_images?: GalleryImageItem[];
   is_published?: boolean;
-  collaboration_date?: string; 
+  collaboration_date?: string;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -414,7 +416,7 @@ export interface PrintOnDemandDesign {
   is_for_sale?: boolean;
   sku?: string;
   collaboration_id?: string | null;
-  collaboration_title?: string; 
+  collaboration_title?: string;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -438,50 +440,50 @@ export interface PromotionalPost {
   title: string;
   slug: string;
   description?: string;
-  imageUrl: string; 
+  imageUrl: string;
   imageAltText?: string;
   dataAiHint?: string;
   ctaText?: string;
   ctaLink?: string;
   price?: number;
   discountPrice?: number;
-  validFrom?: string; 
-  validUntil?: string; 
+  validFrom?: string;
+  validUntil?: string;
   isActive: boolean;
   displayOrder?: number;
-  backgroundColor?: string; 
-  textColor?: string;       
+  backgroundColor?: string;
+  textColor?: string;
   createdAt?: string;
   updatedAt?: string;
 }
 
 export interface UserPost {
-  id: string; 
-  user_id: string; 
-  user_name?: string; 
-  user_avatar_url?: string; 
+  id: string;
+  user_id: string;
+  user_name?: string;
+  user_avatar_url?: string;
   image_url: string;
   caption?: string;
-  product_tags?: string[]; 
+  product_tags?: string[];
   status: 'pending' | 'approved' | 'rejected';
   like_count?: number;
-  liked_by_user_ids?: string[]; 
+  liked_by_user_ids?: string[];
   comment_count?: number;
-  comments?: PostComment[]; 
-  created_at: string; 
-  updated_at: string; 
+  comments?: PostComment[];
+  created_at: string;
+  updated_at: string;
 }
 
 export interface PostComment {
-  id: string; 
-  post_id: string; 
-  user_id: string; 
-  user_name?: string; 
-  user_avatar_url?: string; 
+  id: string;
+  post_id: string;
+  user_id: string;
+  user_name?: string;
+  user_avatar_url?: string;
   comment_text: string;
-  parent_comment_id?: string | null; 
-  created_at: string; 
-  updated_at: string; 
+  parent_comment_id?: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 // --- Notification System Types ---
@@ -494,8 +496,8 @@ export interface NotificationDataNewMessage {
 }
 export interface NotificationDataOrderUpdate {
   orderId: string;
-  newStatus: OrderStatus | PaymentStatus; 
-  productName?: string; 
+  newStatus: OrderStatus | PaymentStatus;
+  productName?: string;
 }
 // Add more specific data types for other notifications as needed
 // e.g., NewFollower, LikedPost, NewProductDrop, etc.

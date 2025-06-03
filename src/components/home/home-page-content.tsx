@@ -482,7 +482,7 @@ export default function HomePageContent() {
     // YouTube Video Player control for ACTIVE slide
     if (isYouTubeApiReady && activePlayerInstance && typeof activePlayerInstance.playVideo === 'function') {
       if (currentSlideIsVideo) {
-        // Video should play if global autoplay is enabled and initial conditions met, REGARDLESS of isHeroPlaying (slideshow timer state)
+        // Video should play if global autoplay is enabled and initial conditions met
         if (globalAutoplayEnabled) {
           activePlayerInstance.playVideo();
         } else {
@@ -517,7 +517,7 @@ export default function HomePageContent() {
           if (minPlayTimeTimeoutRef.current) clearTimeout(minPlayTimeTimeoutRef.current);
           const effectiveDuration = Math.max(5000, currentSlideData.duration || 7000); // Min 5s or specified duration
           minPlayTimeTimeoutRef.current = setTimeout(() => {
-            if (isHeroPlaying && initialAutoplayConditionsMet) nextHeroSlide(); // Check isHeroPlaying here too
+            if (isHeroPlaying && initialAutoplayConditionsMet && globalAutoplayEnabled) nextHeroSlide(); // Check isHeroPlaying here too
           }, effectiveDuration);
         }
       }
@@ -673,8 +673,8 @@ export default function HomePageContent() {
             return (
               <div key={slide.id || `hero-content-${index}`} className={cn("absolute inset-0 transition-opacity duration-1000 ease-in-out", isCurrent ? "opacity-100" : "opacity-0 pointer-events-none")} style={{ pointerEvents: isCurrent ? 'auto' : 'none' }}>
                 <div className="relative z-20 flex flex-col items-center justify-center h-full pt-[calc(theme(spacing.20)_+_theme(spacing.6))] pb-12 px-6 md:px-8 text-center max-w-3xl mx-auto">
-                    <h1 className={cn("text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-6 text-shadow-lg", slideTextColor)}>{slide.title}</h1>
-                    <p className={cn("text-lg md:text-xl lg:text-2xl mb-10 max-w-2xl mx-auto text-shadow-lg", slideDescriptionColor)}>{slide.description}</p>
+                    <h1 className={cn("text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-6 text-shadow-lg", slideTextColor)} dangerouslySetInnerHTML={{ __html: slide.title }} />
+                    <p className={cn("text-lg md:text-xl lg:text-2xl mb-10 max-w-2xl mx-auto text-shadow-lg", slideDescriptionColor)} dangerouslySetInnerHTML={{ __html: slide.description }} />
                     {slide.ctaText && slide.ctaLink && ( <Link href={slide.ctaLink} className={cn(buttonVariants({ variant: slideButtonVariant, size: "lg", className: "text-base md:text-lg py-3 px-8" }))}> <span className="flex items-center"> {slide.ctaText} <ShoppingBag className="ml-2 h-5 w-5" /> </span> </Link> )}
                     {showVideoAttribution && ( <div className="absolute bottom-20 left-1/2 -translate-x-1/2 md:bottom-24 lg:bottom-28 p-2 bg-black/40 backdrop-blur-sm rounded-md text-xs md:text-sm"> <InteractiveExternalLink href={slide.youtubeAuthorLink!} className="text-neutral-300 hover:text-white transition-colors flex items-center" target="_blank" rel="noopener noreferrer" showDialog={true}> <YoutubeIcon className="h-4 w-4 mr-1.5" /> Video by: {slide.youtubeAuthorName} </InteractiveExternalLink> </div> )}
                 </div>
@@ -709,7 +709,7 @@ export default function HomePageContent() {
 
       <section className="bg-card section-padding relative z-[1] overflow-hidden">
         <div className="absolute inset-0 z-0 pointer-events-none"> {activeArtisanalSlides.map((slide, index) => ( <div key={slide.id || `ars-bg-${index}`} className={cn( "absolute inset-0 transition-opacity duration-1000 ease-in-out", index === currentArtisanalSlide ? "opacity-100" : "opacity-0" )} > <Image src={slide.imageUrl} alt={slide.altText || "Artisanal background"} fill sizes="100vw" className="object-cover" data-ai-hint={slide.dataAiHint || "nepal craft texture"} /> <div className="absolute inset-0 bg-gradient-to-t from-card via-card/80 to-card/50 md:bg-gradient-to-r md:from-card md:via-card/70 md:to-transparent z-[1]"></div> </div> ))} {activeArtisanalSlides.length === 0 && <div className="absolute inset-0 bg-primary/5"></div>} </div>
-        <div className="container-slim text-center md:text-left relative z-10"> <div className="md:w-1/2 lg:w-3/5"> <Sprout className="h-10 w-10 text-primary mb-4 mx-auto md:mx-0"/> <h2 className="text-3xl font-bold tracking-tight mb-6 text-foreground">{content.artisanalRoots?.title || "Our Artisanal Roots"}</h2> <p className="text-lg text-muted-foreground mb-8 leading-relaxed">{content.artisanalRoots?.description || "Details loading..."}</p> <Link href="/our-story" className={cn(buttonVariants({ variant: "default", size: "lg", className: "text-base" }))}> <span className="flex items-center">Discover Our Story <ArrowRight className="ml-2 h-5 w-5" /></span> </Link> </div> </div>
+        <div className="container-slim text-center md:text-left relative z-10"> <div className="md:w-1/2 lg:w-3/5"> <Sprout className="h-10 w-10 text-primary mb-4 mx-auto md:mx-0"/> <h2 className="text-3xl font-bold tracking-tight mb-6 text-foreground" dangerouslySetInnerHTML={{ __html: content.artisanalRoots?.title || "Our Artisanal Roots"}} /> <p className="text-lg text-muted-foreground mb-8 leading-relaxed prose dark:prose-invert" dangerouslySetInnerHTML={{ __html: content.artisanalRoots?.description || "Details loading..."}} /> <Link href="/our-story" className={cn(buttonVariants({ variant: "default", size: "lg", className: "text-base" }))}> <span className="flex items-center">Discover Our Story <ArrowRight className="ml-2 h-5 w-5" /></span> </Link> </div> </div>
       </section>
 
       {isLoadingCategories ? ( <section className="section-padding container-wide relative z-[1] bg-background"> <div className="flex justify-center items-center py-10"><Loader2 className="h-10 w-10 animate-spin text-primary" /></div></section>

@@ -10,6 +10,8 @@ const SETTINGS_CONFIG_KEY = 'siteGeneralSettings';
 const defaultSettings: SiteSettings = {
   siteTitle: "Peak Pulse - Nepali Craftsmanship (Default)",
   siteDescription: "Default description: Discover Peak Pulse, a Nepali clothing brand blending traditional craftsmanship with contemporary streetwear.",
+  headerLogoUrl: undefined,
+  headerSiteTitle: "Peak Pulse",
   storeEmail: "contact@peakpulse.example.com",
   storePhone: "+977-XXX-XXXXXX (Default)",
   storeAddress: "Kathmandu, Nepal (Default)",
@@ -45,6 +47,8 @@ export async function GET() {
       const responseSettings: SiteSettings = {
         siteTitle: dbSettings.siteTitle || defaultSettings.siteTitle,
         siteDescription: dbSettings.siteDescription || defaultSettings.siteDescription,
+        headerLogoUrl: dbSettings.headerLogoUrl || defaultSettings.headerLogoUrl,
+        headerSiteTitle: dbSettings.headerSiteTitle || defaultSettings.headerSiteTitle,
         storeEmail: dbSettings.storeEmail || defaultSettings.storeEmail,
         storePhone: dbSettings.storePhone || defaultSettings.storePhone,
         storeAddress: dbSettings.storeAddress || defaultSettings.storeAddress,

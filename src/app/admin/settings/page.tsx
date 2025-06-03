@@ -12,7 +12,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Save, Link as LinkIcon, PlusCircle, Trash2, Settings, MessageCircle } from 'lucide-react'; 
+import { Loader2, Save, Link as LinkIcon, PlusCircle, Trash2, Settings, MessageCircle, Image as ImageIconLucide } from 'lucide-react';
 import type { SiteSettings, SocialLink } from '@/types';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
@@ -22,6 +22,8 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 const siteGeneralSettingsSchema = z.object({
   siteTitle: z.string().min(3, "Site title must be at least 3 characters.").default("Peak Pulse"),
   siteDescription: z.string().min(10, "Site description must be at least 10 characters.").default("Discover Peak Pulse..."),
+  headerLogoUrl: z.string().url({ message: "Must be a valid URL for the header logo." }).optional().or(z.literal('')),
+  headerSiteTitle: z.string().min(1, "Header site title cannot be empty if set.").optional().or(z.literal('')),
   storeEmail: z.string().email("Invalid email address.").default("contact@example.com"),
   storePhone: z.string().optional().or(z.literal('')).default(""),
   storeAddress: z.string().optional().or(z.literal('')).default(""),
@@ -41,6 +43,8 @@ type SiteGeneralSettingsFormValues = z.infer<typeof siteGeneralSettingsSchema>;
 const defaultGeneralSettings: SiteGeneralSettingsFormValues = {
   siteTitle: "Peak Pulse",
   siteDescription: "Default description for Peak Pulse. Discover unique apparel where Nepali heritage meets contemporary design.",
+  headerLogoUrl: '',
+  headerSiteTitle: 'Peak Pulse',
   storeEmail: "contact@peakpulse.com",
   storePhone: "+977-XXX-XXXXXX",
   storeAddress: "Kathmandu, Nepal",
@@ -78,6 +82,8 @@ export default function AdminSettingsPage() {
             form.reset({ 
                 siteTitle: data.siteTitle || defaultGeneralSettings.siteTitle,
                 siteDescription: data.siteDescription || defaultGeneralSettings.siteDescription,
+                headerLogoUrl: data.headerLogoUrl || defaultGeneralSettings.headerLogoUrl,
+                headerSiteTitle: data.headerSiteTitle || defaultGeneralSettings.headerSiteTitle,
                 storeEmail: data.storeEmail || defaultGeneralSettings.storeEmail,
                 storePhone: data.storePhone || defaultGeneralSettings.storePhone,
                 storeAddress: data.storeAddress || defaultGeneralSettings.storeAddress,
@@ -104,6 +110,8 @@ export default function AdminSettingsPage() {
       const payload: SiteSettings = { 
         siteTitle: data.siteTitle,
         siteDescription: data.siteDescription,
+        headerLogoUrl: data.headerLogoUrl || undefined,
+        headerSiteTitle: data.headerSiteTitle || undefined,
         storeEmail: data.storeEmail,
         storePhone: data.storePhone,
         storeAddress: data.storeAddress,
@@ -152,7 +160,29 @@ export default function AdminSettingsPage() {
         <ScrollArea className="h-full p-6">
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            <Accordion type="multiple" defaultValue={['site-metadata', 'store-contact', 'social-messaging', 'ux-settings']} className="w-full">
+            <Accordion type="multiple" defaultValue={['header-appearance', 'site-metadata', 'store-contact', 'social-messaging', 'ux-settings']} className="w-full">
+              <AccordionItem value="header-appearance">
+                <AccordionTrigger className="text-xl font-semibold">Header Appearance</AccordionTrigger>
+                <AccordionContent className="pt-4 space-y-4">
+                  <FormField control={form.control} name="headerLogoUrl" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="flex items-center"><ImageIconLucide className="mr-2 h-4 w-4 text-muted-foreground" /> Header Logo URL (Optional)</FormLabel>
+                      <FormControl><Input {...field} value={field.value || ''} placeholder="https://example.com/your-logo.png" /></FormControl>
+                      <FormDescription>If empty, the default site icon will be used. Recommended size: 120x40 pixels.</FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                  <FormField control={form.control} name="headerSiteTitle" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Header Site Title (Optional)</FormLabel>
+                      <FormControl><Input {...field} value={field.value || ''} placeholder="e.g., Peak Pulse Nepal" /></FormControl>
+                      <FormDescription>If empty, the general Site Title will be used or a default. Keep it short.</FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                </AccordionContent>
+              </AccordionItem>
+
               <AccordionItem value="site-metadata">
                 <AccordionTrigger className="text-xl font-semibold">Site Metadata</AccordionTrigger>
                 <AccordionContent className="pt-4 space-y-4">

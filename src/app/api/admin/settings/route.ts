@@ -10,10 +10,12 @@ const SETTINGS_CONFIG_KEY = 'siteGeneralSettings';
 const defaultSettings: SiteSettings = {
   siteTitle: "Peak Pulse (Default)",
   siteDescription: "Default description for Peak Pulse. Discover unique apparel where Nepali heritage meets contemporary design.",
+  headerLogoUrl: undefined,
+  headerSiteTitle: "Peak Pulse",
   storeEmail: "info@example.com",
   storePhone: "+977-000-000000",
   storeAddress: "Kathmandu, Nepal (Default Address)",
-  socialLinks: [], 
+  socialLinks: [],
   showExternalLinkWarning: true,
   whatsappNumber: "9862020757",
   instagramUsername: "peakpulsenp",
@@ -47,6 +49,8 @@ export async function GET() {
       const responseSettings: SiteSettings = {
         siteTitle: dbSettings.siteTitle || defaultSettings.siteTitle,
         siteDescription: dbSettings.siteDescription || defaultSettings.siteDescription,
+        headerLogoUrl: dbSettings.headerLogoUrl || defaultSettings.headerLogoUrl,
+        headerSiteTitle: dbSettings.headerSiteTitle || defaultSettings.headerSiteTitle,
         storeEmail: dbSettings.storeEmail || defaultSettings.storeEmail,
         storePhone: dbSettings.storePhone || defaultSettings.storePhone,
         storeAddress: dbSettings.storeAddress || defaultSettings.storeAddress,
@@ -83,6 +87,8 @@ export async function POST(request: NextRequest) {
     const dataToUpsert: SiteSettings = {
       siteTitle: newSettings.siteTitle || defaultSettings.siteTitle,
       siteDescription: newSettings.siteDescription || defaultSettings.siteDescription,
+      headerLogoUrl: newSettings.headerLogoUrl || defaultSettings.headerLogoUrl,
+      headerSiteTitle: newSettings.headerSiteTitle || defaultSettings.headerSiteTitle,
       storeEmail: newSettings.storeEmail || defaultSettings.storeEmail,
       storePhone: newSettings.storePhone || defaultSettings.storePhone,
       storeAddress: newSettings.storeAddress || defaultSettings.storeAddress,
