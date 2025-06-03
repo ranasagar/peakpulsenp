@@ -11,6 +11,7 @@ import type { ChatMessage } from '@/types';
 import { aiChatbotConcierge } from '@/ai/flows/ai-chatbot-concierge';
 import type { AiChatbotConciergeInput } from '@/ai/flows/ai-chatbot-concierge';
 import { Icons } from '@/components/icons';
+import { useAuth } from '@/hooks/use-auth'; // Added useAuth import
 
 const initialMessage: ChatMessage = {
   id: 'initial',
@@ -24,23 +25,43 @@ export function ChatbotWidget() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const scrollViewportRef = useRef<HTMLDivElement>(null); // Ref for the viewport div
+  const scrollViewportRef = useRef<HTMLDivElement>(null); 
+  const { user } = useAuth(); // Get current user from AuthContext
 
   useEffect(() => {
     if (isOpen && messages.length === 0) {
-      setMessages([initialMessage]);
+      // Determine initial message based on user role
+      const isAdmin = user && user.roles?.includes('admin');
+      const firstMessageContent = isAdmin 
+        ? 'Hello Admin! How can I assist with Peak Pulse strategy today? Ask about trends, designs, business, or marketing.'
+        : 'Hello! How can I help you today at Peak Pulse?';
+      
+      setMessages([{
+        id: 'initial',
+        role: 'assistant',
+        content: firstMessageContent,
+        timestamp: Date.now()
+      }]);
     }
-  }, [isOpen, messages.length]);
+  }, [isOpen, messages.length, user]);
   
   useEffect(() => {
-    // When messages change, scroll to the bottom of the viewport
     if (scrollViewportRef.current) {
       scrollViewportRef.current.scrollTop = scrollViewportRef.current.scrollHeight;
     }
   }, [messages]);
 
   const handleClearChat = () => {
-    setMessages([initialMessage]);
+    const isAdmin = user && user.roles?.includes('admin');
+    const firstMessageContent = isAdmin 
+        ? 'Hello Admin! How can I assist with Peak Pulse strategy today? Ask about trends, designs, business, or marketing.'
+        : 'Hello! How can I help you today at Peak Pulse?';
+    setMessages([{
+        id: 'initial-cleared',
+        role: 'assistant',
+        content: firstMessageContent,
+        timestamp: Date.now()
+      }]);
     setInputValue(''); 
   };
 
@@ -59,7 +80,11 @@ export function ChatbotWidget() {
     setIsLoading(true);
 
     try {
-      const aiInput: AiChatbotConciergeInput = { query: currentInputValue }; 
+      const isAdmin = user && user.roles?.includes('admin');
+      const aiInput: AiChatbotConciergeInput = { 
+        query: currentInputValue,
+        isAdmin: isAdmin, // Pass isAdmin flag to the AI flow
+      }; 
       const aiResponse = await aiChatbotConcierge(aiInput);
       
       const assistantMessage: ChatMessage = {
@@ -116,7 +141,6 @@ export function ChatbotWidget() {
         </div>
       </CardHeader>
       <CardContent className="flex-grow p-0 overflow-hidden">
-        {/* Pass the ref to the ScrollArea's viewport's direct child for scrolling control */}
         <ScrollArea className="h-full" viewportRef={scrollViewportRef}>
           <div className="p-4 space-y-4">
             {messages.map(msg => (
@@ -125,7 +149,7 @@ export function ChatbotWidget() {
                     {msg.role === 'assistant' && <Icons.Logo className="h-6 w-6 mb-1 text-primary flex-shrink-0" />}
                     {msg.role === 'user' && <User className="h-6 w-6 mb-1 text-accent flex-shrink-0" />}
                     <div
-                    className={`px-4 py-2.5 rounded-xl text-sm
+                    className={`px-4 py-2.5 rounded-xl text-sm whitespace-pre-line
                         ${msg.role === 'user' ? 'bg-primary text-primary-foreground rounded-br-none' : 'bg-muted text-foreground rounded-bl-none'}`}
                     >
                     {msg.content}
@@ -168,3 +192,4 @@ export function ChatbotWidget() {
     </Card>
   );
 }
+
