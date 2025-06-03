@@ -309,7 +309,7 @@ function HomePageContent() {
             id: promo.id || `promo-slide-${index}`, title: promo.title, description: promo.description || '', imageUrl: promo.imageUrl,
             altText: promo.imageAltText || promo.title, dataAiHint: promo.dataAiHint || 'promotion offer sale',
             ctaText: promo.ctaText || 'Learn More', ctaLink: promo.ctaLink || `/products?promo=${promo.slug}`,
-            videoId: undefined, audioUrl: undefined, duration: fallbackHeroSlide.duration, // Fixed duration for promo slides
+            videoId: undefined, audioUrl: undefined, duration: defaultHeroSlide.duration, 
             displayOrder: (sortedBaseSlides.length * 10) + (promo.displayOrder || index * 10),
             youtubeAuthorName: undefined, youtubeAuthorLink: undefined, _isPromo: true,
             _backgroundColor: promo.backgroundColor, _textColor: promo.textColor,
@@ -341,6 +341,7 @@ function HomePageContent() {
     if (isInitialSlidePaused) setIsInitialSlidePaused(false);
     if (activeHeroSlides.length > 0) { setCurrentHeroSlide(index % activeHeroSlides.length); }
   };
+  
   const toggleHeroPlayPause = () => {
     if (isInitialSlidePaused && currentHeroSlide === 0) setIsInitialSlidePaused(false);
     setIsHeroPlaying(prev => !prev);
@@ -350,156 +351,59 @@ function HomePageContent() {
     const currentSlide = activeHeroSlides[currentHeroSlide];
     const player = playerRefs.current[currentHeroSlide];
 
-    if (currentSlide?.audioUrl && audioRef.current) { 
-      audioRef.current.muted = !audioRef.current.muted;
-      setIsDirectAudioMuted(audioRef.current.muted);
-    } else if (player && typeof player.isMuted === 'function') { 
-        if (player.isMuted()) {
-            player.unMute(); setIsYouTubePlayerMuted(false);
-        } else {
-            player.mute(); setIsYouTubePlayerMuted(true);
-        }
+    if (currentSlide?.audioUrl && audioRef.current) {
+      const newMutedState = !audioRef.current.muted;
+      audioRef.current.muted = newMutedState;
+      setIsDirectAudioMuted(newMutedState);
+    } else if (player && typeof player.isMuted === 'function') {
+        const newPlayerMutedState = !player.isMuted();
+        newPlayerMutedState ? player.mute() : player.unMute();
+        setIsYouTubePlayerMuted(newPlayerMutedState);
     }
   };
 
-
-  useEffect(() => { // Main slideshow progression and media control
+  // Main slideshow progression and media control
+  useEffect(() => {
     if (heroIntervalRef.current) clearInterval(heroIntervalRef.current);
     if (minPlayTimeTimeoutRef.current) clearTimeout(minPlayTimeTimeoutRef.current);
 
     const currentSlideData = activeHeroSlides[currentHeroSlide];
-    if (!currentSlideData || isLoadingSiteSettings) return; // Wait for settings
+    if (!currentSlideData || isLoadingSiteSettings || !isMounted) return;
 
-    // Determine if this slide should play based on global setting and slideshow state
-    const shouldBePlayingMedia = isHeroPlaying && siteSettings?.heroVideoAutoplay !== false && !(isInitialSlidePaused && currentHeroSlide === 0);
+    const globalAutoplayEnabled = siteSettings?.heroVideoAutoplay !== false;
+    const isActuallyPlayingSlideshow = isHeroPlaying && !(isInitialSlidePaused && currentHeroSlide === 0);
+    const currentSlideIsVideo = !!currentSlideData.videoId && !currentSlideData.imageUrl;
+    const currentSlideIsAudio = !!currentSlideData.audioUrl;
 
-    // HTML5 Audio Control
-    if (currentSlideData.audioUrl && audioRef.current) {
-      if (audioRef.current.src !== currentSlideData.audioUrl) {
-        audioRef.current.src = currentSlideData.audioUrl;
-        audioRef.current.load();
-      }
-      audioRef.current.muted = isDirectAudioMuted;
-      if (shouldBePlayingMedia) {
-        audioRef.current.play().catch(error => console.warn("Direct audio play failed:", error));
-      } else {
-        audioRef.current.pause();
-      }
-    } else if (audioRef.current && !currentSlideData.audioUrl) {
-      audioRef.current.pause();
-      audioRef.current.currentTime = 0;
-    }
-
-    // YouTube Player Control (if it's the active player)
-    const currentPlayerInstance = playerRefs.current[currentHeroSlide];
-    if (currentSlideData.videoId && !currentSlideData.imageUrl && currentPlayerInstance && typeof currentPlayerInstance.playVideo === 'function') {
-      if (shouldBePlayingMedia) {
-        isYouTubePlayerMuted || currentSlideData.audioUrl ? currentPlayerInstance.mute() : currentPlayerInstance.unMute();
-        currentPlayerInstance.playVideo();
-      } else {
-        currentPlayerInstance.pauseVideo();
-      }
-    }
-
-    // Image slide interval (only if no video is primary visual and slideshow is playing)
-    if (!currentSlideData.videoId && currentSlideData.imageUrl && isHeroPlaying && !(isInitialSlidePaused && currentHeroSlide === 0)) {
-      heroIntervalRef.current = setInterval(nextHeroSlide, currentSlideData.duration || 7000);
-    }
-
-    return () => { 
-      if (heroIntervalRef.current) clearInterval(heroIntervalRef.current);
-      if (minPlayTimeTimeoutRef.current) clearTimeout(minPlayTimeTimeoutRef.current);
-    };
-  }, [isHeroPlaying, nextHeroSlide, activeHeroSlides, currentHeroSlide, isDirectAudioMuted, isInitialSlidePaused, siteSettings, isLoadingSiteSettings, isYouTubePlayerMuted]);
-
-
-  useEffect(() => {  // YouTube Player Creation/Management
-    if (!isYouTubeApiReady || activeHeroSlides.length === 0 || !isMounted || isLoadingSiteSettings) return;
-
-    activeHeroSlides.forEach((slideData, index) => {
-      const targetDivId = `youtube-player-${index}`;
-      const playerContainer = document.getElementById(targetDivId);
-      let player = playerRefs.current[index];
-
-      const isCurrentActiveSlide = index === currentHeroSlide;
-      const useVideoForVisual = !slideData.imageUrl && slideData.videoId;
-      const globalAutoplayEnabled = siteSettings?.heroVideoAutoplay !== false;
-
-      if (useVideoForVisual && playerContainer) {
-        if (!player || player.getVideoData?.()?.video_id !== slideData.videoId) {
-          if (player && typeof player.destroy === 'function') {
-            try { player.destroy(); } catch (e) { console.warn(`Error destroying old player for slide ${index}`, e); }
-          }
-          player = new window.YT.Player(targetDivId, {
-            videoId: slideData.videoId,
-            playerVars: {
-              autoplay: 0, controls: 0, loop: 1, playlist: slideData.videoId, modestbranding: 1,
-              playsinline: 1, showinfo: 0, rel: 0, mute: 1,
-            },
-            events: {
-              onReady: (event: any) => {
-                const readyPlayer = event.target;
-                playerRefs.current[index] = readyPlayer;
-                readyPlayer.mute(); // Always start muted
-
-                if (isCurrentActiveSlide && isInitialSlidePaused && index === 0 && globalAutoplayEnabled) {
-                   setTimeout(() => { // Small delay before playing
-                     if (readyPlayer && typeof readyPlayer.playVideo === 'function') readyPlayer.playVideo();
-                   }, 150);
-                  console.log(`[YT onReady Slide ${index}] First slide special init: muted & will attempt play.`);
-                } else if (isCurrentActiveSlide && isHeroPlaying && globalAutoplayEnabled) {
-                  isYouTubePlayerMuted || slideData.audioUrl ? readyPlayer.mute() : readyPlayer.unMute();
-                  readyPlayer.playVideo();
-                } else {
-                  readyPlayer.pauseVideo();
-                }
-              },
-              onStateChange: (event: any) => {
-                if (index === currentHeroSlide && event.data === window.YT.PlayerState.PLAYING) {
-                  if (isHeroPlaying && globalAutoplayEnabled && !(isInitialSlidePaused && index === 0)) {
-                    if (minPlayTimeTimeoutRef.current) clearTimeout(minPlayTimeTimeoutRef.current);
-                    const effectiveDuration = Math.max(5000, slideData.duration || 7000);
-                    minPlayTimeTimeoutRef.current = setTimeout(() => {
-                      if (isHeroPlaying) nextHeroSlide();
-                    }, effectiveDuration);
-                  }
-                } else if (event.data === window.YT.PlayerState.PAUSED) {
-                  if (minPlayTimeTimeoutRef.current) clearTimeout(minPlayTimeTimeoutRef.current);
-                } else if (event.data === window.YT.PlayerState.ENDED) {
-                  event.target.seekTo(0);
-                  if (index === currentHeroSlide && isHeroPlaying && globalAutoplayEnabled && !(isInitialSlidePaused && index === 0)){
-                     event.target.playVideo();
-                  }
-                }
-              }
+    // Manage HTML5 Audio
+    if (audioRef.current) {
+        if (currentSlideIsAudio && isActuallyPlayingSlideshow && globalAutoplayEnabled) {
+            if (audioRef.current.src !== currentSlideData.audioUrl) {
+                audioRef.current.src = currentSlideData.audioUrl!;
+                audioRef.current.load();
             }
-          });
-          playerRefs.current[index] = player;
-        } else if (player && typeof player.getPlayerState === 'function') {
-            try {
-                const shouldThisPlayerBePlaying = isCurrentActiveSlide && isHeroPlaying && globalAutoplayEnabled && !(isInitialSlidePaused && index === 0);
-                const isFirstSlideSpecialPlay = isCurrentActiveSlide && isInitialSlidePaused && index === 0 && globalAutoplayEnabled;
+            audioRef.current.muted = isDirectAudioMuted;
+            audioRef.current.play().catch(e => console.warn("HTML5 audio play failed:", e));
+        } else {
+            audioRef.current.pause();
+        }
+    }
 
-                if (shouldThisPlayerBePlaying || isFirstSlideSpecialPlay) {
-                    if(player.getPlayerState() !== window.YT.PlayerState.PLAYING) player.playVideo();
-                    if (isFirstSlideSpecialPlay || isYouTubePlayerMuted || slideData.audioUrl) {
-                        player.mute();
-                    } else {
-                        player.unMute();
-                    }
-                } else {
-                    if(player.getPlayerState() === window.YT.PlayerState.PLAYING) player.pauseVideo();
-                    player.mute();
-                }
-            } catch(e) { console.warn(`Error controlling existing player state for slide ${index}`, e); }
+    // Manage YouTube Player
+    const currentPlayerInstance = playerRefs.current[currentHeroSlide];
+    if (currentPlayerInstance && typeof currentPlayerInstance.playVideo === 'function') {
+        if (currentSlideIsVideo && isActuallyPlayingSlideshow && globalAutoplayEnabled) {
+            isYouTubePlayerMuted || currentSlideIsAudio ? currentPlayerInstance.mute() : currentPlayerInstance.unMute();
+            currentPlayerInstance.playVideo();
+        } else {
+            currentPlayerInstance.pauseVideo();
         }
-      } else if (player && useVideoForVisual === false) {
-        if (typeof player.destroy === 'function') {
-          try { player.destroy(); } catch (e) { console.warn(`Error destroying player for non-video slide ${index}`, e); }
-          playerRefs.current[index] = null;
-        }
-      }
-    });
+    }
+    
+    // Manage slideshow interval for image-based slides or non-autoplayed video slides
+    if (isActuallyPlayingSlideshow && (!currentSlideIsVideo || !globalAutoplayEnabled)) {
+        heroIntervalRef.current = setInterval(nextHeroSlide, currentSlideData.duration || 7000);
+    }
     
     // Ensure non-current players are paused and muted
     playerRefs.current.forEach((p, idx) => {
@@ -511,7 +415,101 @@ function HomePageContent() {
       }
     });
 
+    return () => {
+      if (heroIntervalRef.current) clearInterval(heroIntervalRef.current);
+      if (minPlayTimeTimeoutRef.current) clearTimeout(minPlayTimeTimeoutRef.current);
+    };
+  }, [isHeroPlaying, nextHeroSlide, activeHeroSlides, currentHeroSlide, isDirectAudioMuted, isInitialSlidePaused, siteSettings, isLoadingSiteSettings, isYouTubePlayerMuted, isMounted]);
 
+
+  // YouTube Player Creation/Management
+  useEffect(() => {
+    if (!isYouTubeApiReady || activeHeroSlides.length === 0 || !isMounted || isLoadingSiteSettings) return;
+
+    activeHeroSlides.forEach((slideData, index) => {
+      const targetDivId = `youtube-player-${index}`;
+      const playerContainer = document.getElementById(targetDivId);
+      let player = playerRefs.current[index];
+
+      const isCurrentActiveSlide = index === currentHeroSlide;
+      const useVideoForVisual = !slideData.imageUrl && slideData.videoId;
+      const globalAutoplayEnabled = siteSettings?.heroVideoAutoplay !== false;
+      
+      if (useVideoForVisual && playerContainer) {
+        if (!player || player.getVideoData?.()?.video_id !== slideData.videoId) {
+          if (player && typeof player.destroy === 'function') {
+            try { player.destroy(); } catch (e) { console.warn(`Error destroying old player for slide ${index}`, e); }
+          }
+          player = new window.YT.Player(targetDivId, {
+            videoId: slideData.videoId,
+            playerVars: {
+              autoplay: 0, controls: 0, loop: 1, playlist: slideData.videoId, modestbranding: 1,
+              playsinline: 1, showinfo: 0, rel: 0, mute: 1, // Start muted
+            },
+            events: {
+              onReady: (event: any) => {
+                const readyPlayer = event.target;
+                playerRefs.current[index] = readyPlayer;
+                readyPlayer.mute(); // Ensure muted on ready
+
+                if (isCurrentActiveSlide && index === 0 && isInitialSlidePaused && globalAutoplayEnabled) {
+                  // First slide, initial pause, but global autoplay is on: attempt visual play (muted)
+                  setTimeout(() => { // Small delay for stability
+                    if (readyPlayer && typeof readyPlayer.playVideo === 'function') readyPlayer.playVideo();
+                  }, 150);
+                  console.log(`[YT onReady Slide ${index}] Initial slide, global autoplay ON. Attempting muted visual play.`);
+                } else if (isCurrentActiveSlide && isHeroPlaying && globalAutoplayEnabled) {
+                  // Active slide, slideshow playing, global autoplay on: play it, respect audio mute state
+                  isYouTubePlayerMuted || slideData.audioUrl ? readyPlayer.mute() : readyPlayer.unMute();
+                  readyPlayer.playVideo();
+                } else {
+                  // Otherwise, ensure it's paused
+                  readyPlayer.pauseVideo();
+                }
+              },
+              onStateChange: (event: any) => {
+                const playerInstance = event.target;
+                if (index === currentHeroSlide && event.data === window.YT.PlayerState.PLAYING) {
+                  if (isHeroPlaying && globalAutoplayEnabled && !(isInitialSlidePaused && index === 0)) {
+                    if (minPlayTimeTimeoutRef.current) clearTimeout(minPlayTimeTimeoutRef.current);
+                    const effectiveDuration = Math.max(5000, slideData.duration || 7000);
+                    minPlayTimeTimeoutRef.current = setTimeout(() => {
+                      if (isHeroPlaying) nextHeroSlide();
+                    }, effectiveDuration);
+                  }
+                } else if (event.data === window.YT.PlayerState.PAUSED) {
+                  if (minPlayTimeTimeoutRef.current) clearTimeout(minPlayTimeTimeoutRef.current);
+                } else if (event.data === window.YT.PlayerState.ENDED) {
+                   playerInstance.seekTo(0); // Loop it
+                   if (index === currentHeroSlide && isHeroPlaying && globalAutoplayEnabled && !(isInitialSlidePaused && index === 0)) {
+                      playerInstance.playVideo();
+                   } else {
+                      playerInstance.pauseVideo(); // If slideshow paused, keep video paused after looping
+                   }
+                }
+              }
+            }
+          });
+          playerRefs.current[index] = player;
+        } else if (player && typeof player.getPlayerState === 'function') { // Existing player logic
+            const shouldThisPlayerBePlaying = isCurrentActiveSlide && isHeroPlaying && globalAutoplayEnabled && !(isInitialSlidePaused && index === 0);
+            const isFirstSlideSpecialPlay = isCurrentActiveSlide && isInitialSlidePaused && index === 0 && globalAutoplayEnabled;
+
+            if (shouldThisPlayerBePlaying || isFirstSlideSpecialPlay) {
+                if (player.getPlayerState() !== window.YT.PlayerState.PLAYING) player.playVideo();
+                isYouTubePlayerMuted || slideData.audioUrl ? player.mute() : player.unMute();
+            } else {
+                if (player.getPlayerState() === window.YT.PlayerState.PLAYING) player.pauseVideo();
+                player.mute();
+            }
+        }
+      } else if (player && !useVideoForVisual) { // If slide no longer a video, destroy player
+        if (typeof player.destroy === 'function') {
+          try { player.destroy(); } catch (e) { console.warn(`Error destroying player for non-video slide ${index}`, e); }
+          playerRefs.current[index] = null;
+        }
+      }
+    });
   }, [currentHeroSlide, activeHeroSlides, isYouTubeApiReady, isHeroPlaying, isYouTubePlayerMuted, siteSettings, nextHeroSlide, isInitialSlidePaused, isMounted, isLoadingSiteSettings]);
 
 
@@ -631,12 +629,16 @@ function HomePageContent() {
         {activeHeroSlides.map((slide, index) => {
             const isCurrent = index === currentHeroSlide;
             const showVideoAttribution = isCurrent && !slide.imageUrl && slide.videoId && slide.youtubeAuthorName && slide.youtubeAuthorLink;
+            const slideTextColor = slide._isPromo && slide._textColor ? slide._textColor : 'text-white';
+            const slideDescriptionColor = slide._isPromo && slide._textColor ? slide._textColor : 'text-neutral-200';
+            const slideButtonVariant = slide._isPromo ? "default" : "default"; 
+
             return (
               <div key={slide.id || `hero-content-${index}`} className={cn("absolute inset-0 transition-opacity duration-1000 ease-in-out", isCurrent ? "opacity-100" : "opacity-0 pointer-events-none")} style={{ pointerEvents: isCurrent ? 'auto' : 'none' }}>
                 <div className="relative z-20 flex flex-col items-center justify-center h-full pt-[calc(theme(spacing.20)_+_theme(spacing.6))] pb-12 px-6 md:px-8 text-center max-w-3xl mx-auto">
-                    <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-6 text-white text-shadow-lg">{slide.title}</h1>
-                    <p className="text-lg md:text-xl lg:text-2xl mb-10 max-w-2xl mx-auto text-neutral-200 text-shadow-lg">{slide.description}</p>
-                    {slide.ctaText && slide.ctaLink && ( <Link href={slide.ctaLink} className={cn(buttonVariants({ size: "lg", className: "text-base md:text-lg py-3 px-8" }))}> <span className="flex items-center"> {slide.ctaText} <ShoppingBag className="ml-2 h-5 w-5" /> </span> </Link> )}
+                    <h1 className={cn("text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-6 text-shadow-lg", slideTextColor)}>{slide.title}</h1>
+                    <p className={cn("text-lg md:text-xl lg:text-2xl mb-10 max-w-2xl mx-auto text-shadow-lg", slideDescriptionColor)}>{slide.description}</p>
+                    {slide.ctaText && slide.ctaLink && ( <Link href={slide.ctaLink} className={cn(buttonVariants({ variant: slideButtonVariant, size: "lg", className: "text-base md:text-lg py-3 px-8" }))}> <span className="flex items-center"> {slide.ctaText} <ShoppingBag className="ml-2 h-5 w-5" /> </span> </Link> )}
                     {showVideoAttribution && ( <div className="absolute bottom-20 left-1/2 -translate-x-1/2 md:bottom-24 lg:bottom-28 p-2 bg-black/40 backdrop-blur-sm rounded-md text-xs md:text-sm"> <InteractiveExternalLink href={slide.youtubeAuthorLink!} className="text-neutral-300 hover:text-white transition-colors flex items-center" target="_blank" rel="noopener noreferrer" showDialog={true}> <YoutubeIcon className="h-4 w-4 mr-1.5" /> Video by: {slide.youtubeAuthorName} </InteractiveExternalLink> </div> )}
                 </div>
               </div>
