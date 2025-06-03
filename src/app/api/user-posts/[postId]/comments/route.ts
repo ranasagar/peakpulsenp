@@ -30,7 +30,7 @@ export async function GET(
   try {
     const { data, error } = await supabaseAdmin
       .from('post_comments')
-      .select(\`
+      .select(`
         id,
         post_id,
         user_id,
@@ -39,7 +39,7 @@ export async function GET(
         created_at,
         updated_at,
         user:users (name, "avatarUrl")
-      \`)
+      `)
       .eq('post_id', postId)
       .order('created_at', { ascending: true });
 
@@ -110,7 +110,7 @@ export async function POST(
     const { data: insertedComment, error: insertError } = await supabaseAdmin
       .from('post_comments')
       .insert(commentToInsert)
-      .select(\`
+      .select(`
         id,
         post_id,
         user_id,
@@ -119,15 +119,15 @@ export async function POST(
         created_at,
         updated_at,
         user:users (name, "avatarUrl")
-      \`)
+      `)
       .single();
 
     if (insertError) {
-      console.error(\`[API /api/user-posts/\${postId}/comments POST] Supabase error inserting comment:\`, insertError);
+      console.error(`[API /api/user-posts/${postId}/comments POST] Supabase error inserting comment:`, insertError);
       return NextResponse.json({ message: 'Failed to post comment.', rawSupabaseError: insertError }, { status: 500 });
     }
     if (!insertedComment) {
-      console.error(\`[API /api/user-posts/\${postId}/comments POST] Insert succeeded but no data returned for comment on post \${postId}.\`);
+      console.error(`[API /api/user-posts/${postId}/comments POST] Insert succeeded but no data returned for comment on post ${postId}.`);
       return NextResponse.json({ message: 'Failed to create comment, no data returned.'}, {status: 500});
     }
 
@@ -143,10 +143,10 @@ export async function POST(
         updated_at: insertedComment.updated_at,
     };
 
-    console.log(\`[API /api/user-posts/\${postId}/comments POST] Comment posted successfully by \${userId}.\`);
+    console.log(`[API /api/user-posts/${postId}/comments POST] Comment posted successfully by ${userId}.`);
     return NextResponse.json(responseComment, { status: 201 });
   } catch (e: any) {
-    console.error(\`[API /api/user-posts/\${postId}/comments POST] Unhandled error:\`, e);
+    console.error(`[API /api/user-posts/${postId}/comments POST] Unhandled error:`, e);
     return NextResponse.json({ message: 'Server error posting comment.', errorDetails: e.message }, { status: 500 });
   }
 }
