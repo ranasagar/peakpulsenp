@@ -154,9 +154,9 @@ export default function HomePageContent() {
   const [isLoadingUserPosts, setIsLoadingUserPosts] = useState(true);
 
   const [currentHeroSlide, setCurrentHeroSlide] = useState(0);
-  const [isHeroPlaying, setIsHeroPlaying] = useState(true); // For slideshow interval and HTML5 audio
+  const [isHeroPlaying, setIsHeroPlaying] = useState(true); 
   const [isInitialSlideIntervalPaused, setIsInitialSlideIntervalPaused] = useState(true); 
-  const [initialAutoplayConditionsMet, setInitialAutoplayConditionsMet] = useState(false); // New state
+  const [initialAutoplayConditionsMet, setInitialAutoplayConditionsMet] = useState(false); 
 
   const heroIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const minPlayTimeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -166,7 +166,7 @@ export default function HomePageContent() {
 
   const [isYouTubeApiReady, setIsYouTubeApiReady] = useState(false);
   const playerRefs = useRef<any[]>([]);
-  const [isYouTubePlayerMuted, setIsYouTubePlayerMuted] = useState(true); // For YT video mute button
+  const [isYouTubePlayerMuted, setIsYouTubePlayerMuted] = useState(true); 
 
   const [currentArtisanalSlide, setCurrentArtisanalSlide] = useState(0);
   const [isArtisanalPlaying, setIsArtisanalPlaying] = useState(true);
@@ -225,7 +225,6 @@ export default function HomePageContent() {
 
 
   const loadPageData = useCallback(async () => {
-    // ... (data fetching logic remains the same)
      setIsLoadingContent(true);
     setIsLoadingSiteSettings(true);
     setIsLoadingFeaturedProducts(true);
@@ -300,14 +299,12 @@ export default function HomePageContent() {
 
   useEffect(() => { loadPageData(); }, [loadPageData]);
   
-  // This effect determines if global autoplay for the hero should be active initially.
   useEffect(() => {
     if (siteSettings && !isLoadingSiteSettings) {
-        // @ts-ignore
-        const globalAutoplay = siteSettings?.heroVideoAutoplay !== false; // Default to true if undefined
-        setIsHeroPlaying(globalAutoplay); // Set slideshow play state based on global setting
-        setIsInitialSlideIntervalPaused(!globalAutoplay); // If global autoplay is off, pause the *interval* from the start
-        setInitialAutoplayConditionsMet(true); // Mark that we've processed settings for autoplay logic
+        const globalAutoplay = (siteSettings as any)?.heroVideoAutoplay !== false;
+        setIsHeroPlaying(globalAutoplay); 
+        setIsInitialSlideIntervalPaused(!globalAutoplay); 
+        setInitialAutoplayConditionsMet(true); 
     }
   }, [siteSettings, isLoadingSiteSettings]);
 
@@ -349,14 +346,14 @@ export default function HomePageContent() {
     if (activeHeroSlides.length > 0) { setCurrentHeroSlide(index % activeHeroSlides.length); }
   };
 
-  const toggleHeroPlayPause = () => { // This controls the SLIDESHOW interval and HTML5 audio
+  const toggleHeroPlayPause = () => { 
     if (isInitialSlideIntervalPaused && currentHeroSlide === 0) {
         setIsInitialSlideIntervalPaused(false);
     }
     setIsHeroPlaying(prev => !prev);
   };
   
-  const handleMuteToggleClick = () => { // This controls both YT and HTML5 audio mutes
+  const handleMuteToggleClick = () => { 
     const currentSlide = activeHeroSlides[currentHeroSlide];
     const player = playerRefs.current[currentHeroSlide];
 
@@ -364,7 +361,6 @@ export default function HomePageContent() {
         const newMutedState = !audioRef.current.muted;
         audioRef.current.muted = newMutedState;
         setIsDirectAudioMuted(newMutedState);
-        // If unmuting direct audio, and a YT video is playing on same slide, ensure YT is muted
         if (!newMutedState && player && typeof player.mute === 'function') player.mute();
         if (newMutedState && player && typeof player.unMute === 'function' && !isYouTubePlayerMuted) player.unMute();
 
@@ -381,25 +377,20 @@ export default function HomePageContent() {
     }
   };
 
-  // Effect for starting the interval timer for the very first slide, if applicable
   useEffect(() => {
     if (!isMounted || !initialAutoplayConditionsMet || !isHeroPlaying || currentHeroSlide !== 0 || !isInitialSlideIntervalPaused) return;
-
-    // @ts-ignore (siteSettings.heroVideoAutoplay might be undefined if settings are still loading)
-    const globalAutoplayEnabled = siteSettings?.heroVideoAutoplay !== false;
-
+    const globalAutoplayEnabled = (siteSettings as any)?.heroVideoAutoplay !== false;
     if (globalAutoplayEnabled) {
       const initialIntervalStartTimeout = setTimeout(() => {
-        if (isMounted && isInitialSlideIntervalPaused) { // Check again in case it changed
-          setIsInitialSlideIntervalPaused(false); // This allows the main interval logic for slide 0 to start
+        if (isMounted && isInitialSlideIntervalPaused) { 
+          setIsInitialSlideIntervalPaused(false); 
         }
-      }, 200); // Small delay
+      }, 200); 
       return () => clearTimeout(initialIntervalStartTimeout);
     }
   }, [isMounted, initialAutoplayConditionsMet, siteSettings, isHeroPlaying, currentHeroSlide, isInitialSlideIntervalPaused]);
 
 
-  // Effect for managing YouTube player instances
   const activeHeroSlidesVideoIds = useMemo(() => JSON.stringify(activeHeroSlides.map(s => s.videoId)), [activeHeroSlides]);
   useEffect(() => {
     if (!isYouTubeApiReady || activeHeroSlides.length === 0 || !isMounted) return;
@@ -421,20 +412,24 @@ export default function HomePageContent() {
             events: {
               onReady: (event: any) => {
                 playerRefs.current[index] = event.target;
-                event.target.mute(); // Mute on ready, main effect controls unmuting based on global isYouTubePlayerMuted
+                event.target.mute(); 
               },
               onStateChange: (event: any) => {
+                const currentSlideData = activeHeroSlides[index]; // Use slideData from forEach scope
                 if (index === currentHeroSlide && event.data === window.YT?.PlayerState?.ENDED) {
                   event.target.seekTo(0);
-                  // @ts-ignore
-                  const globalAutoplayEnabled = siteSettings?.heroVideoAutoplay !== false;
-                  if (isHeroPlaying && globalAutoplayEnabled && initialAutoplayConditionsMet && !slideData.audioUrl) {
+                  const globalAutoplayEnabled = (siteSettings as any)?.heroVideoAutoplay !== false;
+                  
+                  if (isHeroPlaying && globalAutoplayEnabled && initialAutoplayConditionsMet && !currentSlideData?.audioUrl) {
                     nextHeroSlide();
-                  } else if (globalAutoplayEnabled && initialAutoplayConditionsMet) {
-                    event.target.playVideo();
+                  } else if (globalAutoplayEnabled && initialAutoplayConditionsMet && isHeroPlaying) {
+                    event.target.playVideo(); 
                   } else {
                      event.target.pauseVideo();
                   }
+                } else if (index === currentHeroSlide && event.data === window.YT?.PlayerState?.PLAYING) {
+                  const effectiveYouTubeMute = isYouTubePlayerMuted || (currentSlideData?.audioUrl && audioRef.current && !audioRef.current.muted);
+                  if (effectiveYouTubeMute) event.target.mute(); else event.target.unMute();
                 }
               }
             }
@@ -447,7 +442,7 @@ export default function HomePageContent() {
         }
       }
     });
-  }, [isYouTubeApiReady, activeHeroSlidesVideoIds, isMounted]);
+  }, [isYouTubeApiReady, activeHeroSlidesVideoIds, isMounted, currentHeroSlide, siteSettings, isHeroPlaying, initialAutoplayConditionsMet, nextHeroSlide, isYouTubePlayerMuted, activeHeroSlides]);
 
 
   // Main Media and Interval Control Effect
@@ -458,8 +453,7 @@ export default function HomePageContent() {
     const currentSlideData = activeHeroSlides[currentHeroSlide];
     if (!currentSlideData || !initialAutoplayConditionsMet || !isMounted) return;
     
-    // @ts-ignore
-    const globalAutoplayEnabled = siteSettings?.heroVideoAutoplay !== false;
+    const globalAutoplayEnabled = (siteSettings as any)?.heroVideoAutoplay !== false;
     
     const currentSlideIsVideo = !!currentSlideData.videoId && !currentSlideData.imageUrl;
     const currentSlideIsDirectAudio = !!currentSlideData.audioUrl;
@@ -482,45 +476,30 @@ export default function HomePageContent() {
     // YouTube Video Player control for ACTIVE slide
     if (isYouTubeApiReady && activePlayerInstance && typeof activePlayerInstance.playVideo === 'function') {
       if (currentSlideIsVideo) {
-        // Video should play if global autoplay is enabled and initial conditions met
-        if (globalAutoplayEnabled) {
+        const shouldThisVideoAutoplay = globalAutoplayEnabled && isHeroPlaying && initialAutoplayConditionsMet;
+        if (shouldThisVideoAutoplay) {
           activePlayerInstance.playVideo();
         } else {
-           // If global autoplay is specifically off, ensure video is paused
            if (activePlayerInstance.getPlayerState && activePlayerInstance.getPlayerState() !== window.YT?.PlayerState?.PAUSED) {
                activePlayerInstance.pauseVideo();
            }
         }
-        // Mute state for YT video depends on its own button AND if direct audio is playing
-        const shouldYouTubeBeEffectivelyMuted = isYouTubePlayerMuted || (currentSlideIsDirectAudio && audioRef.current && !audioRef.current.muted);
-        if (shouldYouTubeBeEffectivelyMuted) activePlayerInstance.mute(); else activePlayerInstance.unMute();
+        const effectiveYouTubeMute = isYouTubePlayerMuted || (currentSlideIsDirectAudio && audioRef.current && !audioRef.current.muted);
+        if (effectiveYouTubeMute) activePlayerInstance.mute(); else activePlayerInstance.unMute();
       } else { 
-        // If current slide is NOT a video slide, ensure its player (if it was one previously) is paused & muted
         if (typeof activePlayerInstance.pauseVideo === 'function') activePlayerInstance.pauseVideo();
         if (typeof activePlayerInstance.mute === 'function') activePlayerInstance.mute();
       }
     }
 
-    // Slideshow Interval Logic (depends on isHeroPlaying for auto-advancement)
-    // Also checks isInitialSlideIntervalPaused for the very first slide
-    const canIntervalRun = isHeroPlaying && globalAutoplayEnabled && (currentHeroSlide !== 0 || !isInitialSlideIntervalPaused);
-    if (canIntervalRun) {
-      const isNonVideoSlideControllingInterval = !currentSlideIsVideo;
-      const isVideoSlideWithSeparateAudioControllingInterval = currentSlideIsVideo && currentSlideIsDirectAudio;
-
-      if (isNonVideoSlideControllingInterval || isVideoSlideWithSeparateAudioControllingInterval) {
+    // Slideshow Interval Logic
+    const canIntervalRunForAutoAdvance = isHeroPlaying && globalAutoplayEnabled && (currentHeroSlide !== 0 || !isInitialSlideIntervalPaused);
+    if (canIntervalRunForAutoAdvance) {
+      const isNonVideoSlideOrVideoWithAudio = !currentSlideIsVideo || (currentSlideIsVideo && currentSlideIsDirectAudio);
+      if (isNonVideoSlideOrVideoWithAudio) {
         heroIntervalRef.current = setInterval(nextHeroSlide, currentSlideData.duration || 7000);
-      } else if (currentSlideIsVideo && activePlayerInstance && typeof activePlayerInstance.getDuration === 'function') {
-        // For video-only slides, the onStateChange (ENDED) handler will manage nextHeroSlide if isHeroPlaying.
-        // A failsafe/minimum display time:
-        if (activePlayerInstance.getPlayerState && activePlayerInstance.getPlayerState() === window.YT?.PlayerState?.PLAYING) {
-          if (minPlayTimeTimeoutRef.current) clearTimeout(minPlayTimeTimeoutRef.current);
-          const effectiveDuration = Math.max(5000, currentSlideData.duration || 7000); // Min 5s or specified duration
-          minPlayTimeTimeoutRef.current = setTimeout(() => {
-            if (isHeroPlaying && initialAutoplayConditionsMet && globalAutoplayEnabled) nextHeroSlide(); // Check isHeroPlaying here too
-          }, effectiveDuration);
-        }
       }
+      // For video-only slides, YT.PlayerState.ENDED handles nextHeroSlide (if isHeroPlaying & globalAutoplayEnabled & !currentSlideIsDirectAudio)
     }
 
     // Pause and mute other non-active YouTube players
@@ -604,8 +583,7 @@ export default function HomePageContent() {
   let isCurrentSlideYouTubeAudio = !currentDisplayedHeroSlide?.audioUrl && !!currentDisplayedHeroSlide?.videoId && !currentDisplayedHeroSlide?.imageUrl;
   const showMuteButton = isCurrentSlideDirectAudio || isCurrentSlideYouTubeAudio;
   
-  // Determine current mute state for the combined button
-  let currentCombinedMuteState = true; // Default to muted
+  let currentCombinedMuteState = true; 
   if (isCurrentSlideDirectAudio) {
     currentCombinedMuteState = isDirectAudioMuted;
   } else if (isCurrentSlideYouTubeAudio) {
