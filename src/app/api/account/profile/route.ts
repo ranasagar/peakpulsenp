@@ -40,11 +40,11 @@ export async function GET(request: NextRequest) {
     console.warn("[API /api/account/profile GET] User ID (uid) is required in query parameters and must not be empty. Responding 400.");
     return NextResponse.json({ message: 'User ID (uid) is required and must not be empty.' }, { status: 400 });
   }
-  // Removed strict UUID validation for Firebase UID
 
   console.log(`[API /api/account/profile GET] Attempting to fetch profile for UID: ${uidFromQuery}`);
   try {
-    const baseSelectFields = 'id, email, name, avatar_url, bio, roles, wishlist, bookmarked_post_ids, "createdAt", "updatedAt"';
+    // Standardized to snake_case for Supabase default timestamp columns
+    const baseSelectFields = 'id, email, name, avatar_url, bio, roles, wishlist, bookmarked_post_ids, created_at, updated_at';
     
     const { data: profile, error: fetchError } = await supabase
       .from('users')
@@ -87,8 +87,8 @@ export async function GET(request: NextRequest) {
         roles: profile.roles || ['customer'],
         wishlist: profile.wishlist || [],
         bookmarked_post_ids: profile.bookmarked_post_ids || [],
-        createdAt: profile.createdAt || profile.created_at, 
-        updatedAt: profile.updatedAt || profile.updated_at,
+        createdAt: profile.created_at, 
+        updatedAt: profile.updated_at,
     };
     return NextResponse.json(responseProfile);
 
@@ -134,7 +134,6 @@ export async function POST(request: NextRequest) {
     console.warn(`[API /api/account/profile POST] User ID ('id' field) is required and must be a non-empty string. Received: ${userIdToProcess}`);
     return NextResponse.json({ message: "User ID ('id' field) is required and must be a non-empty string for update/create" }, { status: 400 });
   }
-  // Removed strict UUID validation for Firebase UID
 
   if (!email && !requestBody.hasOwnProperty('name')) { 
       console.warn(`[API /api/account/profile POST] Email is required for profile creation if name is not provided (UID ${userIdToProcess}).`);
@@ -146,14 +145,16 @@ export async function POST(request: NextRequest) {
   try {
     const { data: existingUser, error: selectError } = await clientForWrite
       .from('users')
-      .select('id, roles, wishlist, bookmarked_post_ids, name, bio, avatar_url, created_at, updated_at') 
+      .select('id, email, name, avatar_url, bio, roles, wishlist, bookmarked_post_ids, created_at, updated_at') 
       .eq('id', userIdToProcess)
       .maybeSingle();
 
     if (selectError && selectError.code !== 'PGRST116') { 
       console.error(`[API /api/account/profile POST] Supabase error selecting existing user ${userIdToProcess}:`, selectError);
+      // Make the error message more specific
+      const specificErrorMessage = `Failed to query existing user profile before creation/update. Supabase: ${selectError.message}`;
       return NextResponse.json({
-        message: 'Error checking existing user profile.',
+        message: specificErrorMessage,
         rawSupabaseError: { message: selectError.message, details: selectError.details, hint: selectError.hint, code: selectError.code }
       }, { status: 500 });
     }
@@ -172,9 +173,12 @@ export async function POST(request: NextRequest) {
       if (wishlist !== undefined) dataToUpdate.wishlist = wishlist;
       if (bookmarked_post_ids !== undefined) dataToUpdate.bookmarked_post_ids = bookmarked_post_ids;
 
+      // Supabase trigger should handle updated_at, but can be set explicitly if needed
+      // dataToUpdate.updated_at = new Date().toISOString(); 
+
 
       if (Object.keys(dataToUpdate).length > 0) {
-        dataToUpdate.updated_at = new Date().toISOString(); 
+        dataToUpdate.updated_at = new Date().toISOString(); // Explicitly set for Supabase if trigger isn't used/reliable
         console.log(`[API /api/account/profile POST] Data for update for UID ${userIdToProcess}:`, JSON.stringify(dataToUpdate, null, 2));
         const { data: updatedUser, error: updateError } = await clientForWrite
           .from('users')
@@ -205,8 +209,7 @@ export async function POST(request: NextRequest) {
         roles: initialRoles,
         wishlist: wishlist || [],
         bookmarked_post_ids: bookmarked_post_ids || [],
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        // created_at and updated_at handled by Supabase by default
       };
       console.log(`[API /api/account/profile POST] Data for insert for UID ${userIdToProcess}:`, JSON.stringify(dataToInsert, null, 2));
       const { data: insertedUser, error: insertError } = await clientForWrite
@@ -247,7 +250,7 @@ export async function POST(request: NextRequest) {
     if (error.code) { 
       errorMessage = `Supabase error: ${error.message}`;
       if (error.code === '42703') { 
-          errorMessage = `Database schema error: ${error.message}. A required column might be missing (e.g., 'bio' or 'avatar_url'). Please ensure migrations are run.`;
+          errorMessage = `Database schema error: ${error.message}. A required column might be missing. Please ensure migrations are run.`;
       } else if (error.code === '42501') { 
         errorMessage = 'Database Row Level Security (RLS) policy violation. Check INSERT/UPDATE policy for "anon" or relevant role on "users" table in Supabase.';
       } else if (error.code === '23505' && error.message.includes('users_email_key')) { 
@@ -265,3 +268,4 @@ export async function POST(request: NextRequest) {
     }, { status: 500 });
   }
 }
+
