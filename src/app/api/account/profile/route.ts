@@ -43,8 +43,8 @@ export async function GET(request: NextRequest) {
 
   console.log(`[API /api/account/profile GET] Attempting to fetch profile for UID: ${uidFromQuery}`);
   try {
-    // Standardized to snake_case for Supabase default timestamp columns
-    const baseSelectFields = 'id, email, name, avatar_url, bio, roles, wishlist, bookmarked_post_ids, created_at, updated_at';
+    // REMOVED created_at, updated_at FROM SELECT
+    const baseSelectFields = 'id, email, name, avatar_url, bio, roles, wishlist, bookmarked_post_ids';
     
     const { data: profile, error: fetchError } = await supabase
       .from('users')
@@ -87,8 +87,7 @@ export async function GET(request: NextRequest) {
         roles: profile.roles || ['customer'],
         wishlist: profile.wishlist || [],
         bookmarked_post_ids: profile.bookmarked_post_ids || [],
-        createdAt: profile.created_at, 
-        updatedAt: profile.updated_at,
+        // createdAt and updatedAt will be undefined if not selected, which is fine for optional fields
     };
     return NextResponse.json(responseProfile);
 
@@ -143,15 +142,16 @@ export async function POST(request: NextRequest) {
   
   let operationType = '';
   try {
+    // REMOVED created_at, updated_at FROM SELECT
+    const selectFieldsForExistingUser = 'id, email, name, avatar_url, bio, roles, wishlist, bookmarked_post_ids';
     const { data: existingUser, error: selectError } = await clientForWrite
       .from('users')
-      .select('id, email, name, avatar_url, bio, roles, wishlist, bookmarked_post_ids, created_at, updated_at') 
+      .select(selectFieldsForExistingUser) 
       .eq('id', userIdToProcess)
       .maybeSingle();
 
     if (selectError && selectError.code !== 'PGRST116') { 
       console.error(`[API /api/account/profile POST] Supabase error selecting existing user ${userIdToProcess}:`, selectError);
-      // Make the error message more specific
       const specificErrorMessage = `Failed to query existing user profile before creation/update. Supabase: ${selectError.message}`;
       return NextResponse.json({
         message: specificErrorMessage,
@@ -160,10 +160,12 @@ export async function POST(request: NextRequest) {
     }
 
     let finalUserData;
+    // REMOVED created_at, updated_at FROM SELECT IN UPDATE/INSERT
+    const selectFieldsForUpsertReturn = 'id, email, name, avatar_url, bio, roles, wishlist, bookmarked_post_ids';
     
     if (existingUser) {
       operationType = 'UPDATE';
-      const dataToUpdate: Partial<AuthUserType & { avatar_url?: string | null, bookmarked_post_ids?: string[], created_at?: string, updated_at?: string }> = {};
+      const dataToUpdate: Partial<AuthUserType & { avatar_url?: string | null, bookmarked_post_ids?: string[] }> = {}; // Removed created_at, updated_at from this type
 
       if (name !== undefined) dataToUpdate.name = name;
       if (avatarUrl !== undefined) dataToUpdate.avatar_url = avatarUrl; 
@@ -173,18 +175,15 @@ export async function POST(request: NextRequest) {
       if (wishlist !== undefined) dataToUpdate.wishlist = wishlist;
       if (bookmarked_post_ids !== undefined) dataToUpdate.bookmarked_post_ids = bookmarked_post_ids;
 
-      // Supabase trigger should handle updated_at, but can be set explicitly if needed
-      // dataToUpdate.updated_at = new Date().toISOString(); 
-
 
       if (Object.keys(dataToUpdate).length > 0) {
-        dataToUpdate.updated_at = new Date().toISOString(); // Explicitly set for Supabase if trigger isn't used/reliable
+        // updated_at should be handled by Supabase trigger if table is configured
         console.log(`[API /api/account/profile POST] Data for update for UID ${userIdToProcess}:`, JSON.stringify(dataToUpdate, null, 2));
         const { data: updatedUser, error: updateError } = await clientForWrite
           .from('users')
           .update(dataToUpdate)
           .eq('id', userIdToProcess)
-          .select('id, email, name, avatar_url, bio, roles, wishlist, bookmarked_post_ids, created_at, updated_at') 
+          .select(selectFieldsForUpsertReturn) 
           .single();
         if (updateError) throw updateError;
         finalUserData = updatedUser;
@@ -209,13 +208,13 @@ export async function POST(request: NextRequest) {
         roles: initialRoles,
         wishlist: wishlist || [],
         bookmarked_post_ids: bookmarked_post_ids || [],
-        // created_at and updated_at handled by Supabase by default
+        // created_at and updated_at should be handled by Supabase by default/trigger
       };
       console.log(`[API /api/account/profile POST] Data for insert for UID ${userIdToProcess}:`, JSON.stringify(dataToInsert, null, 2));
       const { data: insertedUser, error: insertError } = await clientForWrite
         .from('users')
         .insert(dataToInsert)
-        .select('id, email, name, avatar_url, bio, roles, wishlist, bookmarked_post_ids, created_at, updated_at')
+        .select(selectFieldsForUpsertReturn)
         .single();
       
       if (insertError) throw insertError;
@@ -237,8 +236,7 @@ export async function POST(request: NextRequest) {
         roles: finalUserData.roles || ['customer'],
         wishlist: finalUserData.wishlist || [],
         bookmarked_post_ids: finalUserData.bookmarked_post_ids || [],
-        createdAt: finalUserData.created_at,
-        updatedAt: finalUserData.updated_at,
+        // createdAt and updatedAt will be undefined
     };
     return NextResponse.json({ message: `Profile ${operationType.toLowerCase()}d successfully`, user: responseUser });
 
