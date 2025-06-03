@@ -82,7 +82,7 @@ body {
   }
 
   /* Sustainable Theme (Primarily Light) */
-  html.theme-sustainable { /* Targeting html tag with the class */
+  html.sustainable { /* Changed from html.theme-sustainable */
     --background: 88 56% 94%;    /* Off White (#F1F8E9) */
     --foreground: 200 18% 26%;   /* Charcoal (#37474F) */
 
@@ -121,7 +121,7 @@ body {
   }
 
   /* Dark variant of the Sustainable Theme */
-  html.dark.theme-sustainable { /* Targeting html tag with both classes */
+  html.dark.sustainable { /* Changed from html.dark.theme-sustainable */
     --background: 200 18% 26%;   /* Charcoal (#37474F) */
     --foreground: 88 56% 94%;    /* Off White (#F1F8E9) */
 
