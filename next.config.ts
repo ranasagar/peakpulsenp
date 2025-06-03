@@ -27,16 +27,16 @@ const nextConfig: NextConfig = {
       // Rule specific to font files under /_next/static/media/
       // This rule should come first to ensure it's prioritized.
       {
-        source: '/_next/static/media/:file(.+\\.(?:woff2|woff|ttf|otf|eot)$)', // Changed (woff2|...) to (?:woff2|...)
+        source: '/_next/static/media/:file(.+\\.(woff2|woff|ttf|otf|eot)$)', // Simplified regex slightly, no functional change expected
         headers: [
           { key: 'Access-Control-Allow-Origin', value: '*' },
-          { key: 'Access-Control-Allow-Methods', value: 'GET, OPTIONS' }, // Fonts primarily need GET and OPTIONS for preflight
-          { key: 'Access-Control-Allow-Headers', value: 'Content-Type, Range' }, // Range might be used by some browsers
-          { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' }, // Aggressive caching
+          { key: 'Access-Control-Allow-Methods', value: 'GET, OPTIONS' },
+          { key: 'Access-Control-Allow-Headers', value: 'Content-Type' }, // Simplified from 'Content-Type, Range'
+          { key: 'Vary', value: 'Origin' }, // Added Vary header
+          { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
         ],
       },
       // General rule for other _next/static assets (like JS, CSS chunks)
-      // This is less specific than the font rule above but more specific than the general catch-all below.
       {
         source: '/_next/static/:path*',
         headers: [
@@ -46,13 +46,12 @@ const nextConfig: NextConfig = {
         ],
       },
       // General catch-all rule for other paths (APIs, pages)
-      // This should come LAST.
       {
         source: '/:path*',
         headers: [
           { key: 'Access-Control-Allow-Origin', value: '*' },
           { key: 'Access-Control-Allow-Methods', value: 'GET, OPTIONS, PATCH, DELETE, POST, PUT' },
-          { key: 'Access-Control-Allow-Headers', value: 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization' }, // Added Authorization
+          { key: 'Access-Control-Allow-Headers', value: 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization' },
         ],
       },
     ];
@@ -60,4 +59,3 @@ const nextConfig: NextConfig = {
 };
 
 export default nextConfig;
-

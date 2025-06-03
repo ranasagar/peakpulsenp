@@ -320,7 +320,7 @@ export default function HomePageContent() {
             ctaText: promo.ctaText || 'Learn More', ctaLink: promo.ctaLink || `/products?promo=${promo.slug}`,
             videoId: undefined, audioUrl: undefined, duration: fallbackHeroSlide.duration,
             displayOrder: (sortedBaseSlides.length * 10) + (promo.displayOrder || index * 10),
-            filterOverlay: undefined, // Promos usually don't have filter overlays, but background color
+            filterOverlay: undefined, 
             youtubeAuthorName: undefined, youtubeAuthorLink: undefined, _isPromo: true,
             _backgroundColor: promo.backgroundColor, _textColor: promo.textColor,
           }))
@@ -411,7 +411,18 @@ export default function HomePageContent() {
           }
           const newPlayer = new window.YT.Player(targetDivId, {
             videoId: slideData.videoId,
-            playerVars: { autoplay: 0, controls: 0, loop: 1, playlist: slideData.videoId, modestbranding: 1, playsinline: 1, showinfo: 0, rel: 0, mute: 1 },
+            playerVars: {
+              autoplay: 0,
+              controls: 0,
+              loop: 1,
+              playlist: slideData.videoId,
+              modestbranding: 1,
+              playsinline: 1,
+              showinfo: 0,
+              rel: 0,
+              mute: 1,
+              origin: typeof window !== 'undefined' ? window.location.origin : '', // Added origin
+            },
             events: {
               onReady: (event: any) => {
                 playerRefs.current[index] = event.target;
@@ -458,7 +469,7 @@ export default function HomePageContent() {
     
     const globalAutoplayEnabled = (siteSettings as any)?.heroVideoAutoplay !== false;
     
-    const currentSlideIsVideo = !!currentSlideData.videoId && !currentSlideData.imageUrl;
+    const currentSlideIsVideoOnly = !!currentSlideData.videoId && !currentSlideData.imageUrl && !currentSlideData.audioUrl;
     const currentSlideIsDirectAudio = !!currentSlideData.audioUrl;
     const activePlayerInstance = playerRefs.current[currentHeroSlide];
 
@@ -478,18 +489,19 @@ export default function HomePageContent() {
 
     // YouTube Video Player control for ACTIVE slide
     if (isYouTubeApiReady && activePlayerInstance && typeof activePlayerInstance.playVideo === 'function') {
-      if (currentSlideIsVideo) {
+      const isVideoWithoutImage = !!currentSlideData.videoId && !currentSlideData.imageUrl;
+      if (isVideoWithoutImage) { // If it's a video background (with or without separate audio)
         const shouldThisVideoAutoplay = globalAutoplayEnabled && isHeroPlaying && initialAutoplayConditionsMet;
         if (shouldThisVideoAutoplay) {
           activePlayerInstance.playVideo();
         } else {
-           if (activePlayerInstance.getPlayerState && activePlayerInstance.getPlayerState() !== window.YT?.PlayerState?.PAUSED) {
+           if (typeof activePlayerInstance.getPlayerState === 'function' && activePlayerInstance.getPlayerState() !== window.YT?.PlayerState?.PAUSED) {
                activePlayerInstance.pauseVideo();
            }
         }
         const effectiveYouTubeMute = isYouTubePlayerMuted || (currentSlideIsDirectAudio && audioRef.current && !audioRef.current.muted);
         if (effectiveYouTubeMute) activePlayerInstance.mute(); else activePlayerInstance.unMute();
-      } else { 
+      } else { // If it's an image slide, ensure player is paused and muted
         if (typeof activePlayerInstance.pauseVideo === 'function') activePlayerInstance.pauseVideo();
         if (typeof activePlayerInstance.mute === 'function') activePlayerInstance.mute();
       }
@@ -497,13 +509,10 @@ export default function HomePageContent() {
 
     // Slideshow Interval Logic
     const canIntervalRunForAutoAdvance = isHeroPlaying && globalAutoplayEnabled && (currentHeroSlide !== 0 || !isInitialSlideIntervalPaused);
-    if (canIntervalRunForAutoAdvance) {
-      const isNonVideoSlideOrVideoWithAudio = !currentSlideIsVideo || (currentSlideIsVideo && currentSlideIsDirectAudio);
-      if (isNonVideoSlideOrVideoWithAudio) {
+    if (canIntervalRunForAutoAdvance && !currentSlideIsVideoOnly) { // Only run interval if NOT a video-only slide
         heroIntervalRef.current = setInterval(nextHeroSlide, currentSlideData.duration || 7000);
-      }
     }
-
+    
     playerRefs.current.forEach((player, idx) => {
       if (player && idx !== currentHeroSlide && typeof player.pauseVideo === 'function' && typeof player.mute === 'function') {
         try { player.pauseVideo(); player.mute(); }
@@ -732,3 +741,4 @@ export default function HomePageContent() {
     </>
   );
 }
+
