@@ -278,6 +278,9 @@ export interface OurStorySection {
   imageUrl?: string;
   imageAltText?: string;
   imageAiHint?: string;
+  instagramUsername?: string;
+  facebookUsername?: string;
+  twitterUsername?: string;
 }
 
 export interface OurStoryContentData {
@@ -516,3 +519,62 @@ export interface Notification {
   created_at: string; // ISO timestamp
 }
 // --- End Notification System Types ---
+
+// Generic Metadata type, can be expanded
+export interface Metadata {
+  title?: string;
+  description?: string;
+  keywords?: string[] | string;
+  openGraph?: OpenGraph;
+  twitter?: Twitter;
+  robots?: Robots;
+  alternates?: {
+    canonical?: string;
+    languages?: Record<string, string>;
+  };
+  // Add any other common meta tags you use
+}
+
+interface OpenGraph {
+  title?: string;
+  description?: string;
+  url?: string;
+  siteName?: string;
+  images?: OpenGraphImage[];
+  type?: 'website' | 'article' | 'product';
+  // For articles
+  publishedTime?: string;
+  modifiedTime?: string;
+  authors?: string[];
+  // For products
+  // 'product:brand'?: string;
+  // 'product:availability'?: string;
+  // 'product:condition'?: string;
+  // 'product:price:amount'?: string;
+  // 'product:price:currency'?: string;
+}
+
+interface OpenGraphImage {
+  url: string;
+  width?: number;
+  height?: number;
+  alt?: string;
+}
+
+interface Twitter {
+  card?: 'summary' | 'summary_large_image' | 'app' | 'player';
+  site?: string; // @site
+  creator?: string; // @creator
+  title?: string;
+  description?: string;
+  images?: string[]; // Array of image URLs
+}
+
+interface Robots {
+  index?: boolean;
+  follow?: boolean;
+  noarchive?: boolean;
+  nosnippet?: boolean;
+  noimageindex?: boolean;
+  googleBot?: Record<string, any>; // For more specific Googlebot directives
+}

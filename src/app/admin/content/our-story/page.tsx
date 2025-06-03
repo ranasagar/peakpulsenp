@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Save, BookOpenText, Image as ImageIconLucide } from 'lucide-react'; 
+import { Loader2, Save, BookOpenText, Image as ImageIconLucide, Instagram, Facebook, Twitter as TwitterIcon } from 'lucide-react'; 
 import type { OurStoryContentData, OurStorySection } from '@/types';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
@@ -25,6 +25,9 @@ const ourStorySectionSchema = z.object({
   imageUrl: z.string().url("Must be a valid URL or empty.").optional().or(z.literal('')),
   imageAltText: z.string().optional().or(z.literal('')),
   imageAiHint: z.string().optional().or(z.literal('')),
+  instagramUsername: z.string().optional().or(z.literal('')),
+  facebookUsername: z.string().optional().or(z.literal('')),
+  twitterUsername: z.string().optional().or(z.literal('')),
 });
 
 // Main schema for the Our Story page content
@@ -44,20 +47,29 @@ const defaultOurStoryFormValues: OurStoryContentFormValues = {
   mission: { title: 'Our Mission', paragraph1: 'Elevating craftsmanship and connecting cultures through unique apparel.', paragraph2: 'Every piece tells a story of tradition and modernity.', imageUrl: '', imageAltText: '', imageAiHint: 'artisans working' },
   craftsmanship: { title: 'The Art of Creation', paragraph1: 'Honoring ancient techniques with a commitment to quality.', paragraph2: 'Sustainably sourced materials form the heart of our designs.', imageUrl: '', imageAltText: '', imageAiHint: 'textile detail' },
   valuesSection: { title: 'Our Values: Beyond the Seams' }, // Only title needed here as per current design
-  joinJourneySection: { title: 'Join Our Journey', description: 'Follow us for updates and be part of the Peak Pulse story.', imageUrl: '', imageAltText: '', imageAiHint: 'community fashion' },
+  joinJourneySection: { 
+    title: 'Join Our Journey', 
+    description: '<p>Follow us for updates and be part of the Peak Pulse story.</p>', 
+    imageUrl: '', 
+    imageAltText: '', 
+    imageAiHint: 'community fashion',
+    instagramUsername: 'peakpulsenp',
+    facebookUsername: 'peakpulse',
+    twitterUsername: 'peakpulse'
+  },
 };
 
 // Helper component for rendering section form fields
 interface SectionFormProps {
   control: any; // Control object from react-hook-form
   sectionName: keyof OurStoryContentFormValues; // e.g., "hero", "mission"
-  // sectionDisplayName: string; // No longer needed as AccordionTrigger will have this
   hasDescription?: boolean; // Does this section use 'description' field?
   hasParagraphs?: boolean;  // Does this section use 'paragraph1' and 'paragraph2'?
+  isJoinJourneySection?: boolean; // Specific flag for the "Join Our Journey" section
 }
 
 const SectionFormControl: React.FC<SectionFormProps> = ({ 
-  control, sectionName, hasDescription = false, hasParagraphs = false 
+  control, sectionName, hasDescription = false, hasParagraphs = false, isJoinJourneySection = false
 }) => {
   return (
     <>
@@ -117,7 +129,7 @@ const SectionFormControl: React.FC<SectionFormProps> = ({
           <FormItem>
             <FormLabel className="flex items-center"><ImageIconLucide className="mr-2 h-4 w-4 text-muted-foreground" /> Image URL (Optional)</FormLabel>
             <FormControl><Input {...field} placeholder="https://example.com/image.jpg" value={field.value || ''}/></FormControl>
-            <FormDescription>Paste direct link. Use ImgBB or Postimages for free uploads.</FormDescription>
+            <FormDescription>Paste direct link. Use ImgBB or Postimages.org for free uploads.</FormDescription>
             <FormMessage />
           </FormItem>
         )} 
@@ -136,6 +148,19 @@ const SectionFormControl: React.FC<SectionFormProps> = ({
           <FormItem><FormLabel>Image AI Hint (for placeholder)</FormLabel><FormControl><Input {...field} placeholder="e.g., mountain landscape" value={field.value || ''}/></FormControl><FormMessage /></FormItem>
         )} 
       />
+      {isJoinJourneySection && (
+        <>
+          <FormField control={control} name={`${sectionName}.instagramUsername`} render={({ field }) => (
+            <FormItem><FormLabel className="flex items-center"><Instagram className="mr-2 h-4 w-4 text-pink-500" />Instagram Username</FormLabel><FormControl><Input {...field} placeholder="e.g., peakpulsenp (username only)" value={field.value || ''} /></FormControl><FormMessage /></FormItem>
+          )} />
+          <FormField control={control} name={`${sectionName}.facebookUsername`} render={({ field }) => (
+            <FormItem><FormLabel className="flex items-center"><Facebook className="mr-2 h-4 w-4 text-blue-600" />Facebook Page Username/ID</FormLabel><FormControl><Input {...field} placeholder="e.g., peakpulse (username or page ID)" value={field.value || ''} /></FormControl><FormMessage /></FormItem>
+          )} />
+          <FormField control={control} name={`${sectionName}.twitterUsername`} render={({ field }) => (
+            <FormItem><FormLabel className="flex items-center"><TwitterIcon className="mr-2 h-4 w-4 text-sky-500" />Twitter Handle</FormLabel><FormControl><Input {...field} placeholder="e.g., peakpulse (handle without @)" value={field.value || ''} /></FormControl><FormMessage /></FormItem>
+          )} />
+        </>
+      )}
     </>
   );
 };
@@ -263,7 +288,7 @@ export default function AdminOurStoryContentPage() {
                 <AccordionItem value="join-journey-section">
                   <AccordionTrigger className="text-xl font-semibold">Join Our Journey Section</AccordionTrigger>
                   <AccordionContent className="pt-4 space-y-4">
-                    <SectionFormControl control={form.control} sectionName="joinJourneySection" hasDescription />
+                    <SectionFormControl control={form.control} sectionName="joinJourneySection" hasDescription isJoinJourneySection />
                   </AccordionContent>
                 </AccordionItem>
               </Accordion>

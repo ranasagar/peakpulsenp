@@ -4,7 +4,7 @@
 import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { Card, CardContent } from '@/components/ui/card';
-import { Mountain, Users, Handshake, Sparkles, Facebook, Instagram, Twitter, ImageIcon } from 'lucide-react';
+import { Mountain, Users, Handshake, Sparkles, Facebook, Instagram, Twitter as TwitterIcon, ImageIcon } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { AspectRatio } from '@/components/ui/aspect-ratio';
 import { Button } from '@/components/ui/button';
@@ -16,7 +16,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import MainLayout from '@/components/layout/main-layout';
 
 const defaultSectionStructure: OurStorySection = { 
-    title: 'Loading...', description: 'Please wait while we fetch the details.', paragraph1: '', paragraph2: '', imageUrl: '', imageAltText: '', imageAiHint: '' 
+    title: 'Loading...', description: 'Please wait while we fetch the details.', paragraph1: '', paragraph2: '', imageUrl: '', imageAltText: '', imageAiHint: '',
+    instagramUsername: '', facebookUsername: '', twitterUsername: ''
 };
 
 const fallbackContent: OurStoryContentData = {
@@ -24,7 +25,14 @@ const fallbackContent: OurStoryContentData = {
   mission: { ...defaultSectionStructure, title: "Our Mission", paragraph1: "<p>Elevating craftsmanship and connecting cultures through unique apparel.</p>", paragraph2: "<p>Every piece tells a story of tradition and modernity.</p>" },
   craftsmanship: { ...defaultSectionStructure, title: "The Art of Creation", paragraph1: "<p>Honoring ancient techniques with a commitment to quality.</p>", paragraph2: "<p>Sustainably sourced materials form the heart of our designs.</p>" },
   valuesSection: { ...defaultSectionStructure, title: "Our Values: Beyond the Seams" },
-  joinJourneySection: { ...defaultSectionStructure, title: "Join Our Journey", description: "<p>Follow us for updates and be part of the Peak Pulse story.</p>" }
+  joinJourneySection: { 
+    ...defaultSectionStructure, 
+    title: "Join Our Journey", 
+    description: "<p>Follow us for updates and be part of the Peak Pulse story.</p>",
+    instagramUsername: 'peakpulsenp', // Default example
+    facebookUsername: 'peakpulse',  // Default example
+    twitterUsername: 'peakpulse'    // Default example
+  }
 };
 
 async function getOurStoryContent(): Promise<OurStoryContentData> {
@@ -61,11 +69,11 @@ async function getOurStoryContent(): Promise<OurStoryContentData> {
     }
     const jsonData = await res.json();
     const responseData: OurStoryContentData = {
-      hero: { ...defaultSectionStructure, ...fallbackContent.hero, ...jsonData.hero },
-      mission: { ...defaultSectionStructure, ...fallbackContent.mission, ...jsonData.mission },
-      craftsmanship: { ...defaultSectionStructure, ...fallbackContent.craftsmanship, ...jsonData.craftsmanship },
-      valuesSection: { ...defaultSectionStructure, ...fallbackContent.valuesSection, ...jsonData.valuesSection },
-      joinJourneySection: { ...defaultSectionStructure, ...fallbackContent.joinJourneySection, ...jsonData.joinJourneySection },
+      hero: { ...defaultOurStoryFormValues.hero, ...jsonData.hero },
+      mission: { ...defaultOurStoryFormValues.mission, ...jsonData.mission },
+      craftsmanship: { ...defaultOurStoryFormValues.craftsmanship, ...jsonData.craftsmanship },
+      valuesSection: { ...defaultOurStoryFormValues.valuesSection, ...jsonData.valuesSection },
+      joinJourneySection: { ...defaultOurStoryFormValues.joinJourneySection, ...jsonData.joinJourneySection },
     };
     return responseData;
   } catch (error) {
@@ -73,6 +81,24 @@ async function getOurStoryContent(): Promise<OurStoryContentData> {
     return { ...fallbackContent, error: (error as Error).message };
   }
 }
+// Helper to get default values for each section in case a section is missing from DB
+const defaultOurStoryFormValues: OurStoryContentData = {
+  hero: { title: 'Our Story', description: '<p>Weaving together heritage and vision.</p>', imageUrl: '', imageAltText: '', imageAiHint: 'mountains heritage' },
+  mission: { title: 'Our Mission', paragraph1: '<p>Elevating craftsmanship and connecting cultures through unique apparel.</p>', paragraph2: '<p>Every piece tells a story of tradition and modernity.</p>', imageUrl: '', imageAltText: '', imageAiHint: 'artisans working' },
+  craftsmanship: { title: 'The Art of Creation', paragraph1: '<p>Honoring ancient techniques with a commitment to quality.</p>', paragraph2: '<p>Sustainably sourced materials form the heart of our designs.</p>', imageUrl: '', imageAltText: '', imageAiHint: 'textile detail' },
+  valuesSection: { title: 'Our Values: Beyond the Seams' },
+  joinJourneySection: { 
+    title: 'Join Our Journey', 
+    description: '<p>Follow us for updates and be part of the Peak Pulse story.</p>', 
+    imageUrl: '', 
+    imageAltText: '', 
+    imageAiHint: 'community fashion',
+    instagramUsername: 'peakpulsenp',
+    facebookUsername: 'peakpulse',
+    twitterUsername: 'peakpulse'
+  },
+};
+
 
 export default function OurStoryPage() {
   const [content, setContent] = useState<OurStoryContentData>(fallbackContent);
@@ -247,16 +273,22 @@ export default function OurStoryPage() {
             <div className="text-center relative z-10">
                 <h2 className="text-3xl font-semibold text-foreground mb-6" dangerouslySetInnerHTML={{ __html: content.joinJourneySection?.title || "Join Our Journey" }} />
                 <div className="text-lg text-muted-foreground mb-8 max-w-2xl mx-auto prose dark:prose-invert" dangerouslySetInnerHTML={{ __html: content.joinJourneySection?.description || "<p>Follow us for updates.</p>" }} />
-                <div className="flex justify-center space-x-4">
-                    <InteractiveExternalLink href="https://instagram.com/peakpulsenp" showDialog={true}>
-                        <Button variant="outline" className="bg-background/80 hover:bg-card"><Instagram className="mr-2 h-5 w-5" /> Instagram</Button>
-                    </InteractiveExternalLink>
-                     <InteractiveExternalLink href="https://facebook.com/peakpulse" showDialog={true}>
-                        <Button variant="outline" className="bg-background/80 hover:bg-card"><Facebook className="mr-2 h-5 w-5" /> Facebook</Button>
-                    </InteractiveExternalLink>
-                     <InteractiveExternalLink href="https://twitter.com/peakpulse" showDialog={true}>
-                       <Button variant="outline" className="bg-background/80 hover:bg-card"><Twitter className="mr-2 h-5 w-5" /> Twitter</Button>
-                    </InteractiveExternalLink>
+                <div className="flex flex-wrap justify-center items-center gap-3">
+                    {content.joinJourneySection?.instagramUsername && (
+                        <InteractiveExternalLink href={`https://instagram.com/${content.joinJourneySection.instagramUsername.replace('@','')}`} showDialog={true}>
+                            <Button variant="outline" className="bg-background/80 hover:bg-card"><Instagram className="mr-2 h-5 w-5" /> Instagram</Button>
+                        </InteractiveExternalLink>
+                    )}
+                    {content.joinJourneySection?.facebookUsername && (
+                        <InteractiveExternalLink href={`https://facebook.com/${content.joinJourneySection.facebookUsername}`} showDialog={true}>
+                            <Button variant="outline" className="bg-background/80 hover:bg-card"><Facebook className="mr-2 h-5 w-5" /> Facebook</Button>
+                        </InteractiveExternalLink>
+                    )}
+                    {content.joinJourneySection?.twitterUsername && (
+                        <InteractiveExternalLink href={`https://twitter.com/${content.joinJourneySection.twitterUsername.replace('@','')}`} showDialog={true}>
+                            <Button variant="outline" className="bg-background/80 hover:bg-card"><TwitterIcon className="mr-2 h-5 w-5" /> Twitter</Button>
+                        </InteractiveExternalLink>
+                    )}
                 </div>
             </div>
         </section>
