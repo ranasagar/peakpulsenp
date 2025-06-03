@@ -7,6 +7,17 @@ import type { PromotionalPost } from '@/types';
 
 export const dynamic = 'force-dynamic';
 
+// Helper to parse optional numeric fields that can be null
+const parseOptionalNumericOrNull = (value: any): number | null => {
+  if (value === null || value === undefined || String(value).trim() === "") {
+    return null; // Explicitly map empty string, null, undefined to null
+  }
+  const num = Number(value);
+  // If, after attempting to convert, it's NaN, also treat as null
+  // This aligns with Zod schema allowing .nullable()
+  return isNaN(num) ? null : num;
+};
+
 // GET a single promotional post (Admin)
 export async function GET(
   request: NextRequest,
@@ -64,31 +75,24 @@ export async function PUT(
   if (body.hasOwnProperty('title')) {
     if (typeof body.title === 'string' && body.title.trim() !== '') {
       postToUpdate.title = body.title.trim();
-    } else {
-      // Title is required by schema, so if it's sent as empty, it's an issue client should catch.
-      // If backend still receives it empty, this could lead to issues if DB doesn't allow empty.
-      // For PUT, if title is not in body, we don't update it. If it is, it must be valid.
-      if (body.title !== undefined && (body.title === null || body.title.trim() === '')) {
+    } else if (body.title !== undefined) { 
         return NextResponse.json({ message: "Title cannot be empty if provided for update." }, { status: 400 });
-      }
     }
   }
   
-  // Slug generation/update logic
   if (body.hasOwnProperty('slug')) {
      const slugToSet = body.slug?.trim() || (postToUpdate.title ? postToUpdate.title.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, '') : undefined);
-     if (slugToSet) {
+     if (slugToSet && slugToSet.length > 0) {
        postToUpdate.slug = slugToSet;
-     } else if (body.slug === '' && !postToUpdate.title) { // If slug is explicitly empty AND title isn't there to generate from
-        // This scenario is unlikely if title is required, but good to be defensive.
-        // Or we could let DB handle if slug has a default or is nullable.
-        // For now, if slug is empty and title isn't there, don't set slug to empty.
+     } else if (body.slug !== undefined && !postToUpdate.title) { // Slug explicitly empty and no title to derive from
+        return NextResponse.json({ message: "Slug cannot be empty if title is also not being updated to a non-empty value." }, { status: 400 });
      }
-  } else if (postToUpdate.title) { // If slug not in body, but title is, generate slug
+  } else if (postToUpdate.title) { 
      postToUpdate.slug = postToUpdate.title.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, '');
   }
 
   if (body.hasOwnProperty('description')) postToUpdate.description = body.description || null;
+  
   if (body.hasOwnProperty('imageUrl')) {
     if (typeof body.imageUrl === 'string' && body.imageUrl.trim() !== '') {
       postToUpdate.image_url = body.imageUrl.trim();
@@ -102,36 +106,50 @@ export async function PUT(
   if (body.hasOwnProperty('ctaLink')) postToUpdate.cta_link = body.ctaLink || null;
   
   if (body.hasOwnProperty('price')) {
-    postToUpdate.price = (body.price === null || body.price === undefined) ? null : Number(body.price);
-    if (body.price !== null && body.price !== undefined && isNaN(postToUpdate.price)) return NextResponse.json({ message: "Invalid price value." }, { status: 400 });
+    postToUpdate.price = parseOptionalNumericOrNull(body.price);
   }
   if (body.hasOwnProperty('discountPrice')) {
-    postToUpdate.discount_price = (body.discountPrice === null || body.discountPrice === undefined) ? null : Number(body.discountPrice);
-     if (body.discountPrice !== null && body.discountPrice !== undefined && isNaN(postToUpdate.discount_price)) return NextResponse.json({ message: "Invalid discount price value." }, { status: 400 });
+    postToUpdate.discount_price = parseOptionalNumericOrNull(body.discountPrice);
   }
   
   if (body.hasOwnProperty('sku')) postToUpdate.sku = body.sku || null;
 
   if (body.hasOwnProperty('validFrom')) {
-    postToUpdate.valid_from = body.validFrom && body.validFrom.trim() !== '' ? new Date(body.validFrom).toISOString() : null;
+    const vd = String(body.validFrom).trim();
+    postToUpdate.valid_from = vd ? new Date(vd).toISOString() : null;
+    if (vd && postToUpdate.valid_from && isNaN(new Date(postToUpdate.valid_from).getTime())) {
+        return NextResponse.json({ message: `Invalid date format for validFrom: '${body.validFrom}'` }, { status: 400 });
+    }
   }
   if (body.hasOwnProperty('validUntil')) {
-    postToUpdate.valid_until = body.validUntil && body.validUntil.trim() !== '' ? new Date(body.validUntil).toISOString() : null;
+    const vu = String(body.validUntil).trim();
+    postToUpdate.valid_until = vu ? new Date(vu).toISOString() : null;
+    if (vu && postToUpdate.valid_until && isNaN(new Date(postToUpdate.valid_until).getTime())) {
+        return NextResponse.json({ message: `Invalid date format for validUntil: '${body.validUntil}'` }, { status: 400 });
+    }
+  }
+  
+  // Validate date range server-side if both are present
+  if (postToUpdate.valid_from && postToUpdate.valid_until && new Date(postToUpdate.valid_until) < new Date(postToUpdate.valid_from)) {
+    return NextResponse.json({ message: "Valid until date must be after or same as valid from date." }, { status: 400 });
   }
 
+
   if (body.hasOwnProperty('isActive')) postToUpdate.is_active = body.isActive === undefined ? true : !!body.isActive;
+  
   if (body.hasOwnProperty('displayOrder')) {
-      postToUpdate.display_order = (body.displayOrder === null || body.displayOrder === undefined) ? 0 : Number(body.displayOrder);
-      if (isNaN(postToUpdate.display_order)) postToUpdate.display_order = 0;
+      const numDisplayOrder = Number(body.displayOrder);
+      postToUpdate.display_order = (body.displayOrder === null || body.displayOrder === undefined || String(body.displayOrder).trim() === "" || isNaN(numDisplayOrder))
+                                  ? 0 
+                                  : numDisplayOrder;
   }
+  
   if (body.hasOwnProperty('backgroundColor')) postToUpdate.background_color = body.backgroundColor || null;
   if (body.hasOwnProperty('textColor')) postToUpdate.text_color = body.textColor || null;
   
   postToUpdate.updated_at = new Date().toISOString();
 
   if (Object.keys(postToUpdate).length <= 1 && postToUpdate.updated_at) {
-    // No actual data change, only timestamp. We can skip the update to prevent unnecessary DB writes.
-    // However, to provide a consistent response, let's fetch and return the current state.
     try {
         const { data: currentData, error: fetchError } = await supabaseAdmin
           .from('promotional_posts')
@@ -194,3 +212,5 @@ export async function DELETE(
     return NextResponse.json({ message: 'Server error.', errorDetails: e.message }, { status: 500 });
   }
 }
+
+    
