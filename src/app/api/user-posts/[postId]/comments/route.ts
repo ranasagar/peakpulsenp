@@ -2,7 +2,7 @@
 // /src/app/api/user-posts/[postId]/comments/route.ts
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { supabaseAdmin } from '../../../../../../lib/supabaseClient'; // Use admin client for writing comments
+import { supabaseAdmin } from '@/lib/supabaseClient'; // Corrected import path
 import type { PostComment } from '@/types';
 
 export const dynamic = 'force-dynamic';
@@ -151,4 +151,3 @@ export async function POST(
     return NextResponse.json({ message: 'Server error posting comment.', errorDetails: e.message }, { status: 500 });
   }
 }
-
