@@ -83,78 +83,78 @@ body {
 
   /* Sustainable Theme (Primarily Light) */
   html.theme-sustainable { /* Targeting html tag with the class */
-    --background: 45 30% 96%; /* Light Parchment: hsl(45, 30%, 96%) -> #F9F7F2 */
-    --foreground: 100 25% 20%; /* Dark Moss Green: hsl(100, 25%, 20%) -> #264026 */
+    --background: 88 56% 94%;    /* Off White (#F1F8E9) */
+    --foreground: 200 18% 26%;   /* Charcoal (#37474F) */
 
-    --card: 45 30% 98%; /* Very Light Parchment: hsl(45, 30%, 98%) -> #FCFAF7 */
-    --card-foreground: 100 25% 20%; /* Dark Moss Green */
+    --card: 88 56% 94%;          /* Off White (#F1F8E9) */
+    --card-foreground: 200 18% 26%; /* Charcoal (#37474F) */
 
-    --popover: 45 30% 98%; /* Very Light Parchment */
-    --popover-foreground: 100 25% 20%; /* Dark Moss Green */
+    --popover: 88 56% 94%;       /* Off White (#F1F8E9) */
+    --popover-foreground: 200 18% 26%; /* Charcoal (#37474F) */
 
-    --primary: 150 40% 40%; /* Muted Forest Green: hsl(150, 40%, 40%) -> #3D8C5A */
-    --primary-foreground: 45 30% 96%; /* Light Parchment */
+    --primary: 123 47% 34%;      /* Earthy Green (#2E7D32) */
+    --primary-foreground: 88 56% 94%; /* Off White (#F1F8E9) */
 
-    --secondary: 40 20% 85%; /* Light Khaki/Sand: hsl(40, 20%, 85%) -> #DBD7D1 */
-    --secondary-foreground: 100 25% 25%; /* Slightly Lighter Moss Green: hsl(100, 25%, 25%) -> #304D30 */
+    --secondary: 122 37% 74%;   /* Soft Moss (#A5D6A7) */
+    --secondary-foreground: 200 18% 26%; /* Charcoal (#37474F) */
 
-    --muted: 40 15% 92%; /* Very Light Khaki/Sand: hsl(40, 15%, 92%) -> #ECEAE7 */
-    --muted-foreground: 100 15% 45%; /* Medium Moss Green: hsl(100, 15%, 45%) -> #637A63 */
+    --muted: 122 37% 88%;        /* Lighter Soft Moss */
+    --muted-foreground: 200 18% 35%; /* Darker Muted Charcoal */
 
-    --accent: 35 65% 55%; /* Warm Ochre/Terracotta: hsl(35, 65%, 55%) -> #E0A44A */
-    --accent-foreground: 100 25% 15%; /* Darker Moss for text on accent: hsl(100, 25%, 15%) -> #1B331B */
+    --accent: 20 17% 81%;        /* Warm Clay (#D7CCC8) */
+    --accent-foreground: 200 18% 26%; /* Charcoal (#37474F) */
 
-    --destructive: 0 60% 50%; /* Desaturated Red: hsl(0, 60%, 50%) -> #CC3333 */
-    --destructive-foreground: 0 0% 100%; /* White */
+    --destructive: 42 100% 50%;  /* Sun Gold (#FFB300) */
+    --destructive-foreground: 200 18% 15%; /* Very Dark Charcoal */
 
-    --border: 40 20% 80%; /* Slightly Darker Khaki: hsl(40, 20%, 80%) -> #D1CCC5 */
-    --input: 40 20% 80%; /* Slightly Darker Khaki */
-    --ring: 150 40% 50%; /* Brighter Forest Green for focus: hsl(150, 40%, 50%) -> #4DB372 */
+    --border: 20 15% 88%;        /* Lighter Warm Clay for subtle borders */
+    --input: 20 15% 88%;         /* Lighter Warm Clay for input backgrounds */
+    --ring: 123 47% 34%;         /* Earthy Green (#2E7D32) */
 
-    --chart-1: 150 40% 40%;
-    --chart-2: 35 65% 55%;
-    --chart-3: 100 20% 50%; /* Muted Olive */
-    --chart-4: 25 30% 60%; /* Light Brown */
-    --chart-5: 180 25% 55%; /* Soft Teal */
+    --chart-1: 123 47% 34%;      /* Earthy Green */
+    --chart-2: 42 100% 50%;      /* Sun Gold */
+    --chart-3: 123 40% 50%;      /* Vibrant Earthy Green */
+    --chart-4: 122 30% 60%;      /* Saturated Soft Moss */
+    --chart-5: 30 70% 60%;       /* Deep Ochre */
     
     --radius: 0.75rem;
   }
 
   /* Dark variant of the Sustainable Theme */
   html.dark.theme-sustainable { /* Targeting html tag with both classes */
-    --background: 100 15% 12%; /* Very Dark Moss Green: hsl(100, 15%, 12%) -> #1A211A */
-    --foreground: 45 25% 88%; /* Off-White/Light Parchment: hsl(45, 25%, 88%) -> #E8E4D8 */
+    --background: 200 18% 26%;   /* Charcoal (#37474F) */
+    --foreground: 88 56% 94%;    /* Off White (#F1F8E9) */
 
-    --card: 100 15% 15%; /* Darker Moss for Cards: hsl(100, 15%, 15%) -> #202920 */
-    --card-foreground: 45 25% 88%;
+    --card: 200 18% 30%;          /* Darker Charcoal for Cards */
+    --card-foreground: 88 56% 94%; /* Off White (#F1F8E9) */
 
-    --popover: 100 15% 15%;
-    --popover-foreground: 45 25% 88%;
+    --popover: 200 18% 30%;       /* Darker Charcoal for Popovers */
+    --popover-foreground: 88 56% 94%; /* Off White (#F1F8E9) */
 
-    --primary: 150 35% 55%; /* Lighter Muted Forest Green: hsl(150, 35%, 55%) -> #6BBF8A */
-    --primary-foreground: 100 25% 10%; /* Very Dark Moss for text on primary: hsl(100, 25%, 10%) -> #132613 */
+    --primary: 123 45% 55%;      /* Brighter Earthy Green */
+    --primary-foreground: 88 56% 94%; /* Off White (#F1F8E9) */
 
-    --secondary: 40 10% 25%; /* Dark Sand/Stone: hsl(40, 10%, 25%) -> #45423D */
-    --secondary-foreground: 45 20% 75%; /* Lighter Khaki: hsl(45, 20%, 75%) -> #C9C5BB */
+    --secondary: 200 18% 20%;   /* Very Dark Charcoal for Secondary BG elements */
+    --secondary-foreground: 122 37% 74%; /* Soft Moss (#A5D6A7) text on it */
 
-    --muted: 40 10% 20%; /* Darker Sand/Stone: hsl(40, 10%, 20%) -> #383633 */
-    --muted-foreground: 45 15% 60%; /* Medium Khaki: hsl(45, 15%, 60%) -> #A9A59B */
+    --muted: 200 18% 15%;        /* Even Darker Charcoal for Muted BG */
+    --muted-foreground: 122 35% 80%; /* Lighter Soft Moss for text */
 
-    --accent: 35 60% 65%; /* Lighter Ochre: hsl(35, 60%, 65%) -> #E8B76E */
-    --accent-foreground: 100 25% 10%;
+    --accent: 42 100% 50%;       /* Sun Gold (#FFB300) */
+    --accent-foreground: 200 18% 15%; /* Very Dark Charcoal */
 
-    --destructive: 0 50% 55%; /* Slightly less intense red for dark mode: hsl(0, 50%, 55%) -> #D94A4A */
-    --destructive-foreground: 0 0% 100%;
+    --destructive: 42 100% 55%;  /* Slightly brighter Sun Gold for Destructive */
+    --destructive-foreground: 200 18% 10%; /* Near Black */
 
-    --border: 40 10% 30%; /* Darker Khaki Border: hsl(40, 10%, 30%) -> #524F4A */
-    --input: 40 10% 30%;
-    --ring: 150 35% 65%; /* Brighter Forest Green ring: hsl(150, 35%, 65%) -> #82CCA4 */
+    --border: 200 18% 35%;        /* Lighter Charcoal for borders */
+    --input: 200 18% 35%;         /* Lighter Charcoal for input backgrounds */
+    --ring: 123 45% 55%;         /* Brighter Earthy Green */
 
-    --chart-1: 150 35% 55%;
-    --chart-2: 35 60% 65%;
-    --chart-3: 100 15% 60%;
-    --chart-4: 25 25% 70%;
-    --chart-5: 180 20% 65%;
+    --chart-1: 123 45% 55%;      /* Brighter Earthy Green */
+    --chart-2: 42 100% 50%;      /* Sun Gold */
+    --chart-3: 123 50% 65%;      /* Even Brighter Earthy Green */
+    --chart-4: 122 40% 80%;      /* Lighter Soft Moss */
+    --chart-5: 30 80% 70%;       /* Light Ochre */
     
     --radius: 0.75rem;
   }
