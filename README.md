@@ -66,6 +66,7 @@ This is a Next.js application for Peak Pulse, a Nepali clothing brand blending t
 5.  **Set up Supabase Database:**
     *   Ensure you have a Supabase project.
     *   Run the SQL scripts provided in the development process (or in `supabase/migrations` if they exist) to create tables for `products`, `categories`, `users`, `orders`, and `loans`.
+    *   **Important Note for SQL Scripts:** When running SQL scripts (e.g., in the Supabase SQL Editor or via migration files), ensure they only contain valid SQL commands. Do not include non-SQL instructional text or notes directly within the script blocks unless they are properly formatted as SQL comments (e.g., starting a line with `--` or enclosing text in `/* ... */`). Including plain text instructions directly in executable SQL will cause syntax errors.
     *   Configure Row Level Security (RLS) policies as needed for each table.
 
 ## Key Features
