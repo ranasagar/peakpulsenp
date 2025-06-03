@@ -63,7 +63,7 @@ export async function PUT(
   if (body.title) postToUpdate.title = body.title;
   if (body.hasOwnProperty('slug')) {
      postToUpdate.slug = body.slug?.trim() || (body.title ? body.title.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, '') : undefined);
-     if (!postToUpdate.slug) delete postToUpdate.slug; // Don't update if becomes empty and title isn't changing
+     if (!postToUpdate.slug) delete postToUpdate.slug; 
   } else if (body.title) {
      postToUpdate.slug = body.title.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, '');
   }
@@ -76,6 +76,7 @@ export async function PUT(
   if (body.hasOwnProperty('ctaLink')) postToUpdate.cta_link = body.ctaLink || null;
   if (body.hasOwnProperty('price')) postToUpdate.price = body.price !== undefined && body.price !== null ? Number(body.price) : null;
   if (body.hasOwnProperty('discountPrice')) postToUpdate.discount_price = body.discountPrice !== undefined && body.discountPrice !== null ? Number(body.discountPrice) : null;
+  if (body.hasOwnProperty('sku')) postToUpdate.sku = body.sku || null; // Add SKU handling
   if (body.hasOwnProperty('validFrom')) postToUpdate.valid_from = body.validFrom || null;
   if (body.hasOwnProperty('validUntil')) postToUpdate.valid_until = body.validUntil || null;
   if (body.hasOwnProperty('isActive')) postToUpdate.is_active = body.isActive;
@@ -138,3 +139,5 @@ export async function DELETE(
     return NextResponse.json({ message: 'Server error.', errorDetails: e.message }, { status: 500 });
   }
 }
+
+    

@@ -40,6 +40,7 @@ const promotionalPostSchema = z.object({
   validUntil: z.string().optional().nullable(),
   isActive: z.boolean().default(true),
   displayOrder: z.coerce.number().int().optional().default(0),
+  sku: z.string().optional(), // Added SKU to schema
   backgroundColor: z.string().optional().refine(val => !val || /^#([0-9A-Fa-f]{3,4}){1,2}$/.test(val) || val.startsWith('bg-'), { message: "Enter a valid hex color (e.g. #RRGGBB) or Tailwind bg class (e.g. bg-blue-500)." }),
   textColor: z.string().optional().refine(val => !val || /^#([0-9A-Fa-f]{3,4}){1,2}$/.test(val) || val.startsWith('text-'), { message: "Enter a valid hex color or Tailwind text class." }),
 }).refine(data => !data.discountPrice || (data.price !== undefined && data.price !== null && data.discountPrice <= data.price), {
@@ -69,6 +70,7 @@ export default function AdminPromotionalPostsPage() {
       title: '', slug: '', description: '', imageUrl: '', imageAltText: '', dataAiHint: '',
       ctaText: '', ctaLink: '', price: null, discountPrice: null,
       validFrom: '', validUntil: '', isActive: true, displayOrder: 0,
+      sku: '',
       backgroundColor: '', textColor: '',
     },
   });
@@ -109,6 +111,7 @@ export default function AdminPromotionalPostsPage() {
       validUntil: post.validUntil ? formatInputDate(post.validUntil) : '',
       isActive: post.isActive === undefined ? true : post.isActive,
       displayOrder: post.displayOrder === undefined ? 0 : post.displayOrder,
+      sku: post.sku || '', // Populate SKU
       backgroundColor: post.backgroundColor || '',
       textColor: post.textColor || '',
     });
@@ -121,6 +124,7 @@ export default function AdminPromotionalPostsPage() {
       title: `New Promo ${Date.now()}`, slug: '', description: '', imageUrl: '', imageAltText: '', dataAiHint: '',
       ctaText: 'Shop Now', ctaLink: '/products', price: null, discountPrice: null,
       validFrom: formatInputDate(new Date()), validUntil: '', isActive: true, displayOrder: (posts.length + 1) * 10,
+      sku: '',
       backgroundColor: '#E0F2FE', textColor: '#0C4A6E', 
     });
     setIsFormOpen(true);
@@ -136,13 +140,12 @@ export default function AdminPromotionalPostsPage() {
       slug: data.slug?.trim() || data.title.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, ''),
       validFrom: data.validFrom || null, 
       validUntil: data.validUntil || null,
-      // Ensure all optional fields that should be null if empty are explicitly set to null
       description: data.description || null,
       imageAltText: data.imageAltText || null,
       dataAiHint: data.dataAiHint || null,
       ctaText: data.ctaText || null,
       ctaLink: data.ctaLink || null,
-      sku: data.sku || null, // Assuming sku was part of schema, though not in current form
+      sku: data.sku || null,
       backgroundColor: data.backgroundColor || null,
       textColor: data.textColor || null,
     };
@@ -259,6 +262,7 @@ export default function AdminPromotionalPostsPage() {
                     <FormField control={form.control} name="price" render={({ field }) => (<FormItem><FormLabel>Original Price (Optional)</FormLabel><FormControl><Input type="number" step="0.01" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? null : parseFloat(e.target.value))} /></FormControl><FormMessage /></FormItem>)} />
                     <FormField control={form.control} name="discountPrice" render={({ field }) => (<FormItem><FormLabel>Discounted Price (Optional)</FormLabel><FormControl><Input type="number" step="0.01" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? null : parseFloat(e.target.value))} /></FormControl><FormMessage /></FormItem>)} />
                 </div>
+                <FormField control={form.control} name="sku" render={({ field }) => (<FormItem><FormLabel>SKU (Optional)</FormLabel><FormControl><Input {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>)} />
                 <div className="grid grid-cols-2 gap-4 items-end">
                     <FormField control={form.control} name="validFrom" render={({ field }) => (<FormItem><FormLabel className="flex items-center"><CalendarDays className="mr-1.5 h-4 w-4 text-muted-foreground"/>Valid From</FormLabel><FormControl><Input type="date" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>)} />
                     <FormField control={form.control} name="validUntil" render={({ field }) => (<FormItem><FormLabel className="flex items-center"><CalendarDays className="mr-1.5 h-4 w-4 text-muted-foreground"/>Valid Until</FormLabel><FormControl><Input type="date" {...field} value={field.value ?? ''}/></FormControl><FormMessage /></FormItem>)} />
