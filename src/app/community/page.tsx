@@ -279,3 +279,7 @@ export default function CommunityPage() {
   );
 }
 
+// Added for Next.js App Router to correctly handle dynamic params if any were used (not in this page specifically but good practice for child dynamic pages)
+export const dynamic = 'force-dynamic'; 
+
+    

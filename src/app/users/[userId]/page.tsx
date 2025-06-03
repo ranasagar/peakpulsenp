@@ -15,7 +15,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Breadcrumbs } from '@/components/navigation/breadcrumbs';
 import { AspectRatio } from '@/components/ui/aspect-ratio';
 import { UserPostDetailModal } from '@/components/community/user-post-detail-modal';
-import { useAuth } from '@/hooks/use-auth'; // To handle liking/bookmarking from this page
+import { useAuth } from '@/hooks/use-auth'; 
 import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -332,3 +332,8 @@ export default function UserProfilePage({ params: paramsPromise }: UserProfilePa
     </MainLayout>
   );
 }
+
+// Add this to ensure Next.js knows this is a dynamic page that needs params resolved at request time
+export const dynamic = 'force-dynamic';
+
+    

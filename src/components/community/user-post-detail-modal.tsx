@@ -128,7 +128,7 @@ export function UserPostDetailModal({
   };
 
   const handleShare = async () => {
-    const shareUrl = `${window.location.origin}/community/post/${post.id}`; 
+    const shareUrl = `${window.location.origin}/community#post-${post.id}`; // Link to community page, could scroll to post
     const shareTitle = `Check out this style: ${post.user_name}'s look on Peak Pulse`;
     const shareText = post.caption || shareTitle;
 
@@ -294,3 +294,5 @@ export function UserPostDetailModal({
   );
 }
 
+
+    
