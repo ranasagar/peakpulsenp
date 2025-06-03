@@ -43,15 +43,15 @@ function LoginClientContent() {
         try {
           const decodedRedirectParam = decodeURIComponent(redirectParam);
           if (decodedRedirectParam.trim() === '' || decodedRedirectParam === '/login' || decodedRedirectParam.startsWith('/login?') || decodedRedirectParam === '/register' || decodedRedirectParam.startsWith('/register?')) {
-            targetPath = '/account/dashboard';
+            targetPath = '/dashboard'; // Corrected
           } else {
             targetPath = decodedRedirectParam;
           }
         } catch (e) {
-          targetPath = '/account/dashboard'; 
+          targetPath = '/dashboard'; // Corrected Fallback
         }
       } else {
-        targetPath = '/account/dashboard';
+        targetPath = '/dashboard'; // Corrected Default
       }
       setRedirectAttempted(true); 
       router.push(targetPath);
@@ -106,7 +106,7 @@ function LoginClientContent() {
   if (redirectAttempted && isAuthenticated) {
      return (
       <div className="flex min-h-screen flex-col items-center justify-center p-4">
-        <p className="mt-4 text-muted-foreground">Redirecting... If you are not redirected, click <Link href="/account/dashboard" className="underline text-primary">here</Link>.</p>
+        <p className="mt-4 text-muted-foreground">Redirecting... If you are not redirected, click <Link href="/dashboard" className="underline text-primary">here</Link>.</p>
       </div>
     );
   }
