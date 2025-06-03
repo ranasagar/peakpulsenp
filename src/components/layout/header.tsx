@@ -150,7 +150,12 @@ export function Header() { // Still named Header, but acts as TopBar
                     ) : (
                         <Icons.Logo className="h-7 w-7 text-primary" />
                     )}
-                    <span className="font-bold text-lg text-foreground">{displaySiteTitle}</span>
+                    {displaySiteTitle && (
+                      <span 
+                        className="font-bold text-lg text-foreground" 
+                        dangerouslySetInnerHTML={{ __html: displaySiteTitle }}
+                      />
+                    )}
                   </Link>
               </SheetHeader>
               <div className="p-6">
@@ -211,9 +216,12 @@ export function Header() { // Still named Header, but acts as TopBar
             ) : (
                 <Icons.Logo className="h-8 w-8 text-primary" />
             )}
-            <span className="hidden lg:inline-block font-semibold text-xl text-foreground">
-              {displaySiteTitle}
-            </span>
+            {displaySiteTitle && (
+              <span 
+                className="hidden lg:inline-block font-semibold text-xl text-foreground"
+                dangerouslySetInnerHTML={{ __html: displaySiteTitle }}
+              />
+            )}
           </Link>
         </div>
 

@@ -176,7 +176,7 @@ export default function AdminSettingsPage() {
                     <FormItem>
                       <FormLabel>Header Site Title (Optional)</FormLabel>
                       <FormControl><Input {...field} value={field.value || ''} placeholder="e.g., Peak Pulse Nepal" /></FormControl>
-                      <FormDescription>If empty, the general Site Title will be used or a default. Keep it short.</FormDescription>
+                      <FormDescription>If empty, the general Site Title will be used or a default. Keep it short. HTML is allowed for rich text (e.g., Peak &lt;strong&gt;Pulse&lt;/strong&gt;).</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )} />
@@ -277,3 +277,4 @@ export default function AdminSettingsPage() {
     </Card>
   );
 }
+
