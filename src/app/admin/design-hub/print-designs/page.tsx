@@ -222,6 +222,9 @@ export default function AdminPrintOnDemandDesignsPage() {
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>{editingDesign ? 'Edit Print Design' : 'Add New Print Design'}</DialogTitle>
+            <DialogFormDescription>
+              {editingDesign ? `Editing details for ${editingDesign.title}.` : 'Fill in the details for the new print design.'}
+            </DialogFormDescription>
           </DialogHeader>
           <ScrollArea className="max-h-[70vh] p-1">
             <div className="p-5">
@@ -306,4 +309,3 @@ export default function AdminPrintOnDemandDesignsPage() {
     </>
   );
 }
-

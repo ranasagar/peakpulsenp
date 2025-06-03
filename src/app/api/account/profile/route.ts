@@ -18,6 +18,12 @@ interface ProfileUpdateRequestBody {
   bookmarked_post_ids?: string[];
 }
 
+function isValidUUID(str: string | undefined | null): boolean {
+  if (!str) return false;
+  const uuidRegex = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+  return uuidRegex.test(str);
+}
+
 // GET user profile
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url);
@@ -39,6 +45,10 @@ export async function GET(request: NextRequest) {
   if (!uidFromQuery) {
     console.warn("[API /api/account/profile GET] User ID (uid) is required in query parameters. Responding 400.");
     return NextResponse.json({ message: 'User ID (uid) is required' }, { status: 400 });
+  }
+  if (!isValidUUID(uidFromQuery)) {
+     console.warn(`[API /api/account/profile GET] Invalid UID format received: ${uidFromQuery}`);
+     return NextResponse.json({ message: 'Invalid User ID format. Must be a valid UUID.' }, { status: 400 });
   }
 
   console.log(`[API /api/account/profile GET] Attempting to fetch profile for UID: ${uidFromQuery}`);
@@ -129,9 +139,9 @@ export async function POST(request: NextRequest) {
   const userIdToProcess = requestBody.id; 
   const { name, avatarUrl, bio, email, roles, wishlist, bookmarked_post_ids } = requestBody;
 
-  if (!userIdToProcess) {
-    console.warn("[API /api/account/profile POST] User ID ('id' field) is required in request body.");
-    return NextResponse.json({ message: "User ID ('id' field) is required for update/create" }, { status: 400 });
+  if (!userIdToProcess || !isValidUUID(userIdToProcess)) {
+    console.warn(`[API /api/account/profile POST] User ID ('id' field) is required and must be a valid UUID. Received: ${userIdToProcess}`);
+    return NextResponse.json({ message: "User ID ('id' field) is required and must be a valid UUID for update/create" }, { status: 400 });
   }
   if (!email && !requestBody.hasOwnProperty('name')) { 
       console.warn(`[API /api/account/profile POST] Email is required for profile creation if name is not provided (UID ${userIdToProcess}).`);
@@ -143,7 +153,7 @@ export async function POST(request: NextRequest) {
   try {
     const { data: existingUser, error: selectError } = await clientForWrite
       .from('users')
-      .select('id, roles, wishlist, bookmarked_post_ids, name, bio, avatar_url') 
+      .select('id, roles, wishlist, bookmarked_post_ids, name, bio, avatar_url, created_at, updated_at') 
       .eq('id', userIdToProcess)
       .maybeSingle();
 
@@ -159,7 +169,7 @@ export async function POST(request: NextRequest) {
     
     if (existingUser) {
       operationType = 'UPDATE';
-      const dataToUpdate: Partial<AuthUserType & { avatar_url?: string | null, bookmarked_post_ids?: string[], updatedAt?: string }> = {};
+      const dataToUpdate: Partial<AuthUserType & { avatar_url?: string | null, bookmarked_post_ids?: string[], created_at?: string, updated_at?: string }> = {};
 
       if (name !== undefined) dataToUpdate.name = name;
       if (avatarUrl !== undefined) dataToUpdate.avatar_url = avatarUrl; 
@@ -171,13 +181,13 @@ export async function POST(request: NextRequest) {
 
 
       if (Object.keys(dataToUpdate).length > 0) {
-        dataToUpdate.updatedAt = new Date().toISOString(); 
+        dataToUpdate.updated_at = new Date().toISOString(); 
         console.log(`[API /api/account/profile POST] Data for update for UID ${userIdToProcess}:`, JSON.stringify(dataToUpdate, null, 2));
         const { data: updatedUser, error: updateError } = await clientForWrite
           .from('users')
           .update(dataToUpdate)
           .eq('id', userIdToProcess)
-          .select() 
+          .select('id, email, name, avatar_url, bio, roles, wishlist, bookmarked_post_ids, created_at, updated_at') 
           .single();
         if (updateError) throw updateError;
         finalUserData = updatedUser;
@@ -202,12 +212,14 @@ export async function POST(request: NextRequest) {
         roles: initialRoles,
         wishlist: wishlist || [],
         bookmarked_post_ids: bookmarked_post_ids || [],
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       };
       console.log(`[API /api/account/profile POST] Data for insert for UID ${userIdToProcess}:`, JSON.stringify(dataToInsert, null, 2));
       const { data: insertedUser, error: insertError } = await clientForWrite
         .from('users')
         .insert(dataToInsert)
-        .select()
+        .select('id, email, name, avatar_url, bio, roles, wishlist, bookmarked_post_ids, created_at, updated_at')
         .single();
       
       if (insertError) throw insertError;
@@ -229,8 +241,8 @@ export async function POST(request: NextRequest) {
         roles: finalUserData.roles || ['customer'],
         wishlist: finalUserData.wishlist || [],
         bookmarked_post_ids: finalUserData.bookmarked_post_ids || [],
-        createdAt: finalUserData.createdAt || finalUserData.created_at,
-        updatedAt: finalUserData.updatedAt || finalUserData.updated_at,
+        createdAt: finalUserData.created_at,
+        updatedAt: finalUserData.updated_at,
     };
     return NextResponse.json({ message: `Profile ${operationType.toLowerCase()}d successfully`, user: responseUser });
 
@@ -260,4 +272,3 @@ export async function POST(request: NextRequest) {
     }, { status: 500 });
   }
 }
-

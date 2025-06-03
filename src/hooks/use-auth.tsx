@@ -82,93 +82,83 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       return null;
     }
 
-    let profileResponse;
     const fetchUrl = `/api/account/profile?uid=${firebaseUser.uid}`;
 
     try {
-      profileResponse = await fetch(fetchUrl);
+      const profileResponse = await fetch(fetchUrl);
 
-      if (!profileResponse.ok) {
-        let errorDetail = `Error fetching Supabase profile for ${firebaseUser.uid}. Status: ${profileResponse.status}`;
-        let apiMessage = 'Profile fetch failed.';
-        let rawSupaErrorObject = {};
+      if (profileResponse.status === 404) {
+        console.log(`[AuthContext] Profile for ${firebaseUser.uid} not found. Attempting to create initial profile.`);
+        const initialRoles = (firebaseUser.email === 'sagarrana@gmail.com' || firebaseUser.email === 'sagarbikramrana7@gmail.com')
+          ? ['admin', 'customer']
+          : ['customer'];
+
+        const initialProfileData = {
+          id: firebaseUser.uid,
+          email: firebaseUser.email || '',
+          name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'New User',
+          avatarUrl: firebaseUser.photoURL || null,
+          bio: '',
+          roles: initialRoles,
+          wishlist: [] as string[],
+          bookmarked_post_ids: [] as string[],
+        };
 
         try {
-          const errorData = await profileResponse.json();
-          apiMessage = errorData.message || apiMessage;
-          if (errorData.rawSupabaseError) {
-            rawSupaErrorObject = errorData.rawSupabaseError;
-            const supaMsg = errorData.rawSupabaseError.message || 'Unknown Supabase error';
-            apiMessage += ` Supabase Error: ${supaMsg}`;
-          }
-        } catch (e) { /* ignore */ }
+          const createResponse = await fetch('/api/account/profile', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(initialProfileData),
+          });
 
-        errorDetail += ` . API Message: ${apiMessage}`;
-
-        if (profileResponse.status === 404) {
-          const initialRoles = (firebaseUser.email === 'sagarrana@gmail.com' || firebaseUser.email === 'sagarbikramrana7@gmail.com')
-            ? ['admin', 'customer']
-            : ['customer'];
-
-          const initialProfileData = {
-            id: firebaseUser.uid,
-            email: firebaseUser.email || '',
-            name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'New User',
-            avatarUrl: firebaseUser.photoURL || null,
-            bio: '',
-            roles: initialRoles,
-            wishlist: [] as string[],
-            bookmarked_post_ids: [] as string[],
-          };
-
-          try {
-            const createResponse = await fetch('/api/account/profile', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(initialProfileData),
-            });
-
-            if (createResponse.ok) {
-              const newSupaProfileResponse = await createResponse.json();
-              if (newSupaProfileResponse.user) {
-                return mapFirebaseUserToAppUser(firebaseUser, newSupaProfileResponse.user);
-              }
+          if (createResponse.ok) {
+            const newSupaProfileResponse = await createResponse.json();
+            if (newSupaProfileResponse.user) {
+              console.log(`[AuthContext] Initial profile created for ${firebaseUser.uid} and returned directly.`);
+              return mapFirebaseUserToAppUser(firebaseUser, newSupaProfileResponse.user);
             }
-            // If creation fails or doesn't return user, fall through to map with just Firebase data
-          } catch (createError: any) {
-            console.error(`[AuthContext] Network error creating initial Supabase profile for ${firebaseUser.uid}:`, createError.message);
+          } else {
+             const createErrorData = await createResponse.json().catch(() => ({}));
+             console.error(`[AuthContext] Failed to create initial Supabase profile for ${firebaseUser.uid}. Status: ${createResponse.status}. Error:`, createErrorData.message || createErrorData.rawSupabaseError?.message || 'Unknown creation error.');
           }
-          return mapFirebaseUserToAppUser(firebaseUser); // Fallback if creation fails
-        } else {
-          console.error(errorDetail, rawSupaErrorObject);
-          return mapFirebaseUserToAppUser(firebaseUser); // Fallback on other fetch errors
+        } catch (createError: any) {
+          console.error(`[AuthContext] Network error during initial Supabase profile creation for ${firebaseUser.uid}:`, createError.message);
         }
+        // If creation fails or doesn't return user, fall through to map with just Firebase data
+        return mapFirebaseUserToAppUser(firebaseUser);
       }
+      
+      if (!profileResponse.ok) { // Handle other non-404 errors from initial fetch
+        let errorDetail = `Error fetching Supabase profile for ${firebaseUser.uid}. Status: ${profileResponse.status}`;
+        try {
+          const errorData = await profileResponse.json();
+          errorDetail += ` API Message: ${errorData.message || 'Profile fetch failed.'}`;
+          if (errorData.rawSupabaseError) {
+            errorDetail += ` Supabase Error: ${errorData.rawSupabaseError.message || 'Unknown Supabase error'}`;
+          }
+        } catch (e) { /* ignore json parsing error */ }
+        console.error(errorDetail);
+        return mapFirebaseUserToAppUser(firebaseUser); // Fallback on other fetch errors
+      }
+
 
       const supaProfile = await profileResponse.json();
 
-      // Proactive name sync: If Supabase name is missing but Firebase displayName exists, update Supabase profile.
       if (firebaseUser.displayName && firebaseUser.displayName.trim() !== '' && (!supaProfile.name || supaProfile.name.trim() === '')) {
         console.log(`[AuthContext] Supabase profile for ${firebaseUser.uid} missing name. Firebase displayName available. Attempting sync.`);
         const profileUpdatePayload = {
           id: firebaseUser.uid,
           name: firebaseUser.displayName,
-          email: firebaseUser.email || supaProfile.email || '', // Include email for safety, API might need it.
+          email: firebaseUser.email || supaProfile.email || '', 
         };
-        // Fire-and-forget update. No need to await or block UI.
         fetch('/api/account/profile', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(profileUpdatePayload),
         }).then(res => {
-          if (res.ok) {
-            console.log(`[AuthContext] Proactive name sync for ${firebaseUser.uid} successful.`);
-            // Optionally, could trigger another refreshUserProfile here, but mapFirebaseUserToAppUser will already use firebaseUser.displayName
-          } else {
-            console.warn(`[AuthContext] Proactive name sync for ${firebaseUser.uid} failed. Status: ${res.status}`);
-          }
+          if (res.ok) console.log(`[AuthContext] Proactive name sync for ${firebaseUser.uid} successful.`);
+          else console.warn(`[AuthContext] Proactive name sync for ${firebaseUser.uid} failed. Status: ${res.status}`);
         }).catch(err => console.error(`[AuthContext] Error during proactive name sync for ${firebaseUser.uid}:`, err));
-        // Use Firebase displayName immediately for the current session, DB will catch up.
         return mapFirebaseUserToAppUser(firebaseUser, { ...supaProfile, name: firebaseUser.displayName });
       }
 
@@ -231,6 +221,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
       if (userCredential.user) {
         await updateFirebaseProfile(userCredential.user, { displayName: name });
+        // Profile creation in Supabase will be handled by onAuthStateChanged -> fetchAppUserProfile
       }
       return { success: true };
     } catch (error: any) {

@@ -9,6 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogClose,
+  DialogDescription,
 } from '@/components/ui/dialog';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -103,11 +104,9 @@ export function UserPostDetailModal({
       }
       const newCommentData: PostComment = await response.json();
       
-      // Optimistic update or re-fetch:
-      // For simplicity, we'll use the callback to update the parent's state, which then updates this modal
       onCommentPosted(post.id, {
         ...newCommentData,
-        user_name: currentUser.name || 'You', // Use current user's name for optimistic update
+        user_name: currentUser.name || 'You', 
         user_avatar_url: currentUser.avatarUrl,
       });
       setComments(prev => [...prev, {
@@ -127,7 +126,7 @@ export function UserPostDetailModal({
   };
 
   const handleShare = async () => {
-    const shareUrl = `${window.location.origin}/community/post/${post.id}`; // Placeholder
+    const shareUrl = `${window.location.origin}/community/post/${post.id}`; 
     const shareTitle = `Check out this style: ${post.user_name}'s look on Peak Pulse`;
     const shareText = post.caption || shareTitle;
 
@@ -174,7 +173,7 @@ export function UserPostDetailModal({
             />
           </div>
 
-          <div className="flex flex-col h-full w-full max-h-[calc(50vh-4rem)] sm:max-h-[calc(40vh-4rem)] md:max-h-full"> {/* Adjusted max-h for mobile */}
+          <div className="flex flex-col h-full w-full max-h-[calc(50vh-4rem)] sm:max-h-[calc(40vh-4rem)] md:max-h-full"> 
             <DialogHeader className="p-4 border-b flex-shrink-0">
               <div className="flex items-center space-x-3">
                 <Avatar className="h-9 w-9">
@@ -192,6 +191,9 @@ export function UserPostDetailModal({
                   </p>
                 </div>
               </div>
+              <DialogDescription className="sr-only"> {/* Added for accessibility */}
+                User post by {post.user_name || 'Anonymous'} featuring their style.
+              </DialogDescription>
             </DialogHeader>
 
             <ScrollArea className="flex-grow p-4">
@@ -212,12 +214,11 @@ export function UserPostDetailModal({
                   </div>
                 )}
               </div>
-              {/* Comments Section */}
               <h4 className="text-sm font-semibold mb-2 border-t pt-3">Comments ({isLoadingComments ? <Loader2 className="inline h-3 w-3 animate-spin" /> : comments.length})</h4>
               {isLoadingComments ? (
                 <div className="flex justify-center py-4"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
               ) : comments.length > 0 ? (
-                <div className="space-y-3 max-h-60 overflow-y-auto pr-2"> {/* Added max-h and overflow for comments */}
+                <div className="space-y-3 max-h-60 overflow-y-auto pr-2"> 
                   {comments.map(comment => (
                     <div key={comment.id} className="flex items-start space-x-2.5 text-xs">
                       <Avatar className="h-7 w-7">
@@ -290,6 +291,3 @@ export function UserPostDetailModal({
     </Dialog>
   );
 }
-
-
-
