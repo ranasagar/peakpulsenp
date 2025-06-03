@@ -27,12 +27,12 @@ const nextConfig: NextConfig = {
       // Rule specific to font files under /_next/static/media/
       // This rule should come first to ensure it's prioritized.
       {
-        source: '/_next/static/media/:file(.+\\.(woff2|woff|ttf|otf|eot)$)', // Simplified regex slightly, no functional change expected
+        source: '/_next/static/media/:file(.+\\.(?:woff2|woff|ttf|otf|eot)$)', // Changed to non-capturing group
         headers: [
           { key: 'Access-Control-Allow-Origin', value: '*' },
           { key: 'Access-Control-Allow-Methods', value: 'GET, OPTIONS' },
-          { key: 'Access-Control-Allow-Headers', value: 'Content-Type' }, // Simplified from 'Content-Type, Range'
-          { key: 'Vary', value: 'Origin' }, // Added Vary header
+          { key: 'Access-Control-Allow-Headers', value: 'Content-Type' },
+          { key: 'Vary', value: 'Origin' },
           { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
         ],
       },
