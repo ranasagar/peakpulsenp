@@ -5,21 +5,9 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { FileText, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import type { PageContent, Metadata } from '@/types'; // Added Metadata
+import type { PageContent } from '@/types'; // Metadata import removed
 
-export const metadata: Metadata = {
-  title: 'Terms of Service - Peak Pulse',
-  description: 'Review the Terms of Service for Peak Pulse. Understand the terms and conditions for using our website, products, and services.',
-  keywords: ['terms of service', 'Peak Pulse terms', 'conditions of use', 'legal terms', 'user agreement'],
-  openGraph: {
-    title: 'Terms of Service | Peak Pulse',
-    description: 'Read the terms and conditions for using Peak Pulse.',
-    url: '/terms-of-service',
-  },
-  alternates: {
-    canonical: '/terms-of-service',
-  },
-};
+// Removed export const metadata block
 
 const PAGE_KEY = 'termsOfServicePageContent'; // Key used in Supabase site_configurations
 
