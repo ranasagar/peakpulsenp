@@ -18,12 +18,6 @@ interface ProfileUpdateRequestBody {
   bookmarked_post_ids?: string[];
 }
 
-function isValidUUID(str: string | undefined | null): boolean {
-  if (!str) return false;
-  const uuidRegex = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
-  return uuidRegex.test(str);
-}
-
 // GET user profile
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url);
@@ -42,14 +36,11 @@ export async function GET(request: NextRequest) {
   }
 
 
-  if (!uidFromQuery) {
-    console.warn("[API /api/account/profile GET] User ID (uid) is required in query parameters. Responding 400.");
-    return NextResponse.json({ message: 'User ID (uid) is required' }, { status: 400 });
+  if (!uidFromQuery || uidFromQuery.trim() === '') {
+    console.warn("[API /api/account/profile GET] User ID (uid) is required in query parameters and must not be empty. Responding 400.");
+    return NextResponse.json({ message: 'User ID (uid) is required and must not be empty.' }, { status: 400 });
   }
-  if (!isValidUUID(uidFromQuery)) {
-     console.warn(`[API /api/account/profile GET] Invalid UID format received: ${uidFromQuery}`);
-     return NextResponse.json({ message: 'Invalid User ID format. Must be a valid UUID.' }, { status: 400 });
-  }
+  // Removed strict UUID validation for Firebase UID
 
   console.log(`[API /api/account/profile GET] Attempting to fetch profile for UID: ${uidFromQuery}`);
   try {
@@ -136,13 +127,15 @@ export async function POST(request: NextRequest) {
   }
   console.log("[API /api/account/profile POST] Parsed request body:", JSON.stringify(requestBody, null, 2));
   
-  const userIdToProcess = requestBody.id; 
+  const userIdToProcess = requestBody.id; // This is the Firebase UID
   const { name, avatarUrl, bio, email, roles, wishlist, bookmarked_post_ids } = requestBody;
 
-  if (!userIdToProcess || !isValidUUID(userIdToProcess)) {
-    console.warn(`[API /api/account/profile POST] User ID ('id' field) is required and must be a valid UUID. Received: ${userIdToProcess}`);
-    return NextResponse.json({ message: "User ID ('id' field) is required and must be a valid UUID for update/create" }, { status: 400 });
+  if (!userIdToProcess || userIdToProcess.trim() === '') {
+    console.warn(`[API /api/account/profile POST] User ID ('id' field) is required and must be a non-empty string. Received: ${userIdToProcess}`);
+    return NextResponse.json({ message: "User ID ('id' field) is required and must be a non-empty string for update/create" }, { status: 400 });
   }
+  // Removed strict UUID validation for Firebase UID
+
   if (!email && !requestBody.hasOwnProperty('name')) { 
       console.warn(`[API /api/account/profile POST] Email is required for profile creation if name is not provided (UID ${userIdToProcess}).`);
       return NextResponse.json({ message: 'Email is required for profile creation if name is not set.', rawSupabaseError: {message: 'Email or Name is required.'} }, { status: 400 });
