@@ -53,9 +53,11 @@ const AccordionContent = React.forwardRef<
     )}
     {...otherProps}
   >
-    <div className="pb-4 pt-0" dangerouslySetInnerHTML={dangerouslySetInnerHTML}>
-      {!dangerouslySetInnerHTML && children}
-    </div>
+    {dangerouslySetInnerHTML ? (
+      <div className="pb-4 pt-0" dangerouslySetInnerHTML={dangerouslySetInnerHTML} />
+    ) : (
+      <div className="pb-4 pt-0">{children}</div>
+    )}
   </AccordionPrimitive.Content>
 ));
 AccordionContent.displayName = AccordionPrimitive.Content.displayName;
