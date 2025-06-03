@@ -45,6 +45,7 @@ const fallbackHeroSlide: HeroSlide = {
   audioUrl: undefined,
   duration: 7000,
   displayOrder: 0,
+  filterOverlay: undefined, // Added default
   youtubeAuthorName: undefined,
   youtubeAuthorLink: undefined,
 };
@@ -103,6 +104,7 @@ async function getHomepageContent(): Promise<HomepageContent> {
             audioUrl: (slide.audioUrl && slide.audioUrl.trim() !== "") ? slide.audioUrl.trim() : undefined,
             duration: slide.duration === undefined || slide.duration === null || Number(slide.duration) < 1000 ? fallbackHeroSlide.duration : Number(slide.duration),
             displayOrder: slide.displayOrder === undefined ? index * 10 : Number(slide.displayOrder || 0),
+            filterOverlay: slide.filterOverlay || undefined, // Process filterOverlay
             youtubeAuthorName: (slide.youtubeAuthorName && slide.youtubeAuthorName.trim() !== "") ? slide.youtubeAuthorName.trim() : undefined,
             youtubeAuthorLink: (slide.youtubeAuthorLink && slide.youtubeAuthorLink.trim() !== "") ? slide.youtubeAuthorLink.trim() : undefined,
           }))
@@ -318,6 +320,7 @@ export default function HomePageContent() {
             ctaText: promo.ctaText || 'Learn More', ctaLink: promo.ctaLink || `/products?promo=${promo.slug}`,
             videoId: undefined, audioUrl: undefined, duration: fallbackHeroSlide.duration,
             displayOrder: (sortedBaseSlides.length * 10) + (promo.displayOrder || index * 10),
+            filterOverlay: undefined, // Promos usually don't have filter overlays, but background color
             youtubeAuthorName: undefined, youtubeAuthorLink: undefined, _isPromo: true,
             _backgroundColor: promo.backgroundColor, _textColor: promo.textColor,
           }))
@@ -415,7 +418,7 @@ export default function HomePageContent() {
                 event.target.mute(); 
               },
               onStateChange: (event: any) => {
-                const currentSlideData = activeHeroSlides[index]; // Use slideData from forEach scope
+                const currentSlideData = activeHeroSlides[index]; 
                 if (index === currentHeroSlide && event.data === window.YT?.PlayerState?.ENDED) {
                   event.target.seekTo(0);
                   const globalAutoplayEnabled = (siteSettings as any)?.heroVideoAutoplay !== false;
@@ -499,10 +502,8 @@ export default function HomePageContent() {
       if (isNonVideoSlideOrVideoWithAudio) {
         heroIntervalRef.current = setInterval(nextHeroSlide, currentSlideData.duration || 7000);
       }
-      // For video-only slides, YT.PlayerState.ENDED handles nextHeroSlide (if isHeroPlaying & globalAutoplayEnabled & !currentSlideIsDirectAudio)
     }
 
-    // Pause and mute other non-active YouTube players
     playerRefs.current.forEach((player, idx) => {
       if (player && idx !== currentHeroSlide && typeof player.pauseVideo === 'function' && typeof player.mute === 'function') {
         try { player.pauseVideo(); player.mute(); }
@@ -600,6 +601,8 @@ export default function HomePageContent() {
             const isCurrent = index === currentHeroSlide;
             const useImageForVisual = !!slide.imageUrl;
             const useYouTubeForVisual = !slide.imageUrl && !!slide.videoId;
+            const overlayStyle = slide.filterOverlay ? { backgroundColor: slide.filterOverlay } : {};
+            const overlayClassName = slide.filterOverlay ? "" : "bg-black/30";
 
             return (
               <div
@@ -610,13 +613,13 @@ export default function HomePageContent() {
                 {useImageForVisual && slide.imageUrl && (
                   <>
                     <Image src={slide.imageUrl} alt={slide.altText || "Peak Pulse Hero Background"} fill sizes="100vw" priority={index === 0} className="absolute inset-0 w-full h-full object-cover" data-ai-hint={slide.dataAiHint || "fashion mountains nepal"} />
-                    <div className="absolute inset-0 bg-black/30 z-[1]" />
+                    <div className={cn("absolute inset-0 z-[1]", overlayClassName)} style={overlayStyle} />
                   </>
                 )}
                 {useYouTubeForVisual && slide.videoId && (
                   <>
                     <div id={`youtube-player-${index}`} className={cn("absolute top-1/2 left-1/2 w-full h-full min-w-[177.77vh] min-h-[56.25vw] transform -translate-x-1/2 -translate-y-1/2", isCurrent ? "visible" : "invisible")} />
-                    <div className="absolute inset-0 bg-black/30 z-[1]" />
+                     <div className={cn("absolute inset-0 z-[1]", overlayClassName)} style={overlayStyle} />
                   </>
                 )}
                 {!useImageForVisual && !useYouTubeForVisual && !slide._isPromo && <div className="absolute inset-0 bg-black" /> }

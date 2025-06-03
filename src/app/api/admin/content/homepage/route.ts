@@ -19,6 +19,7 @@ const defaultHeroSlideStructure: Omit<HeroSlide, 'id'> = {
   ctaLink: "/products",
   duration: 7000, 
   displayOrder: 0,
+  filterOverlay: undefined, // Added default
   youtubeAuthorName: undefined,
   youtubeAuthorLink: undefined,
 };
@@ -90,6 +91,7 @@ export async function GET() {
             audioUrl: slide.audioUrl || undefined, 
             duration: slide.duration === undefined ? defaultHeroSlideStructure.duration : Number(slide.duration) || defaultHeroSlideStructure.duration,
             displayOrder: slide.displayOrder === undefined ? index * 10 : Number(slide.displayOrder) || 0,
+            filterOverlay: slide.filterOverlay || undefined, // Ensure filterOverlay is processed
             youtubeAuthorName: slide.youtubeAuthorName || undefined,
             youtubeAuthorLink: slide.youtubeAuthorLink || undefined,
           })
@@ -167,6 +169,7 @@ export async function POST(request: NextRequest) {
       ctaLink: slide.ctaLink || '',
       duration: slide.duration === undefined || slide.duration === null || Number(slide.duration) < 1000 ? defaultHeroSlideStructure.duration : Number(slide.duration),
       displayOrder: slide.displayOrder === undefined ? index * 10 : Number(slide.displayOrder) || 0,
+      filterOverlay: slide.filterOverlay || undefined, // Save filterOverlay
       youtubeAuthorName: slide.youtubeAuthorName || undefined,
       youtubeAuthorLink: slide.youtubeAuthorLink || undefined,
     })),

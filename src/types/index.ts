@@ -229,6 +229,7 @@ export interface HeroSlide {
   ctaLink?: string;
   duration?: number;
   displayOrder?: number;
+  filterOverlay?: string; // Added field for CSS color overlay
   youtubeAuthorName?: string;
   youtubeAuthorLink?: string;
   _isPromo?: boolean;

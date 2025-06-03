@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Save, Youtube, Image as ImageIconLucide, PlusCircle, Trash2, Package, Tv, BookOpen, ExternalLink, ListCollapse, Sprout, Palette as PaletteIcon, ImagePlay, Percent, Clock, Music, ArrowUpDown, User as UserIcon } from 'lucide-react';
+import { Loader2, Save, Youtube, Image as ImageIconLucide, PlusCircle, Trash2, Package, Tv, BookOpen, ExternalLink, ListCollapse, Sprout, Palette as PaletteIcon, ImagePlay, Percent, Clock, Music, ArrowUpDown, User as UserIcon, Filter } from 'lucide-react';
 import type { HomepageContent, HeroSlide, SocialCommerceItem, ArtisanalRootsSlide } from '@/types';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -33,8 +33,11 @@ const heroSlideSchema = z.object({
   }).or(z.literal('')),
   duration: z.coerce.number().int().min(0, "Duration must be a positive number or 0 for default.").optional().nullable(),
   displayOrder: z.coerce.number().int().optional().default(0),
-  youtubeAuthorName: z.string().optional().or(z.literal('')), // New field
-  youtubeAuthorLink: z.string().url({ message: "Must be a valid YouTube channel URL or empty." }).optional().or(z.literal('')), // New field
+  filterOverlay: z.string().optional().refine(val => !val || /^(rgba?\((\d{1,3}),\s*(\d{1,3}),\s*(\d{1,3})(,\s*(0|1|0?\.\d+))?\)|hsla?\((\d{1,3}),\s*(\d{1,3})%,\s*(\d{1,3})%(,\s*(0|1|0?\.\d+))?\)|#[0-9a-fA-F]{3,8})$/.test(val), {
+    message: "Must be a valid CSS color (e.g., rgba(0,0,0,0.5), #00000080, hsla(0,0%,0%,0.5)) or empty."
+  }).or(z.literal('')),
+  youtubeAuthorName: z.string().optional().or(z.literal('')), 
+  youtubeAuthorLink: z.string().url({ message: "Must be a valid YouTube channel URL or empty." }).optional().or(z.literal('')), 
 });
 
 const artisanalRootsSlideSchema = z.object({
@@ -76,7 +79,7 @@ const homepageContentSchema = z.object({
 type HomepageContentFormValues = z.infer<typeof homepageContentSchema>;
 
 const defaultHeroSlide: Omit<HeroSlide, 'id'> = {
-  title: 'New Slide Title', description: 'Compelling description for the new slide.', videoId: '', imageUrl: '', audioUrl: '', altText: 'Hero slide image', dataAiHint: 'fashion background', ctaText: 'Shop Now', ctaLink: '/products', duration: 7000, displayOrder: 0, youtubeAuthorName: '', youtubeAuthorLink: ''
+  title: 'New Slide Title', description: 'Compelling description for the new slide.', videoId: '', imageUrl: '', audioUrl: '', altText: 'Hero slide image', dataAiHint: 'fashion background', ctaText: 'Shop Now', ctaLink: '/products', duration: 7000, displayOrder: 0, filterOverlay: '', youtubeAuthorName: '', youtubeAuthorLink: ''
 };
 const defaultArtisanalRootsSlide: Omit<ArtisanalRootsSlide, 'id'> = {
   imageUrl: '', altText: 'Artisanal background slide', dataAiHint: 'craft culture texture'
@@ -137,6 +140,7 @@ export default function AdminHomepageContentPage() {
             audioUrl: slide.audioUrl || '', 
             duration: slide.duration === undefined ? null : slide.duration,
             displayOrder: slide.displayOrder === undefined ? index * 10 : slide.displayOrder,
+            filterOverlay: slide.filterOverlay || '',
             youtubeAuthorName: slide.youtubeAuthorName || '',
             youtubeAuthorLink: slide.youtubeAuthorLink || '',
         })),
@@ -172,6 +176,7 @@ export default function AdminHomepageContentPage() {
           audioUrl: slide.audioUrl || undefined,
           duration: slide.duration === null || slide.duration === undefined || Number(slide.duration) < 1000 ? defaultHeroSlide.duration : Number(slide.duration),
           displayOrder: Number(slide.displayOrder) || 0,
+          filterOverlay: slide.filterOverlay || undefined,
           youtubeAuthorName: slide.youtubeAuthorName || undefined,
           youtubeAuthorLink: slide.youtubeAuthorLink || undefined,
         })),
@@ -290,6 +295,14 @@ export default function AdminHomepageContentPage() {
                         <FormField control={form.control} name={`heroSlides.${index}.dataAiHint`} render={({ field }) => (
                           <FormItem><FormLabel>Image AI Hint (for placeholder)</FormLabel><FormControl><Input {...field} placeholder="e.g., fashion model mountains" value={field.value || ''}/></FormControl><FormMessage /></FormItem>
                         )} />
+                        <FormField control={form.control} name={`heroSlides.${index}.filterOverlay`} render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="flex items-center"><Filter className="mr-2 h-4 w-4 text-muted-foreground"/> Filter Overlay (CSS Color)</FormLabel>
+                            <FormControl><Input {...field} placeholder="e.g., rgba(0,0,0,0.4) or #00000080" value={field.value || ''} /></FormControl>
+                            <FormDescription>Optional. Overrides default dark overlay. Valid CSS color (rgba, hsla, hex with alpha).</FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )} />
                         <FormField control={form.control} name={`heroSlides.${index}.videoId`} render={({ field }) => (
                           <FormItem>
                             <FormLabel className="flex items-center"><Youtube className="mr-2 h-4 w-4 text-muted-foreground"/> YouTube Video ID (Overrides Image)</FormLabel>
@@ -298,7 +311,6 @@ export default function AdminHomepageContentPage() {
                             <FormMessage />
                           </FormItem>
                         )} />
-                        {/* New YouTube Author Fields */}
                         <FormField control={form.control} name={`heroSlides.${index}.youtubeAuthorName`} render={({ field }) => (
                           <FormItem>
                             <FormLabel className="flex items-center"><UserIcon className="mr-2 h-4 w-4 text-muted-foreground"/>YouTube Author Name (Optional)</FormLabel>

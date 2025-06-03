@@ -19,6 +19,7 @@ const defaultHeroSlideStructure: Omit<HeroSlide, 'id'> = {
   ctaLink: "/products",
   duration: 7000,
   displayOrder: 0,
+  filterOverlay: undefined, // Added default
   youtubeAuthorName: undefined,
   youtubeAuthorLink: undefined,
 };
@@ -98,6 +99,7 @@ export async function GET() {
                         ? Number(slideFromDb.duration)
                         : defaultHeroSlideStructure.duration,
             displayOrder: slideFromDb.displayOrder !== undefined ? Number(slideFromDb.displayOrder) : (index * 10),
+            filterOverlay: slideFromDb.filterOverlay || defaultHeroSlideStructure.filterOverlay, // Process filterOverlay
             youtubeAuthorName: (slideFromDb.youtubeAuthorName === null || slideFromDb.youtubeAuthorName === '') ? undefined : (slideFromDb.youtubeAuthorName || defaultHeroSlideStructure.youtubeAuthorName),
             youtubeAuthorLink: (slideFromDb.youtubeAuthorLink === null || slideFromDb.youtubeAuthorLink === '') ? undefined : (slideFromDb.youtubeAuthorLink || defaultHeroSlideStructure.youtubeAuthorLink),
             _isPromo: slideFromDb._isPromo,
