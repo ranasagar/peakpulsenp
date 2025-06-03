@@ -11,14 +11,8 @@ import type { ChatMessage } from '@/types';
 import { aiChatbotConcierge } from '@/ai/flows/ai-chatbot-concierge';
 import type { AiChatbotConciergeInput } from '@/ai/flows/ai-chatbot-concierge';
 import { Icons } from '@/components/icons';
-import { useAuth } from '@/hooks/use-auth'; // Added useAuth import
-
-const initialMessage: ChatMessage = {
-  id: 'initial',
-  role: 'assistant',
-  content: 'Hello! How can I help you today at Peak Pulse?',
-  timestamp: Date.now()
-};
+import { useAuth } from '@/hooks/use-auth'; 
+import { useToast } from '@/hooks/use-toast'; // Added for error notifications
 
 export function ChatbotWidget() {
   const [isOpen, setIsOpen] = useState(false);
@@ -26,11 +20,11 @@ export function ChatbotWidget() {
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const scrollViewportRef = useRef<HTMLDivElement>(null); 
-  const { user } = useAuth(); // Get current user from AuthContext
+  const { user } = useAuth();
+  const { toast } = useToast(); // Initialize toast
 
   useEffect(() => {
     if (isOpen && messages.length === 0) {
-      // Determine initial message based on user role
       const isAdmin = user && user.roles?.includes('admin');
       const firstMessageContent = isAdmin 
         ? 'Hello Admin! How can I assist with Peak Pulse strategy today? Ask about trends, designs, business, or marketing.'
@@ -65,6 +59,25 @@ export function ChatbotWidget() {
     setInputValue(''); 
   };
 
+  const saveAdminConversation = async (adminUserId: string, userQuery: string, aiResp: string) => {
+    try {
+      const response = await fetch('/api/admin/chatbot-conversations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ adminUserId, userQuery, aiResponse: aiResp, flowName: 'aiChatbotConciergeFlow' }),
+      });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.warn("ChatbotWidget: Failed to save admin conversation", errorData.message || response.statusText);
+        // Optionally, show a subtle admin-only toast about save failure
+      } else {
+        console.log("ChatbotWidget: Admin conversation saved.");
+      }
+    } catch (error) {
+      console.warn("ChatbotWidget: Error saving admin conversation:", error);
+    }
+  };
+
   const handleSendMessage = async () => {
     if (inputValue.trim() === '') return;
 
@@ -75,15 +88,15 @@ export function ChatbotWidget() {
       timestamp: Date.now(),
     };
     setMessages(prev => [...prev, userMessage]);
-    const currentInputValue = inputValue;
+    const currentInputQuery = inputValue; // Store before clearing
     setInputValue('');
     setIsLoading(true);
 
     try {
       const isAdmin = user && user.roles?.includes('admin');
       const aiInput: AiChatbotConciergeInput = { 
-        query: currentInputValue,
-        isAdmin: isAdmin, // Pass isAdmin flag to the AI flow
+        query: currentInputQuery,
+        isAdmin: isAdmin,
       }; 
       const aiResponse = await aiChatbotConcierge(aiInput);
       
@@ -94,15 +107,27 @@ export function ChatbotWidget() {
         timestamp: Date.now(),
       };
       setMessages(prev => [...prev, assistantMessage]);
+
+      // If user is admin, save the conversation
+      if (isAdmin && user?.id) {
+        await saveAdminConversation(user.id, currentInputQuery, aiResponse.response);
+      }
+
     } catch (error) {
       console.error("Chatbot error:", error);
+      const errorMessageContent = 'Sorry, I encountered an error. Please try again later.';
       const errorMessage: ChatMessage = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: 'Sorry, I encountered an error. Please try again later.',
+        content: errorMessageContent,
         timestamp: Date.now(),
       };
       setMessages(prev => [...prev, errorMessage]);
+      toast({ // Added toast for general users too
+          title: "Chatbot Error",
+          description: "Could not get a response from the assistant.",
+          variant: "destructive"
+      });
     } finally {
       setIsLoading(false);
     }
@@ -192,4 +217,3 @@ export function ChatbotWidget() {
     </Card>
   );
 }
-
