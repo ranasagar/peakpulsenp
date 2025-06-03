@@ -6,7 +6,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Icons } from '@/components/icons';
-import { ChevronLeft, ChevronRight, ShoppingBag, ArrowRight, Instagram, Send, Users, ImagePlus, Loader2, Play, Pause, LayoutGrid, Palette as PaletteIcon, Handshake, Sprout, ImagePlay as ImagePlayIcon, Heart as HeartIcon, Clock, Music, Volume2, VolumeX, Youtube as YoutubeIcon } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ShoppingBag, ArrowRight, Instagram, Send, Users, ImagePlus, Loader2, LayoutGrid, Palette as PaletteIcon, Handshake, Sprout, ImagePlay as ImagePlayIcon, Heart as HeartIcon, Clock, Music, Volume2, VolumeX, Youtube as YoutubeIcon, Timer, TimerOff } from 'lucide-react'; // Added Timer, TimerOff
 import { NewsletterSignupForm } from '@/components/forms/newsletter-signup-form';
 import type { HomepageContent, Product, HeroSlide, AdminCategory as CategoryType, DesignCollaborationGallery, ArtisanalRootsSlide, SocialCommerceItem, PromotionalPost, UserPost, PostComment, SiteSettings } from '@/types';
 import { useToast } from '@/hooks/use-toast';
@@ -692,7 +692,7 @@ export default function HomePageContent() {
             <Button variant="ghost" size="icon" className="absolute left-2 md:left-4 top-1/2 -translate-y-1/2 z-30 h-10 w-10 md:h-14 md:w-14 rounded-full bg-black/25 text-white/80 hover:bg-black/50 hover:text-white focus-visible:bg-black/50 focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent transition-all duration-200 flex items-center justify-center" onClick={prevHeroSlide} aria-label="Previous slide"> <ChevronLeft className="h-6 w-6 md:h-7 md:w-7" /> </Button>
             <Button variant="ghost" size="icon" className="absolute right-2 md:right-4 top-1/2 -translate-y-1/2 z-30 h-10 w-10 md:h-14 md:w-14 rounded-full bg-black/25 text-white/80 hover:bg-black/50 hover:text-white focus-visible:bg-black/50 focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent transition-all duration-200 flex items-center justify-center" onClick={nextHeroSlide} aria-label="Next slide"> <ChevronRight className="h-6 w-6 md:h-7 md:w-7" /> </Button>
             <div className="absolute bottom-6 md:bottom-8 left-1/2 -translate-x-1/2 z-30 flex items-center space-x-3 bg-black/20 p-1.5 rounded-full backdrop-blur-sm">
-               <Button variant="ghost" size="icon" onClick={toggleHeroPlayPause} className="h-7 w-7 text-white/70 hover:text-white p-1" aria-label={isHeroPlaying ? "Pause slides" : "Play slides"} > {isHeroPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />} </Button>
+               <Button variant="ghost" size="icon" onClick={toggleHeroPlayPause} className="h-7 w-7 text-white/70 hover:text-white p-1" aria-label={isHeroPlaying ? "Pause slideshow" : "Play slideshow"} > {isHeroPlaying ? <TimerOff className="h-4 w-4" /> : <Timer className="h-4 w-4" />} </Button>
               {activeHeroSlides.map((_, index) => ( <button key={`dot-${index}`} onClick={() => goToHeroSlide(index)} className={`h-2 w-2 md:h-2.5 md:w-2.5 rounded-full cursor-pointer transition-all duration-300 ease-in-out hover:bg-white/90 ${currentHeroSlide === index ? 'bg-white scale-125 ring-2 ring-white/30 ring-offset-1 ring-offset-transparent p-0.5 w-5 md:w-6' : 'bg-white/40 hover:bg-white/70'}`} aria-label={`Go to slide ${index + 1}`} /> ))}
               {showMuteButton && (
                   <Button variant="ghost" size="icon" onClick={handleMuteToggleClick} className="h-7 w-7 text-white/70 hover:text-white p-1" aria-label={currentMuteState ? "Unmute audio" : "Mute audio"}>
@@ -760,3 +760,5 @@ export default function HomePageContent() {
     </>
   );
 }
+
+    
