@@ -12,7 +12,8 @@ const defaultHeroSlideStructure: Omit<HeroSlide, 'id'> = {
   description: "Discover the latest arrivals.",
   imageUrl: undefined,
   videoId: undefined,
-  audioUrl: undefined, 
+  videoAutoplay: true, // Default added
+  audioUrl: undefined,
   altText: "Hero image",
   dataAiHint: "fashion background",
   ctaText: "Shop Now",
@@ -21,9 +22,9 @@ const defaultHeroSlideStructure: Omit<HeroSlide, 'id'> = {
   ctaButtonCustomBgColor: undefined,
   ctaButtonCustomTextColor: undefined,
   ctaButtonClassName: undefined,
-  duration: 7000, 
+  duration: 7000,
   displayOrder: 0,
-  filterOverlay: undefined, 
+  filterOverlay: undefined,
   youtubeAuthorName: undefined,
   youtubeAuthorLink: undefined,
 };
@@ -50,12 +51,16 @@ const defaultHomepageContentData: HomepageContent = {
     enabled: true,
     title: "Special Offers",
     maxItems: 3,
+    autoplay: true,
+    delay: 5000,
+    showArrows: true,
+    showDots: true,
   },
 };
 
 // GET current homepage content for admin
 export async function GET() {
-  const supabaseClientToUse = supabaseAdmin; 
+  const supabaseClientToUse = supabaseAdmin;
 
   if (!supabaseClientToUse) {
     const errorMessage = '[Admin API Homepage GET] CRITICAL: Supabase ADMIN client (service_role) is not initialized. Cannot fetch settings. Check SUPABASE_SERVICE_ROLE_KEY in .env and server restart.';
@@ -87,15 +92,16 @@ export async function GET() {
       console.log(`[Admin API Homepage GET] Successfully fetched content for ${HOMEPAGE_CONFIG_KEY}. Raw DB value:`, JSON.stringify(dbContent).substring(0, 500) + "...");
 
       const artisanalRootsData = dbContent.artisanalRoots || defaultHomepageContentData.artisanalRoots!;
-      
+
       const responseData: HomepageContent = {
         heroSlides: (Array.isArray(dbContent.heroSlides) ? dbContent.heroSlides : defaultHomepageContentData.heroSlides!).map(
           (slide: Partial<HeroSlide>, index: number) => ({
             ...defaultHeroSlideStructure, ...slide, id: slide.id || `hs-db-${Date.now()}-${index}`,
-            audioUrl: slide.audioUrl || undefined, 
-            duration: slide.duration === undefined ? defaultHeroSlideStructure.duration : Number(slide.duration) || defaultHeroSlideStructure.duration,
+            videoAutoplay: slide.videoAutoplay === undefined ? defaultHeroSlideStructure.videoAutoplay : slide.videoAutoplay,
+            audioUrl: slide.audioUrl || undefined,
+            duration: slide.duration === undefined ? null : Number(slide.duration) || defaultHeroSlideStructure.duration,
             displayOrder: slide.displayOrder === undefined ? index * 10 : Number(slide.displayOrder) || 0,
-            filterOverlay: slide.filterOverlay || undefined, 
+            filterOverlay: slide.filterOverlay || undefined,
             youtubeAuthorName: slide.youtubeAuthorName || undefined,
             youtubeAuthorLink: slide.youtubeAuthorLink || undefined,
             ctaButtonVariant: slide.ctaButtonVariant || defaultHeroSlideStructure.ctaButtonVariant,
@@ -124,6 +130,10 @@ export async function GET() {
           enabled: dbContent.promotionalPostsSection?.enabled ?? defaultHomepageContentData.promotionalPostsSection!.enabled,
           title: dbContent.promotionalPostsSection?.title || defaultHomepageContentData.promotionalPostsSection!.title,
           maxItems: dbContent.promotionalPostsSection?.maxItems || defaultHomepageContentData.promotionalPostsSection!.maxItems,
+          autoplay: dbContent.promotionalPostsSection?.autoplay === undefined ? defaultHomepageContentData.promotionalPostsSection!.autoplay : dbContent.promotionalPostsSection.autoplay,
+          delay: dbContent.promotionalPostsSection?.delay || defaultHomepageContentData.promotionalPostsSection!.delay,
+          showArrows: dbContent.promotionalPostsSection?.showArrows === undefined ? defaultHomepageContentData.promotionalPostsSection!.showArrows : dbContent.promotionalPostsSection.showArrows,
+          showDots: dbContent.promotionalPostsSection?.showDots === undefined ? defaultHomepageContentData.promotionalPostsSection!.showDots : dbContent.promotionalPostsSection.showDots,
         }
       };
       console.log(`[Admin API Homepage GET] Processed and returning data for admin form.`);
@@ -144,7 +154,7 @@ export async function GET() {
 
 // POST to update homepage content
 export async function POST(request: NextRequest) {
-  const clientForWrite = supabaseAdmin; 
+  const clientForWrite = supabaseAdmin;
   if (!clientForWrite) {
     const errorMessage = '[Admin API Homepage POST] CRITICAL: Supabase ADMIN client (service_role) is not initialized. Cannot save settings. Check SUPABASE_SERVICE_ROLE_KEY in .env and server restart.';
     console.error(errorMessage);
@@ -165,12 +175,14 @@ export async function POST(request: NextRequest) {
 
   const dataToStore: HomepageContent = {
     heroSlides: (newDataFromRequest.heroSlides || []).map((slide, index) => ({
+      ...slide,
       id: slide.id || `hs-new-${Date.now()}-${index}`,
       title: slide.title || '',
       description: slide.description || '',
       imageUrl: slide.imageUrl || undefined,
       videoId: slide.videoId || undefined,
-      audioUrl: slide.audioUrl || undefined, 
+      videoAutoplay: slide.videoAutoplay === undefined ? true : slide.videoAutoplay,
+      audioUrl: slide.audioUrl || undefined,
       altText: slide.altText || '',
       dataAiHint: slide.dataAiHint || '',
       ctaText: slide.ctaText || '',
@@ -181,7 +193,7 @@ export async function POST(request: NextRequest) {
       ctaButtonClassName: slide.ctaButtonClassName || undefined,
       duration: slide.duration === undefined || slide.duration === null || Number(slide.duration) < 1000 ? defaultHeroSlideStructure.duration : Number(slide.duration),
       displayOrder: slide.displayOrder === undefined ? index * 10 : Number(slide.displayOrder) || 0,
-      filterOverlay: slide.filterOverlay || undefined, 
+      filterOverlay: slide.filterOverlay || undefined,
       youtubeAuthorName: slide.youtubeAuthorName || undefined,
       youtubeAuthorLink: slide.youtubeAuthorLink || undefined,
     })),
@@ -189,19 +201,14 @@ export async function POST(request: NextRequest) {
       title: newDataFromRequest.artisanalRoots?.title || defaultHomepageContentData.artisanalRoots!.title,
       description: newDataFromRequest.artisanalRoots?.description || defaultHomepageContentData.artisanalRoots!.description,
       slides: (newDataFromRequest.artisanalRoots?.slides || []).map((slide, index) => ({
+        ...slide,
         id: slide.id || `ars-new-${Date.now()}-${index}`,
-        imageUrl: slide.imageUrl || '',
-        altText: slide.altText || '',
-        dataAiHint: slide.dataAiHint || '',
       }))
     },
     socialCommerceItems: (newDataFromRequest.socialCommerceItems || [])
       .map((item, index) => ({
+        ...item,
         id: item.id || `scs-new-${Date.now()}-${index}`,
-        imageUrl: item.imageUrl || '',
-        linkUrl: item.linkUrl || '#',
-        altText: item.altText || '',
-        dataAiHint: item.dataAiHint || '',
         displayOrder: Number(item.displayOrder) || 0,
       }))
       .sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0)),
@@ -211,6 +218,10 @@ export async function POST(request: NextRequest) {
       enabled: newDataFromRequest.promotionalPostsSection?.enabled ?? defaultHomepageContentData.promotionalPostsSection!.enabled,
       title: newDataFromRequest.promotionalPostsSection?.title || defaultHomepageContentData.promotionalPostsSection!.title,
       maxItems: newDataFromRequest.promotionalPostsSection?.maxItems || defaultHomepageContentData.promotionalPostsSection!.maxItems,
+      autoplay: newDataFromRequest.promotionalPostsSection?.autoplay === undefined ? defaultHomepageContentData.promotionalPostsSection!.autoplay : newDataFromRequest.promotionalPostsSection.autoplay,
+      delay: newDataFromRequest.promotionalPostsSection?.delay || defaultHomepageContentData.promotionalPostsSection!.delay,
+      showArrows: newDataFromRequest.promotionalPostsSection?.showArrows === undefined ? defaultHomepageContentData.promotionalPostsSection!.showArrows : newDataFromRequest.promotionalPostsSection.showArrows,
+      showDots: newDataFromRequest.promotionalPostsSection?.showDots === undefined ? defaultHomepageContentData.promotionalPostsSection!.showDots : newDataFromRequest.promotionalPostsSection.showDots,
     }
   };
 
@@ -231,14 +242,14 @@ export async function POST(request: NextRequest) {
       console.log(`[Admin API Homepage POST] Updating existing entry for ${HOMEPAGE_CONFIG_KEY}`);
       const { error } = await clientForWrite
         .from('site_configurations')
-        .update({ value: dataToStore as any, updated_at: new Date().toISOString() }) 
+        .update({ value: dataToStore as any, updated_at: new Date().toISOString() })
         .eq('config_key', HOMEPAGE_CONFIG_KEY);
       dbOperationError = error;
     } else {
       console.log(`[Admin API Homepage POST] Inserting new entry for ${HOMEPAGE_CONFIG_KEY}`);
       const { error } = await clientForWrite
         .from('site_configurations')
-        .insert({ config_key: HOMEPAGE_CONFIG_KEY, value: dataToStore as any, updated_at: new Date().toISOString() }); 
+        .insert({ config_key: HOMEPAGE_CONFIG_KEY, value: dataToStore as any, updated_at: new Date().toISOString() });
       dbOperationError = error;
     }
 
@@ -262,3 +273,5 @@ export async function POST(request: NextRequest) {
     }, { status: 500 });
   }
 }
+
+```

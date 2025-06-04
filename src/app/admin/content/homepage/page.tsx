@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Save, Youtube, Image as ImageIconLucide, PlusCircle, Trash2, Package, Tv, BookOpen, ExternalLink, ListCollapse, Sprout, Palette as PaletteIcon, ImagePlay, Percent, Clock, Music, ArrowUpDown, User as UserIcon, Filter, Brush } from 'lucide-react';
+import { Loader2, Save, Youtube, Image as ImageIconLucide, PlusCircle, Trash2, Package, Tv, BookOpen, ExternalLink, ListCollapse, Sprout, Palette as PaletteIcon, ImagePlay, Percent, Clock, Music, ArrowUpDown, User as UserIcon, Filter, Brush, Play } from 'lucide-react'; // Added Play
 import type { HomepageContent, HeroSlide, SocialCommerceItem, ArtisanalRootsSlide } from '@/types';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -24,6 +24,7 @@ const heroSlideSchema = z.object({
   videoId: z.string().optional().refine(val => !val || /^[a-zA-Z0-9_-]{11}$/.test(val), {
     message: "Must be a valid YouTube Video ID (11 characters) or empty.",
   }).or(z.literal('')),
+  videoAutoplay: z.boolean().default(true).optional(), // Added field
   imageUrl: z.string().url({ message: "Must be a valid URL or empty." }).optional().or(z.literal('')),
   audioUrl: z.string().url({ message: "Must be a valid URL or empty." }).optional().or(z.literal('')),
   altText: z.string().optional().or(z.literal('')),
@@ -41,8 +42,8 @@ const heroSlideSchema = z.object({
   filterOverlay: z.string().optional().refine(val => !val || /^(rgba?\((\d{1,3}),\s*(\d{1,3}),\s*(\d{1,3})(,\s*(0|1|0?\.\d+))?\)|hsla?\((\d{1,3}),\s*(\d{1,3})%,\s*(\d{1,3})%(,\s*(0|1|0?\.\d+))?\)|#[0-9a-fA-F]{3,8})$/.test(val), {
     message: "Must be a valid CSS color (e.g., rgba(0,0,0,0.5), #00000080, hsla(0,0%,0%,0.5)) or empty."
   }).or(z.literal('')),
-  youtubeAuthorName: z.string().optional().or(z.literal('')), 
-  youtubeAuthorLink: z.string().url({ message: "Must be a valid YouTube channel URL or empty." }).optional().or(z.literal('')), 
+  youtubeAuthorName: z.string().optional().or(z.literal('')),
+  youtubeAuthorLink: z.string().url({ message: "Must be a valid YouTube channel URL or empty." }).optional().or(z.literal('')),
 });
 
 const artisanalRootsSlideSchema = z.object({
@@ -65,6 +66,10 @@ const promotionalPostsSectionSchema = z.object({
   enabled: z.boolean().default(false).optional(),
   title: z.string().min(1, "Section title is required if enabled.").optional().or(z.literal('')),
   maxItems: z.coerce.number().int().min(1, "Max items must be at least 1.").max(10, "Max items can be at most 10.").optional().default(3),
+  autoplay: z.boolean().default(true).optional(),
+  delay: z.coerce.number().int().min(1000, "Delay must be at least 1000ms.").optional().default(5000),
+  showArrows: z.boolean().default(true).optional(),
+  showDots: z.boolean().default(true).optional(),
 }).optional();
 
 
@@ -84,7 +89,7 @@ const homepageContentSchema = z.object({
 type HomepageContentFormValues = z.infer<typeof homepageContentSchema>;
 
 const defaultHeroSlide: Omit<HeroSlide, 'id'> = {
-  title: 'New Slide Title', description: 'Compelling description for the new slide.', videoId: '', imageUrl: '', audioUrl: '', altText: 'Hero slide image', dataAiHint: 'fashion background', ctaText: 'Shop Now', ctaLink: '/products',
+  title: 'New Slide Title', description: 'Compelling description for the new slide.', videoId: '', videoAutoplay: true, imageUrl: '', audioUrl: '', altText: 'Hero slide image', dataAiHint: 'fashion background', ctaText: 'Shop Now', ctaLink: '/products',
   ctaButtonVariant: 'default', ctaButtonCustomBgColor: '', ctaButtonCustomTextColor: '', ctaButtonClassName: '',
   duration: 7000, displayOrder: 0, filterOverlay: '', youtubeAuthorName: '', youtubeAuthorLink: ''
 };
@@ -107,6 +112,10 @@ const defaultHomepageFormValues: HomepageContentFormValues = {
     enabled: true,
     title: 'Special Offers',
     maxItems: 3,
+    autoplay: true,
+    delay: 5000,
+    showArrows: true,
+    showDots: true,
   },
 };
 
@@ -140,11 +149,12 @@ export default function AdminHomepageContentPage() {
       }
       const data: HomepageContent = await response.json();
       form.reset({
-        heroSlides: (data.heroSlides || []).map((slide, index) => ({ 
-            ...defaultHeroSlide, 
-            ...slide, 
-            id: slide.id || `hs-loaded-${Date.now()}-${Math.random()}`, 
-            audioUrl: slide.audioUrl || '', 
+        heroSlides: (data.heroSlides || []).map((slide, index) => ({
+            ...defaultHeroSlide,
+            ...slide,
+            id: slide.id || `hs-loaded-${Date.now()}-${Math.random()}`,
+            videoAutoplay: slide.videoAutoplay === undefined ? true : slide.videoAutoplay, // Default to true if undefined
+            audioUrl: slide.audioUrl || '',
             duration: slide.duration === undefined ? null : slide.duration,
             displayOrder: slide.displayOrder === undefined ? index * 10 : slide.displayOrder,
             filterOverlay: slide.filterOverlay || '',
@@ -178,11 +188,12 @@ export default function AdminHomepageContentPage() {
   const onSubmit = async (data: HomepageContentFormValues) => {
     setIsSaving(true);
     try {
-      const payload: HomepageContent = { 
+      const payload: HomepageContent = {
         heroSlides: (data.heroSlides || []).map(slide => ({
           ...slide,
           id: slide.id || `hs-submit-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
           videoId: slide.videoId || undefined,
+          videoAutoplay: slide.videoAutoplay === undefined ? true : slide.videoAutoplay,
           imageUrl: slide.imageUrl || undefined,
           audioUrl: slide.audioUrl || undefined,
           duration: slide.duration === null || slide.duration === undefined || Number(slide.duration) < 1000 ? defaultHeroSlide.duration : Number(slide.duration),
@@ -216,6 +227,10 @@ export default function AdminHomepageContentPage() {
           enabled: data.promotionalPostsSection?.enabled || false,
           title: data.promotionalPostsSection?.title || 'Special Offers',
           maxItems: data.promotionalPostsSection?.maxItems || 3,
+          autoplay: data.promotionalPostsSection?.autoplay === undefined ? true : data.promotionalPostsSection.autoplay,
+          delay: data.promotionalPostsSection?.delay || 5000,
+          showArrows: data.promotionalPostsSection?.showArrows === undefined ? true : data.promotionalPostsSection.showArrows,
+          showDots: data.promotionalPostsSection?.showDots === undefined ? true : data.promotionalPostsSection.showDots,
         },
       };
 
@@ -238,14 +253,14 @@ export default function AdminHomepageContentPage() {
         throw new Error(errorDetail);
       }
       toast({ title: "Content Saved!", description: "Homepage content has been updated successfully." });
-      fetchContent(); 
+      fetchContent();
     } catch (error) {
       toast({ title: "Save Failed", description: (error as Error).message, variant: "destructive" });
     } finally {
       setIsSaving(false);
     }
   };
-  
+
   if (isLoading) {
     return (
       <Card className="flex flex-col h-full">
@@ -328,6 +343,26 @@ export default function AdminHomepageContentPage() {
                             <FormMessage />
                           </FormItem>
                         )} />
+                        {form.watch(`heroSlides.${index}.videoId`) && (
+                           <FormField
+                            control={form.control}
+                            name={`heroSlides.${index}.videoAutoplay`}
+                            render={({ field }) => (
+                              <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-3 shadow-sm bg-background">
+                                <FormControl>
+                                  <Checkbox
+                                    checked={field.value}
+                                    onCheckedChange={field.onChange}
+                                  />
+                                </FormControl>
+                                <div className="space-y-0.5 leading-none">
+                                  <FormLabel className="font-normal cursor-pointer flex items-center"><Play className="mr-2 h-4 w-4"/>Autoplay Video Background</FormLabel>
+                                  <FormDescription>If unchecked, video will load paused.</FormDescription>
+                                </div>
+                              </FormItem>
+                            )}
+                          />
+                        )}
                         <FormField control={form.control} name={`heroSlides.${index}.youtubeAuthorName`} render={({ field }) => (
                           <FormItem>
                             <FormLabel className="flex items-center"><UserIcon className="mr-2 h-4 w-4 text-muted-foreground"/>YouTube Author Name (Optional)</FormLabel>
@@ -358,7 +393,6 @@ export default function AdminHomepageContentPage() {
                         <FormField control={form.control} name={`heroSlides.${index}.ctaLink`} render={({ field }) => (
                           <FormItem><FormLabel>CTA Button Link</FormLabel><FormControl><Input {...field} placeholder="/products or https://example.com" value={field.value || ''} /></FormControl><FormMessage /></FormItem>
                         )} />
-                        {/* CTA Button Styling Fields */}
                         <Card className="p-3 mt-3 bg-background/70">
                           <FormLabel className="text-sm font-medium block mb-2 flex items-center"><Brush className="mr-2 h-4 w-4 text-muted-foreground"/>CTA Button Styling (Optional)</FormLabel>
                           <div className="space-y-3">
@@ -440,7 +474,7 @@ export default function AdminHomepageContentPage() {
                 <FormField control={form.control} name="artisanalRootsDescription" render={({ field }) => (
                   <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea placeholder="Enter description" {...field} rows={3} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
                 )} />
-                
+
                 <div className="space-y-2 pt-2 border-t border-border/50 mt-4">
                    <h4 className="text-md font-medium text-foreground pt-2">Main Visuals for Artisanal Roots Section</h4>
                    <ScrollArea className="max-h-96">
@@ -459,7 +493,7 @@ export default function AdminHomepageContentPage() {
                               <FormField control={form.control} name={`artisanalRootsSlides.${index}.altText`} render={({ field }) => (
                                   <FormItem><FormLabel className="text-xs">Alt Text</FormLabel><FormControl><Input {...field} placeholder="Describe the image" value={field.value || ''} /></FormControl><FormMessage /></FormItem>
                               )} />
-                              <FormField control={form.control} name={`artisanalRootsSlides.${index}.dataAiHint`} render={({ field }) => (
+                               <FormField control={form.control} name={`artisanalRootsSlides.${index}.dataAiHint`} render={({ field }) => (
                                   <FormItem><FormLabel className="text-xs">AI Hint</FormLabel><FormControl><Input {...field} placeholder="e.g., nepali craft texture" value={field.value || ''} /></FormControl><FormMessage /></FormItem>
                               )} />
                           </Card>
@@ -537,14 +571,28 @@ export default function AdminHomepageContentPage() {
                   )}
                 />
                 {form.watch('promotionalPostsSection.enabled') && (
-                  <>
+                  <div className="space-y-4 pl-4 border-l-2 border-primary/30">
                     <FormField control={form.control} name="promotionalPostsSection.title" render={({ field }) => (
                       <FormItem><FormLabel>Section Title</FormLabel><FormControl><Input {...field} placeholder="e.g., Current Promotions" value={field.value || ''} /></FormControl><FormMessage /></FormItem>
                     )} />
                     <FormField control={form.control} name="promotionalPostsSection.maxItems" render={({ field }) => (
                       <FormItem><FormLabel>Max Items to Display</FormLabel><FormControl><Input type="number" {...field} min="1" max="10" value={field.value ?? 3} onChange={e => field.onChange(parseInt(e.target.value,10) || 3)}/></FormControl><FormDescription>Number of promotional posts to show in the slider (1-10).</FormDescription><FormMessage /></FormItem>
                     )} />
-                  </>
+                    <FormField control={form.control} name="promotionalPostsSection.autoplay" render={({ field }) => (
+                      <FormItem className="flex flex-row items-center space-x-3 space-y-0"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><FormLabel className="font-normal cursor-pointer">Autoplay Slider</FormLabel></FormItem>
+                    )} />
+                    {form.watch('promotionalPostsSection.autoplay') && (
+                        <FormField control={form.control} name="promotionalPostsSection.delay" render={({ field }) => (
+                            <FormItem><FormLabel>Autoplay Delay (ms)</FormLabel><FormControl><Input type="number" {...field} min="1000" value={field.value ?? 5000} onChange={e => field.onChange(parseInt(e.target.value,10) || 5000)} /></FormControl><FormMessage /></FormItem>
+                        )} />
+                    )}
+                    <FormField control={form.control} name="promotionalPostsSection.showArrows" render={({ field }) => (
+                      <FormItem className="flex flex-row items-center space-x-3 space-y-0"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><FormLabel className="font-normal cursor-pointer">Show Navigation Arrows</FormLabel></FormItem>
+                    )} />
+                    <FormField control={form.control} name="promotionalPostsSection.showDots" render={({ field }) => (
+                      <FormItem className="flex flex-row items-center space-x-3 space-y-0"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><FormLabel className="font-normal cursor-pointer">Show Pagination Dots</FormLabel></FormItem>
+                    )} />
+                  </div>
                 )}
               </div>
 
@@ -560,3 +608,5 @@ export default function AdminHomepageContentPage() {
     </Card>
   );
 }
+
+```

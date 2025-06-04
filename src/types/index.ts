@@ -222,6 +222,7 @@ export interface HeroSlide {
   description: string;
   imageUrl?: string;
   videoId?: string;
+  videoAutoplay?: boolean; // Added this line
   audioUrl?: string;
   altText?: string;
   dataAiHint?: string;
@@ -236,9 +237,9 @@ export interface HeroSlide {
   filterOverlay?: string;
   youtubeAuthorName?: string;
   youtubeAuthorLink?: string;
-  _isPromo?: boolean; // Internal flag, not for admin UI direct edit
-  _backgroundColor?: string; // Internal, derived from promo post
-  _textColor?: string; // Internal, derived from promo post
+  _isPromo?: boolean; 
+  _backgroundColor?: string; 
+  _textColor?: string; 
 }
 
 export interface SocialCommerceItem {
@@ -259,8 +260,8 @@ export interface ArtisanalRootsSlide {
 
 export interface HomepageContent {
   heroSlides?: HeroSlide[];
-  heroVideoId?: string; // Fallback if no slides
-  heroImageUrl?: string; // Fallback if no slides
+  heroVideoId?: string; 
+  heroImageUrl?: string; 
   artisanalRoots?: {
     title: string;
     description: string;
@@ -271,8 +272,12 @@ export interface HomepageContent {
     enabled?: boolean;
     title?: string;
     maxItems?: number;
+    autoplay?: boolean; // Added
+    delay?: number; // Added
+    showArrows?: boolean; // Added
+    showDots?: boolean; // Added
   };
-  error?: string; // For conveying errors from API to component if needed
+  error?: string; 
 }
 
 export interface OurStorySection {
@@ -333,12 +338,12 @@ export interface SiteSettings {
   facebookUsernameOrPageId?: string;
   headerLogoUrl?: string;
   headerSiteTitle?: string;
-  heroVideoAutoplay?: boolean;
+  heroVideoAutoplay?: boolean; // Global hero autoplay setting
 }
 
 export interface PageContent {
   content: string;
-  error?: string; // Optional error message
+  error?: string; 
 }
 
 export interface FilterOptionValue {
@@ -617,3 +622,5 @@ export interface PaymentGatewaySetting {
   createdAt?: string;
   updatedAt?: string;
 }
+
+```

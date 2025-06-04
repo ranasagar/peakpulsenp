@@ -6,14 +6,13 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Icons } from '@/components/icons';
-import { ChevronLeft, ChevronRight, ShoppingBag, ArrowRight, Instagram, Send, Users, ImagePlus, Loader2, LayoutGrid, Palette as PaletteIcon, Handshake, Sprout, ImagePlay as ImagePlayIcon, Heart as HeartIcon, Clock, Music, Volume2, VolumeX, Youtube as YoutubeIcon, Timer, TimerOff, Brush } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ShoppingBag, ArrowRight, Instagram, Send, Users, ImagePlus, Loader2, LayoutGrid, Palette as PaletteIcon, Handshake, Sprout, ImagePlay as ImagePlayIcon, Heart as HeartIcon, Clock, Music, Volume2, VolumeX, Youtube as YoutubeIcon, Timer, TimerOff, Brush, Slash, Check } from 'lucide-react'; // Added Slash, Check
 import { NewsletterSignupForm } from '@/components/forms/newsletter-signup-form';
 import type { HomepageContent, Product, HeroSlide, AdminCategory as CategoryType, DesignCollaborationGallery, ArtisanalRootsSlide, SocialCommerceItem, PromotionalPost, UserPost, PostComment, SiteSettings } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent } from '@/components/ui/card';
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { InteractiveExternalLink } from '@/components/interactive-external-link';
-// MainLayout import is removed as it's used by the parent Server Component (RootPage)
 import { formatDisplayDate } from '@/lib/dateUtils';
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -23,7 +22,7 @@ import { UserPostDetailModal } from '@/components/community/user-post-detail-mod
 import { useAuth } from '@/hooks/use-auth';
 import { Separator } from '@/components/ui/separator';
 import { usePathname } from 'next/navigation';
-// Metadata export is removed as this is a Client Component
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 declare global {
   interface Window {
@@ -41,6 +40,7 @@ const fallbackHeroSlide: HeroSlide = {
   dataAiHint: "fashion model fallback",
   ctaText: "Explore Collections",
   ctaLink: "/products",
+  videoAutoplay: true,
   ctaButtonVariant: 'default',
   ctaButtonCustomBgColor: undefined,
   ctaButtonCustomTextColor: undefined,
@@ -49,7 +49,7 @@ const fallbackHeroSlide: HeroSlide = {
   audioUrl: undefined,
   duration: 7000,
   displayOrder: 0,
-  filterOverlay: undefined, 
+  filterOverlay: undefined,
   youtubeAuthorName: undefined,
   youtubeAuthorLink: undefined,
 };
@@ -68,6 +68,10 @@ const defaultHomepageContent: HomepageContent = {
     enabled: false,
     title: "Special Offers",
     maxItems: 3,
+    autoplay: true,
+    delay: 5000,
+    showArrows: true,
+    showDots: true,
   },
 };
 
@@ -103,6 +107,7 @@ async function getHomepageContent(): Promise<HomepageContent> {
             ...fallbackHeroSlide,
             ...slide,
             id: slide.id || `hs-fetched-${Date.now()}-${index}`,
+            videoAutoplay: slide.videoAutoplay === undefined ? fallbackHeroSlide.videoAutoplay : slide.videoAutoplay,
             imageUrl: (slide.imageUrl && slide.imageUrl.trim() !== "") ? slide.imageUrl.trim() : undefined,
             videoId: (slide.videoId && slide.videoId.trim() !== "") ? slide.videoId.trim() : undefined,
             audioUrl: (slide.audioUrl && slide.audioUrl.trim() !== "") ? slide.audioUrl.trim() : undefined,
@@ -112,7 +117,7 @@ async function getHomepageContent(): Promise<HomepageContent> {
             ctaButtonClassName: slide.ctaButtonClassName || fallbackHeroSlide.ctaButtonClassName,
             duration: slide.duration === undefined || slide.duration === null || Number(slide.duration) < 1000 ? fallbackHeroSlide.duration : Number(slide.duration),
             displayOrder: slide.displayOrder === undefined ? index * 10 : Number(slide.displayOrder || 0),
-            filterOverlay: slide.filterOverlay || undefined, 
+            filterOverlay: slide.filterOverlay || undefined,
             youtubeAuthorName: (slide.youtubeAuthorName && slide.youtubeAuthorName.trim() !== "") ? slide.youtubeAuthorName.trim() : undefined,
             youtubeAuthorLink: (slide.youtubeAuthorLink && slide.youtubeAuthorLink.trim() !== "") ? slide.youtubeAuthorLink.trim() : undefined,
           }))
@@ -133,6 +138,10 @@ async function getHomepageContent(): Promise<HomepageContent> {
         enabled: jsonData.promotionalPostsSection?.enabled ?? defaultHomepageContent.promotionalPostsSection!.enabled,
         title: jsonData.promotionalPostsSection?.title || defaultHomepageContent.promotionalPostsSection!.title,
         maxItems: jsonData.promotionalPostsSection?.maxItems || defaultHomepageContent.promotionalPostsSection!.maxItems,
+        autoplay: jsonData.promotionalPostsSection?.autoplay === undefined ? defaultHomepageContent.promotionalPostsSection!.autoplay : jsonData.promotionalPostsSection.autoplay,
+        delay: jsonData.promotionalPostsSection?.delay || defaultHomepageContent.promotionalPostsSection!.delay,
+        showArrows: jsonData.promotionalPostsSection?.showArrows === undefined ? defaultHomepageContent.promotionalPostsSection!.showArrows : jsonData.promotionalPostsSection.showArrows,
+        showDots: jsonData.promotionalPostsSection?.showDots === undefined ? defaultHomepageContent.promotionalPostsSection!.showDots : jsonData.promotionalPostsSection.showDots,
       },
     };
     return processedData;
@@ -141,6 +150,13 @@ async function getHomepageContent(): Promise<HomepageContent> {
     return { ...defaultHomepageContent, error: `Network error: ${error.message || 'Failed to connect to content API.'}` };
   }
 }
+const testBgColors = [
+  { name: "Transparent (Default)", value: null, class: "bg-transparent border-dashed", icon: Slash, iconColor: "text-muted-foreground" },
+  { name: "White", value: "#FFFFFF", class: "bg-white", icon: Check, iconColor: "text-foreground" },
+  { name: "Light Gray", value: "#F3F4F6", class: "bg-gray-100", icon: Check, iconColor: "text-foreground" },
+  { name: "Dark Gray", value: "#374151", class: "bg-gray-700", icon: Check, iconColor: "text-white" },
+];
+
 
 export default function HomePageContent() {
   const [content, setContent] = useState<HomepageContent>(defaultHomepageContent);
@@ -166,19 +182,17 @@ export default function HomePageContent() {
   const [isLoadingUserPosts, setIsLoadingUserPosts] = useState(true);
 
   const [currentHeroSlide, setCurrentHeroSlide] = useState(0);
-  const [isHeroPlaying, setIsHeroPlaying] = useState(true); 
-  const [isInitialSlideIntervalPaused, setIsInitialSlideIntervalPaused] = useState(true); 
-  const [initialAutoplayConditionsMet, setInitialAutoplayConditionsMet] = useState(false); 
+  const [isHeroPlaying, setIsHeroPlaying] = useState(true);
+  const [initialAutoplayConditionsMet, setInitialAutoplayConditionsMet] = useState(false);
 
   const heroIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const minPlayTimeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const audioRef = useRef<HTMLAudioElement>(null);
   const [isDirectAudioMuted, setIsDirectAudioMuted] = useState(true);
 
   const [isYouTubeApiReady, setIsYouTubeApiReady] = useState(false);
   const playerRefs = useRef<any[]>([]);
-  const [isYouTubePlayerMuted, setIsYouTubePlayerMuted] = useState(true); 
+  const [isYouTubePlayerMuted, setIsYouTubePlayerMuted] = useState(true);
 
   const [currentArtisanalSlide, setCurrentArtisanalSlide] = useState(0);
   const [isArtisanalPlaying, setIsArtisanalPlaying] = useState(true);
@@ -187,6 +201,8 @@ export default function HomePageContent() {
   const [currentSocialCommerceSlide, setCurrentSocialCommerceSlide] = useState(0);
   const [isSocialCommerceHovered, setIsSocialCommerceHovered] = useState(false);
   const [socialCommerceSlideDuration, setSocialCommerceSlideDuration] = useState(6000);
+  const [socialPostTestBgColor, setSocialPostTestBgColor] = useState<string | null>(null);
+
 
   const { toast } = useToast();
   const { user, isAuthenticated, refreshUserProfile } = useAuth();
@@ -278,8 +294,8 @@ export default function HomePageContent() {
       fetch('/api/products')
         .then(res => res.ok ? res.json() : Promise.reject('Failed to fetch products'))
         .then((allProducts: Product[]) => {
-          const featured = allProducts.filter(p => p.isFeatured); 
-          setFeaturedProducts(featured); 
+          const featured = allProducts.filter(p => p.isFeatured);
+          setFeaturedProducts(featured);
         })
         .catch(err => toast({ title: "Error Loading Featured Products", description: (err as Error).message, variant: "destructive" }))
         .finally(() => setIsLoadingFeaturedProducts(false));
@@ -310,13 +326,12 @@ export default function HomePageContent() {
   }, [toast]);
 
   useEffect(() => { loadPageData(); }, [loadPageData]);
-  
+
   useEffect(() => {
     if (siteSettings && !isLoadingSiteSettings) {
-        const globalAutoplay = siteSettings.heroVideoAutoplay !== false; 
-        setIsHeroPlaying(globalAutoplay); 
-        setIsInitialSlideIntervalPaused(!globalAutoplay); 
-        setInitialAutoplayConditionsMet(true); 
+        const globalAutoplay = siteSettings.heroVideoAutoplay !== false;
+        setIsHeroPlaying(globalAutoplay);
+        setInitialAutoplayConditionsMet(true);
     }
   }, [siteSettings, isLoadingSiteSettings]);
 
@@ -330,7 +345,7 @@ export default function HomePageContent() {
         setNumFeaturedToShow(4);
       }
     };
-    handleResize(); 
+    handleResize();
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
@@ -343,12 +358,13 @@ export default function HomePageContent() {
             id: promo.id || `promo-slide-${index}`, title: promo.title, description: promo.description || '', imageUrl: promo.imageUrl,
             altText: promo.imageAltText || promo.title, dataAiHint: promo.dataAiHint || 'promotion offer sale',
             ctaText: promo.ctaText || 'Learn More', ctaLink: promo.ctaLink || `/products?promo=${promo.slug}`,
+            videoAutoplay: true, // Promos default to autoplay if video backgrounds were supported for them
             videoId: undefined, audioUrl: undefined, duration: fallbackHeroSlide.duration,
             displayOrder: (sortedBaseSlides.length * 10) + (promo.displayOrder || index * 10),
-            filterOverlay: undefined, 
+            filterOverlay: undefined,
             youtubeAuthorName: undefined, youtubeAuthorLink: undefined, _isPromo: true,
             _backgroundColor: promo.backgroundColor, _textColor: promo.textColor,
-             ctaButtonVariant: 'default', // Ensure these new fields have defaults if not provided by promo post type
+             ctaButtonVariant: 'default',
              ctaButtonCustomBgColor: undefined,
              ctaButtonCustomTextColor: undefined,
              ctaButtonClassName: undefined,
@@ -368,24 +384,19 @@ export default function HomePageContent() {
   }, [activeHeroSlides.length]);
 
   const prevHeroSlide = () => {
-     if (isInitialSlideIntervalPaused && currentHeroSlide === 0) setIsInitialSlideIntervalPaused(false);
      if (activeHeroSlides.length > 0) {
       setCurrentHeroSlide((prev) => (prev === 0 ? activeHeroSlides.length - 1 : prev - 1));
     }
   };
   const goToHeroSlide = (index: number) => {
-    if (isInitialSlideIntervalPaused && currentHeroSlide === 0) setIsInitialSlideIntervalPaused(false);
     if (activeHeroSlides.length > 0) { setCurrentHeroSlide(index % activeHeroSlides.length); }
   };
 
-  const toggleHeroPlayPause = () => { 
-    if (isInitialSlideIntervalPaused && currentHeroSlide === 0) {
-        setIsInitialSlideIntervalPaused(false);
-    }
+  const toggleHeroPlayPause = () => {
     setIsHeroPlaying(prev => !prev);
   };
-  
-  const handleMuteToggleClick = () => { 
+
+  const handleMuteToggleClick = () => {
     const currentSlide = activeHeroSlides[currentHeroSlide];
     const player = playerRefs.current[currentHeroSlide];
 
@@ -409,21 +420,9 @@ export default function HomePageContent() {
     }
   };
 
-  useEffect(() => {
-    if (!isMounted || !initialAutoplayConditionsMet || !isHeroPlaying || currentHeroSlide !== 0 || !isInitialSlideIntervalPaused) return;
-    const globalAutoplayEnabled = siteSettings?.heroVideoAutoplay !== false;
-    if (globalAutoplayEnabled) {
-      const initialIntervalStartTimeout = setTimeout(() => {
-        if (isMounted && isInitialSlideIntervalPaused) { 
-          setIsInitialSlideIntervalPaused(false); 
-        }
-      }, 200); 
-      return () => clearTimeout(initialIntervalStartTimeout);
-    }
-  }, [isMounted, initialAutoplayConditionsMet, siteSettings, isHeroPlaying, currentHeroSlide, isInitialSlideIntervalPaused]);
-
 
   const activeHeroSlidesVideoIds = useMemo(() => JSON.stringify(activeHeroSlides.map(s => s.videoId)), [activeHeroSlides]);
+  // YouTube Player Management
   useEffect(() => {
     if (!isYouTubeApiReady || activeHeroSlides.length === 0 || !isMounted) return;
 
@@ -438,40 +437,48 @@ export default function HomePageContent() {
           if (existingPlayer && typeof existingPlayer.destroy === 'function') {
             try { existingPlayer.destroy(); } catch (e) { console.warn("Error destroying YT player", e); }
           }
-          const newPlayer = new window.YT.Player(targetDivId, {
+          playerRefs.current[index] = new window.YT.Player(targetDivId, {
             videoId: slideData.videoId,
             playerVars: {
-              autoplay: 0,
-              controls: 0,
-              loop: 1,
-              playlist: slideData.videoId,
-              modestbranding: 1,
-              playsinline: 1,
-              showinfo: 0,
-              rel: 0,
-              mute: 1,
-              origin: typeof window !== 'undefined' ? window.location.origin : '', 
+              autoplay: 0, controls: 0, loop: 1, playlist: slideData.videoId,
+              modestbranding: 1, playsinline: 1, showinfo: 0, rel: 0, mute: 1,
+              origin: typeof window !== 'undefined' ? window.location.origin : '',
             },
             events: {
               onReady: (event: any) => {
-                playerRefs.current[index] = event.target;
-                event.target.mute(); 
+                playerRefs.current[index] = event.target; // Store the player instance
+                event.target.mute();
+                // Additional logic for when this specific player is for the current slide
+                if (index === currentHeroSlide) {
+                  const globalAutoplayEnabled = siteSettings?.heroVideoAutoplay !== false;
+                  const shouldThisPlayerAutoplay = slideData.videoAutoplay !== false && isHeroPlaying && globalAutoplayEnabled && initialAutoplayConditionsMet;
+                  if (shouldThisPlayerAutoplay) {
+                    event.target.playVideo();
+                  }
+                }
               },
               onStateChange: (event: any) => {
-                const currentSlideData = activeHeroSlides[index]; 
+                const currentSlideDataForEvent = activeHeroSlides[index]; // Use slideData from closure
                 if (index === currentHeroSlide && event.data === window.YT?.PlayerState?.ENDED) {
-                  event.target.seekTo(0);
                   const globalAutoplayEnabled = siteSettings?.heroVideoAutoplay !== false;
-                  
-                  if (isHeroPlaying && globalAutoplayEnabled && initialAutoplayConditionsMet && !currentSlideData?.audioUrl) {
-                    nextHeroSlide();
-                  } else if (globalAutoplayEnabled && initialAutoplayConditionsMet && isHeroPlaying) {
-                    event.target.playVideo(); 
-                  } else {
+                  const shouldThisVideoAutoplay = currentSlideDataForEvent?.videoAutoplay !== false;
+
+                  if (isHeroPlaying && globalAutoplayEnabled && shouldThisVideoAutoplay) {
+                    if (activeHeroSlides.length > 1) {
+                        nextHeroSlide(); // Advance slideshow only if multiple slides and intended
+                    } else {
+                        event.target.seekTo(0); // Loop single video
+                        event.target.playVideo();
+                    }
+                  } else if (shouldThisVideoAutoplay) { // Autoplay for this slide is on, but global is off
+                     event.target.seekTo(0);
+                     event.target.pauseVideo(); // Loop but stay paused
+                  } else { // Autoplay for this slide is off
+                     event.target.seekTo(0);
                      event.target.pauseVideo();
                   }
                 } else if (index === currentHeroSlide && event.data === window.YT?.PlayerState?.PLAYING) {
-                  const effectiveYouTubeMute = isYouTubePlayerMuted || (currentSlideData?.audioUrl && audioRef.current && !audioRef.current.muted);
+                  const effectiveYouTubeMute = isYouTubePlayerMuted || (currentSlideDataForEvent?.audioUrl && audioRef.current && !audioRef.current.muted);
                   if (effectiveYouTubeMute) event.target.mute(); else event.target.unMute();
                 }
               }
@@ -485,26 +492,26 @@ export default function HomePageContent() {
         }
       }
     });
-  }, [isYouTubeApiReady, activeHeroSlidesVideoIds, isMounted, currentHeroSlide, siteSettings, isHeroPlaying, initialAutoplayConditionsMet, nextHeroSlide, isYouTubePlayerMuted, activeHeroSlides]);
-
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isYouTubeApiReady, activeHeroSlidesVideoIds, isMounted]); // Dependencies fine-tuned
 
   // Main Media and Interval Control Effect
   useEffect(() => {
     if (heroIntervalRef.current) clearInterval(heroIntervalRef.current);
-    if (minPlayTimeTimeoutRef.current) clearTimeout(minPlayTimeTimeoutRef.current);
 
     const currentSlideData = activeHeroSlides[currentHeroSlide];
     if (!currentSlideData || !initialAutoplayConditionsMet || !isMounted) return;
-    
+
     const globalAutoplayEnabled = siteSettings?.heroVideoAutoplay !== false;
-    
-    const currentSlideIsVideoOnly = !!currentSlideData.videoId && !currentSlideData.imageUrl && !currentSlideData.audioUrl;
-    const currentSlideIsDirectAudio = !!currentSlideData.audioUrl;
+    const shouldMediaAndIntervalBeActive = isHeroPlaying && globalAutoplayEnabled;
+
     const activePlayerInstance = playerRefs.current[currentHeroSlide];
+    const useYouTubeForVisual = !currentSlideData.imageUrl && !!currentSlideData.videoId;
+    const useDirectAudio = !!currentSlideData.audioUrl;
 
     // HTML5 Audio control
     if (audioRef.current) {
-      if (currentSlideIsDirectAudio && isHeroPlaying && globalAutoplayEnabled) {
+      if (useDirectAudio && shouldMediaAndIntervalBeActive) {
         if (audioRef.current.src !== currentSlideData.audioUrl) {
           audioRef.current.src = currentSlideData.audioUrl!;
           audioRef.current.load();
@@ -518,30 +525,35 @@ export default function HomePageContent() {
 
     // YouTube Video Player control for ACTIVE slide
     if (isYouTubeApiReady && activePlayerInstance && typeof activePlayerInstance.playVideo === 'function') {
-      const isVideoWithoutImage = !!currentSlideData.videoId && !currentSlideData.imageUrl;
-      if (isVideoWithoutImage) { 
-        const shouldThisVideoAutoplay = globalAutoplayEnabled && isHeroPlaying && initialAutoplayConditionsMet;
-        if (shouldThisVideoAutoplay) {
+      if (useYouTubeForVisual) {
+        const shouldThisVideoAutoplay = currentSlideData.videoAutoplay !== false;
+        if (shouldMediaAndIntervalBeActive && shouldThisVideoAutoplay) {
           activePlayerInstance.playVideo();
         } else {
-           if (typeof activePlayerInstance.getPlayerState === 'function' && activePlayerInstance.getPlayerState() !== window.YT?.PlayerState?.PAUSED) {
-               activePlayerInstance.pauseVideo();
-           }
+          if (typeof activePlayerInstance.getPlayerState === 'function' && activePlayerInstance.getPlayerState() !== window.YT?.PlayerState?.PAUSED) {
+            activePlayerInstance.pauseVideo();
+          }
         }
-        const effectiveYouTubeMute = isYouTubePlayerMuted || (currentSlideIsDirectAudio && audioRef.current && !audioRef.current.muted);
+        // Mute YouTube if direct audio is playing and unmuted, or if global YouTube mute is on
+        const effectiveYouTubeMute = isYouTubePlayerMuted || (useDirectAudio && audioRef.current && !audioRef.current.muted);
         if (effectiveYouTubeMute) activePlayerInstance.mute(); else activePlayerInstance.unMute();
-      } else { 
+      } else {
         if (typeof activePlayerInstance.pauseVideo === 'function') activePlayerInstance.pauseVideo();
         if (typeof activePlayerInstance.mute === 'function') activePlayerInstance.mute();
       }
     }
 
-    // Slideshow Interval Logic
-    const canIntervalRunForAutoAdvance = isHeroPlaying && globalAutoplayEnabled && (currentHeroSlide !== 0 || !isInitialSlideIntervalPaused);
-    if (canIntervalRunForAutoAdvance && !currentSlideIsVideoOnly) { 
-        heroIntervalRef.current = setInterval(nextHeroSlide, currentSlideData.duration || 7000);
+    // Slideshow Interval Logic (for non-video-primary slides or videos with explicit shorter duration)
+    if (shouldMediaAndIntervalBeActive && activeHeroSlides.length > 1) {
+        // If current slide is YouTube video AND it's set to autoplay, let its 'onStateChange' ENDED event handle next slide.
+        // Otherwise, or if it's an image/audio slide, use the timer.
+        const videoIsPrimaryAndAutoplays = useYouTubeForVisual && (currentSlideData.videoAutoplay !== false);
+        if (!videoIsPrimaryAndAutoplays) {
+            heroIntervalRef.current = setInterval(nextHeroSlide, currentSlideData.duration || 7000);
+        }
     }
-    
+
+    // Pause and mute non-active YouTube players
     playerRefs.current.forEach((player, idx) => {
       if (player && idx !== currentHeroSlide && typeof player.pauseVideo === 'function' && typeof player.mute === 'function') {
         try { player.pauseVideo(); player.mute(); }
@@ -551,12 +563,11 @@ export default function HomePageContent() {
 
     return () => {
       if (heroIntervalRef.current) clearInterval(heroIntervalRef.current);
-      if (minPlayTimeTimeoutRef.current) clearTimeout(minPlayTimeTimeoutRef.current);
     };
   }, [
     currentHeroSlide, activeHeroSlides, isHeroPlaying, initialAutoplayConditionsMet,
     isYouTubeApiReady, siteSettings, isMounted,
-    isDirectAudioMuted, isYouTubePlayerMuted, nextHeroSlide, isInitialSlideIntervalPaused
+    isDirectAudioMuted, isYouTubePlayerMuted, nextHeroSlide
   ]);
 
 
@@ -621,8 +632,8 @@ export default function HomePageContent() {
   let isCurrentSlideDirectAudio = !!currentDisplayedHeroSlide?.audioUrl;
   let isCurrentSlideYouTubeAudio = !currentDisplayedHeroSlide?.audioUrl && !!currentDisplayedHeroSlide?.videoId && !currentDisplayedHeroSlide?.imageUrl;
   const showMuteButton = isCurrentSlideDirectAudio || isCurrentSlideYouTubeAudio;
-  
-  let currentCombinedMuteState = true; 
+
+  let currentCombinedMuteState = true;
   if (isCurrentSlideDirectAudio) {
     currentCombinedMuteState = isDirectAudioMuted;
   } else if (isCurrentSlideYouTubeAudio) {
@@ -690,7 +701,7 @@ export default function HomePageContent() {
             const showVideoAttribution = isCurrent && !slide.imageUrl && slide.videoId && slide.youtubeAuthorName && slide.youtubeAuthorLink;
             const slideTextColor = slide._isPromo && slide._textColor ? slide._textColor : 'text-white';
             const slideDescriptionColor = slide._isPromo && slide._textColor ? slide._textColor : 'text-neutral-200';
-            
+
             const buttonStyle: React.CSSProperties = {};
             if (slide.ctaButtonCustomBgColor) buttonStyle.backgroundColor = slide.ctaButtonCustomBgColor;
             if (slide.ctaButtonCustomTextColor) buttonStyle.color = slide.ctaButtonCustomTextColor;
@@ -702,34 +713,34 @@ export default function HomePageContent() {
                 <div className="relative z-20 flex flex-col items-center justify-center h-full pt-[calc(theme(spacing.20)_+_theme(spacing.6))] pb-12 px-6 md:px-8 text-center max-w-3xl mx-auto">
                     <h1 className={cn("text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-6 text-shadow-lg", slideTextColor)} dangerouslySetInnerHTML={{ __html: slide.title }} />
                     <p className={cn("text-lg md:text-xl lg:text-2xl mb-10 max-w-2xl mx-auto text-shadow-lg", slideDescriptionColor)} dangerouslySetInnerHTML={{ __html: slide.description }} />
-                    {slide.ctaText && slide.ctaLink && ( 
-                       <Link 
-                        href={slide.ctaLink} 
+                    {slide.ctaText && slide.ctaLink && (
+                       <Link
+                        href={slide.ctaLink}
                         className={cn(
                           buttonVariants({ variant: buttonVariant, size: "lg", className: "text-base md:text-lg py-3 px-8" }),
-                          "hero-cta-button", 
-                          slide.ctaButtonClassName 
+                          "hero-cta-button",
+                          slide.ctaButtonClassName
                         )}
                         style={buttonStyle}
                       >
-                        <span className="hero-cta-button-content"> 
-                          {slide.ctaText} 
-                          <ShoppingBag className="ml-2 h-5 w-5 hero-cta-icon" /> 
+                        <span className="hero-cta-button-content">
+                          {slide.ctaText}
+                          <ShoppingBag className="ml-2 h-5 w-5 hero-cta-icon" />
                         </span>
-                      </Link> 
+                      </Link>
                     )}
-                    {showVideoAttribution && ( 
-                      <div className="absolute bottom-20 left-1/2 -translate-x-1/2 md:bottom-24 lg:bottom-28 p-2 bg-black/40 backdrop-blur-sm rounded-md text-xs md:text-sm"> 
-                        <InteractiveExternalLink 
-                          href={slide.youtubeAuthorLink!} 
-                          className="text-neutral-300 hover:text-white transition-colors flex items-center" 
-                          target="_blank" 
-                          rel="noopener noreferrer" 
+                    {showVideoAttribution && (
+                      <div className="absolute bottom-20 left-1/2 -translate-x-1/2 md:bottom-24 lg:bottom-28 p-2 bg-black/40 backdrop-blur-sm rounded-md text-xs md:text-sm">
+                        <InteractiveExternalLink
+                          href={slide.youtubeAuthorLink!}
+                          className="text-neutral-300 hover:text-white transition-colors flex items-center"
+                          target="_blank"
+                          rel="noopener noreferrer"
                           showDialog={siteSettings?.showExternalLinkWarning !== false}
-                        > 
-                          <YoutubeIcon className="h-4 w-4 mr-1.5" /> Video by: {slide.youtubeAuthorName} 
-                        </InteractiveExternalLink> 
-                      </div> 
+                        >
+                          <YoutubeIcon className="h-4 w-4 mr-1.5" /> Video by: {slide.youtubeAuthorName}
+                        </InteractiveExternalLink>
+                      </div>
                     )}
                 </div>
               </div>
@@ -756,7 +767,7 @@ export default function HomePageContent() {
 
       {/* Featured Collection Section */}
       <section className="section-padding container-wide relative z-[1] bg-background">
-        <div className="section-padding-inner max-w-7xl mx-auto"> 
+        <div className="section-padding-inner max-w-7xl mx-auto">
           <h2 className="text-3xl font-bold tracking-tight text-center mb-12 text-foreground">Featured Collection</h2>
           {isLoadingFeaturedProducts ? ( <div className="flex justify-center items-center py-10"> <Loader2 className="h-10 w-10 animate-spin text-primary" /> </div>
           ) : featuredProducts.length > 0 ? ( <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8"> {featuredProducts.slice(0, numFeaturedToShow).map(product => ( <ProductCard key={product.id} product={product} /> ))} </div>
@@ -768,38 +779,117 @@ export default function HomePageContent() {
       {/* Artisanal Roots Section */}
       <section className="bg-card section-padding relative z-[1] overflow-hidden">
         <div className="absolute inset-0 z-0 pointer-events-none"> {activeArtisanalSlides.map((slide, index) => ( <div key={slide.id || `ars-bg-${index}`} className={cn( "absolute inset-0 transition-opacity duration-1000 ease-in-out", index === currentArtisanalSlide ? "opacity-100" : "opacity-0" )} > <Image src={slide.imageUrl} alt={slide.altText || "Artisanal background"} fill sizes="100vw" className="object-cover" data-ai-hint={slide.dataAiHint || "nepal craft texture"} /> <div className="absolute inset-0 bg-gradient-to-t from-card via-card/80 to-card/50 md:bg-gradient-to-r md:from-card md:via-card/70 md:to-transparent z-[1]"></div> </div> ))} {activeArtisanalSlides.length === 0 && <div className="absolute inset-0 bg-primary/5"></div>} </div>
-        <div className="container-slim text-center md:text-left relative z-10"> <div className="md:w-1/2 lg:w-3/5"> <Sprout className="h-10 w-10 text-primary mb-4 mx-auto md:mx-0"/> <h2 className="text-3xl font-bold tracking-tight mb-6 text-foreground" dangerouslySetInnerHTML={{ __html: content.artisanalRoots?.title || "Our Artisanal Roots"}} /> <p className="text-lg text-muted-foreground mb-8 leading-relaxed prose dark:prose-invert" dangerouslySetInnerHTML={{ __html: content.artisanalRoots?.description || "Details loading..."}} /> <Link href="/our-story" className={cn(buttonVariants({ variant: "default", size: "lg", className: "text-base" }))}> <span className="flex items-center">Discover Our Story <ArrowRight className="ml-2 h-5 w-5" /></span> </Link> </div> </div>
+        <div className="container-slim text-center md:text-left relative z-10"> <div className="md:w-1/2 lg:w-3/5"> <Sprout className="h-10 w-10 text-primary mb-4 mx-auto md:mx-0"/> <h2 className="text-3xl font-bold tracking-tight mb-6 text-foreground" dangerouslySetInnerHTML={{ __html: content.artisanalRoots?.title || "Our Artisanal Roots"}} /> <div className="text-lg text-muted-foreground mb-8 leading-relaxed prose dark:prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: content.artisanalRoots?.description || "Details loading..."}} /> <Link href="/our-story" className={cn(buttonVariants({ variant: "default", size: "lg", className: "text-base" }))}> <span className="flex items-center">Discover Our Story <ArrowRight className="ml-2 h-5 w-5" /></span> </Link> </div> </div>
       </section>
 
       {/* Categories Section */}
       {isLoadingCategories ? ( <section className="section-padding container-wide relative z-[1] bg-background"> <div className="flex justify-center items-center py-10"><Loader2 className="h-10 w-10 animate-spin text-primary" /></div></section>
       ) : categories && categories.length > 0 && (
         <section className="section-padding container-wide relative z-[1] bg-background">
-          <div className="section-padding-inner max-w-7xl mx-auto"> 
+          <div className="section-padding-inner max-w-7xl mx-auto">
             <div className="text-center mb-12"> <LayoutGrid className="h-10 w-10 text-primary mx-auto mb-3" /> <h2 className="text-3xl font-bold tracking-tight text-foreground">Shop by Category</h2> </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8"> {categories.slice(0, 4).map((category) => ( <Link key={category.id} href={`/products?category=${category.slug}`} className="block group"> <Card className="overflow-hidden rounded-xl shadow-lg hover:shadow-2xl transition-all duration-300 ease-in-out transform hover:-translate-y-1 h-full"> <AspectRatio ratio={1/1} className="relative bg-muted"> {category.imageUrl ? ( <Image src={category.imageUrl} alt={category.name || 'Category image'} fill sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw" className="object-cover transition-transform duration-500 group-hover:scale-110" data-ai-hint={category.aiImagePrompt || category.name.toLowerCase()} /> ) : ( <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/10 to-secondary/10"> <LayoutGrid className="w-16 h-16 text-primary/30" /> </div> )} <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent p-4 flex flex-col justify-end"> <h3 className="text-xl md:text-2xl font-bold text-white tracking-tight text-shadow-lg group-hover:text-primary transition-colors"> {category.name} </h3> </div> </AspectRatio> </Card> </Link> ))} </div>
             {categories.length > 4 && ( <div className="text-center mt-12"> <Link href="/categories" className={cn(buttonVariants({ variant: "outline", size: "lg", className: "text-base" }))}> View All Categories <ArrowRight className="ml-2 h-5 w-5" /> </Link> </div> )}
           </div>
         </section>
       )}
+      
+       {/* Social Commerce Section with Test Background Feature */}
+       {!isLoadingContent && (
+        <section 
+          className="section-padding container-wide relative z-[1] bg-muted/30 overflow-hidden"
+          onMouseEnter={() => setIsSocialCommerceHovered(true)}
+          onMouseLeave={() => setIsSocialCommerceHovered(false)}
+        >
+          <div className="section-padding-inner max-w-7xl mx-auto">
+            <div className="text-center mb-12">
+              <Instagram className="h-10 w-10 text-pink-600 mx-auto mb-3" />
+              <h2 className="text-3xl font-bold tracking-tight text-foreground">#PeakPulseStyle on Social</h2>
+              <p className="text-muted-foreground mt-1 max-w-xl mx-auto">
+                Get inspired by our community. Tag us <code className="font-mono bg-primary/10 text-primary px-1.5 py-0.5 rounded-sm text-sm">@peakpulsenp</code> to be featured!
+              </p>
+            </div>
 
-      {/* Social Commerce Section */}
-      {!isLoadingContent && (
-        <section className="section-padding container-wide relative z-[1] bg-muted/30 overflow-hidden" onMouseEnter={() => setIsSocialCommerceHovered(true)} onMouseLeave={() => setIsSocialCommerceHovered(false)}>
-          <div className="section-padding-inner max-w-7xl mx-auto"> 
-            <div className="text-center mb-12"> <Instagram className="h-10 w-10 text-pink-600 mx-auto mb-3" /> <h2 className="text-3xl font-bold tracking-tight text-foreground">#PeakPulseStyle on Social</h2> <p className="text-muted-foreground mt-1 max-w-xl mx-auto"> Get inspired by our community. Tag us <code className="font-mono bg-primary/10 text-primary px-1.5 py-0.5 rounded-sm text-sm">@peakpulsenp</code> to be featured! </p> </div>
-            {activeSocialCommerceItems.length > 0 ? ( <div className="relative"> <div className="overflow-hidden"> <div className="flex transition-transform duration-700 ease-in-out" style={{ transform: `translateX(-${currentSocialCommerceSlide * 100 / (activeSocialCommerceItems.length > 0 ? Math.min(activeSocialCommerceItems.length, 1) : 1)}%)` }} > {activeSocialCommerceItems.map((item, index) => ( <div key={item.id || `scs-slide-${index}`} className="w-full flex-shrink-0 px-2 md:px-4"> <Card className="overflow-hidden rounded-xl shadow-lg group mx-auto max-w-md"> <InteractiveExternalLink href={item.linkUrl} target="_blank" rel="noopener noreferrer" showDialog={siteSettings?.showExternalLinkWarning !== false}> <div className="relative"> <AspectRatio ratio={1/1} className="relative bg-card"> <Image src={item.imageUrl} alt={item.altText || "Peak Pulse style on social media"} fill sizes="(max-width: 640px) 100vw, (max-width: 768px) 80vw, (max-width: 1024px) 50vw, 33vw" className="object-cover" data-ai-hint={item.dataAiHint || "social fashion instagram"} /> </AspectRatio> <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-3"> <Instagram className="h-5 w-5 text-white" /> </div> </div> </InteractiveExternalLink> </Card> </div> ))} </div> </div> {activeSocialCommerceItems.length > 1 && ( <> <Button variant="outline" size="icon" className="absolute left-0 sm:left-4 top-1/2 -translate-y-1/2 z-10 h-10 w-10 rounded-full bg-background/70 hover:bg-background" onClick={prevSocialCommerceSlide} aria-label="Previous social post"> <ChevronLeft className="h-6 w-6" /> </Button> <Button variant="outline" size="icon" className="absolute right-0 sm:right-4 top-1/2 -translate-y-1/2 z-10 h-10 w-10 rounded-full bg-background/70 hover:bg-background" onClick={nextSocialCommerceSlide} aria-label="Next social post"> <ChevronRight className="h-6 w-6" /> </Button> <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 flex space-x-2"> {activeSocialCommerceItems.map((_, index) => ( <button key={`social-dot-${index}`} onClick={() => goToSocialCommerceSlide(index)} className={cn( "h-2 w-2 rounded-full transition-all", currentSocialCommerceSlide === index ? "bg-primary scale-125 w-4" : "bg-muted-foreground/50 hover:bg-primary/70" )} aria-label={`Go to social post ${index + 1}`} /> ))} </div> </> )} </div>
-            ) : ( <p className="text-center text-muted-foreground py-8">No social posts to display at the moment. Add some in the Admin Panel! (Admin &gt; Content &gt; Homepage)</p> )}
+            <div className="flex items-center justify-center gap-2 mb-6">
+              <span className="text-xs text-muted-foreground mr-2">Test Card Background:</span>
+              {testBgColors.map(bgColor => (
+                <TooltipProvider key={bgColor.name} delayDuration={100}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className={cn(
+                          "h-7 w-7 rounded-full border-2 p-0",
+                          socialPostTestBgColor === bgColor.value ? "border-primary ring-2 ring-primary" : "border-border hover:border-primary/70",
+                          bgColor.class
+                        )}
+                        onClick={() => setSocialPostTestBgColor(bgColor.value)}
+                        aria-label={`Set background to ${bgColor.name}`}
+                        style={bgColor.value && bgColor.value !== 'transparent' ? {backgroundColor: bgColor.value} : {}}
+                      >
+                        {socialPostTestBgColor === bgColor.value ? <Check className={cn("h-4 w-4", bgColor.iconColor)} /> : (bgColor.value === null ? <Slash className={cn("h-4 w-4", bgColor.iconColor)} /> : null)}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom"><p>{bgColor.name}</p></TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              ))}
+            </div>
+
+            {activeSocialCommerceItems.length > 0 ? (
+              <div className="relative">
+                <div className="overflow-hidden">
+                  <div className="flex transition-transform duration-700 ease-in-out"
+                       style={{ transform: `translateX(-${currentSocialCommerceSlide * 100 / (activeSocialCommerceItems.length > 0 ? Math.min(activeSocialCommerceItems.length, 1) : 1)}%)` }}
+                  >
+                    {activeSocialCommerceItems.map((item, index) => (
+                      <div key={item.id || `scs-slide-${index}`} className="w-full flex-shrink-0 px-2 md:px-4">
+                        <Card 
+                          className="overflow-hidden rounded-xl shadow-lg group mx-auto max-w-md"
+                          style={{ backgroundColor: socialPostTestBgColor && socialPostTestBgColor !== 'transparent' ? socialPostTestBgColor : undefined }}
+                        >
+                          <InteractiveExternalLink href={item.linkUrl} target="_blank" rel="noopener noreferrer" showDialog={siteSettings?.showExternalLinkWarning !== false}>
+                            <div className="relative">
+                              <AspectRatio ratio={1/1} className="relative bg-card">
+                                <Image src={item.imageUrl} alt={item.altText || "Peak Pulse style on social media"} fill sizes="(max-width: 640px) 100vw, (max-width: 768px) 80vw, (max-width: 1024px) 50vw, 33vw" className="object-cover" data-ai-hint={item.dataAiHint || "social fashion instagram"} />
+                              </AspectRatio>
+                              <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-3">
+                                <Instagram className="h-5 w-5 text-white" />
+                              </div>
+                            </div>
+                          </InteractiveExternalLink>
+                        </Card>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                {activeSocialCommerceItems.length > 1 && (
+                  <>
+                    <Button variant="outline" size="icon" className="absolute left-0 sm:left-4 top-1/2 -translate-y-1/2 z-10 h-10 w-10 rounded-full bg-background/70 hover:bg-background" onClick={prevSocialCommerceSlide} aria-label="Previous social post"> <ChevronLeft className="h-6 w-6" /> </Button>
+                    <Button variant="outline" size="icon" className="absolute right-0 sm:right-4 top-1/2 -translate-y-1/2 z-10 h-10 w-10 rounded-full bg-background/70 hover:bg-background" onClick={nextSocialCommerceSlide} aria-label="Next social post"> <ChevronRight className="h-6 w-6" /> </Button>
+                    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 flex space-x-2">
+                      {activeSocialCommerceItems.map((_, index) => (
+                        <button key={`social-dot-${index}`} onClick={() => goToSocialCommerceSlide(index)} className={cn( "h-2 w-2 rounded-full transition-all", currentSocialCommerceSlide === index ? "bg-primary scale-125 w-4" : "bg-muted-foreground/50 hover:bg-primary/70" )} aria-label={`Go to social post ${index + 1}`} />
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+            ) : (
+              <p className="text-center text-muted-foreground py-8">No social posts to display at the moment. Add some in the Admin Panel! (Admin &gt; Content &gt; Homepage)</p>
+            )}
           </div>
         </section>
       )}
 
+
       {/* Collaborations Section */}
       {isLoadingCollaborations ? ( <section className="section-padding container-wide relative z-[1] bg-background"><div className="flex justify-center items-center py-10"><Loader2 className="h-10 w-10 animate-spin text-primary" /></div></section>
       ): featuredCollaborations.length > 0 && (
-        <section className="section-padding container-wide relative z-[1] bg-background"> 
-          <div className="section-padding-inner max-w-7xl mx-auto"> 
-            <Separator className="my-0 mb-16" /> 
+        <section className="section-padding container-wide relative z-[1] bg-background">
+          <div className="section-padding-inner max-w-7xl mx-auto">
+            <Separator className="my-0 mb-16" />
             <div className="text-center mb-12"> <Handshake className="h-10 w-10 text-primary mx-auto mb-3" /> <h2 className="text-3xl font-bold tracking-tight text-foreground">Featured Collaborations</h2> <p className="text-muted-foreground mt-1 max-w-xl mx-auto">Discover unique artistic visions and creative partnerships.</p> </div> <div className="grid grid-cols-1 md:grid-cols-3 gap-8"> {featuredCollaborations.map(collab => ( <Link key={collab.id} href={`/collaborations/${collab.slug}`} className="block group"> <Card className="overflow-hidden rounded-xl shadow-lg hover:shadow-2xl transition-all duration-300 ease-in-out transform hover:-translate-y-1 h-full flex flex-col"> <AspectRatio ratio={16/10} className="relative bg-card"> {collab.cover_image_url ? ( <Image src={collab.cover_image_url} alt={collab.title || 'Collaboration cover image'} fill sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw" className="object-cover transition-transform duration-500 group-hover:scale-105" data-ai-hint={collab.ai_cover_image_prompt || collab.title.toLowerCase() || 'design art gallery'} /> ) : ( <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-accent/10 to-secondary/10"> <PaletteIcon className="w-16 h-16 text-accent/30" /> </div> )} </AspectRatio> <CardContent className="p-4 flex-grow flex flex-col justify-between"> <div> <h3 className="text-lg font-semibold text-foreground group-hover:text-primary transition-colors mb-1 line-clamp-2">{collab.title}</h3> {collab.artist_name && <p className="text-xs text-muted-foreground mb-1">By: {collab.artist_name}</p>} {collab.collaboration_date && <p className="text-xs text-muted-foreground"> {formatDisplayDate(collab.collaboration_date)}</p>} </div> <span className="text-primary text-sm font-medium mt-2 self-start group-hover:underline">View Gallery &rarr;</span> </CardContent> </Card> </Link> ))} </div> <div className="text-center mt-12"> <Link href="/collaborations" className={cn(buttonVariants({ variant: "outline", size: "lg", className: "text-base" }))}> View All Collaborations <ArrowRight className="ml-2 h-5 w-5" /> </Link> </div>
           </div>
         </section>
@@ -807,13 +897,13 @@ export default function HomePageContent() {
 
       {/* Community Spotlights Section */}
       <section className="bg-card section-padding relative z-[1]">
-        <div className="section-padding-inner max-w-7xl mx-auto"> 
+        <div className="section-padding-inner max-w-7xl mx-auto">
           <div className="text-center mb-12"> <ImagePlayIcon className="h-10 w-10 text-primary mx-auto mb-3" /> <h2 className="text-3xl font-bold tracking-tight text-foreground">Community Spotlights</h2> <p className="text-muted-foreground mt-1 max-w-xl mx-auto">See how others are styling Peak Pulse. Share your look with #PeakPulseStyle!</p> </div>
           {isLoadingUserPosts ? ( <div className="flex justify-center items-center py-10"><Loader2 className="h-10 w-10 animate-spin text-primary" /></div>
-          ) : userPosts.length > 0 ? ( <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 md:gap-8"> {userPosts.slice(0, 4).map(post => { 
+          ) : userPosts.length > 0 ? ( <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 md:gap-8"> {userPosts.slice(0, 4).map(post => {
               const userNameDisplay = post.user_name || 'Anonymous';
-              const userProfileLink = post.user_id ? `/users/${post.user_id}` : '#'; 
-              const hasLiked = user?.id && post.liked_by_user_ids?.includes(user.id); 
+              const userProfileLink = post.user_id ? `/users/${post.user_id}` : '#';
+              const hasLiked = user?.id && post.liked_by_user_ids?.includes(user.id);
               return ( <Card key={post.id} className="overflow-hidden rounded-xl shadow-lg group hover:shadow-2xl transition-shadow cursor-pointer" onClick={() => handleCommunityPostClick(post)}> <AspectRatio ratio={1/1} className="relative bg-muted"> <Image src={post.image_url} alt={post.caption || `Style post by ${userNameDisplay}`} fill sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw" className="object-cover transition-transform duration-500 group-hover:scale-105" data-ai-hint="user fashion style" /> </AspectRatio> <div className="p-3 bg-background/80 backdrop-blur-sm"> <div className="flex items-center space-x-2 mb-1.5"> <Avatar className="h-7 w-7 border-border"> <AvatarImage src={post.user_avatar_url || undefined} alt={userNameDisplay} data-ai-hint="user avatar small"/> <AvatarFallback>{userNameDisplay.charAt(0).toUpperCase()}</AvatarFallback> </Avatar> {post.user_id ? ( <Link href={userProfileLink} className="text-xs font-medium text-foreground hover:text-primary truncate" onClick={(e) => e.stopPropagation()}> {userNameDisplay} </Link> ) : ( <span className="text-xs font-medium text-foreground truncate">{userNameDisplay}</span> )} </div> {post.caption && <p className="text-xs text-muted-foreground line-clamp-2 mb-1.5">{post.caption}</p>} <div className="flex items-center justify-between text-xs text-muted-foreground"> <button onClick={(e) => { e.stopPropagation(); handleLikeToggle(post.id); }} disabled={isLikingPostId === post.id || !isAuthenticated} className={cn( "flex items-center gap-1 hover:text-destructive p-1 -ml-1 rounded-md transition-colors", hasLiked ? "text-destructive" : "text-muted-foreground" )} aria-label={hasLiked ? "Unlike post" : "Like post"} > {isLikingPostId === post.id ? <Loader2 className="h-3.5 w-3.5 animate-spin"/> : <HeartIcon className={cn("h-3.5 w-3.5", hasLiked && "fill-destructive")}/>} <span>{post.like_count || 0}</span> </button> <span>{formatDistanceToNow(new Date(post.created_at), { addSuffix: true, includeSeconds: false })}</span> </div> </div> </Card> ); })} </div>
           ) : ( <p className="text-center text-muted-foreground py-8">No community posts yet. Be the first to share your style!</p> )}
           <div className="text-center mt-12"> <Link href="/community" className={cn(buttonVariants({ variant: "outline", size: "lg", className: "text-base mr-4" }))}> Explore Community </Link> <Link href="/community/create-post" className={cn(buttonVariants({ variant: "default", size: "lg", className: "text-base" }))}> <ImagePlus className="mr-2 h-5 w-5" /> Share Your Style </Link> </div>

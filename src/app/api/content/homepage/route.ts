@@ -10,8 +10,9 @@ const HOMEPAGE_CONFIG_KEY = 'homepageContent';
 const defaultHeroSlideStructure: Omit<HeroSlide, 'id'> = {
   title: "Peak Pulse Collection",
   description: "Experience unique Nepali craftsmanship.",
-  imageUrl: undefined, 
-  videoId: undefined,  
+  imageUrl: undefined,
+  videoId: undefined,
+  videoAutoplay: true, // Default added
   audioUrl: undefined,
   altText: "Hero image",
   dataAiHint: "fashion model style",
@@ -23,7 +24,7 @@ const defaultHeroSlideStructure: Omit<HeroSlide, 'id'> = {
   ctaButtonClassName: undefined,
   duration: 7000,
   displayOrder: 0,
-  filterOverlay: undefined, 
+  filterOverlay: undefined,
   youtubeAuthorName: undefined,
   youtubeAuthorLink: undefined,
 };
@@ -42,6 +43,10 @@ const defaultHomepageContentData: HomepageContent = {
     enabled: false,
     title: "Special Offers",
     maxItems: 3,
+    autoplay: true,
+    delay: 5000,
+    showArrows: true,
+    showDots: true,
   },
 };
 
@@ -94,6 +99,7 @@ export async function GET() {
             description: slideFromDb.description || defaultHeroSlideStructure.description,
             imageUrl: (slideFromDb.imageUrl === null || slideFromDb.imageUrl === '') ? undefined : (slideFromDb.imageUrl || defaultHeroSlideStructure.imageUrl),
             videoId: (slideFromDb.videoId === null || slideFromDb.videoId === '') ? undefined : (slideFromDb.videoId || defaultHeroSlideStructure.videoId),
+            videoAutoplay: slideFromDb.videoAutoplay === undefined ? defaultHeroSlideStructure.videoAutoplay : slideFromDb.videoAutoplay,
             audioUrl: (slideFromDb.audioUrl === null || slideFromDb.audioUrl === '') ? undefined : (slideFromDb.audioUrl || defaultHeroSlideStructure.audioUrl),
             altText: slideFromDb.altText || defaultHeroSlideStructure.altText,
             dataAiHint: slideFromDb.dataAiHint || defaultHeroSlideStructure.dataAiHint,
@@ -107,7 +113,7 @@ export async function GET() {
                         ? Number(slideFromDb.duration)
                         : defaultHeroSlideStructure.duration,
             displayOrder: slideFromDb.displayOrder !== undefined ? Number(slideFromDb.displayOrder) : (index * 10),
-            filterOverlay: slideFromDb.filterOverlay || defaultHeroSlideStructure.filterOverlay, 
+            filterOverlay: slideFromDb.filterOverlay || defaultHeroSlideStructure.filterOverlay,
             youtubeAuthorName: (slideFromDb.youtubeAuthorName === null || slideFromDb.youtubeAuthorName === '') ? undefined : (slideFromDb.youtubeAuthorName || defaultHeroSlideStructure.youtubeAuthorName),
             youtubeAuthorLink: (slideFromDb.youtubeAuthorLink === null || slideFromDb.youtubeAuthorLink === '') ? undefined : (slideFromDb.youtubeAuthorLink || defaultHeroSlideStructure.youtubeAuthorLink),
             _isPromo: slideFromDb._isPromo,
@@ -119,7 +125,7 @@ export async function GET() {
         console.warn(`[API /api/content/homepage GET] dbContent.heroSlides is not an array or missing. Using global default slides.`);
         finalHeroSlides = defaultHomepageContentData.heroSlides!;
       }
-      
+
       const artisanalRootsData = dbContent.artisanalRoots || defaultHomepageContentData.artisanalRoots!;
       const responseData: HomepageContent = {
         heroSlides: finalHeroSlides.length > 0 ? finalHeroSlides : defaultHomepageContentData.heroSlides!,
@@ -141,6 +147,10 @@ export async function GET() {
           enabled: dbContent.promotionalPostsSection?.enabled ?? defaultHomepageContentData.promotionalPostsSection!.enabled,
           title: dbContent.promotionalPostsSection?.title || defaultHomepageContentData.promotionalPostsSection!.title,
           maxItems: dbContent.promotionalPostsSection?.maxItems || defaultHomepageContentData.promotionalPostsSection!.maxItems,
+          autoplay: dbContent.promotionalPostsSection?.autoplay === undefined ? defaultHomepageContentData.promotionalPostsSection!.autoplay : dbContent.promotionalPostsSection.autoplay,
+          delay: dbContent.promotionalPostsSection?.delay || defaultHomepageContentData.promotionalPostsSection!.delay,
+          showArrows: dbContent.promotionalPostsSection?.showArrows === undefined ? defaultHomepageContentData.promotionalPostsSection!.showArrows : dbContent.promotionalPostsSection.showArrows,
+          showDots: dbContent.promotionalPostsSection?.showDots === undefined ? defaultHomepageContentData.promotionalPostsSection!.showDots : dbContent.promotionalPostsSection.showDots,
         }
       };
       console.log(`[API /api/content/homepage GET] Processed. Number of hero slides in response: ${responseData.heroSlides?.length}`);
@@ -159,3 +169,5 @@ export async function GET() {
     }, { status: 500 });
   }
 }
+
+```
