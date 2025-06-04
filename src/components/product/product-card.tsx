@@ -11,7 +11,7 @@ import { AspectRatio } from "@/components/ui/aspect-ratio"
 import { useCart } from '@/context/cart-context';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
-import { cn } from '@/lib/utils'; 
+import { cn } from '@/lib/utils';
 import { useState, useEffect } from 'react';
 
 interface ProductCardProps {
@@ -102,9 +102,9 @@ export function ProductCard({ product, className }: ProductCardProps) {
       <CardFooter className="p-4 bg-card/80 backdrop-blur-sm mt-auto flex-grow flex flex-col justify-between">
         <div className="w-full">
             <Link href={`/products/${product.slug}`} className="hover:text-primary">
-                <h3 className="text-md font-semibold text-foreground truncate mb-1">{product.name}</h3>
+                <h3 className="text-md font-semibold text-foreground truncate mb-1 line-clamp-2">{product.name}</h3>
             </Link>
-            <p className="text-sm text-muted-foreground mb-2 overflow-hidden h-10">
+            <p className="text-sm text-muted-foreground mb-2 overflow-hidden h-10 line-clamp-2">
               {product.shortDescription}
             </p>
         </div>
@@ -115,11 +115,12 @@ export function ProductCard({ product, className }: ProductCardProps) {
                     <span className="ml-2 text-sm text-muted-foreground line-through">रू{product.compareAtPrice.toLocaleString()}</span>
                 )}
             </p>
+            {/* Changed md:inline-flex to lg:inline-flex and md:hidden to lg:hidden */}
             <Button
               variant="outline"
               size="sm"
               onClick={handleAddToCart}
-              className="hidden md:inline-flex opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap"
+              className="hidden lg:inline-flex opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap"
             >
               <ShoppingCart className="mr-2 h-4 w-4" /> Add to Cart
             </Button>
@@ -127,7 +128,7 @@ export function ProductCard({ product, className }: ProductCardProps) {
               variant="default"
               size="icon"
               onClick={handleAddToCart}
-              className="inline-flex md:hidden" 
+              className="inline-flex lg:hidden" 
               aria-label="Add to cart"
             >
               <ShoppingCart className="h-4 w-4" />
