@@ -44,6 +44,10 @@ body {
     --chart-5: 27 87% 67%;
     
     --radius: 0.75rem; /* Slightly larger radius for a softer, modern look */
+
+    /* Subtle text enhancement variables */
+    --subtle-text-shadow-color: rgba(0, 0, 0, 0.08);
+    --subtle-text-definition-color: rgba(0, 0, 0, 0.15);
   }
 
   .dark {
@@ -80,6 +84,10 @@ body {
     --chart-3: 173 58% 49%;
     --chart-4: 43 74% 70%;
     --chart-5: 27 87% 71%;
+
+    /* Subtle text enhancement variables for dark mode */
+    --subtle-text-shadow-color: rgba(0, 0, 0, 0.25);
+    --subtle-text-definition-color: rgba(255, 255, 255, 0.1);
   }
 
   /* Sustainable Theme (Primarily Light) */
@@ -119,6 +127,10 @@ body {
     --chart-5: 30 70% 60%;       /* Deep Ochre */
     
     --radius: 0.75rem;
+
+    /* Subtle text enhancement for sustainable theme */
+    --subtle-text-shadow-color: rgba(55, 71, 79, 0.08); /* Charcoal-based shadow */
+    --subtle-text-definition-color: rgba(55, 71, 79, 0.15); /* Charcoal-based definition */
   }
 
   /* Dark variant of the Sustainable Theme */
@@ -158,6 +170,10 @@ body {
     --chart-5: 30 80% 70%;       /* Light Ochre */
     
     --radius: 0.75rem;
+
+    /* Subtle text enhancement for dark sustainable theme */
+    --subtle-text-shadow-color: rgba(0, 0, 0, 0.25); /* Dark shadow for light text */
+    --subtle-text-definition-color: rgba(241, 248, 233, 0.1); /* Off-white based definition */
   }
 
   /* Kathmandu Street Pulse Theme (Light) - REVISED */
@@ -190,7 +206,6 @@ body {
     --input: 200 18% 90%;         /* Light Ash Gray for input BG (#E1E9EC), to contrast with page BG */
     --ring: 222 100% 58%;         /* Electric Blue */
     
-    /* Chart colors remain as previously defined, using core vibrant colors */
     --chart-1: 222 100% 58%;      /* Electric Blue */
     --chart-2: 27 100% 50%;       /* Fiery Orange */
     --chart-3: 122 39% 49%;      /* Moss Green */
@@ -198,6 +213,10 @@ body {
     --chart-5: 200 18% 60%;       /* Ash Gray variant (#8FA0A8) */
 
     --radius: 0.75rem;
+
+    /* Subtle text enhancement for kathmandu street pulse theme */
+    --subtle-text-shadow-color: rgba(33, 33, 33, 0.08); /* Midnight black based shadow */
+    --subtle-text-definition-color: rgba(33, 33, 33, 0.15); /* Midnight black based definition */
   }
 
   /* Kathmandu Street Pulse Theme (Dark) - REVISED */
@@ -230,7 +249,6 @@ body {
     --input: 0 0% 22%;            /* Dark Gray for input BG (#383838) */
     --ring: 222 100% 68%;         /* Brighter Electric Blue */
     
-    /* Chart colors remain as previously defined */
     --chart-1: 222 100% 68%;      /* Brighter Electric Blue */
     --chart-2: 27 100% 60%;       /* Brighter Fiery Orange */
     --chart-3: 122 39% 59%;      /* Brighter Moss Green */
@@ -238,17 +256,21 @@ body {
     --chart-5: 200 18% 50%;       /* Mid-Dark Ash Gray (#708090 - Slate Gray) */
 
     --radius: 0.75rem;
+
+    /* Subtle text enhancement for dark kathmandu street pulse theme */
+    --subtle-text-shadow-color: rgba(0, 0, 0, 0.25); /* Dark shadow for light text */
+    --subtle-text-definition-color: rgba(217, 224, 227, 0.1); /* Light Ash Gray based definition */
   }
 }
 
 @layer base {
   html {
-    /* Removed scroll-snap-type and scroll-padding-top for normal scrolling */
-    scroll-behavior: smooth; /* Keep smooth scrolling for anchor links etc. */
+    /* scroll-behavior: smooth; Removed as per user request to undo scroll-snap related changes */
   }
   body {
     @apply bg-background text-foreground;
-    scroll-behavior: smooth;
+    /* scroll-behavior: smooth; Removed as per user request */
+    text-shadow: var(--subtle-text-definition-color) 0px 0px 0.3px, var(--subtle-text-shadow-color) 0px 1px 1.5px;
   }
   img, video {
     max-width: 100%;
@@ -260,7 +282,6 @@ body {
   .section-padding {
     @apply pt-8 pb-16 md:pt-12 md:pb-24 lg:pt-16 lg:pb-32;
   }
-  /* Utility for padding inside full-screen sections IF they have fixed height and need internal scroll */
   .section-padding-inner {
     @apply py-12 md:py-16 lg:py-20 px-4 sm:px-6 lg:px-8; 
   }
@@ -271,45 +292,43 @@ body {
     @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
   }
 
-  /* Subtle pulse animation on hover for header links */
   .header-link-pulse:hover {
     animation: subtle-pulse 0.7s ease-in-out;
   }
 
-  /* Hero CTA Button Animations */
   .hero-cta-button {
     position: relative;
-    overflow: hidden; /* Important for the shine effect */
+    overflow: hidden; 
     transition: color 0.3s ease-in-out, transform 0.2s ease-in-out, box-shadow 0.3s ease-in-out;
-    z-index: 1; /* Ensure button is above its own pseudo-elements if not layered correctly by default */
+    z-index: 1; 
   }
 
   .hero-cta-button::before {
     content: "";
     position: absolute;
     top: 0;
-    left: -100%; /* Start off-screen */
+    left: -100%; 
     width: 75%;
     height: 100%;
     background: linear-gradient(
       120deg,
       rgba(255, 255, 255, 0) 0%,
-      rgba(255, 255, 255, 0.25) 50%, /* Base shine opacity */
+      rgba(255, 255, 255, 0.25) 50%, 
       rgba(255, 255, 255, 0) 100%
     );
     transform: skewX(-25deg);
-    transition: left 0.65s cubic-bezier(0.23, 1, 0.32, 1); /* Slower, more elegant shine */
-    z-index: 1; /* Below content, above background */
+    transition: left 0.65s cubic-bezier(0.23, 1, 0.32, 1); 
+    z-index: 1; 
   }
 
   .hero-cta-button:hover::before,
-  .hero-cta-button:focus-visible::before { /* Added focus-visible */
+  .hero-cta-button:focus-visible::before { 
     left: 125%; 
   }
 
   .hero-cta-button .hero-cta-button-content {
     position: relative; 
-    z-index: 2; /* Text and icon above shine */
+    z-index: 2; 
     display: inline-flex; 
     align-items: center;
   }
@@ -319,28 +338,22 @@ body {
   }
 
   .hero-cta-button:hover .hero-cta-icon,
-  .hero-cta-button:focus-visible .hero-cta-icon { /* Added focus-visible */
+  .hero-cta-button:focus-visible .hero-cta-icon { 
     transform: translateX(4px) scale(1.1); 
   }
 
-  /* Adjust shine for different button variants based on their background */
-  /* Primary Button Shine (default theme: dark teal) */
   .hero-cta-button.bg-primary::before {
     background: linear-gradient(120deg, hsla(var(--primary-foreground)/0) 0%, hsla(var(--primary-foreground)/0.2) 50%, hsla(var(--primary-foreground)/0) 100%);
   }
-  /* Secondary Button Shine (default theme: light gray) */
   .hero-cta-button.bg-secondary::before {
     background: linear-gradient(120deg, hsla(var(--secondary-foreground)/0) 0%, hsla(var(--secondary-foreground)/0.15) 50%, hsla(var(--secondary-foreground)/0) 100%);
   }
-   /* Outline Button Shine (default theme: background color (white/dark)) */
   .hero-cta-button.border.bg-background::before {
     background: linear-gradient(120deg, hsla(var(--primary)/0) 0%, hsla(var(--primary)/0.15) 50%, hsla(var(--primary)/0) 100%);
   }
-  /* For dark theme primary (lighter teal) */
   .dark .hero-cta-button.bg-primary::before {
     background: linear-gradient(120deg, hsla(var(--primary-foreground)/0) 0%, hsla(var(--primary-foreground)/0.25) 50%, hsla(var(--primary-foreground)/0) 100%);
   }
-   /* For dark theme secondary (darker gray) */
   .dark .hero-cta-button.bg-secondary::before {
     background: linear-gradient(120deg, hsla(var(--secondary-foreground)/0) 0%, hsla(var(--secondary-foreground)/0.1) 50%, hsla(var(--secondary-foreground)/0) 100%);
   }
@@ -374,13 +387,12 @@ body {
   }
 }
 
-/* Styles for hiding menus on hero scroll */
-body.menus-hidden-on-hero header.sticky.top-0 { /* Targets Header in src/components/layout/header.tsx */
+body.menus-hidden-on-hero header.sticky.top-0 { 
   transform: translateY(-100%);
   opacity: 0;
-  margin-bottom: -5rem; /* Header height (h-20 is 5rem) to pull up next content */
+  margin-bottom: -5rem; 
 }
-body.menus-hidden-on-hero nav.sticky.bottom-0 { /* Targets BottomNavigation in src/components/layout/bottom-navigation.tsx */
+body.menus-hidden-on-hero nav.sticky.bottom-0 { 
   transform: translateY(100%);
   opacity: 0;
 }
@@ -388,4 +400,3 @@ body.menus-hidden-on-hero nav.sticky.bottom-0 { /* Targets BottomNavigation in s
 header.sticky.top-0, nav.sticky.bottom-0 {
   transition: transform 0.3s ease-in-out, opacity 0.3s ease-in-out, margin-bottom 0.3s ease-in-out;
 }
-
