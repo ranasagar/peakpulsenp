@@ -176,53 +176,45 @@ export async function POST(request: NextRequest) {
 
   const dataToStore: HomepageContent = {
     heroSlides: (newDataFromRequest.heroSlides || []).map((slide, index) => ({
-      id: slide.id || `hs-new-${Date.now()}-${index}`,
-      title: slide.title || '',
-      description: slide.description || '',
+      ...defaultHeroSlideStructure, // Ensure all fields from default are present
+      ...slide, // Then overwrite with provided data
+      id: slide.id || `hs-submit-${Date.now()}-${index}`, // Ensure ID
+      videoAutoplay: slide.videoAutoplay === undefined ? defaultHeroSlideStructure.videoAutoplay : slide.videoAutoplay,
       imageUrl: slide.imageUrl?.trim() || undefined,
       videoId: slide.videoId?.trim() || undefined,
-      videoAutoplay: slide.videoAutoplay === undefined ? true : slide.videoAutoplay,
       audioUrl: slide.audioUrl?.trim() || undefined,
-      altText: slide.altText || '',
-      dataAiHint: slide.dataAiHint || '',
-      ctaText: slide.ctaText || '',
-      ctaLink: slide.ctaLink || '',
-      ctaButtonVariant: slide.ctaButtonVariant || 'default',
-      ctaButtonCustomBgColor: slide.ctaButtonCustomBgColor?.trim() || undefined,
-      ctaButtonCustomTextColor: slide.ctaButtonCustomTextColor?.trim() || undefined,
-      ctaButtonClassName: slide.ctaButtonClassName?.trim() || undefined,
       duration: (slide.duration === undefined || slide.duration === null || isNaN(Number(slide.duration)) || Number(slide.duration) < 1000) ? defaultHeroSlideStructure.duration : Number(slide.duration),
       displayOrder: (slide.displayOrder === undefined || slide.displayOrder === null || isNaN(Number(slide.displayOrder))) ? index * 10 : Number(slide.displayOrder),
       filterOverlay: slide.filterOverlay?.trim() || undefined,
       youtubeAuthorName: slide.youtubeAuthorName?.trim() || undefined,
       youtubeAuthorLink: slide.youtubeAuthorLink?.trim() || undefined,
-      _isPromo: slide._isPromo, 
-      _backgroundColor: slide._backgroundColor, 
-      _textColor: slide._textColor, 
+      ctaButtonVariant: slide.ctaButtonVariant || defaultHeroSlideStructure.ctaButtonVariant,
+      ctaButtonCustomBgColor: slide.ctaButtonCustomBgColor?.trim() || undefined,
+      ctaButtonCustomTextColor: slide.ctaButtonCustomTextColor?.trim() || undefined,
+      ctaButtonClassName: slide.ctaButtonClassName?.trim() || undefined,
     })),
     artisanalRoots: {
       title: newDataFromRequest.artisanalRoots?.title || defaultHomepageContentData.artisanalRoots!.title,
       description: newDataFromRequest.artisanalRoots?.description || defaultHomepageContentData.artisanalRoots!.description,
       slides: (newDataFromRequest.artisanalRoots?.slides || []).map((slide, index) => ({
-        id: slide.id || `ars-new-${Date.now()}-${index}`,
-        imageUrl: slide.imageUrl || '',
-        altText: slide.altText || '',
-        dataAiHint: slide.dataAiHint || '',
+        ...defaultArtisanalRootsSlideStructure,
+        ...slide,
+        id: slide.id || `ars-submit-${Date.now()}-${index}`,
       }))
     },
     socialCommerceItems: (newDataFromRequest.socialCommerceItems || [])
       .map((item, index) => ({
-        id: item.id || `scs-new-${Date.now()}-${index}`,
-        imageUrl: item.imageUrl || '',
-        linkUrl: item.linkUrl || '#',
-        altText: item.altText || '',
-        dataAiHint: item.dataAiHint || '',
+        ...defaultSocialCommerceItemStructure,
+        ...item,
+        id: item.id || `scs-submit-${Date.now()}-${index}`,
         displayOrder: (item.displayOrder === undefined || item.displayOrder === null || isNaN(Number(item.displayOrder))) ? index * 10 : Number(item.displayOrder),
       }))
       .sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0)),
     heroVideoId: newDataFromRequest.heroVideoId?.trim() || undefined,
     heroImageUrl: newDataFromRequest.heroImageUrl?.trim() || undefined,
-    promotionalPostsSection: {
+    promotionalPostsSection: { // Ensure full object for promotionalPostsSection
+      ...defaultHomepageContentData.promotionalPostsSection!, // Start with defaults
+      ...(newDataFromRequest.promotionalPostsSection || {}), // Override with provided values
       enabled: newDataFromRequest.promotionalPostsSection?.enabled ?? defaultHomepageContentData.promotionalPostsSection!.enabled,
       title: newDataFromRequest.promotionalPostsSection?.title || defaultHomepageContentData.promotionalPostsSection!.title,
       maxItems: newDataFromRequest.promotionalPostsSection?.maxItems || defaultHomepageContentData.promotionalPostsSection!.maxItems,
