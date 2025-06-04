@@ -18,8 +18,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { UserPostDetailModal } from '@/components/community/user-post-detail-modal';
 import { useAuth } from '@/hooks/use-auth';
 import { Breadcrumbs } from '@/components/navigation/breadcrumbs';
-
-// Metadata export removed as this is a client component
+import { usePathname, useRouter } from 'next/navigation';
 
 async function fetchApprovedUserPosts(): Promise<UserPost[]> {
   const response = await fetch('/api/user-posts?status=approved');
@@ -35,6 +34,8 @@ export default function CommunityPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
+  const pathname = usePathname();
+  const router = useRouter();
 
   const { user: loggedInUser, isAuthenticated, refreshUserProfile } = useAuth();
   const [selectedPostForModal, setSelectedPostForModal] = useState<UserPost | null>(null);
@@ -70,7 +71,7 @@ export default function CommunityPage() {
       toast({
         title: "Login to Interact",
         description: "Please log in to view post details and interact.",
-        action: <Button asChild variant="outline"><Link href="/login?redirect=/community">Login</Link></Button>
+        action: <Button asChild variant="outline" size="sm" onClick={() => router.push(`/login?redirect=${pathname}`)}>Login</Button>
       });
       return;
     }
@@ -79,7 +80,15 @@ export default function CommunityPage() {
   };
 
   const handleLikeToggle = useCallback(async (postId: string) => {
-    if (!isAuthenticated || !loggedInUser?.id) { return; } 
+    if (!isAuthenticated || !loggedInUser?.id) {
+        toast({
+            title: "Login Required",
+            description: "Please log in to like posts.",
+            variant: "default",
+            action: <Button asChild variant="outline" size="sm" onClick={() => router.push(`/login?redirect=${pathname}`)}>Login</Button>
+        });
+        return;
+    }
     setIsLikingPostId(postId);
     const originalPosts = [...posts];
     const postIndex = posts.findIndex(p => p.id === postId);
@@ -111,10 +120,18 @@ export default function CommunityPage() {
     } finally {
       setIsLikingPostId(null);
     }
-  }, [isAuthenticated, loggedInUser, posts, selectedPostForModal, toast]);
+  }, [isAuthenticated, loggedInUser, posts, selectedPostForModal, toast, router, pathname]);
 
   const handleBookmarkToggle = useCallback(async (postId: string) => {
-    if (!isAuthenticated || !loggedInUser?.id) { return; }
+    if (!isAuthenticated || !loggedInUser?.id) {
+        toast({
+            title: "Login Required",
+            description: "Please log in to bookmark posts.",
+            variant: "default",
+            action: <Button asChild variant="outline" size="sm" onClick={() => router.push(`/login?redirect=${pathname}`)}>Login</Button>
+        });
+        return;
+    }
     setIsBookmarkingPostId(postId);
     try {
       const response = await fetch(`/api/user-posts/${postId}/bookmark`, {
@@ -128,7 +145,7 @@ export default function CommunityPage() {
     } finally {
       setIsBookmarkingPostId(null);
     }
-  }, [isAuthenticated, loggedInUser, toast, refreshUserProfile]);
+  }, [isAuthenticated, loggedInUser, toast, refreshUserProfile, router, pathname]);
 
   const handleCommentPosted = useCallback((postId: string, newComment: PostComment) => {
     setPosts(prevPosts => prevPosts.map(p => {
@@ -196,7 +213,7 @@ export default function CommunityPage() {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 md:gap-8">
             {posts.map((post) => {
-                const userNameDisplay = post.user_name || 'Anonymous'; // Directly use user_name from API
+                const userNameDisplay = post.user_name || 'Anonymous'; 
                 const userProfileLink = `/users/${post.user_id}`;
                 const hasLiked = loggedInUser?.id && post.liked_by_user_ids?.includes(loggedInUser.id);
 
@@ -230,7 +247,7 @@ export default function CommunityPage() {
                         <div className="flex items-center justify-between text-xs text-muted-foreground">
                             <button
                                 onClick={(e) => { e.stopPropagation(); handleLikeToggle(post.id); }}
-                                disabled={isLikingPostId === post.id || !isAuthenticated}
+                                disabled={isLikingPostId === post.id}
                                 className={cn(
                                     "flex items-center gap-1 hover:text-destructive p-1 -ml-1 rounded-md transition-colors",
                                     hasLiked ? "text-destructive" : "text-muted-foreground"
@@ -268,5 +285,4 @@ export default function CommunityPage() {
   );
 }
 
-// Added for Next.js App Router to correctly handle dynamic params if any were used (not in this page specifically but good practice for child dynamic pages)
 export const dynamic = 'force-dynamic'; 

@@ -18,6 +18,7 @@ import { UserPostDetailModal } from '@/components/community/user-post-detail-mod
 import { useAuth } from '@/hooks/use-auth'; 
 import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
+import { usePathname, useRouter } from 'next/navigation';
 
 
 interface UserProfilePageProps {
@@ -27,6 +28,8 @@ interface UserProfilePageProps {
 export default function UserProfilePage({ params: paramsPromise }: UserProfilePageProps) {
   const resolvedParams = React.use(paramsPromise);
   const { userId } = resolvedParams; 
+  const pathname = usePathname();
+  const router = useRouter();
 
   const [profile, setProfile] = useState<AuthUserType | null>(null);
   const [userPosts, setUserPosts] = useState<UserPost[]>([]);
@@ -95,7 +98,7 @@ export default function UserProfilePage({ params: paramsPromise }: UserProfilePa
       toast({
         title: "Login to Interact",
         description: "Please log in to view post details and interact.",
-        action: <Button asChild variant="outline"><Link href={`/login?redirect=/users/${userId}`}>Login</Link></Button>
+        action: <Button asChild variant="outline" size="sm" onClick={() => router.push(`/login?redirect=/users/${userId}`)}>Login</Button>
       });
       return;
     }
@@ -104,7 +107,15 @@ export default function UserProfilePage({ params: paramsPromise }: UserProfilePa
   };
 
   const handleLikeToggle = useCallback(async (postId: string) => {
-    if (!isAuthenticated || !loggedInUser?.id) { return; }
+    if (!isAuthenticated || !loggedInUser?.id) {
+        toast({
+            title: "Login Required",
+            description: "Please log in to like posts.",
+            variant: "default",
+            action: <Button asChild variant="outline" size="sm" onClick={() => router.push(`/login?redirect=${pathname}`)}>Login</Button>
+        });
+        return;
+    }
     setIsLikingPostId(postId);
     const originalPosts = [...userPosts];
     const postIndex = userPosts.findIndex(p => p.id === postId);
@@ -136,10 +147,18 @@ export default function UserProfilePage({ params: paramsPromise }: UserProfilePa
     } finally {
       setIsLikingPostId(null);
     }
-  }, [isAuthenticated, loggedInUser, userPosts, selectedPostForModal, toast]);
+  }, [isAuthenticated, loggedInUser, userPosts, selectedPostForModal, toast, router, pathname]);
 
   const handleBookmarkToggle = useCallback(async (postId: string) => {
-    if (!isAuthenticated || !loggedInUser?.id) { return; }
+    if (!isAuthenticated || !loggedInUser?.id) {
+        toast({
+            title: "Login Required",
+            description: "Please log in to bookmark posts.",
+            variant: "default",
+            action: <Button asChild variant="outline" size="sm" onClick={() => router.push(`/login?redirect=${pathname}`)}>Login</Button>
+        });
+        return;
+    }
     setIsBookmarkingPostId(postId);
     try {
       const response = await fetch(`/api/user-posts/${postId}/bookmark`, {
@@ -153,7 +172,7 @@ export default function UserProfilePage({ params: paramsPromise }: UserProfilePa
     } finally {
       setIsBookmarkingPostId(null);
     }
-  }, [isAuthenticated, loggedInUser, toast, refreshUserProfile]);
+  }, [isAuthenticated, loggedInUser, toast, refreshUserProfile, router, pathname]);
 
   const handleCommentPosted = useCallback((postId: string, newComment: any) => { 
     setUserPosts(prevPosts => prevPosts.map(p => {
@@ -200,12 +219,10 @@ export default function UserProfilePage({ params: paramsPromise }: UserProfilePa
     );
   }
 
-  // Determine the name to display for the profile being viewed.
-  // This profile's data comes from `fetchUserProfile`.
   let profileDisplayName = profile.name || 'User';
   const profileIdSnippetPattern = /^[a-zA-Z0-9]{4}\.\.\.[a-zA-Z0-9]{4}$/;
   if (profileIdSnippetPattern.test(profileDisplayName) && profile.email) {
-    profileDisplayName = profile.email.split('@')[0]; // Prefer email prefix over ID snippet
+    profileDisplayName = profile.email.split('@')[0]; 
   }
 
   const breadcrumbs: BreadcrumbItem[] = [
@@ -250,11 +267,7 @@ export default function UserProfilePage({ params: paramsPromise }: UserProfilePa
         ) : userPosts.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 md:gap-8">
             {userPosts.map(post => {
-              // For posts on this user's profile page, the author name should be consistent with `profileDisplayName`
-              let postAuthorName = profileDisplayName; // Use the fetched profile's name as the source of truth here.
-              
-              // If the post.user_name from API is somehow better than the profile's derived name (e.g. API had direct name, profile had fallback)
-              // This check might be redundant if API for user-posts uses similar derivation for its post.user_name
+              let postAuthorName = profileDisplayName; 
               if (post.user_name && !profileIdSnippetPattern.test(post.user_name) && profileIdSnippetPattern.test(postAuthorName)) {
                 postAuthorName = post.user_name;
               }
@@ -284,14 +297,13 @@ export default function UserProfilePage({ params: paramsPromise }: UserProfilePa
                             <AvatarImage src={profile.avatarUrl || undefined} alt={postAuthorName} data-ai-hint="user avatar small"/>
                             <AvatarFallback>{postAuthorName ? postAuthorName.charAt(0).toUpperCase() : 'U'}</AvatarFallback>
                         </Avatar>
-                        {/* Link text uses postAuthorName derived above */}
                         <span className="text-xs font-medium text-foreground truncate">{postAuthorName}</span>
                     </div>
                     {post.caption && <p className="text-xs text-muted-foreground line-clamp-2 mb-1.5">{post.caption}</p>}
                     <div className="flex items-center justify-between text-xs text-muted-foreground">
                       <button
                           onClick={(e) => { e.stopPropagation(); handleLikeToggle(post.id); }}
-                          disabled={isLikingPostId === post.id || !isAuthenticated}
+                          disabled={isLikingPostId === post.id}
                           className={cn(
                               "flex items-center gap-1 hover:text-destructive p-1 -ml-1 rounded-md transition-colors",
                               hasLiked ? "text-destructive" : "text-muted-foreground"
@@ -333,7 +345,4 @@ export default function UserProfilePage({ params: paramsPromise }: UserProfilePa
   );
 }
 
-// Add this to ensure Next.js knows this is a dynamic page that needs params resolved at request time
 export const dynamic = 'force-dynamic';
-
-    

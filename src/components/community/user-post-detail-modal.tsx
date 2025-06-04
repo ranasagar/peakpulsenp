@@ -22,16 +22,17 @@ import { cn } from '@/lib/utils';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
+import { useRouter, usePathname } from 'next/navigation';
 
 interface UserPostDetailModalProps {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
   post: UserPost | null;
   currentUserId?: string | null;
-  currentUser?: User | null; // Pass full current user for posting comments
+  currentUser?: User | null; 
   onLikeToggle: (postId: string) => Promise<void>;
   onBookmarkToggle: (postId: string) => Promise<void>;
-  onCommentPosted: (postId: string, newComment: PostComment) => void; // Callback for optimistic UI update
+  onCommentPosted: (postId: string, newComment: PostComment) => void; 
   isLikingPostId: string | null;
   isBookmarkingPostId: string | null;
 }
@@ -53,6 +54,8 @@ export function UserPostDetailModal({
   const [newCommentText, setNewCommentText] = useState('');
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
   const { toast } = useToast();
+  const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
     const fetchComments = async () => {
@@ -88,9 +91,18 @@ export function UserPostDetailModal({
 
   const handleCommentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newCommentText.trim() || !currentUser?.id || !post.id) {
-      toast({ title: "Cannot Post", description: "Comment cannot be empty or user not identified.", variant: "destructive" });
+    if (!currentUser?.id || !post.id) {
+      toast({ 
+        title: "Login Required", 
+        description: "Please log in to post a comment.", 
+        variant: "default",
+        action: <Button asChild variant="outline" size="sm" onClick={() => router.push(`/login?redirect=${pathname}`)}>Login</Button>
+      });
       return;
+    }
+    if (!newCommentText.trim()) {
+        toast({ title: "Cannot Post", description: "Comment cannot be empty.", variant: "destructive" });
+        return;
     }
     setIsSubmittingComment(true);
     try {
@@ -105,12 +117,11 @@ export function UserPostDetailModal({
       }
       const newCommentData: PostComment = await response.json();
       
-      onCommentPosted(post.id, { // Use the full comment data from server response for optimistic update
+      onCommentPosted(post.id, { 
         ...newCommentData,
         user_name: newCommentData.user_name || currentUser.name || 'You', 
         user_avatar_url: newCommentData.user_avatar_url || currentUser.avatarUrl,
       });
-      // Also update local state with the same enriched data
       setComments(prev => [...prev, {
         ...newCommentData,
         user_name: newCommentData.user_name || currentUser.name || 'You',
@@ -128,7 +139,7 @@ export function UserPostDetailModal({
   };
 
   const handleShare = async () => {
-    const shareUrl = `${window.location.origin}/community#post-${post.id}`; // Link to community page, could scroll to post
+    const shareUrl = `${window.location.origin}/community#post-${post.id}`; 
     const shareTitle = `Check out this style: ${post.user_name}'s look on Peak Pulse`;
     const shareText = post.caption || shareTitle;
 
@@ -293,6 +304,3 @@ export function UserPostDetailModal({
     </Dialog>
   );
 }
-
-
-    
