@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Save, Youtube, Image as ImageIconLucide, PlusCircle, Trash2, Package, Tv, BookOpen, ExternalLink, ListCollapse, Sprout, Palette as PaletteIcon, ImagePlay, Percent, Clock, Music, ArrowUpDown, User as UserIcon, Filter, Brush, Play } from 'lucide-react'; // Added Play
+import { Loader2, Save, Youtube, Image as ImageIconLucide, PlusCircle, Trash2, Package, Tv, BookOpen, ExternalLink, ListCollapse, Sprout, Palette as PaletteIcon, ImagePlay, Percent, Clock, Music, ArrowUpDown, User as UserIcon, Filter, Brush, Play } from 'lucide-react';
 import type { HomepageContent, HeroSlide, SocialCommerceItem, ArtisanalRootsSlide } from '@/types';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -24,7 +24,7 @@ const heroSlideSchema = z.object({
   videoId: z.string().optional().refine(val => !val || /^[a-zA-Z0-9_-]{11}$/.test(val), {
     message: "Must be a valid YouTube Video ID (11 characters) or empty.",
   }).or(z.literal('')),
-  videoAutoplay: z.boolean().default(true).optional(), // Added field
+  videoAutoplay: z.boolean().default(true).optional(),
   imageUrl: z.string().url({ message: "Must be a valid URL or empty." }).optional().or(z.literal('')),
   audioUrl: z.string().url({ message: "Must be a valid URL or empty." }).optional().or(z.literal('')),
   altText: z.string().optional().or(z.literal('')),
@@ -101,7 +101,7 @@ const defaultSocialCommerceItem: Omit<SocialCommerceItem, 'id'> = {
 };
 
 const defaultHomepageFormValues: HomepageContentFormValues = {
-  heroSlides: [],
+  heroSlides: [{...defaultHeroSlide, id: `hs-initial-${Date.now()}`}], // Start with one default slide for the form
   artisanalRootsTitle: 'Our Artisanal Roots',
   artisanalRootsDescription: 'Discover the heritage and craftsmanship woven into every Peak Pulse piece.',
   artisanalRootsSlides: [],
@@ -149,14 +149,14 @@ export default function AdminHomepageContentPage() {
       }
       const data: HomepageContent = await response.json();
       form.reset({
-        heroSlides: (data.heroSlides || []).map((slide, index) => ({
+        heroSlides: (data.heroSlides && data.heroSlides.length > 0 ? data.heroSlides : defaultHomepageFormValues.heroSlides!).map((slide, index) => ({
             ...defaultHeroSlide,
             ...slide,
             id: slide.id || `hs-loaded-${Date.now()}-${Math.random()}`,
-            videoAutoplay: slide.videoAutoplay === undefined ? true : slide.videoAutoplay, // Default to true if undefined
+            videoAutoplay: slide.videoAutoplay === undefined ? true : slide.videoAutoplay,
             audioUrl: slide.audioUrl || '',
-            duration: slide.duration === undefined ? null : slide.duration,
-            displayOrder: slide.displayOrder === undefined ? index * 10 : slide.displayOrder,
+            duration: slide.duration === undefined || slide.duration === null ? defaultHeroSlide.duration : Number(slide.duration),
+            displayOrder: slide.displayOrder === undefined ? index * 10 : Number(slide.displayOrder),
             filterOverlay: slide.filterOverlay || '',
             youtubeAuthorName: slide.youtubeAuthorName || '',
             youtubeAuthorLink: slide.youtubeAuthorLink || '',
@@ -174,7 +174,7 @@ export default function AdminHomepageContentPage() {
         promotionalPostsSection: { ...defaultHomepageFormValues.promotionalPostsSection, ...data.promotionalPostsSection },
       });
     } catch (error) {
-      toast({ title: "Error Loading Content", description: (error as Error).message, variant: "destructive" });
+      toast({ title: "Error Loading Content", description: (error as Error).message + ". Displaying default form structure.", variant: "destructive" });
       form.reset(defaultHomepageFormValues);
     } finally {
       setIsLoading(false);
@@ -192,19 +192,19 @@ export default function AdminHomepageContentPage() {
         heroSlides: (data.heroSlides || []).map(slide => ({
           ...slide,
           id: slide.id || `hs-submit-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
-          videoId: slide.videoId || undefined,
+          videoId: slide.videoId?.trim() || undefined,
           videoAutoplay: slide.videoAutoplay === undefined ? true : slide.videoAutoplay,
-          imageUrl: slide.imageUrl || undefined,
-          audioUrl: slide.audioUrl || undefined,
-          duration: slide.duration === null || slide.duration === undefined || Number(slide.duration) < 1000 ? defaultHeroSlide.duration : Number(slide.duration),
+          imageUrl: slide.imageUrl?.trim() || undefined,
+          audioUrl: slide.audioUrl?.trim() || undefined,
+          duration: (slide.duration === null || slide.duration === undefined || isNaN(Number(slide.duration)) || Number(slide.duration) < 1000) ? defaultHeroSlide.duration : Number(slide.duration),
           displayOrder: Number(slide.displayOrder) || 0,
-          filterOverlay: slide.filterOverlay || undefined,
-          youtubeAuthorName: slide.youtubeAuthorName || undefined,
-          youtubeAuthorLink: slide.youtubeAuthorLink || undefined,
+          filterOverlay: slide.filterOverlay?.trim() || undefined,
+          youtubeAuthorName: slide.youtubeAuthorName?.trim() || undefined,
+          youtubeAuthorLink: slide.youtubeAuthorLink?.trim() || undefined,
           ctaButtonVariant: slide.ctaButtonVariant || undefined,
-          ctaButtonCustomBgColor: slide.ctaButtonCustomBgColor || undefined,
-          ctaButtonCustomTextColor: slide.ctaButtonCustomTextColor || undefined,
-          ctaButtonClassName: slide.ctaButtonClassName || undefined,
+          ctaButtonCustomBgColor: slide.ctaButtonCustomBgColor?.trim() || undefined,
+          ctaButtonCustomTextColor: slide.ctaButtonCustomTextColor?.trim() || undefined,
+          ctaButtonClassName: slide.ctaButtonClassName?.trim() || undefined,
         })),
         artisanalRoots: {
           title: data.artisanalRootsTitle || '',
@@ -221,8 +221,8 @@ export default function AdminHomepageContentPage() {
             displayOrder: Number(item.displayOrder) || 0,
           }))
           .sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0)),
-        heroVideoId: data.heroVideoId || undefined,
-        heroImageUrl: data.heroImageUrl || undefined,
+        heroVideoId: data.heroVideoId?.trim() || undefined,
+        heroImageUrl: data.heroImageUrl?.trim() || undefined,
         promotionalPostsSection: {
           enabled: data.promotionalPostsSection?.enabled || false,
           title: data.promotionalPostsSection?.title || 'Special Offers',
@@ -253,7 +253,7 @@ export default function AdminHomepageContentPage() {
         throw new Error(errorDetail);
       }
       toast({ title: "Content Saved!", description: "Homepage content has been updated successfully." });
-      fetchContent();
+      fetchContent(); // Re-fetch to ensure form has latest data from DB (e.g., new IDs)
     } catch (error) {
       toast({ title: "Save Failed", description: (error as Error).message, variant: "destructive" });
     } finally {
@@ -571,7 +571,7 @@ export default function AdminHomepageContentPage() {
                   )}
                 />
                 {form.watch('promotionalPostsSection.enabled') && (
-                  <div className="space-y-4 pl-4 border-l-2 border-primary/30">
+                  <div className="space-y-4 pl-4 border-l-2 border-primary/30 ml-2">
                     <FormField control={form.control} name="promotionalPostsSection.title" render={({ field }) => (
                       <FormItem><FormLabel>Section Title</FormLabel><FormControl><Input {...field} placeholder="e.g., Current Promotions" value={field.value || ''} /></FormControl><FormMessage /></FormItem>
                     )} />
@@ -608,3 +608,4 @@ export default function AdminHomepageContentPage() {
     </Card>
   );
 }
+

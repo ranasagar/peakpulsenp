@@ -12,7 +12,7 @@ const defaultHeroSlideStructure: Omit<HeroSlide, 'id'> = {
   description: "Discover the latest arrivals.",
   imageUrl: undefined,
   videoId: undefined,
-  videoAutoplay: true, // Default added
+  videoAutoplay: true,
   audioUrl: undefined,
   altText: "Hero image",
   dataAiHint: "fashion background",
@@ -38,10 +38,10 @@ const defaultSocialCommerceItemStructure: Omit<SocialCommerceItem, 'id'> = {
 };
 
 const defaultHomepageContentData: HomepageContent = {
-  heroSlides: [{ ...defaultHeroSlideStructure, id: `hs-default-${Date.now()}` }],
+  heroSlides: [{ ...defaultHeroSlideStructure, id: `hs-default-api-${Date.now()}` }],
   artisanalRoots: {
-    title: "Our Artisanal Roots (Default)",
-    description: "Default description about heritage and craftsmanship.",
+    title: "Our Artisanal Roots (Default API)",
+    description: "Default description about heritage and craftsmanship from API.",
     slides: [],
   },
   socialCommerceItems: [],
@@ -94,12 +94,12 @@ export async function GET() {
       const artisanalRootsData = dbContent.artisanalRoots || defaultHomepageContentData.artisanalRoots!;
 
       const responseData: HomepageContent = {
-        heroSlides: (Array.isArray(dbContent.heroSlides) ? dbContent.heroSlides : defaultHomepageContentData.heroSlides!).map(
+        heroSlides: (Array.isArray(dbContent.heroSlides) && dbContent.heroSlides.length > 0 ? dbContent.heroSlides : defaultHomepageContentData.heroSlides!).map(
           (slide: Partial<HeroSlide>, index: number) => ({
             ...defaultHeroSlideStructure, ...slide, id: slide.id || `hs-db-${Date.now()}-${index}`,
             videoAutoplay: slide.videoAutoplay === undefined ? defaultHeroSlideStructure.videoAutoplay : slide.videoAutoplay,
             audioUrl: slide.audioUrl || undefined,
-            duration: slide.duration === undefined ? null : Number(slide.duration) || defaultHeroSlideStructure.duration,
+            duration: (slide.duration === undefined || slide.duration === null || isNaN(Number(slide.duration)) || Number(slide.duration) < 1000) ? defaultHeroSlideStructure.duration : Number(slide.duration),
             displayOrder: slide.displayOrder === undefined ? index * 10 : Number(slide.displayOrder) || 0,
             filterOverlay: slide.filterOverlay || undefined,
             youtubeAuthorName: slide.youtubeAuthorName || undefined,
@@ -121,7 +121,8 @@ export async function GET() {
         },
         socialCommerceItems: (Array.isArray(dbContent.socialCommerceItems) ? dbContent.socialCommerceItems : defaultHomepageContentData.socialCommerceItems || [])
           .map((item: Partial<SocialCommerceItem>, index: number) => ({
-            ...defaultSocialCommerceItemStructure, ...item, id: item.id || `scs-db-${Date.now()}-${index}`
+            ...defaultSocialCommerceItemStructure, ...item, id: item.id || `scs-db-${Date.now()}-${index}`,
+            displayOrder: item.displayOrder === undefined ? index * 10 : Number(item.displayOrder || 0)
           }))
           .sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0)),
         heroVideoId: dbContent.heroVideoId === null ? undefined : (dbContent.heroVideoId || defaultHomepageContentData.heroVideoId),
@@ -175,45 +176,52 @@ export async function POST(request: NextRequest) {
 
   const dataToStore: HomepageContent = {
     heroSlides: (newDataFromRequest.heroSlides || []).map((slide, index) => ({
-      ...slide,
       id: slide.id || `hs-new-${Date.now()}-${index}`,
       title: slide.title || '',
       description: slide.description || '',
-      imageUrl: slide.imageUrl || undefined,
-      videoId: slide.videoId || undefined,
+      imageUrl: slide.imageUrl?.trim() || undefined,
+      videoId: slide.videoId?.trim() || undefined,
       videoAutoplay: slide.videoAutoplay === undefined ? true : slide.videoAutoplay,
-      audioUrl: slide.audioUrl || undefined,
+      audioUrl: slide.audioUrl?.trim() || undefined,
       altText: slide.altText || '',
       dataAiHint: slide.dataAiHint || '',
       ctaText: slide.ctaText || '',
       ctaLink: slide.ctaLink || '',
-      ctaButtonVariant: slide.ctaButtonVariant || undefined,
-      ctaButtonCustomBgColor: slide.ctaButtonCustomBgColor || undefined,
-      ctaButtonCustomTextColor: slide.ctaButtonCustomTextColor || undefined,
-      ctaButtonClassName: slide.ctaButtonClassName || undefined,
-      duration: slide.duration === undefined || slide.duration === null || Number(slide.duration) < 1000 ? defaultHeroSlideStructure.duration : Number(slide.duration),
-      displayOrder: slide.displayOrder === undefined ? index * 10 : Number(slide.displayOrder) || 0,
-      filterOverlay: slide.filterOverlay || undefined,
-      youtubeAuthorName: slide.youtubeAuthorName || undefined,
-      youtubeAuthorLink: slide.youtubeAuthorLink || undefined,
+      ctaButtonVariant: slide.ctaButtonVariant || 'default',
+      ctaButtonCustomBgColor: slide.ctaButtonCustomBgColor?.trim() || undefined,
+      ctaButtonCustomTextColor: slide.ctaButtonCustomTextColor?.trim() || undefined,
+      ctaButtonClassName: slide.ctaButtonClassName?.trim() || undefined,
+      duration: (slide.duration === undefined || slide.duration === null || isNaN(Number(slide.duration)) || Number(slide.duration) < 1000) ? defaultHeroSlideStructure.duration : Number(slide.duration),
+      displayOrder: (slide.displayOrder === undefined || slide.displayOrder === null || isNaN(Number(slide.displayOrder))) ? index * 10 : Number(slide.displayOrder),
+      filterOverlay: slide.filterOverlay?.trim() || undefined,
+      youtubeAuthorName: slide.youtubeAuthorName?.trim() || undefined,
+      youtubeAuthorLink: slide.youtubeAuthorLink?.trim() || undefined,
+      _isPromo: slide._isPromo, 
+      _backgroundColor: slide._backgroundColor, 
+      _textColor: slide._textColor, 
     })),
     artisanalRoots: {
       title: newDataFromRequest.artisanalRoots?.title || defaultHomepageContentData.artisanalRoots!.title,
       description: newDataFromRequest.artisanalRoots?.description || defaultHomepageContentData.artisanalRoots!.description,
       slides: (newDataFromRequest.artisanalRoots?.slides || []).map((slide, index) => ({
-        ...slide,
         id: slide.id || `ars-new-${Date.now()}-${index}`,
+        imageUrl: slide.imageUrl || '',
+        altText: slide.altText || '',
+        dataAiHint: slide.dataAiHint || '',
       }))
     },
     socialCommerceItems: (newDataFromRequest.socialCommerceItems || [])
       .map((item, index) => ({
-        ...item,
         id: item.id || `scs-new-${Date.now()}-${index}`,
-        displayOrder: Number(item.displayOrder) || 0,
+        imageUrl: item.imageUrl || '',
+        linkUrl: item.linkUrl || '#',
+        altText: item.altText || '',
+        dataAiHint: item.dataAiHint || '',
+        displayOrder: (item.displayOrder === undefined || item.displayOrder === null || isNaN(Number(item.displayOrder))) ? index * 10 : Number(item.displayOrder),
       }))
       .sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0)),
-    heroVideoId: newDataFromRequest.heroVideoId || undefined,
-    heroImageUrl: newDataFromRequest.heroImageUrl || undefined,
+    heroVideoId: newDataFromRequest.heroVideoId?.trim() || undefined,
+    heroImageUrl: newDataFromRequest.heroImageUrl?.trim() || undefined,
     promotionalPostsSection: {
       enabled: newDataFromRequest.promotionalPostsSection?.enabled ?? defaultHomepageContentData.promotionalPostsSection!.enabled,
       title: newDataFromRequest.promotionalPostsSection?.title || defaultHomepageContentData.promotionalPostsSection!.title,
@@ -274,4 +282,3 @@ export async function POST(request: NextRequest) {
   }
 }
 
-```
