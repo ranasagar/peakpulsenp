@@ -19,12 +19,14 @@ import { Icons } from '@/components/icons';
 import { useAuth } from '@/hooks/use-auth';
 import { cn } from '@/lib/utils';
 import type { NavItem, SiteSettings } from '@/types';
-import { ShoppingCart, Search, LogOut, UserCircle, LayoutDashboard, Settings, Star, ShoppingBag as ShoppingBagIcon, Briefcase, LayoutGrid, Home as HomeIcon, BookOpenText, Mail, Handshake, Users, Image as ImageIconLucide, Loader2 } from 'lucide-react';
+import { ShoppingCart, Search, LogOut, UserCircle, LayoutDashboard, Settings, Star, ShoppingBag as ShoppingBagIcon, Briefcase, LayoutGrid, Home as HomeIcon, BookOpenText, Mail, Handshake, Users, Image as ImageIconLucide, Loader2, Timer, TimerOff } from 'lucide-react'; // Added Timer, TimerOff
 import { ModeToggle } from './mode-toggle';
 import { FullscreenToggleButton } from '@/components/ui/fullscreen-toggle-button';
 import { useCart } from '@/context/cart-context';
 import Image from 'next/image';
-import { ScrollArea } from '@/components/ui/scroll-area'; // Added ScrollArea import
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { useAutoHideMenu } from '@/hooks/use-auto-hide-menu'; // Added
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"; // Added for new button
 
 // These are used for the mobile Sheet menu and User Dropdown
 const mainNavItems: NavItem[] = [
@@ -52,6 +54,7 @@ export function Header() { // Still named Header, but acts as TopBar
   const [mounted, setMounted] = useState(false);
   const [siteSettings, setSiteSettings] = useState<SiteSettings | null>(null);
   const [isLoadingSettings, setIsLoadingSettings] = useState(true);
+  const { isAutoHideEnabled, toggleAutoHideEnabled, areMenusHiddenActually } = useAutoHideMenu(); // Consuming the hook
 
   useEffect(() => setMounted(true), []);
 
@@ -132,7 +135,10 @@ export function Header() { // Still named Header, but acts as TopBar
   );
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-border/60 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+    <header className={cn(
+        "sticky top-0 z-50 w-full border-b border-border/60 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60",
+        isAutoHideEnabled && areMenusHiddenActually && 'menu-auto-hidden-top' // Apply auto-hide class
+      )}>
       <div className="container-wide flex h-20 items-center justify-between">
         <div className="flex items-center">
           <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
@@ -236,6 +242,20 @@ export function Header() { // Still named Header, but acts as TopBar
             </Link>
           </Button>
           
+          {mounted && (
+            <TooltipProvider delayDuration={100}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" onClick={toggleAutoHideEnabled} aria-label={isAutoHideEnabled ? 'Disable Auto-hide Menus' : 'Enable Auto-hide Menus'}>
+                    {isAutoHideEnabled ? <TimerOff className="h-5 w-5" /> : <Timer className="h-5 w-5" />}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  <p>{isAutoHideEnabled ? 'Disable Auto-hide Menus' : 'Enable Auto-hide Menus'}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
           {mounted && <FullscreenToggleButton />}
           {mounted && <ModeToggle />}
 

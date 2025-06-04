@@ -265,11 +265,11 @@ body {
 
 @layer base {
   html {
-    /* scroll-behavior: smooth; Removed as per user request to undo scroll-snap related changes */
+    /* scroll-behavior: smooth; Removed */
   }
   body {
     @apply bg-background text-foreground;
-    /* scroll-behavior: smooth; Removed as per user request */
+    /* scroll-behavior: smooth; Removed */
     text-shadow: var(--subtle-text-definition-color) 0px 0px 0.3px, var(--subtle-text-shadow-color) 0px 1px 1.5px;
   }
   img, video {
@@ -400,3 +400,25 @@ body.menus-hidden-on-hero nav.sticky.bottom-0 {
 header.sticky.top-0, nav.sticky.bottom-0 {
   transition: transform 0.3s ease-in-out, opacity 0.3s ease-in-out, margin-bottom 0.3s ease-in-out;
 }
+
+/* Auto-hide menu styles */
+.menu-auto-hidden-top {
+  transform: translateY(-100%) !important; /* Use !important to ensure override if needed */
+  opacity: 0.5 !important; 
+  pointer-events: none !important;
+  transition: transform 0.4s ease-in-out, opacity 0.4s ease-in-out !important;
+}
+
+.menu-auto-hidden-bottom {
+  transform: translateY(100%) !important;
+  opacity: 0.5 !important;
+  pointer-events: none !important;
+  transition: transform 0.4s ease-in-out, opacity 0.4s ease-in-out !important;
+}
+
+/* Ensure the header and bottom nav, when auto-hidden, can still receive pointer events on their trigger area if desired
+   For now, pointer-events: none will hide them fully. This might need adjustment if hover-to-reveal is wanted. */
+
+/* If menus-hidden-on-hero is also active, the auto-hide should still take precedence if it's hiding them */
+/* The !important flags help ensure the auto-hide styles are applied when areMenusHiddenActually is true */
+

@@ -8,6 +8,7 @@ import { AuthProvider } from '@/hooks/use-auth';
 import { ThemeProvider } from '@/components/layout/theme-provider';
 import { CartProvider } from '@/context/cart-context';
 import { SocialMessagingWidget } from '@/components/social/social-messaging-widget';
+import { AutoHideMenuProvider } from '@/hooks/use-auto-hide-menu'; // Added import
 import Script from 'next/script';
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:9003';
@@ -132,9 +133,11 @@ export default function RootLayout({
         >
           <AuthProvider>
             <CartProvider>
-              {children}
-              <Toaster />
-              <SocialMessagingWidget />
+              <AutoHideMenuProvider> {/* Added AutoHideMenuProvider */}
+                {children}
+                <Toaster />
+                <SocialMessagingWidget />
+              </AutoHideMenuProvider>
             </CartProvider>
           </AuthProvider>
         </ThemeProvider>
