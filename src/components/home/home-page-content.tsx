@@ -6,7 +6,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Icons } from '@/components/icons';
-import { ChevronLeft, ChevronRight, ShoppingBag, ArrowRight, Instagram, Send, Users, ImagePlus, Loader2, LayoutGrid, Palette as PaletteIcon, Handshake, Sprout, ImagePlay as ImagePlayIcon, Heart as HeartIcon, Clock, Music, Volume2, VolumeX, Youtube as YoutubeIcon, Timer, TimerOff } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ShoppingBag, ArrowRight, Instagram, Send, Users, ImagePlus, Loader2, LayoutGrid, Palette as PaletteIcon, Handshake, Sprout, ImagePlay as ImagePlayIcon, Heart as HeartIcon, Clock, Music, Volume2, VolumeX, Youtube as YoutubeIcon, Timer, TimerOff, Brush } from 'lucide-react';
 import { NewsletterSignupForm } from '@/components/forms/newsletter-signup-form';
 import type { HomepageContent, Product, HeroSlide, AdminCategory as CategoryType, DesignCollaborationGallery, ArtisanalRootsSlide, SocialCommerceItem, PromotionalPost, UserPost, PostComment, SiteSettings } from '@/types';
 import { useToast } from '@/hooks/use-toast';
@@ -41,6 +41,10 @@ const fallbackHeroSlide: HeroSlide = {
   dataAiHint: "fashion model fallback",
   ctaText: "Explore Collections",
   ctaLink: "/products",
+  ctaButtonVariant: 'default',
+  ctaButtonCustomBgColor: undefined,
+  ctaButtonCustomTextColor: undefined,
+  ctaButtonClassName: undefined,
   videoId: undefined,
   audioUrl: undefined,
   duration: 7000,
@@ -102,6 +106,10 @@ async function getHomepageContent(): Promise<HomepageContent> {
             imageUrl: (slide.imageUrl && slide.imageUrl.trim() !== "") ? slide.imageUrl.trim() : undefined,
             videoId: (slide.videoId && slide.videoId.trim() !== "") ? slide.videoId.trim() : undefined,
             audioUrl: (slide.audioUrl && slide.audioUrl.trim() !== "") ? slide.audioUrl.trim() : undefined,
+            ctaButtonVariant: slide.ctaButtonVariant || fallbackHeroSlide.ctaButtonVariant,
+            ctaButtonCustomBgColor: slide.ctaButtonCustomBgColor || fallbackHeroSlide.ctaButtonCustomBgColor,
+            ctaButtonCustomTextColor: slide.ctaButtonCustomTextColor || fallbackHeroSlide.ctaButtonCustomTextColor,
+            ctaButtonClassName: slide.ctaButtonClassName || fallbackHeroSlide.ctaButtonClassName,
             duration: slide.duration === undefined || slide.duration === null || Number(slide.duration) < 1000 ? fallbackHeroSlide.duration : Number(slide.duration),
             displayOrder: slide.displayOrder === undefined ? index * 10 : Number(slide.displayOrder || 0),
             filterOverlay: slide.filterOverlay || undefined, 
@@ -270,8 +278,8 @@ export default function HomePageContent() {
       fetch('/api/products')
         .then(res => res.ok ? res.json() : Promise.reject('Failed to fetch products'))
         .then((allProducts: Product[]) => {
-          const featured = allProducts.filter(p => p.isFeatured); // Get all featured
-          setFeaturedProducts(featured); // Store all, slicing will be done based on screen size
+          const featured = allProducts.filter(p => p.isFeatured); 
+          setFeaturedProducts(featured); 
         })
         .catch(err => toast({ title: "Error Loading Featured Products", description: (err as Error).message, variant: "destructive" }))
         .finally(() => setIsLoadingFeaturedProducts(false));
@@ -305,7 +313,7 @@ export default function HomePageContent() {
   
   useEffect(() => {
     if (siteSettings && !isLoadingSiteSettings) {
-        const globalAutoplay = siteSettings.heroVideoAutoplay !== false; // Default to true if undefined
+        const globalAutoplay = siteSettings.heroVideoAutoplay !== false; 
         setIsHeroPlaying(globalAutoplay); 
         setIsInitialSlideIntervalPaused(!globalAutoplay); 
         setInitialAutoplayConditionsMet(true); 
@@ -314,15 +322,15 @@ export default function HomePageContent() {
 
    useEffect(() => {
     const handleResize = () => {
-      if (window.innerWidth < 768) { // sm
+      if (window.innerWidth < 640) { // Tailwind 'sm' breakpoint
         setNumFeaturedToShow(2);
-      } else if (window.innerWidth < 1024) { // md
+      } else if (window.innerWidth < 768) { // Tailwind 'md' breakpoint
         setNumFeaturedToShow(3);
       } else { // lg and up
         setNumFeaturedToShow(4);
       }
     };
-    handleResize(); // Set initial value
+    handleResize(); 
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
@@ -340,6 +348,10 @@ export default function HomePageContent() {
             filterOverlay: undefined, 
             youtubeAuthorName: undefined, youtubeAuthorLink: undefined, _isPromo: true,
             _backgroundColor: promo.backgroundColor, _textColor: promo.textColor,
+             ctaButtonVariant: 'default', // Ensure these new fields have defaults if not provided by promo post type
+             ctaButtonCustomBgColor: undefined,
+             ctaButtonCustomTextColor: undefined,
+             ctaButtonClassName: undefined,
           }))
       : [];
     const slides = [...sortedBaseSlides, ...sortedAdaptedPromoSlides];
@@ -678,8 +690,12 @@ export default function HomePageContent() {
             const showVideoAttribution = isCurrent && !slide.imageUrl && slide.videoId && slide.youtubeAuthorName && slide.youtubeAuthorLink;
             const slideTextColor = slide._isPromo && slide._textColor ? slide._textColor : 'text-white';
             const slideDescriptionColor = slide._isPromo && slide._textColor ? slide._textColor : 'text-neutral-200';
-            const slideButtonVariant = slide._isPromo ? "secondary" : "default";
+            
+            const buttonStyle: React.CSSProperties = {};
+            if (slide.ctaButtonCustomBgColor) buttonStyle.backgroundColor = slide.ctaButtonCustomBgColor;
+            if (slide.ctaButtonCustomTextColor) buttonStyle.color = slide.ctaButtonCustomTextColor;
 
+            const buttonVariant = slide.ctaButtonVariant || (slide._isPromo ? "secondary" : "default");
 
             return (
               <div key={slide.id || `hero-content-${index}`} className={cn("absolute inset-0 transition-opacity duration-1000 ease-in-out", isCurrent ? "opacity-100" : "opacity-0 pointer-events-none")} style={{ pointerEvents: isCurrent ? 'auto' : 'none' }}>
@@ -690,13 +706,15 @@ export default function HomePageContent() {
                        <Link 
                         href={slide.ctaLink} 
                         className={cn(
-                          buttonVariants({ variant: slideButtonVariant, size: "lg", className: "text-base md:text-lg py-3 px-8" }),
-                          "hero-cta-button" // Added custom class for new styles
+                          buttonVariants({ variant: buttonVariant, size: "lg", className: "text-base md:text-lg py-3 px-8" }),
+                          "hero-cta-button", 
+                          slide.ctaButtonClassName 
                         )}
+                        style={buttonStyle}
                       >
-                        <span className="hero-cta-button-content"> {/* Inner span for content */}
+                        <span className="hero-cta-button-content"> 
                           {slide.ctaText} 
-                          <ShoppingBag className="ml-2 h-5 w-5 hero-cta-icon" /> {/* Class for icon */}
+                          <ShoppingBag className="ml-2 h-5 w-5 hero-cta-icon" /> 
                         </span>
                       </Link> 
                     )}
@@ -738,7 +756,7 @@ export default function HomePageContent() {
 
       {/* Featured Collection Section */}
       <section className="section-padding container-wide relative z-[1] bg-background">
-        <div className="section-padding-inner max-w-7xl mx-auto"> {/* Added max-width */}
+        <div className="section-padding-inner max-w-7xl mx-auto"> 
           <h2 className="text-3xl font-bold tracking-tight text-center mb-12 text-foreground">Featured Collection</h2>
           {isLoadingFeaturedProducts ? ( <div className="flex justify-center items-center py-10"> <Loader2 className="h-10 w-10 animate-spin text-primary" /> </div>
           ) : featuredProducts.length > 0 ? ( <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8"> {featuredProducts.slice(0, numFeaturedToShow).map(product => ( <ProductCard key={product.id} product={product} /> ))} </div>
@@ -757,7 +775,7 @@ export default function HomePageContent() {
       {isLoadingCategories ? ( <section className="section-padding container-wide relative z-[1] bg-background"> <div className="flex justify-center items-center py-10"><Loader2 className="h-10 w-10 animate-spin text-primary" /></div></section>
       ) : categories && categories.length > 0 && (
         <section className="section-padding container-wide relative z-[1] bg-background">
-          <div className="section-padding-inner max-w-7xl mx-auto"> {/* Added max-width */}
+          <div className="section-padding-inner max-w-7xl mx-auto"> 
             <div className="text-center mb-12"> <LayoutGrid className="h-10 w-10 text-primary mx-auto mb-3" /> <h2 className="text-3xl font-bold tracking-tight text-foreground">Shop by Category</h2> </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8"> {categories.slice(0, 4).map((category) => ( <Link key={category.id} href={`/products?category=${category.slug}`} className="block group"> <Card className="overflow-hidden rounded-xl shadow-lg hover:shadow-2xl transition-all duration-300 ease-in-out transform hover:-translate-y-1 h-full"> <AspectRatio ratio={1/1} className="relative bg-muted"> {category.imageUrl ? ( <Image src={category.imageUrl} alt={category.name || 'Category image'} fill sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw" className="object-cover transition-transform duration-500 group-hover:scale-110" data-ai-hint={category.aiImagePrompt || category.name.toLowerCase()} /> ) : ( <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/10 to-secondary/10"> <LayoutGrid className="w-16 h-16 text-primary/30" /> </div> )} <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent p-4 flex flex-col justify-end"> <h3 className="text-xl md:text-2xl font-bold text-white tracking-tight text-shadow-lg group-hover:text-primary transition-colors"> {category.name} </h3> </div> </AspectRatio> </Card> </Link> ))} </div>
             {categories.length > 4 && ( <div className="text-center mt-12"> <Link href="/categories" className={cn(buttonVariants({ variant: "outline", size: "lg", className: "text-base" }))}> View All Categories <ArrowRight className="ml-2 h-5 w-5" /> </Link> </div> )}
@@ -768,7 +786,7 @@ export default function HomePageContent() {
       {/* Social Commerce Section */}
       {!isLoadingContent && (
         <section className="section-padding container-wide relative z-[1] bg-muted/30 overflow-hidden" onMouseEnter={() => setIsSocialCommerceHovered(true)} onMouseLeave={() => setIsSocialCommerceHovered(false)}>
-          <div className="section-padding-inner max-w-7xl mx-auto"> {/* Added max-width */}
+          <div className="section-padding-inner max-w-7xl mx-auto"> 
             <div className="text-center mb-12"> <Instagram className="h-10 w-10 text-pink-600 mx-auto mb-3" /> <h2 className="text-3xl font-bold tracking-tight text-foreground">#PeakPulseStyle on Social</h2> <p className="text-muted-foreground mt-1 max-w-xl mx-auto"> Get inspired by our community. Tag us <code className="font-mono bg-primary/10 text-primary px-1.5 py-0.5 rounded-sm text-sm">@peakpulsenp</code> to be featured! </p> </div>
             {activeSocialCommerceItems.length > 0 ? ( <div className="relative"> <div className="overflow-hidden"> <div className="flex transition-transform duration-700 ease-in-out" style={{ transform: `translateX(-${currentSocialCommerceSlide * 100 / (activeSocialCommerceItems.length > 0 ? Math.min(activeSocialCommerceItems.length, 1) : 1)}%)` }} > {activeSocialCommerceItems.map((item, index) => ( <div key={item.id || `scs-slide-${index}`} className="w-full flex-shrink-0 px-2 md:px-4"> <Card className="overflow-hidden rounded-xl shadow-lg group mx-auto max-w-md"> <InteractiveExternalLink href={item.linkUrl} target="_blank" rel="noopener noreferrer" showDialog={siteSettings?.showExternalLinkWarning !== false}> <div className="relative"> <AspectRatio ratio={1/1} className="relative bg-card"> <Image src={item.imageUrl} alt={item.altText || "Peak Pulse style on social media"} fill sizes="(max-width: 640px) 100vw, (max-width: 768px) 80vw, (max-width: 1024px) 50vw, 33vw" className="object-cover" data-ai-hint={item.dataAiHint || "social fashion instagram"} /> </AspectRatio> <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-3"> <Instagram className="h-5 w-5 text-white" /> </div> </div> </InteractiveExternalLink> </Card> </div> ))} </div> </div> {activeSocialCommerceItems.length > 1 && ( <> <Button variant="outline" size="icon" className="absolute left-0 sm:left-4 top-1/2 -translate-y-1/2 z-10 h-10 w-10 rounded-full bg-background/70 hover:bg-background" onClick={prevSocialCommerceSlide} aria-label="Previous social post"> <ChevronLeft className="h-6 w-6" /> </Button> <Button variant="outline" size="icon" className="absolute right-0 sm:right-4 top-1/2 -translate-y-1/2 z-10 h-10 w-10 rounded-full bg-background/70 hover:bg-background" onClick={nextSocialCommerceSlide} aria-label="Next social post"> <ChevronRight className="h-6 w-6" /> </Button> <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 flex space-x-2"> {activeSocialCommerceItems.map((_, index) => ( <button key={`social-dot-${index}`} onClick={() => goToSocialCommerceSlide(index)} className={cn( "h-2 w-2 rounded-full transition-all", currentSocialCommerceSlide === index ? "bg-primary scale-125 w-4" : "bg-muted-foreground/50 hover:bg-primary/70" )} aria-label={`Go to social post ${index + 1}`} /> ))} </div> </> )} </div>
             ) : ( <p className="text-center text-muted-foreground py-8">No social posts to display at the moment. Add some in the Admin Panel! (Admin &gt; Content &gt; Homepage)</p> )}
@@ -780,7 +798,7 @@ export default function HomePageContent() {
       {isLoadingCollaborations ? ( <section className="section-padding container-wide relative z-[1] bg-background"><div className="flex justify-center items-center py-10"><Loader2 className="h-10 w-10 animate-spin text-primary" /></div></section>
       ): featuredCollaborations.length > 0 && (
         <section className="section-padding container-wide relative z-[1] bg-background"> 
-          <div className="section-padding-inner max-w-7xl mx-auto"> {/* Added max-width */}
+          <div className="section-padding-inner max-w-7xl mx-auto"> 
             <Separator className="my-0 mb-16" /> 
             <div className="text-center mb-12"> <Handshake className="h-10 w-10 text-primary mx-auto mb-3" /> <h2 className="text-3xl font-bold tracking-tight text-foreground">Featured Collaborations</h2> <p className="text-muted-foreground mt-1 max-w-xl mx-auto">Discover unique artistic visions and creative partnerships.</p> </div> <div className="grid grid-cols-1 md:grid-cols-3 gap-8"> {featuredCollaborations.map(collab => ( <Link key={collab.id} href={`/collaborations/${collab.slug}`} className="block group"> <Card className="overflow-hidden rounded-xl shadow-lg hover:shadow-2xl transition-all duration-300 ease-in-out transform hover:-translate-y-1 h-full flex flex-col"> <AspectRatio ratio={16/10} className="relative bg-card"> {collab.cover_image_url ? ( <Image src={collab.cover_image_url} alt={collab.title || 'Collaboration cover image'} fill sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw" className="object-cover transition-transform duration-500 group-hover:scale-105" data-ai-hint={collab.ai_cover_image_prompt || collab.title.toLowerCase() || 'design art gallery'} /> ) : ( <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-accent/10 to-secondary/10"> <PaletteIcon className="w-16 h-16 text-accent/30" /> </div> )} </AspectRatio> <CardContent className="p-4 flex-grow flex flex-col justify-between"> <div> <h3 className="text-lg font-semibold text-foreground group-hover:text-primary transition-colors mb-1 line-clamp-2">{collab.title}</h3> {collab.artist_name && <p className="text-xs text-muted-foreground mb-1">By: {collab.artist_name}</p>} {collab.collaboration_date && <p className="text-xs text-muted-foreground"> {formatDisplayDate(collab.collaboration_date)}</p>} </div> <span className="text-primary text-sm font-medium mt-2 self-start group-hover:underline">View Gallery &rarr;</span> </CardContent> </Card> </Link> ))} </div> <div className="text-center mt-12"> <Link href="/collaborations" className={cn(buttonVariants({ variant: "outline", size: "lg", className: "text-base" }))}> View All Collaborations <ArrowRight className="ml-2 h-5 w-5" /> </Link> </div>
           </div>
@@ -789,7 +807,7 @@ export default function HomePageContent() {
 
       {/* Community Spotlights Section */}
       <section className="bg-card section-padding relative z-[1]">
-        <div className="section-padding-inner max-w-7xl mx-auto"> {/* Added max-width */}
+        <div className="section-padding-inner max-w-7xl mx-auto"> 
           <div className="text-center mb-12"> <ImagePlayIcon className="h-10 w-10 text-primary mx-auto mb-3" /> <h2 className="text-3xl font-bold tracking-tight text-foreground">Community Spotlights</h2> <p className="text-muted-foreground mt-1 max-w-xl mx-auto">See how others are styling Peak Pulse. Share your look with #PeakPulseStyle!</p> </div>
           {isLoadingUserPosts ? ( <div className="flex justify-center items-center py-10"><Loader2 className="h-10 w-10 animate-spin text-primary" /></div>
           ) : userPosts.length > 0 ? ( <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 md:gap-8"> {userPosts.slice(0, 4).map(post => { 
@@ -806,4 +824,3 @@ export default function HomePageContent() {
     </>
   );
 }
-

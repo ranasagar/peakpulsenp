@@ -17,9 +17,13 @@ const defaultHeroSlideStructure: Omit<HeroSlide, 'id'> = {
   dataAiHint: "fashion model style",
   ctaText: "Shop Now",
   ctaLink: "/products",
+  ctaButtonVariant: "default",
+  ctaButtonCustomBgColor: undefined,
+  ctaButtonCustomTextColor: undefined,
+  ctaButtonClassName: undefined,
   duration: 7000,
   displayOrder: 0,
-  filterOverlay: undefined, // Added default
+  filterOverlay: undefined, 
   youtubeAuthorName: undefined,
   youtubeAuthorLink: undefined,
 };
@@ -95,11 +99,15 @@ export async function GET() {
             dataAiHint: slideFromDb.dataAiHint || defaultHeroSlideStructure.dataAiHint,
             ctaText: slideFromDb.ctaText || defaultHeroSlideStructure.ctaText,
             ctaLink: slideFromDb.ctaLink || defaultHeroSlideStructure.ctaLink,
+            ctaButtonVariant: slideFromDb.ctaButtonVariant || defaultHeroSlideStructure.ctaButtonVariant,
+            ctaButtonCustomBgColor: slideFromDb.ctaButtonCustomBgColor || defaultHeroSlideStructure.ctaButtonCustomBgColor,
+            ctaButtonCustomTextColor: slideFromDb.ctaButtonCustomTextColor || defaultHeroSlideStructure.ctaButtonCustomTextColor,
+            ctaButtonClassName: slideFromDb.ctaButtonClassName || defaultHeroSlideStructure.ctaButtonClassName,
             duration: (slideFromDb.duration !== undefined && slideFromDb.duration !== null && Number(slideFromDb.duration) >= 1000)
                         ? Number(slideFromDb.duration)
                         : defaultHeroSlideStructure.duration,
             displayOrder: slideFromDb.displayOrder !== undefined ? Number(slideFromDb.displayOrder) : (index * 10),
-            filterOverlay: slideFromDb.filterOverlay || defaultHeroSlideStructure.filterOverlay, // Process filterOverlay
+            filterOverlay: slideFromDb.filterOverlay || defaultHeroSlideStructure.filterOverlay, 
             youtubeAuthorName: (slideFromDb.youtubeAuthorName === null || slideFromDb.youtubeAuthorName === '') ? undefined : (slideFromDb.youtubeAuthorName || defaultHeroSlideStructure.youtubeAuthorName),
             youtubeAuthorLink: (slideFromDb.youtubeAuthorLink === null || slideFromDb.youtubeAuthorLink === '') ? undefined : (slideFromDb.youtubeAuthorLink || defaultHeroSlideStructure.youtubeAuthorLink),
             _isPromo: slideFromDb._isPromo,

@@ -11,10 +11,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Save, Youtube, Image as ImageIconLucide, PlusCircle, Trash2, Package, Tv, BookOpen, ExternalLink, ListCollapse, Sprout, Palette as PaletteIcon, ImagePlay, Percent, Clock, Music, ArrowUpDown, User as UserIcon, Filter } from 'lucide-react';
+import { Loader2, Save, Youtube, Image as ImageIconLucide, PlusCircle, Trash2, Package, Tv, BookOpen, ExternalLink, ListCollapse, Sprout, Palette as PaletteIcon, ImagePlay, Percent, Clock, Music, ArrowUpDown, User as UserIcon, Filter, Brush } from 'lucide-react';
 import type { HomepageContent, HeroSlide, SocialCommerceItem, ArtisanalRootsSlide } from '@/types';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const heroSlideSchema = z.object({
   id: z.string().optional(),
@@ -31,6 +32,10 @@ const heroSlideSchema = z.object({
   ctaLink: z.string().optional().refine(val => !val || val.startsWith('/') || val.startsWith('http') || val.startsWith('#'), {
     message: "CTA link must be a relative path (e.g., /products), an anchor (#id), or a full URL."
   }).or(z.literal('')),
+  ctaButtonVariant: z.enum(['default', 'destructive', 'outline', 'secondary', 'ghost', 'link']).optional(),
+  ctaButtonCustomBgColor: z.string().optional().or(z.literal('')),
+  ctaButtonCustomTextColor: z.string().optional().or(z.literal('')),
+  ctaButtonClassName: z.string().optional().or(z.literal('')),
   duration: z.coerce.number().int().min(0, "Duration must be a positive number or 0 for default.").optional().nullable(),
   displayOrder: z.coerce.number().int().optional().default(0),
   filterOverlay: z.string().optional().refine(val => !val || /^(rgba?\((\d{1,3}),\s*(\d{1,3}),\s*(\d{1,3})(,\s*(0|1|0?\.\d+))?\)|hsla?\((\d{1,3}),\s*(\d{1,3})%,\s*(\d{1,3})%(,\s*(0|1|0?\.\d+))?\)|#[0-9a-fA-F]{3,8})$/.test(val), {
@@ -79,7 +84,9 @@ const homepageContentSchema = z.object({
 type HomepageContentFormValues = z.infer<typeof homepageContentSchema>;
 
 const defaultHeroSlide: Omit<HeroSlide, 'id'> = {
-  title: 'New Slide Title', description: 'Compelling description for the new slide.', videoId: '', imageUrl: '', audioUrl: '', altText: 'Hero slide image', dataAiHint: 'fashion background', ctaText: 'Shop Now', ctaLink: '/products', duration: 7000, displayOrder: 0, filterOverlay: '', youtubeAuthorName: '', youtubeAuthorLink: ''
+  title: 'New Slide Title', description: 'Compelling description for the new slide.', videoId: '', imageUrl: '', audioUrl: '', altText: 'Hero slide image', dataAiHint: 'fashion background', ctaText: 'Shop Now', ctaLink: '/products',
+  ctaButtonVariant: 'default', ctaButtonCustomBgColor: '', ctaButtonCustomTextColor: '', ctaButtonClassName: '',
+  duration: 7000, displayOrder: 0, filterOverlay: '', youtubeAuthorName: '', youtubeAuthorLink: ''
 };
 const defaultArtisanalRootsSlide: Omit<ArtisanalRootsSlide, 'id'> = {
   imageUrl: '', altText: 'Artisanal background slide', dataAiHint: 'craft culture texture'
@@ -143,6 +150,10 @@ export default function AdminHomepageContentPage() {
             filterOverlay: slide.filterOverlay || '',
             youtubeAuthorName: slide.youtubeAuthorName || '',
             youtubeAuthorLink: slide.youtubeAuthorLink || '',
+            ctaButtonVariant: slide.ctaButtonVariant || 'default',
+            ctaButtonCustomBgColor: slide.ctaButtonCustomBgColor || '',
+            ctaButtonCustomTextColor: slide.ctaButtonCustomTextColor || '',
+            ctaButtonClassName: slide.ctaButtonClassName || '',
         })),
         artisanalRootsTitle: data.artisanalRoots?.title || defaultHomepageFormValues.artisanalRootsTitle,
         artisanalRootsDescription: data.artisanalRoots?.description || defaultHomepageFormValues.artisanalRootsDescription,
@@ -179,6 +190,10 @@ export default function AdminHomepageContentPage() {
           filterOverlay: slide.filterOverlay || undefined,
           youtubeAuthorName: slide.youtubeAuthorName || undefined,
           youtubeAuthorLink: slide.youtubeAuthorLink || undefined,
+          ctaButtonVariant: slide.ctaButtonVariant || undefined,
+          ctaButtonCustomBgColor: slide.ctaButtonCustomBgColor || undefined,
+          ctaButtonCustomTextColor: slide.ctaButtonCustomTextColor || undefined,
+          ctaButtonClassName: slide.ctaButtonClassName || undefined,
         })),
         artisanalRoots: {
           title: data.artisanalRootsTitle || '',
@@ -242,6 +257,8 @@ export default function AdminHomepageContentPage() {
       </Card>
     );
   }
+
+  const buttonVariantOptions: HeroSlide['ctaButtonVariant'][] = ['default', 'destructive', 'outline', 'secondary', 'ghost', 'link'];
 
   return (
     <Card className="flex flex-col h-full">
@@ -341,6 +358,39 @@ export default function AdminHomepageContentPage() {
                         <FormField control={form.control} name={`heroSlides.${index}.ctaLink`} render={({ field }) => (
                           <FormItem><FormLabel>CTA Button Link</FormLabel><FormControl><Input {...field} placeholder="/products or https://example.com" value={field.value || ''} /></FormControl><FormMessage /></FormItem>
                         )} />
+                        {/* CTA Button Styling Fields */}
+                        <Card className="p-3 mt-3 bg-background/70">
+                          <FormLabel className="text-sm font-medium block mb-2 flex items-center"><Brush className="mr-2 h-4 w-4 text-muted-foreground"/>CTA Button Styling (Optional)</FormLabel>
+                          <div className="space-y-3">
+                            <FormField
+                              control={form.control}
+                              name={`heroSlides.${index}.ctaButtonVariant`}
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel className="text-xs">Button Variant</FormLabel>
+                                  <Select onValueChange={field.onChange} value={field.value || 'default'}>
+                                    <FormControl><SelectTrigger><SelectValue placeholder="Select variant" /></SelectTrigger></FormControl>
+                                    <SelectContent>
+                                      {buttonVariantOptions.map(variant => (
+                                        <SelectItem key={variant} value={variant}>{variant.charAt(0).toUpperCase() + variant.slice(1)}</SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            <FormField control={form.control} name={`heroSlides.${index}.ctaButtonCustomBgColor`} render={({ field }) => (
+                              <FormItem><FormLabel className="text-xs">Custom Background Color</FormLabel><FormControl><Input {...field} placeholder="#RRGGBB or rgba(...)" value={field.value || ''} /></FormControl><FormMessage /></FormItem>
+                            )} />
+                            <FormField control={form.control} name={`heroSlides.${index}.ctaButtonCustomTextColor`} render={({ field }) => (
+                              <FormItem><FormLabel className="text-xs">Custom Text Color</FormLabel><FormControl><Input {...field} placeholder="#RRGGBB" value={field.value || ''} /></FormControl><FormMessage /></FormItem>
+                            )} />
+                            <FormField control={form.control} name={`heroSlides.${index}.ctaButtonClassName`} render={({ field }) => (
+                              <FormItem><FormLabel className="text-xs">Additional CSS Classes</FormLabel><FormControl><Input {...field} placeholder="e.g., font-bold tracking-wide" value={field.value || ''} /></FormControl><FormMessage /></FormItem>
+                            )} />
+                          </div>
+                        </Card>
                         <FormField control={form.control} name={`heroSlides.${index}.duration`} render={({ field }) => (
                           <FormItem>
                             <FormLabel className="flex items-center"><Clock className="mr-2 h-4 w-4 text-muted-foreground"/> Slide Duration (ms)</FormLabel>

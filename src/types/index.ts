@@ -227,14 +227,18 @@ export interface HeroSlide {
   dataAiHint?: string;
   ctaText?: string;
   ctaLink?: string;
+  ctaButtonVariant?: 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost' | 'link';
+  ctaButtonCustomBgColor?: string;
+  ctaButtonCustomTextColor?: string;
+  ctaButtonClassName?: string;
   duration?: number;
   displayOrder?: number;
-  filterOverlay?: string; // Added field for CSS color overlay
+  filterOverlay?: string;
   youtubeAuthorName?: string;
   youtubeAuthorLink?: string;
-  _isPromo?: boolean;
-  _backgroundColor?: string;
-  _textColor?: string;
+  _isPromo?: boolean; // Internal flag, not for admin UI direct edit
+  _backgroundColor?: string; // Internal, derived from promo post
+  _textColor?: string; // Internal, derived from promo post
 }
 
 export interface SocialCommerceItem {
@@ -329,7 +333,7 @@ export interface SiteSettings {
   facebookUsernameOrPageId?: string;
   headerLogoUrl?: string;
   headerSiteTitle?: string;
-  heroVideoAutoplay?: boolean; // Added for hero autoplay control
+  heroVideoAutoplay?: boolean;
 }
 
 export interface PageContent {
@@ -457,6 +461,7 @@ export interface PromotionalPost {
   textColor?: string;
   createdAt?: string;
   updatedAt?: string;
+  sku?: string;
 }
 
 export interface UserPost {

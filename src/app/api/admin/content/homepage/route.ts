@@ -17,9 +17,13 @@ const defaultHeroSlideStructure: Omit<HeroSlide, 'id'> = {
   dataAiHint: "fashion background",
   ctaText: "Shop Now",
   ctaLink: "/products",
+  ctaButtonVariant: "default",
+  ctaButtonCustomBgColor: undefined,
+  ctaButtonCustomTextColor: undefined,
+  ctaButtonClassName: undefined,
   duration: 7000, 
   displayOrder: 0,
-  filterOverlay: undefined, // Added default
+  filterOverlay: undefined, 
   youtubeAuthorName: undefined,
   youtubeAuthorLink: undefined,
 };
@@ -91,9 +95,13 @@ export async function GET() {
             audioUrl: slide.audioUrl || undefined, 
             duration: slide.duration === undefined ? defaultHeroSlideStructure.duration : Number(slide.duration) || defaultHeroSlideStructure.duration,
             displayOrder: slide.displayOrder === undefined ? index * 10 : Number(slide.displayOrder) || 0,
-            filterOverlay: slide.filterOverlay || undefined, // Ensure filterOverlay is processed
+            filterOverlay: slide.filterOverlay || undefined, 
             youtubeAuthorName: slide.youtubeAuthorName || undefined,
             youtubeAuthorLink: slide.youtubeAuthorLink || undefined,
+            ctaButtonVariant: slide.ctaButtonVariant || defaultHeroSlideStructure.ctaButtonVariant,
+            ctaButtonCustomBgColor: slide.ctaButtonCustomBgColor || defaultHeroSlideStructure.ctaButtonCustomBgColor,
+            ctaButtonCustomTextColor: slide.ctaButtonCustomTextColor || defaultHeroSlideStructure.ctaButtonCustomTextColor,
+            ctaButtonClassName: slide.ctaButtonClassName || defaultHeroSlideStructure.ctaButtonClassName,
           })
         ),
         artisanalRoots: {
@@ -167,9 +175,13 @@ export async function POST(request: NextRequest) {
       dataAiHint: slide.dataAiHint || '',
       ctaText: slide.ctaText || '',
       ctaLink: slide.ctaLink || '',
+      ctaButtonVariant: slide.ctaButtonVariant || undefined,
+      ctaButtonCustomBgColor: slide.ctaButtonCustomBgColor || undefined,
+      ctaButtonCustomTextColor: slide.ctaButtonCustomTextColor || undefined,
+      ctaButtonClassName: slide.ctaButtonClassName || undefined,
       duration: slide.duration === undefined || slide.duration === null || Number(slide.duration) < 1000 ? defaultHeroSlideStructure.duration : Number(slide.duration),
       displayOrder: slide.displayOrder === undefined ? index * 10 : Number(slide.displayOrder) || 0,
-      filterOverlay: slide.filterOverlay || undefined, // Save filterOverlay
+      filterOverlay: slide.filterOverlay || undefined, 
       youtubeAuthorName: slide.youtubeAuthorName || undefined,
       youtubeAuthorLink: slide.youtubeAuthorLink || undefined,
     })),
