@@ -192,8 +192,8 @@ export interface Loan {
   start_date: string;
   status: string;
   notes?: string;
-  createdAt?: string;
-  updatedAt?: string;
+  createdAt?: string; // ISO string
+  updatedAt?: string; // ISO string
 }
 
 export interface NavItem {
@@ -329,6 +329,7 @@ export interface SiteSettings {
   facebookUsernameOrPageId?: string;
   headerLogoUrl?: string;
   headerSiteTitle?: string;
+  heroVideoAutoplay?: boolean; // Added for hero autoplay control
 }
 
 export interface PageContent {
@@ -475,6 +476,20 @@ export interface UserPost {
   updated_at: string;
 }
 
+export interface StoryContentPiece {
+  id: string;
+  title: string;
+  slug: string;
+  content_html?: string;
+  cover_image_url?: string;
+  ai_cover_image_hint?: string;
+  author_name?: string;
+  is_published?: boolean;
+  published_at?: string; // ISO string
+  created_at: string; // ISO string
+  updated_at: string; // ISO string
+}
+
 export interface PostComment {
   id: string;
   post_id: string;
@@ -580,4 +595,20 @@ interface Robots {
   nosnippet?: boolean;
   noimageindex?: boolean;
   googleBot?: Record<string, any>; // For more specific Googlebot directives
+}
+
+export interface PaymentGatewaySetting {
+  gateway_key: string; // e.g., 'esewa_wallet', 'stripe_international'
+  display_name: string;
+  description?: string;
+  icon_name?: string; // For mapping to Lucide icon name
+  is_enabled: boolean;
+  is_domestic_only?: boolean;
+  is_international_only?: boolean;
+  credentials_config?: Record<string, any>; // Placeholder for API keys, secrets, etc.
+  environment?: 'test' | 'production';
+  notes?: string;
+  display_order?: number;
+  createdAt?: string;
+  updatedAt?: string;
 }

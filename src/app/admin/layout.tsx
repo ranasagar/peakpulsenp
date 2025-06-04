@@ -3,7 +3,7 @@
 "use client"; 
 
 import Link from 'next/link';
-import { Shield, LayoutDashboard, Settings, ArrowLeft, BookOpenText, ShoppingBag, BarChart3, ListOrdered, Landmark, Tags, Users, ListChecks, FileText, Package as PackageIcon, Home as HomeIcon, PenSquare, DollarSign, FileSpreadsheet, MessageSquare, Palette, ImageIcon as ImageIconLucide, Printer, Percent, ImagePlay } from 'lucide-react'; // Added Percent, ImagePlay
+import { Shield, LayoutDashboard, Settings, ArrowLeft, BookOpenText, ShoppingBag, BarChart3, ListOrdered, Landmark, Tags, Users, ListChecks, FileText, Package as PackageIcon, Home as HomeIcon, PenSquare, DollarSign, FileSpreadsheet, MessageSquare, Palette, ImageIcon as ImageIconLucide, Printer, Percent, ImagePlay, CreditCard } from 'lucide-react'; // Added CreditCard
 import { Header } from '@/components/layout/header'; 
 import { Footer } from '@/components/layout/footer';
 import { Button } from '@/components/ui/button';
@@ -76,7 +76,7 @@ export default function AdminLayout({
                   </Link>
                 </Button>
                 
-                <Accordion type="multiple" defaultValue={['store-management', 'content-management']} className="w-full">
+                <Accordion type="multiple" defaultValue={['store-management', 'content-management', 'settings-group']} className="w-full">
                   <AccordionItem value="store-management" className="border-b-0">
                     <AccordionTrigger className="py-2 px-3 hover:bg-accent hover:text-accent-foreground rounded-md text-sm font-medium hover:no-underline [&[data-state=open]>svg]:text-primary">
                       <div className="flex items-center">
@@ -114,6 +114,9 @@ export default function AdminLayout({
                       </Button>
                        <Button variant="ghost" className="w-full justify-start text-sm font-normal h-9 pl-2 pr-3 py-2" asChild>
                         <Link href="/admin/content/promotional-posts"><Percent className="mr-2 h-4 w-4" />Promotional Posts</Link>
+                      </Button>
+                       <Button variant="ghost" className="w-full justify-start text-sm font-normal h-9 pl-2 pr-3 py-2" asChild>
+                        <Link href="/admin/content/threads-of-nepal"><BookOpenText className="mr-2 h-4 w-4" />Threads of Nepal</Link>
                       </Button>
                       <Button variant="ghost" className="w-full justify-start text-sm font-normal h-9 pl-2 pr-3 py-2" asChild>
                         <Link href="/admin/content/user-posts"><ImagePlay className="mr-2 h-4 w-4" />User Posts</Link>
@@ -161,16 +164,30 @@ export default function AdminLayout({
                         </Button>
                     </AccordionContent>
                   </AccordionItem>
+
+                   <AccordionItem value="settings-group" className="border-b-0">
+                    <AccordionTrigger className="py-2 px-3 hover:bg-accent hover:text-accent-foreground rounded-md text-sm font-medium hover:no-underline [&[data-state=open]>svg]:text-primary">
+                      <div className="flex items-center">
+                        <Settings className="mr-2 h-4 w-4" /> Settings
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent className="pt-1 pl-4 space-y-0.5">
+                       <Button variant="ghost" className="w-full justify-start text-sm font-normal h-9 pl-2 pr-3 py-2" asChild>
+                        <Link href="/admin/settings"><Settings className="mr-2 h-4 w-4" />General Settings</Link>
+                       </Button>
+                       <Button variant="ghost" className="w-full justify-start text-sm font-normal h-9 pl-2 pr-3 py-2" asChild>
+                        <Link href="/admin/settings/payment-gateways"><CreditCard className="mr-2 h-4 w-4" />Payment Gateways</Link>
+                       </Button>
+                        <Button variant="ghost" className="w-full justify-start text-sm font-normal h-9 pl-2 pr-3 py-2" asChild>
+                          <Link href="/admin/users"><Users className="mr-2 h-4 w-4" /> Manage Users</Link>
+                        </Button>
+                    </AccordionContent>
+                  </AccordionItem>
                 </Accordion>
 
                 <Button variant="ghost" className="w-full justify-start pl-2 pr-3 py-2" asChild>
                   <Link href="/admin/analytics">
                     <BarChart3 className="mr-2 h-4 w-4" /> Site Analytics (AI)
-                  </Link>
-                </Button>
-                 <Button variant="ghost" className="w-full justify-start pl-2 pr-3 py-2" asChild>
-                  <Link href="/admin/settings">
-                    <Settings className="mr-2 h-4 w-4" /> General Settings
                   </Link>
                 </Button>
               </nav>
@@ -185,5 +202,3 @@ export default function AdminLayout({
     </div>
   );
 }
-
-    

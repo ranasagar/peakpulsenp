@@ -13,7 +13,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Separator } from '@/components/ui/separator';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { CreditCard, Lock, ShoppingBag, Truck, Gift, Globe, Info, Loader2, Banknote, QrCode, Send, CheckCircle, Palette } from 'lucide-react';
+import { CreditCard, Lock, ShoppingBag, Truck, Gift, Globe, Info, Loader2, Banknote, QrCode, Send, CheckCircle, Palette, HelpCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -21,6 +21,7 @@ import { useCart } from '@/context/cart-context';
 import { calculateInternationalShipping } from '@/ai/flows/calculate-international-shipping-flow';
 import type { CalculateInternationalShippingOutput } from '@/ai/flows/calculate-international-shipping-flow';
 import { useRouter } from 'next/navigation';
+import type { PaymentGatewaySetting } from '@/types';
 
 function luhnCheck(val: string): boolean {
   let sum = 0;
@@ -66,7 +67,7 @@ const checkoutSchema = shippingSchema.extend({
     paymentMethod: z.string().min(1, "Please select a payment method."),
 }).merge(paymentCardSchema)
 .superRefine((data, ctx) => {
-    if (data.paymentMethod === 'card_international' && data.isInternational) {
+    if (data.paymentMethod === 'card_international' && data.isInternational) { // Only validate international card details if it's selected and shipping is international
         if (!data.cardholderName || data.cardholderName.trim().length < 2) {
             ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Cardholder name is required.", path: ["cardholderName"] });
         }
@@ -92,7 +93,7 @@ const checkoutSchema = shippingSchema.extend({
 
                 if (inputYear < currentYear || (inputYear === currentYear && inputMonth < currentMonth)) {
                     ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Card has expired.", path: ["expiryDate"] });
-                } else if (inputYear > currentYear + 20) { // Arbitrary future limit
+                } else if (inputYear > currentYear + 20) { 
                     ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Expiry date seems too far in the future.", path: ["expiryDate"] });
                 }
             }
@@ -113,10 +114,13 @@ const checkoutSchema = shippingSchema.extend({
     }
 });
 
-
 type CheckoutFormValues = z.infer<typeof checkoutSchema>;
 
 const DOMESTIC_SHIPPING_COST_NPR = 500;
+
+const iconMap: { [key: string]: React.ElementType } = {
+  CreditCard, Banknote, Send, Globe, QrCode, HelpCircle
+};
 
 export default function CheckoutPage() {
   const { toast } = useToast();
@@ -128,13 +132,50 @@ export default function CheckoutPage() {
   const [isInternationalShipping, setIsInternationalShipping] = useState(false);
   const [internationalShippingInfo, setInternationalShippingInfo] = useState<CalculateInternationalShippingOutput | null>(null);
   const [isCalculatingShipping, setIsCalculatingShipping] = useState(false);
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('card_nepal'); 
+  
+  const [availablePaymentMethods, setAvailablePaymentMethods] = useState<PaymentGatewaySetting[]>([]);
+  const [isLoadingGateways, setIsLoadingGateways] = useState(true);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState(''); 
+
+
+  useEffect(() => {
+    const fetchGateways = async () => {
+        setIsLoadingGateways(true);
+        try {
+            const response = await fetch('/api/payment-gateways');
+            if (!response.ok) throw new Error("Failed to fetch payment gateways.");
+            const data: PaymentGatewaySetting[] = await response.json();
+            setAvailablePaymentMethods(data);
+            // Set default payment method if available
+            const defaultDomestic = data.find(pm => pm.is_domestic_only && !isInternationalShipping);
+            const defaultInternational = data.find(pm => pm.is_international_only && isInternationalShipping);
+            if (isInternationalShipping && defaultInternational) {
+                setSelectedPaymentMethod(defaultInternational.gateway_key);
+                form.setValue('paymentMethod', defaultInternational.gateway_key);
+            } else if (!isInternationalShipping && defaultDomestic) {
+                setSelectedPaymentMethod(defaultDomestic.gateway_key);
+                form.setValue('paymentMethod', defaultDomestic.gateway_key);
+            } else if (data.length > 0) {
+                setSelectedPaymentMethod(data[0].gateway_key);
+                form.setValue('paymentMethod', data[0].gateway_key);
+            }
+
+        } catch (error) {
+            toast({title: "Error", description: (error as Error).message, variant: "destructive"});
+            setAvailablePaymentMethods([]);
+        } finally {
+            setIsLoadingGateways(false);
+        }
+    };
+    fetchGateways();
+  }, [isInternationalShipping]); // Refetch when international status changes
+
 
   const form = useForm<CheckoutFormValues>({
     resolver: zodResolver(checkoutSchema),
     defaultValues: {
         saveInfo: true,
-        paymentMethod: 'card_nepal',
+        paymentMethod: '', // Will be set by useEffect above
         country: 'Nepal', 
         isInternational: false,
         internationalDestinationCountry: '',
@@ -151,7 +192,7 @@ export default function CheckoutPage() {
         cvc: '',
     },
   });
-
+  
   useEffect(() => {
     if (!isCartLoading && cartItems.length === 0) {
         toast({ title: "Cart Empty", description: "Your cart is empty. Redirecting to shop...", variant: "default" });
@@ -171,18 +212,12 @@ export default function CheckoutPage() {
       form.setValue('internationalDestinationCountry', countryValue);
       setCurrentShippingCost(0); 
       setInternationalShippingInfo(null);
-      if (selectedPaymentMethod !== 'card_international') {
-        setSelectedPaymentMethod('card_international'); 
-        form.setValue('paymentMethod', 'card_international');
-      }
+      // Logic to auto-select an international payment method will be handled by the useEffect that fetches gateways
     } else {
       form.setValue('internationalDestinationCountry', '');
       setCurrentShippingCost(DOMESTIC_SHIPPING_COST_NPR);
       setInternationalShippingInfo(null);
-       if (selectedPaymentMethod === 'card_international') {
-        setSelectedPaymentMethod('card_nepal'); 
-        form.setValue('paymentMethod', 'card_nepal');
-      }
+      // Logic to auto-select a domestic payment method
     }
   };
 
@@ -230,6 +265,7 @@ export default function CheckoutPage() {
     }
     
     const orderPayload = {
+      userId: "mock-user-id", // Replace with actual user ID from auth context
       cartItems: cartItems, 
       shippingDetails: data,
       orderSubtotal: subtotal, 
@@ -276,25 +312,19 @@ export default function CheckoutPage() {
     }
   };
 
-  const paymentMethods = [
-    { value: 'card_nepal', label: 'Credit/Debit Card (Nepal Gateways)', icon: CreditCard, domesticOnly: true, internationalOnly: false },
-    { value: 'cod', label: 'Cash on Delivery (Nepal Only)', icon: Banknote, domesticOnly: true, internationalOnly: false },
-    { value: 'esewa', label: 'eSewa Mobile Wallet', icon: Send, domesticOnly: true, internationalOnly: false }, 
-    { value: 'khalti', label: 'Khalti Digital Wallet', icon: Send, domesticOnly: true, internationalOnly: false },
-    { value: 'imepay', label: 'IME Pay Wallet', icon: Send, domesticOnly: true, internationalOnly: false },
-    { value: 'connectips', label: 'ConnectIPS (Bank Account)', icon: Globe, domesticOnly: true, internationalOnly: false },
-    { value: 'qr', label: 'Scan QR (Fonepay, NepalPay, etc.)', icon: QrCode, domesticOnly: true, internationalOnly: false },
-    { value: 'banktransfer', label: 'Direct Bank Transfer (Mobile Banking)', icon: Banknote, domesticOnly: true, internationalOnly: false },
-    { value: 'card_international', label: 'Credit/Debit Card (International)', icon: CreditCard, domesticOnly: false, internationalOnly: true },
-  ];
 
-  if (isCartLoading) {
+  if (isCartLoading || isLoadingGateways) {
     return (
       <div className="container-slim py-12 md:py-20 flex justify-center items-center min-h-[70vh]">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
       </div>
     );
   }
+  
+  const filteredPaymentMethods = availablePaymentMethods.filter(pm => 
+    isInternationalShipping ? pm.is_international_only : pm.is_domestic_only
+  );
+
 
   return (
     <div className="container-slim py-12 md:py-20">
@@ -397,37 +427,44 @@ export default function CheckoutPage() {
                 <CardTitle className="text-xl flex items-center"><CreditCard className="mr-3 h-6 w-6 text-primary"/>Payment Method</CardTitle>
               </CardHeader>
               <CardContent>
-                <FormField
-                  control={form.control}
-                  name="paymentMethod"
-                  render={({ field }) => (
-                    <FormItem className="space-y-3">
-                      <FormControl>
-                        <RadioGroup
-                          onValueChange={(value) => {
-                            field.onChange(value);
-                            setSelectedPaymentMethod(value);
-                          }}
-                          value={field.value}
-                          className="flex flex-col space-y-1"
-                        >
-                          {paymentMethods
-                            .filter(pm => isInternationalShipping ? pm.internationalOnly : pm.domesticOnly)
-                            .map(pm => (
-                            <FormItem key={pm.value} className="flex items-center space-x-3 space-y-0 p-3 border rounded-md hover:bg-muted/50 has-[input:checked]:bg-primary/10 has-[input:checked]:border-primary">
-                                <FormControl>
-                                <RadioGroupItem value={pm.value} />
-                                </FormControl>
-                                <pm.icon className="h-5 w-5 text-muted-foreground" />
-                                <FormLabel className="font-normal cursor-pointer flex-grow">{pm.label}</FormLabel>
-                            </FormItem>
-                          ))}
-                        </RadioGroup>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                 {isLoadingGateways ? (
+                    <div className="flex justify-center items-center p-6"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
+                 ) : filteredPaymentMethods.length > 0 ? (
+                    <FormField
+                    control={form.control}
+                    name="paymentMethod"
+                    render={({ field }) => (
+                        <FormItem className="space-y-3">
+                        <FormControl>
+                            <RadioGroup
+                            onValueChange={(value) => {
+                                field.onChange(value);
+                                setSelectedPaymentMethod(value);
+                            }}
+                            value={field.value}
+                            className="flex flex-col space-y-1"
+                            >
+                            {filteredPaymentMethods.map(pm => {
+                                const IconComponent = iconMap[pm.icon_name || 'HelpCircle'] || HelpCircle;
+                                return (
+                                    <FormItem key={pm.gateway_key} className="flex items-center space-x-3 space-y-0 p-3 border rounded-md hover:bg-muted/50 has-[input:checked]:bg-primary/10 has-[input:checked]:border-primary">
+                                        <FormControl>
+                                        <RadioGroupItem value={pm.gateway_key} />
+                                        </FormControl>
+                                        <IconComponent className="h-5 w-5 text-muted-foreground" />
+                                        <FormLabel className="font-normal cursor-pointer flex-grow">{pm.display_name}</FormLabel>
+                                    </FormItem>
+                                );
+                            })}
+                            </RadioGroup>
+                        </FormControl>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                    />
+                 ) : (
+                    <p className="text-muted-foreground text-center">No payment methods available for your selected shipping destination.</p>
+                 )}
                 
                 {(selectedPaymentMethod === 'card_nepal') && !isInternationalShipping && (
                   <div className="mt-6 pt-6 border-t space-y-4">
@@ -456,7 +493,7 @@ export default function CheckoutPage() {
                     </div>
                 )}
 
-                 {selectedPaymentMethod === 'cod' && (
+                 {selectedPaymentMethod === 'cod_nepal' && (
                     <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-md text-amber-700 text-sm">
                         <Info className="inline h-4 w-4 mr-1.5"/> For Cash on Delivery orders, a 10% advance payment might be required for confirmation, especially for high-value items. Our team will contact you.
                     </div>
@@ -548,8 +585,8 @@ export default function CheckoutPage() {
                 </div>
               </CardContent>
               <CardFooter>
-                <Button type="submit" size="lg" className="w-full text-base" disabled={form.formState.isSubmitting || isCalculatingShipping || cartItems.length === 0}>
-                  {form.formState.isSubmitting ? <Loader2 className="h-5 w-5 mr-2 animate-spin"/> : <Lock className="mr-2 h-5 w-5" />} Place Order
+                <Button type="submit" size="lg" className="w-full text-base" disabled={form.formState.isSubmitting || isCalculatingShipping || cartItems.length === 0 || isLoadingGateways}>
+                  {form.formState.isSubmitting || isLoadingGateways ? <Loader2 className="h-5 w-5 mr-2 animate-spin"/> : <Lock className="mr-2 h-5 w-5" />} Place Order
                 </Button>
               </CardFooter>
             </Card>
@@ -560,6 +597,3 @@ export default function CheckoutPage() {
     </div>
   );
 }
-
-
-    
