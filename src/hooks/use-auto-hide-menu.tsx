@@ -3,13 +3,14 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode, useRef } from 'react';
 
-const AUTO_HIDE_TIMEOUT_MS = 3000; // Hide after 3 seconds of inactivity
+const AUTO_HIDE_TIMEOUT_MS = 3000; // Hide menus after 3 seconds of inactivity
+const AUTO_SCROLL_TO_TOP_DELAY_MS = 10000; // Scroll to top 10 seconds AFTER menus have hidden
 const LOCAL_STORAGE_KEY = 'peakPulseAutoHideMenuEnabled';
 
 interface AutoHideMenuContextType {
   isAutoHideEnabled: boolean;
   toggleAutoHideEnabled: () => void;
-  areMenusHiddenActually: boolean; // Renamed to avoid conflict if consumer also uses areMenusHidden
+  areMenusHiddenActually: boolean;
 }
 
 const AutoHideMenuContext = createContext<AutoHideMenuContextType | undefined>(undefined);
@@ -25,6 +26,7 @@ export const AutoHideMenuProvider = ({ children }: { children: ReactNode }) => {
 
   const [areMenusHiddenActually, setAreMenusHiddenActually] = useState<boolean>(false);
   const activityTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const scrollToTopTimerRef = useRef<NodeJS.Timeout | null>(null); // New timer for scrolling
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -32,22 +34,43 @@ export const AutoHideMenuProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [isAutoHideEnabled]);
 
-  const resetActivityTimer = useCallback(() => {
+  const clearAllTimers = useCallback(() => {
     if (activityTimerRef.current) {
       clearTimeout(activityTimerRef.current);
+      activityTimerRef.current = null;
     }
-    
+    if (scrollToTopTimerRef.current) {
+      clearTimeout(scrollToTopTimerRef.current);
+      scrollToTopTimerRef.current = null;
+    }
+  }, []);
+
+  const resetActivityTimer = useCallback(() => {
+    clearAllTimers(); // Clear both menu hide and scroll-to-top timers
+
     setAreMenusHiddenActually(false); // Always show on activity
 
     if (isAutoHideEnabled) {
       activityTimerRef.current = setTimeout(() => {
-        // Check again if still enabled before hiding
-        if (isAutoHideEnabled) {
+        if (isAutoHideEnabled) { // Double check, in case it was disabled during timeout
             setAreMenusHiddenActually(true);
+            // When menus hide, start the timer for scrolling to top
+            scrollToTopTimerRef.current = setTimeout(() => {
+                if (isAutoHideEnabled && areMenusHiddenActuallyRef.current) { // Check if menus are still hidden and feature enabled
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                }
+            }, AUTO_SCROLL_TO_TOP_DELAY_MS);
         }
       }, AUTO_HIDE_TIMEOUT_MS);
     }
-  }, [isAutoHideEnabled]);
+  }, [isAutoHideEnabled, clearAllTimers]);
+
+  // Ref to keep track of the latest value of areMenusHiddenActually for the timer callback
+  const areMenusHiddenActuallyRef = useRef(areMenusHiddenActually);
+  useEffect(() => {
+    areMenusHiddenActuallyRef.current = areMenusHiddenActually;
+  }, [areMenusHiddenActually]);
+
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -60,33 +83,26 @@ export const AutoHideMenuProvider = ({ children }: { children: ReactNode }) => {
 
     if (isAutoHideEnabled) {
       events.forEach(event => window.addEventListener(event, handleActivity, { passive: true }));
-      resetActivityTimer(); // Initial call to set visibility correctly
+      resetActivityTimer(); 
     } else {
-      // If auto-hide is disabled, ensure menus are always visible and clear any timer
-      if (activityTimerRef.current) {
-        clearTimeout(activityTimerRef.current);
-      }
-      setAreMenusHiddenActually(false);
+      clearAllTimers();
+      setAreMenusHiddenActually(false); // Ensure menus are visible if auto-hide is off
     }
 
     return () => {
       events.forEach(event => window.removeEventListener(event, handleActivity));
-      if (activityTimerRef.current) {
-        clearTimeout(activityTimerRef.current);
-      }
+      clearAllTimers();
     };
-  }, [isAutoHideEnabled, resetActivityTimer]);
+  }, [isAutoHideEnabled, resetActivityTimer, clearAllTimers]);
 
   const toggleAutoHideEnabled = () => {
     setIsAutoHideEnabled(prev => {
       const newState = !prev;
-      if (!newState) { // If disabling auto-hide
-        setAreMenusHiddenActually(false); // Ensure menus are visible
-        if (activityTimerRef.current) {
-          clearTimeout(activityTimerRef.current);
-        }
-      } else { // If enabling auto-hide
-        resetActivityTimer(); // Start the timer logic
+      if (!newState) { 
+        clearAllTimers();
+        setAreMenusHiddenActually(false); 
+      } else { 
+        resetActivityTimer(); 
       }
       return newState;
     });
