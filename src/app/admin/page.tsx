@@ -208,7 +208,7 @@ export default async function AdminDashboardPage() {
             <DashboardStatCard title="Products" count={productCount} link="/admin/products" icon={Package} />
             <DashboardStatCard title="Categories" count={categoryCount} link="/admin/categories" icon={Tags} />
             <DashboardStatCard title="Orders" count={orderCount} link="/admin/orders" icon={ListOrdered} />
-            <DashboardStatCard title="Users" count={userCount} link="#" icon={Users} note="User management UI pending" />
+            <DashboardStatCard title="Users" count={userCount} link="/admin/users" icon={Users} />
             <DashboardStatCard title="Reviews" count={reviewCount} link="/admin/reviews" icon={MessageSquare} />
             <DashboardStatCard title="Collab Categories" count={collabCategoryCount} link="/admin/design-hub/collaboration-categories" icon={Tags} />
             <DashboardStatCard title="Collab Galleries" count={galleryCount} link="/admin/design-hub/galleries" icon={ImageIconLucide} />
@@ -364,5 +364,6 @@ const AccountingStatCard: React.FC<AccountingStatCardProps> = ({ title, value, d
     );
 };
 
+    
 
     
