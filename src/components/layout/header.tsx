@@ -23,7 +23,8 @@ import { ShoppingCart, Search, LogOut, UserCircle, LayoutDashboard, Settings, St
 import { ModeToggle } from './mode-toggle';
 import { FullscreenToggleButton } from '@/components/ui/fullscreen-toggle-button';
 import { useCart } from '@/context/cart-context';
-import Image from 'next/image'; // Import next/image
+import Image from 'next/image';
+import { ScrollArea } from '@/components/ui/scroll-area'; // Added ScrollArea import
 
 // These are used for the mobile Sheet menu and User Dropdown
 const mainNavItems: NavItem[] = [
@@ -141,8 +142,8 @@ export function Header() { // Still named Header, but acts as TopBar
                 <span className="sr-only">Toggle Menu</span>
               </Button>
             </SheetTrigger>
-            <SheetContent side="left" className="w-full max-w-xs sm:max-w-sm bg-background p-0">
-              <SheetHeader className="p-6 pb-2 border-b mb-2">
+            <SheetContent side="left" className="w-full max-w-xs sm:max-w-sm bg-background p-0 flex flex-col">
+              <SheetHeader className="p-6 pb-2 border-b mb-2 flex-shrink-0">
                   <SheetTitle className="sr-only">Main Navigation Menu</SheetTitle>
                   <Link href="/" className="mb-4 flex items-center gap-2 self-start" onClick={() => setIsMobileMenuOpen(false)}>
                     {isLoadingSettings ? <Loader2 className="h-7 w-7 animate-spin text-primary"/> : headerLogoUrl ? (
@@ -158,55 +159,57 @@ export function Header() { // Still named Header, but acts as TopBar
                     )}
                   </Link>
               </SheetHeader>
-              <div className="p-6">
-                <nav className="flex flex-col space-y-4">
-                  {mobileNavLinks}
-                  {isAuthenticated && (
-                    <div className="pt-4 border-t border-border/60">
-                      <p className="text-sm font-medium text-muted-foreground mb-2">My Account</p>
-                      {userNavItems.map(item => (
-                        <Link
-                          key={item.href}
-                          href={item.href}
-                          className="flex items-center py-2 text-base font-medium text-foreground/80 hover:text-primary header-link-pulse"
-                          onClick={() => setIsMobileMenuOpen(false)}
-                        >
-                          {item.icon && <item.icon className="mr-3 h-5 w-5" />}
-                          {item.title}
-                        </Link>
-                      ))}
-                      {user?.roles?.includes('affiliate') && (
-                        <Link
-                          href="/affiliate-portal"
-                          className="flex items-center py-2 text-base font-medium text-foreground/80 hover:text-primary header-link-pulse"
-                          onClick={() => setIsMobileMenuOpen(false)}
-                        >
-                           <Briefcase className="mr-3 h-5 w-5" />
-                           Affiliate Portal
-                        </Link>
-                      )}
-                       {user?.roles?.includes('admin') && (
-                        <Link
-                          href="/admin"
-                          className="flex items-center py-2 text-base font-medium text-primary hover:text-primary/80 header-link-pulse font-semibold"
-                          onClick={() => setIsMobileMenuOpen(false)}
-                        >
-                          <LayoutDashboard className="mr-3 h-5 w-5" />
-                          Admin Panel
-                        </Link>
-                      )}
-                      <Button variant="ghost" onClick={() => { logout(); setIsMobileMenuOpen(false); }} className="w-full justify-start mt-3 px-0 text-base text-foreground/80 hover:text-primary">
-                        <LogOut className="mr-3 h-5 w-5" /> Log out
+              <ScrollArea className="flex-grow overflow-y-auto">
+                <div className="p-6">
+                  <nav className="flex flex-col space-y-4">
+                    {mobileNavLinks}
+                    {isAuthenticated && (
+                      <div className="pt-4 border-t border-border/60">
+                        <p className="text-sm font-medium text-muted-foreground mb-2">My Account</p>
+                        {userNavItems.map(item => (
+                          <Link
+                            key={item.href}
+                            href={item.href}
+                            className="flex items-center py-2 text-base font-medium text-foreground/80 hover:text-primary header-link-pulse"
+                            onClick={() => setIsMobileMenuOpen(false)}
+                          >
+                            {item.icon && <item.icon className="mr-3 h-5 w-5" />}
+                            {item.title}
+                          </Link>
+                        ))}
+                        {user?.roles?.includes('affiliate') && (
+                          <Link
+                            href="/affiliate-portal"
+                            className="flex items-center py-2 text-base font-medium text-foreground/80 hover:text-primary header-link-pulse"
+                            onClick={() => setIsMobileMenuOpen(false)}
+                          >
+                            <Briefcase className="mr-3 h-5 w-5" />
+                            Affiliate Portal
+                          </Link>
+                        )}
+                        {user?.roles?.includes('admin') && (
+                          <Link
+                            href="/admin"
+                            className="flex items-center py-2 text-base font-medium text-primary hover:text-primary/80 header-link-pulse font-semibold"
+                            onClick={() => setIsMobileMenuOpen(false)}
+                          >
+                            <LayoutDashboard className="mr-3 h-5 w-5" />
+                            Admin Panel
+                          </Link>
+                        )}
+                        <Button variant="ghost" onClick={() => { logout(); setIsMobileMenuOpen(false); }} className="w-full justify-start mt-3 px-0 text-base text-foreground/80 hover:text-primary">
+                          <LogOut className="mr-3 h-5 w-5" /> Log out
+                        </Button>
+                      </div>
+                    )}
+                    {!isAuthenticated && (
+                      <Button asChild className="mt-6 w-full" onClick={() => setIsMobileMenuOpen(false)}>
+                        <Link href="/login">Sign In</Link>
                       </Button>
-                    </div>
-                  )}
-                  {!isAuthenticated && (
-                    <Button asChild className="mt-6 w-full" onClick={() => setIsMobileMenuOpen(false)}>
-                      <Link href="/login">Sign In</Link>
-                    </Button>
-                  )}
-                </nav>
-              </div>
+                    )}
+                  </nav>
+                </div>
+              </ScrollArea>
             </SheetContent>
           </Sheet>
 
